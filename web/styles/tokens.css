@@ -1,38 +1,76 @@
-/* デザイン基盤: 色・余白・文字・角丸などの CSS 変数。ダーク/ライト両方で本文 4.5:1 以上（WCAG 2.2 AA）。
-   値は変数にだけ書き、各コンポーネントはここの変数を参照する。 */
+/* デザイン基盤（NFR-UX-001）: Microsoft Fluent 2 のデザイントークンに沿った CSS 変数。画面の見た目の定義はここ 1 か所。
+   各コンポーネントは変数だけを参照し、値を直書きしない。外部の CDN・外部フォントは使わない（Segoe UI などのシステムフォント）。
+   本文・操作部品の文字は背景に対し 4.5:1 以上、枠線・フォーカス輪郭は 3:1 以上（WCAG 2.2 AA、PARAM-007）。 */
 :root, :root[data-theme="light"] {
   color-scheme: light;
-  --color-bg: #f4f6fa;
-  --color-surface: #ffffff;
-  --color-surface-2: #e9edf5;
-  --color-text: #15191f;          /* surface 上で 16:1 */
-  --color-text-muted: #444c5a;    /* surface 上で 8.8:1 */
-  --color-border: #5b6577;
-  --color-primary: #1346a8;       /* 白文字との比 8.6:1 */
+  /* ニュートラル（Fluent: colorNeutral*） */
+  --color-bg: #f5f5f5;              /* colorNeutralBackground2 */
+  --color-surface: #ffffff;         /* colorNeutralBackground1。文字 #242424 との比 16:1 */
+  --color-surface-2: #ebebeb;       /* colorNeutralBackground3 */
+  --color-text: #242424;            /* colorNeutralForeground1 */
+  --color-text-muted: #424242;      /* colorNeutralForeground2。surface-2 上でも 9:1 */
+  --color-border: #707070;          /* 操作部品の枠: colorNeutralStrokeAccessible。白との比 4.9:1 */
+  --color-border-subtle: #d1d1d1;   /* カード・区切り線: colorNeutralStroke2（装飾） */
+  /* ブランド（Fluent: colorBrand*） */
+  --color-primary: #0f6cbd;         /* colorBrandBackground。白文字との比 5.4:1 */
+  --color-primary-hover: #115ea3;   /* colorBrandBackgroundHover */
+  --color-primary-pressed: #0f548c; /* colorBrandBackgroundPressed */
   --color-on-primary: #ffffff;
-  --color-focus: #8a3c00;
-  --color-ok: #0b5d2a;
+  --color-brand-fg: #0f548c;        /* colorBrandForeground1。surface 上で 7.6:1 */
+  --color-focus: #0f548c;           /* フォーカス輪郭。bg・surface の両方に対し 3:1 以上 */
+  --color-ok: #0e700e;
   --color-warn: #7a4a00;
-  --color-danger: #9b1c1c;
-  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px;
-  --radius: 8px;
-  --font-sans: system-ui, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
-  --font-size: 16px;
-  --shadow: 0 2px 8px rgb(0 0 0 / 0.18);
+  --color-danger: #b10e1c;
+  /* 余白（4px 基準） */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px;
+  /* 角丸（Fluent: borderRadiusMedium 4 / borderRadiusLarge 8） */
+  --radius-control: 4px; --radius: 8px; --radius-round: 999px;
+  --stroke: 1px; --stroke-thick: 2px;
+  /* 書体と Type ramp（システムフォント。外部フォントなし） */
+  --font-sans: "Segoe UI", "Segoe UI Variable", system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+  --font-size: 14px;
+  --font-size-caption: 12px; --font-size-body: 14px; --font-size-subtitle: 16px; --font-size-title: 20px;
+  --font-weight-regular: 400; --font-weight-semibold: 600;
+  --line-height: 1.5;
+  /* 影（elevation: shadow4 / shadow8） */
+  --shadow: 0 0 2px rgb(0 0 0 / 0.12), 0 2px 4px rgb(0 0 0 / 0.14);
+  --shadow-8: 0 0 2px rgb(0 0 0 / 0.12), 0 4px 8px rgb(0 0 0 / 0.14);
+  /* モーション（Fluent: durationFast / durationNormal、curveEasyEase / curveDecelerateMid） */
+  --duration-fast: 100ms; --duration-normal: 200ms;
+  --easing-standard: cubic-bezier(0.33, 0, 0.67, 1);
+  --easing-decelerate: cubic-bezier(0.1, 0.9, 0.2, 1);
+  --target-size: 32px;              /* 操作部品の最小の大きさ（WCAG 2.2 の 2.5.8 は 24px 以上） */
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --color-bg: #0f1218;
-  --color-surface: #1a1f29;
-  --color-surface-2: #262d3a;
-  --color-text: #eef1f6;          /* surface 上で 14:1 */
-  --color-text-muted: #b9c1d0;    /* surface 上で 8.5:1 */
-  --color-border: #8b95a8;
-  --color-primary: #8db4ff;       /* 黒文字との比 9.5:1 */
-  --color-on-primary: #0b1020;
-  --color-focus: #ffd166;
-  --color-ok: #7fdc9b;
+  --color-bg: #141414;
+  --color-surface: #1f1f1f;
+  --color-surface-2: #292929;
+  --color-text: #ffffff;
+  --color-text-muted: #d6d6d6;
+  --color-border: #ababab;
+  --color-border-subtle: #424242;
+  --color-primary: #479ef5;         /* 黒文字との比 7.6:1 */
+  --color-primary-hover: #62abf5;
+  --color-primary-pressed: #2886de;
+  --color-on-primary: #000000;
+  --color-brand-fg: #77b7f7;
+  --color-focus: #ffffff;
+  --color-ok: #6ccb5f;
   --color-warn: #ffc873;
-  --color-danger: #ff9a9a;
-  --shadow: 0 2px 8px rgb(0 0 0 / 0.6);
+  --color-danger: #f1707b;
+  --shadow: 0 0 2px rgb(0 0 0 / 0.24), 0 2px 4px rgb(0 0 0 / 0.28);
+  --shadow-8: 0 0 2px rgb(0 0 0 / 0.24), 0 4px 8px rgb(0 0 0 / 0.28);
+}
+/* ハイコントラスト（forced-colors）: OS のシステム色を使う */
+@media (forced-colors: active) {
+  :root, :root[data-theme="light"], :root[data-theme="dark"] {
+    --color-bg: Canvas; --color-surface: Canvas; --color-surface-2: Canvas;
+    --color-text: CanvasText; --color-text-muted: CanvasText;
+    --color-border: CanvasText; --color-border-subtle: CanvasText;
+    --color-primary: ButtonText; --color-primary-hover: Highlight; --color-primary-pressed: Highlight;
+    --color-on-primary: ButtonFace; --color-brand-fg: LinkText; --color-focus: Highlight;
+    --color-ok: CanvasText; --color-warn: CanvasText; --color-danger: CanvasText;
+    --shadow: none; --shadow-8: none;
+  }
 }

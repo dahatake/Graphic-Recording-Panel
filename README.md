@@ -3,6 +3,17 @@
 会話をその場でシーン（見出しと要点）に整理し、グラフィックレコーディング風の図として表示するブラウザアプリです。
 ビルド不要の静的ファイルだけで動き、外部のサーバー・CDN・外部オリジンへの通信は一切ありません（ネットワークを切断しても動作します）。
 
+## 使い方ガイド
+
+詳しい手順は [使い方ガイド](users-guide/README.md) にあります。
+
+- [01 導入と起動](users-guide/01-getting-started.md)
+- [02 音声入力とファイル取込](users-guide/02-voice-and-import.md)
+- [03 図の見方](users-guide/03-diagram.md)
+- [04 保存](users-guide/04-export.md)
+- [05 言語切替・2D/3D・プレゼンテーション](users-guide/05-language-and-views.md)
+- [06 トラブルシュート](users-guide/06-troubleshooting.md)
+
 ## 起動手順
 
 1. Python 3 が使えるマシンで、リポジトリのルートから静的サーバーを起動します。

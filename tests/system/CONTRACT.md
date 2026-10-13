@@ -71,3 +71,19 @@ export async function createApp(options) -> app   // await 可能（同期で返
 
 ## 実ブラウザでしか確認できないこと
 `tests/system/MANUAL-SUPPLEMENT.md`。
+
+## 右パネル・暫定結果・リアルタイム反映（FR-013 / FR-014、追記。既存の契約は変えない）
+- 右パネル（認識文字列パネル）は既存のパネル `input`。既定レイアウトで `getLayout().panels.input.x > panels.diagram.x`、`visible:true`。パネル ID は増やさない。見出しは `app.t('panel.input')`。
+- `app.getTranscript()` → `{ heading:string, interim:string|null, finals:[{id,text}] }`。`finals` は音声の確定結果とファイル取込の各行（受付順）。`interim` は直近の暫定結果で、確定結果が届く・記録中でなくなると `null`。
+- 暫定結果（`isFinal:false`）は記録中のときだけ `interim` に入り、発話・シーン・図には影響しない。記録中でないときは無視する。確定結果は `interim` を `null` にし `finals` に加える。
+- `app.renderTranscript()` → HTML 文字列。見出しを含み、暫定は `data-kind="interim"` の要素（クラス名に `interim` を含み、`app.t('transcript.interim')`（ja は「暫定」）の語を含む）、確定は `data-kind="final"` の要素（暫定とクラスが異なり、暫定の語を含まない）。
+- 図への反映: 確定結果（音声・手入力・ファイル取込）は、受付（取込は完了）から 3 秒（PARAM-001）以内に `renderSvg()`・`renderOutline()` に現れる。テストは `scheduler.advance(3000)` の後に確認する（同期反映でもよい）。受け付けられなかった入力は何も変えない。
+- ファイル取込の反映のテストは 100 行（各 40 文字以下）。上限サイズ全行の負荷は AC から決まらないため範囲外。
+
+## コマンドバーとステータス（NFR-UX-001 AC-057 / AC-060）
+- `app.getCommandBar()` → `{ position:'top', items:[{command,label,tabbable:boolean}], status:{ role:'status', live:'polite'|'assertive', session:'preparing'|'recording'|'paused'|'stopped', speech:'available'|'unavailable', text:string } }`。`items` は必須コマンドのうち `session.*`・`save.*`・`lang.*`・`view.*`・`presentation.*` を含む。`speech` は `speechSource.processLocally` が真のとき `available`。`status.text` は状態が変わると変わる。
+- `web/index.html` は、コマンドバー（`id="toolbar"` か `role="toolbar"`）と `role="status"` かつ `aria-live` のステータス要素を `<main>` より前に置く。正の `tabindex` を使わない。
+
+## 見た目の資産（NFR-UX-001 AC-057 / AC-061）
+- `web/styles/tokens.css` に `:root`（ライト）と `:root[data-theme="dark"]` で `--color-bg` `--color-surface` `--color-focus` `--font-sans` を定義する。`:focus-visible` の規則は `outline: <2px 以上> solid var(--color-focus)` で、`--color-focus` は両テーマで `--color-bg`・`--color-surface` に対し 3:1 以上。
+- `--font-sans` は先頭が `Segoe UI`・`system-ui`・`-apple-system`・`BlinkMacSystemFont` のいずれかで、`Segoe UI` を含む。`@font-face` の url・`@import` の外部・外部 URL の `href/src` を `web/` に置かない。

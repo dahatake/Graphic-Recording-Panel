@@ -1,15 +1,13 @@
 // DOM との結び付け（ブラウザ専用。app.js は DOM を知らない）。app の状態を描くだけで、状態は持たない。
 import { PANEL_IDS, PANEL_COMMANDS } from './layout.js';
 
-const GROUPS = [
-  ['toolbar.session', ['session.start', 'session.pause', 'session.resume', 'session.stop', 'session.nextScene', 'input.focus']],
-  ['toolbar.speech', ['speech.start', 'speech.stop']],
-  ['toolbar.save', ['save.png', 'save.svg', 'save.pdf']],
-  ['toolbar.language', ['lang.ja', 'lang.en']],
-  ['toolbar.view', ['view.2d', 'view.3d', 'theme.toggle']],
-  ['toolbar.presentation', ['presentation.start', 'presentation.pause', 'presentation.resume', 'presentation.stop', 'presentation.prev', 'presentation.next']],
-  ['toolbar.layout', ['layout.reset']],
-];
+import { GROUPS, ICONS, PRIMARY } from './commandbar.js';
+
+function icon(doc, command) {
+  const t = doc.createElement('template');
+  t.innerHTML = `<svg viewBox="0 0 20 20" class="icon" aria-hidden="true" focusable="false"><path d="${ICONS[command] ?? ICONS['session.start']}"></path></svg>`;
+  return t.content.firstChild;
+}
 const PRESSED = { 'lang.ja': (s) => s.lang === 'ja', 'lang.en': (s) => s.lang === 'en', 'view.2d': (s) => s.viewMode === '2d', 'view.3d': (s) => s.viewMode === '3d' };
 
 export function mountUI(app, doc = document) {
@@ -34,10 +32,13 @@ export function mountUI(app, doc = document) {
       fs.append(lg);
       for (const name of names) {
         const b = doc.createElement('button');
-        b.type = 'button'; b.className = 'btn'; b.dataset.command = name;
-        b.textContent = app.t(`cmd.${name}`);
+        b.type = 'button'; b.className = PRIMARY.has(name) ? 'btn btn-primary' : 'btn btn-subtle'; b.dataset.command = name;
+        const lab = doc.createElement('span'); lab.className = 'btn-label'; lab.textContent = app.t(`cmd.${name}`);
+        b.append(icon(doc, name), lab);
         const kl = keyLabel(name);
-        if (kl) { b.title = kl; b.setAttribute('aria-keyshortcuts', kl); }
+        const lbl = app.t(`cmd.${name}`);
+        b.title = kl ? `${lbl} (${kl})` : lbl;
+        if (kl) b.setAttribute('aria-keyshortcuts', kl);
         b.addEventListener('click', () => { void app.commands[name]?.(); });
         fs.append(b);
       }
@@ -86,7 +87,9 @@ export function mountUI(app, doc = document) {
     const st = app.getState();
     if (builtLang !== st.lang) { builtLang = st.lang; applyStatic(); buildToolbar(); buildPanelMenus(); }
     doc.documentElement.dataset.theme = app.getTheme();
-    $('#session-status').textContent = `${app.t('session.statusLabel')}: ${app.t(`session.state.${st.session}`)}`;
+    const cs = app.getCommandStatus();
+    $('#session-status').textContent = cs.text;
+    $('#session-status').dataset.session = cs.session;
     for (const b of toolbar.querySelectorAll('[data-command]')) {
       const f = PRESSED[b.dataset.command];
       if (f) b.setAttribute('aria-pressed', String(f(st)));
@@ -94,9 +97,14 @@ export function mountUI(app, doc = document) {
         || (b.dataset.command === 'speech.start' && !app.isSpeechAvailable());
     }
     const interim = $('#interim');
-    if (interim) {
-      interim.textContent = !app.isSpeechAvailable() ? app.t('msg.speechUnavailable')
-        : (st.speech?.interim ? `${app.t('speech.interim')}: ${st.speech.interim}` : '');
+    if (interim) interim.textContent = !app.isSpeechAvailable() ? app.t('msg.speechUnavailable') : '';
+    // FR-013/FR-014: 認識文字列。過去を読んでいる間はスクロール位置を奪わない（AC-051）
+    const tr = $('#transcript');
+    if (tr) {
+      const atBottom = tr.scrollHeight - tr.scrollTop - tr.clientHeight <= 8;
+      const keep = tr.scrollTop;
+      tr.innerHTML = app.renderTranscript();
+      tr.scrollTop = atBottom ? tr.scrollHeight : keep;
     }
     if (doc.activeElement !== draft && draft.value !== st.input.draft) draft.value = st.input.draft;
     $('#message').textContent = st.message ? st.message.text : '';
