@@ -30,6 +30,9 @@
 | NFR-UX-001 | Fluent 2 に沿った UI の振る舞い | 承認済み | web/styles/tokens.css, web/styles/app.css, web/styles/view3d.css, web/src/commandbar.js, web/src/ui.js, web/src/app.js, web/index.html, web/sw.js | tests/unit/ux.test.js, tests/system/ux.test.js | アプリ組立, デザイン基盤, コマンドバー |
 | NFR-DOC-001 | 日本語の使い方ドキュメント | 承認済み | README.md, users-guide/README.md, users-guide/01-getting-started.md, users-guide/02-voice-and-import.md, users-guide/03-diagram.md, users-guide/04-export.md, users-guide/05-language-and-views.md, users-guide/06-troubleshooting.md | tests/unit/docs.test.js | - |
 | NFR-UX-002 | コマンドバーのアイコンの簡易説明 | 承認済み | web/src/commandbar.js, web/src/ui.js, web/styles/app.css | tests/unit/tooltip.test.js, tests/system/tooltip.test.js | コマンドバー, i18n, デザイン基盤 |
+| FR-015 | 図の演出（アイコン・色・手描き風・吹き出し・囲み・矢印・強調表示） | 承認済み | 未実装 | 未実装 | - |
+| FR-016 | 意味のある配置による 2D 整理（軸と見出し・ラベル） | 承認済み | 未実装 | 未実装 | - |
+| FR-017 | パネルのタイル配置とフォーカス／最大化レイアウトの切替 | 承認済み | 未実装 | 未実装 | - |
 
 ## API・イベント
 
