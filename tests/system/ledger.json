@@ -6,7 +6,7 @@
     "AC-004": "sha256:9d23cebd5d6f64f1",
     "AC-005": "sha256:6c47b7ed396fbf91",
     "AC-009": "sha256:a2f80a0e59d8e08c",
-    "AC-010": "sha256:d164d013581baafd",
+    "AC-010": "sha256:1056340da8283204",
     "AC-013": "sha256:e3e6b53eed814289",
     "AC-015": "sha256:8b0e0c7d087b37c9",
     "AC-016": "sha256:1bd7bc8e31179e43",
@@ -44,7 +44,17 @@
     "AC-034": "sha256:183ff7e3663d4046",
     "AC-071": "sha256:dd809a315571b016",
     "AC-072": "sha256:3f7bd1db19b605dc",
-    "AC-073": "sha256:f4613d37cff276b7"
+    "AC-073": "sha256:f4613d37cff276b7",
+    "AC-074": "sha256:8ba50b57132b2dd7",
+    "AC-076": "sha256:a313a4a37c4f2c1d",
+    "AC-078": "sha256:d8d6ce4510272fc8",
+    "AC-079": "sha256:99cab4aae4d1c92d",
+    "AC-080": "sha256:4f35d8221b8b48a8",
+    "AC-081": "sha256:98361c593c848428",
+    "AC-083": "sha256:d2ec8f52f2f93e85",
+    "AC-084": "sha256:45867f6555c9af69",
+    "AC-085": "sha256:530594fd0a98db0e",
+    "AC-086": "sha256:079a0e09ec5b3c6a"
   },
   "cases": [
     {
@@ -1290,6 +1300,256 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-047",
+      "requirement_ids": [
+        "FR-015"
+      ],
+      "ac_ids": [
+        "AC-074"
+      ],
+      "title": "図の演出: 見出しの強調と種類ごとの色＋形（白黒でも判別・異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-074\" tests/system/decoration.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T08:34:08+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "ケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-048",
+      "requirement_ids": [
+        "FR-015"
+      ],
+      "ac_ids": [
+        "AC-076"
+      ],
+      "title": "図の演出: 要点の強調（ポインタ・キーボード・解除・異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-076\" tests/system/decoration.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T08:34:10+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "ケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-049",
+      "requirement_ids": [
+        "FR-016"
+      ],
+      "ac_ids": [
+        "AC-078"
+      ],
+      "title": "整理の表示: 軸の名前と区分の見出し・既定の組・編集（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-078\" tests/system/arrange.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T08:34:12+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "ケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-050",
+      "requirement_ids": [
+        "FR-016"
+      ],
+      "ac_ids": [
+        "AC-079"
+      ],
+      "title": "整理の表示: 割り当て位置・理由表示・未分類（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-079\" tests/system/arrange.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T08:34:14+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "ケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-051",
+      "requirement_ids": [
+        "FR-016"
+      ],
+      "ac_ids": [
+        "AC-080"
+      ],
+      "title": "整理の表示: 記録中の移動で状態が失われず戻されない（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-080\" tests/system/arrange.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T08:34:17+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "ケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-052",
+      "requirement_ids": [
+        "FR-016"
+      ],
+      "ac_ids": [
+        "AC-081"
+      ],
+      "title": "整理の表示: ドラッグなしの移動（メニュー・キーボード・異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-081\" tests/system/arrange.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T08:34:20+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "ケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-053",
+      "requirement_ids": [
+        "FR-017"
+      ],
+      "ac_ids": [
+        "AC-083"
+      ],
+      "title": "タイル配置: 隙間なく占める（非表示・再表示・異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-083\" tests/system/tile.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T08:34:23+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "ケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-054",
+      "requirement_ids": [
+        "FR-017"
+      ],
+      "ac_ids": [
+        "AC-084"
+      ],
+      "title": "タイル配置: 整列で戻り内容が失われない（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-084\" tests/system/tile.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T08:34:26+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "ケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-055",
+      "requirement_ids": [
+        "FR-017"
+      ],
+      "ac_ids": [
+        "AC-085"
+      ],
+      "title": "フォーカス: メイン 75% と残りの均等分割（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-085\" tests/system/tile.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T08:34:28+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "ケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-056",
+      "requirement_ids": [
+        "FR-017"
+      ],
+      "ac_ids": [
+        "AC-086"
+      ],
+      "title": "フォーカス・整列・最大化のキーボード／コマンド検索と種類表示（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-086\" tests/system/tile.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T08:34:30+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "ケースを作成"
         }
       ]
     }
