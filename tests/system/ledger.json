@@ -875,7 +875,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-064\" tests/system/background.test.js",
       "canary": false,
-      "status": "not_run",
+      "status": "blocked",
       "last_commit": null,
       "last_run_at": null,
       "evidence": null,
@@ -885,6 +885,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-14T06:06:30+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-064 の検証レベルは integration（System Test の対象外）。テストは background.test.js に参考として残す。実装者が統合テストで担保する"
         }
       ]
     },
