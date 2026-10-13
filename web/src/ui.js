@@ -36,7 +36,9 @@ export function mountUI(app, doc = document) {
         const lab = doc.createElement('span'); lab.className = 'btn-label'; lab.textContent = app.t(`cmd.${name}`);
         b.append(icon(doc, name), lab);
         const kl = keyLabel(name);
-        if (kl) { b.title = kl; b.setAttribute('aria-keyshortcuts', kl); }
+        const lbl = app.t(`cmd.${name}`);
+        b.title = kl ? `${lbl} (${kl})` : lbl;
+        if (kl) b.setAttribute('aria-keyshortcuts', kl);
         b.addEventListener('click', () => { void app.commands[name]?.(); });
         fs.append(b);
       }
