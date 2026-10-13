@@ -102,7 +102,7 @@ export async function createApp(options) -> app   // await 可能（同期で返
   - `local` → 同意不要で `start({lang, processLocally:true})`。
   - `downloadable` → `install({lang})` を待ち、`ok` なら `start({lang, processLocally:true})`（導入が完了する前は `start` しない）。失敗は `model_missing`（`start` しない）。
   - `remote` → 同意がなければ `consent_required`（`start` しない）。同意があれば `start({lang})`（processLocally キーなし）。
-- 同意: `app.setSpeechConsent(bool)` / `app.getSpeechConsent()`（既定 false）。`setSpeechConsent(false)` は記録中の認識を `speechSource.stop()` で止める。保存するのは同意したか否かだけ（任意。保存するならキー `grp.speechConsent`、値は `true`/`false`）。音声・認識結果（`onresult` の余分な項目を含む）は保存に含めない。
+- 同意: `app.setSpeechConsent(bool)` / `app.getSpeechConsent()`（既定 false）。`setSpeechConsent(false)` は記録中の認識を `speechSource.stop()` で止める。同意はそのページ利用中（メモリ内）だけ有効で**保存しない**（再読込＝同じ storage での再生成後は未同意）。`availabilityFor` が例外を投げる・未知の値を返す（判定不能）ときは `remote` と同じ（同意なしでは `consent_required`）。音声・認識結果（`onresult` の余分な項目を含む）は保存に含めない。
 - `app.getSpeechStatus()` → `{ state:'local'|'consent'|'unavailable', reason:null|'api'|'language'|'model'|'consent'|'mic', startEnabled:boolean, alternative:boolean, text:string }`。
   - `local`（`availability` が `local`／`downloadable`）: `text` は「使えます（デバイス内）」を含む（en は ja と異なる非空）。`startEnabled:true`。
   - `consent`（`remote` で API あり）: `text` は「使えます（要同意・外部送信の可能性）」を含む。未同意は `reason:'consent'`・`startEnabled:false`、同意後は `reason:null`・`startEnabled:true`。

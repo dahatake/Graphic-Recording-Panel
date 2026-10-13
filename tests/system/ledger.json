@@ -34,14 +34,14 @@
     "AC-060": "sha256:906295de64a708e1",
     "AC-061": "sha256:92d94f14949497f9",
     "AC-063": "sha256:52e3d2400f012178",
-    "AC-064": "sha256:594ce1a24ed4b222",
+    "AC-064": "sha256:cea138c713e4e5e4",
     "AC-065": "sha256:47f67d016cc7606d",
     "AC-040": "sha256:93a7cc3cee6ffc1b",
     "AC-066": "sha256:98b5bf8c2f46f3e6",
-    "AC-067": "sha256:97e6ab565dc0650c",
+    "AC-067": "sha256:402c378c76d50f9d",
     "AC-068": "sha256:54175b5614ded6c8",
     "AC-069": "sha256:18e591971857522f",
-    "AC-034": "sha256:4664ee17740c6414"
+    "AC-034": "sha256:183ff7e3663d4046"
   },
   "cases": [
     {
@@ -1007,7 +1007,7 @@
       "ac_ids": [
         "AC-067"
       ],
-      "title": "外部送信の可能性への明示同意（既定未同意・同意後のみ開始・取り消しで停止）",
+      "title": "外部送信の可能性への明示同意（既定未同意・同意後のみ開始・取消で停止・同意は再読込で未同意に戻る）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-067\" tests/system/speech.test.js",
       "canary": false,
@@ -1027,6 +1027,18 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "検証レベルが integration（System Test の対象外）。テストは speech.test.js に参考として残し、担保は実装者の結合テストで行う。契約は CONTRACT.md「音声認識の日本語対応」"
+        },
+        {
+          "at": "2026-10-14T07:50:27+09:00",
+          "by": "test-designer",
+          "change": "title: '外部送信の可能性への明示同意（既定未同意・同意後のみ開始・取り消しで停止）' -> '外部送信の可能性への明示同意（既定未同意・同意後のみ開始・取消で停止・同意は再読込で未同意に戻る）'",
+          "reason": "AC 本文変更(c6b7b8e)に合わせケース見直し。 同意はページ利用中のみ有効・再読込後は未同意を追加"
+        },
+        {
+          "at": "2026-10-14T07:50:40+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルは integration（System Test の対象外）。テストは speech.test.js に参考として残し、可否は実装者の結合テストで行う。契約は CONTRACT.md「音声認識の日本語対応」"
         }
       ]
     },
@@ -1100,7 +1112,7 @@
       "ac_ids": [
         "AC-034"
       ],
-      "title": "外部送信の可能性は明示同意まで開始せず、同意でも音声を保存しない",
+      "title": "外部送信の可能性は明示同意まで開始されず（判定不能も使えない扱い）、同意でも音声を保存しない",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-034\" tests/system/speech.test.js",
       "canary": false,
@@ -1120,6 +1132,18 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "検証レベルが integration（System Test の対象外）。テストは speech.test.js に参考として残し、担保は実装者の結合テストで行う。契約は CONTRACT.md「音声認識の日本語対応」"
+        },
+        {
+          "at": "2026-10-14T07:50:27+09:00",
+          "by": "test-designer",
+          "change": "title: '外部送信の可能性は明示同意まで開始せず、同意でも音声を保存しない' -> '外部送信の可能性は明示同意まで開始されず（判定不能も使えない扱い）、同意でも音声を保存しない'",
+          "reason": "AC 本文変更(c6b7b8e)に合わせケース見直し。 判定不能も使えない扱いを追加"
+        },
+        {
+          "at": "2026-10-14T07:50:40+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルは integration（System Test の対象外）。テストは speech.test.js に参考として残し、可否は実装者の結合テストで行う。契約は CONTRACT.md「音声認識の日本語対応」"
         }
       ]
     },
@@ -1156,7 +1180,7 @@
       "ac_ids": [
         "AC-064"
       ],
-      "title": "同意済み外部送信可環境の自動再開と未同意・取り消し・言語未対応の非再開",
+      "title": "同意済み外部送信時の自動再開と、未同意・同意取消停止後・言語未対応の非再開",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-064\" tests/system/speech.test.js",
       "canary": false,
@@ -1176,6 +1200,18 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "検証レベルが integration（System Test の対象外）。テストは speech.test.js に参考として残し、担保は実装者の結合テストで行う。契約は CONTRACT.md「音声認識の日本語対応」"
+        },
+        {
+          "at": "2026-10-14T07:50:28+09:00",
+          "by": "test-designer",
+          "change": "title: '同意済み外部送信可環境の自動再開と未同意・取り消し・言語未対応の非再開' -> '同意済み外部送信時の自動再開と、未同意・同意取消停止後・言語未対応の非再開'",
+          "reason": "AC 本文変更(c6b7b8e)に合わせケース見直し。 同意取消で停止後は自動再開しない・再同意でも再開しないを追加"
+        },
+        {
+          "at": "2026-10-14T07:50:41+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルは integration（System Test の対象外）。テストは speech.test.js に参考として残し、可否は実装者の結合テストで行う。契約は CONTRACT.md「音声認識の日本語対応」"
         }
       ]
     }
