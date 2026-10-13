@@ -40,7 +40,39 @@ export const ICONS = {
   'presentation.stop': P.stop, 'presentation.prev': P.prev, 'presentation.next': P.next, 'layout.reset': P.reset,
 };
 
+// NFR-UX-002 AC-071〜073: 各ボタンの簡易説明（ツールチップ）。文言キーは tooltip.<command>（ja・en 同一集合）。
+const TIP = {
+  'session.start': ['記録を開始します。音声と入力から図を作り始めます', 'Start recording; build the diagram from speech and typing'],
+  'session.pause': ['記録を一時停止します', 'Pause recording'],
+  'session.resume': ['一時停止した記録を再開します', 'Resume the paused recording'],
+  'session.stop': ['記録を終了します', 'End the recording'],
+  'session.nextScene': ['次のシーンに区切って新しい場面を始めます', 'Close this scene and start the next one'],
+  'input.focus': ['テキスト入力欄に移動して文字で入力します', 'Jump to the text field to type input'],
+  'speech.start': ['マイクで音声認識を始めます', 'Start speech recognition with the microphone'],
+  'speech.stop': ['音声認識を止めます', 'Stop speech recognition'],
+  'save.png': ['図を PNG 画像として保存します', 'Save the diagram as a PNG image'],
+  'save.svg': ['図を SVG ファイルとして保存します', 'Save the diagram as an SVG file'],
+  'save.pdf': ['図を PDF として保存します', 'Save the diagram as a PDF'],
+  'lang.ja': ['表示言語を日本語に切り替えます', 'Switch the display language to Japanese'],
+  'lang.en': ['表示言語を英語に切り替えます', 'Switch the display language to English'],
+  'view.2d': ['図を平面（2D）で表示します', 'Show the diagram in flat 2D'],
+  'view.3d': ['図を立体（3D）で表示します', 'Show the diagram in 3D'],
+  'theme.toggle': ['画面の配色をダークとライトで切り替えます', 'Toggle the screen colors between dark and light'],
+  'presentation.start': ['シーンを順に見せるプレゼンテーションを始めます', 'Start a presentation that plays the scenes in order'],
+  'presentation.pause': ['プレゼンテーションを一時停止します', 'Pause the presentation'],
+  'presentation.resume': ['一時停止したプレゼンテーションを再開します', 'Resume the paused presentation'],
+  'presentation.stop': ['プレゼンテーションを終了します', 'End the presentation'],
+  'presentation.prev': ['プレゼンテーションで前のシーンに戻ります', 'Go back to the previous scene in the presentation'],
+  'presentation.next': ['プレゼンテーションで次のシーンに進みます', 'Go on to the next scene in the presentation'],
+  'layout.reset': ['パネルの配置を初期状態に戻します', 'Restore the panels to the default layout'],
+};
+export const tooltipId = (command) => `tooltip-${command.replace(/[^a-zA-Z0-9]+/g, '-')}`;
+
 export function commandBarModule(ctx) {
+  ctx.i18n.addStrings({
+    ja: Object.fromEntries(Object.entries(TIP).map(([c, v]) => [`tooltip.${c}`, v[0]])),
+    en: Object.fromEntries(Object.entries(TIP).map(([c, v]) => [`tooltip.${c}`, v[1]])),
+  });
   ctx.i18n.addStrings({
     ja: {
       'status.speech.label': '音声認識',
@@ -72,11 +104,24 @@ export function commandBarModule(ctx) {
     ].join(' ｜ ');
     return { role: 'status', live: 'polite', session: st.session, speech, text };
   };
+  const known = (c) => GROUPS.some(([, n]) => n.includes(c)) && typeof api.commands[c] === 'function';
+  let shown = null; // 表示中の説明文のコマンド（同時に 1 つ）
+  const tip = (command) => ({ id: tooltipId(command), text: ctx.t(`tooltip.${command}`) });
+  api.showTooltip = (command, trigger) => {
+    if (!known(command) || (trigger !== 'hover' && trigger !== 'focus')) return { visible: false };
+    shown = command;
+    return { visible: true, ...tip(command) };
+  };
+  api.hideTooltip = (command, trigger) => {
+    if ((trigger === 'leave' || trigger === 'blur') && shown === command) shown = null;
+    return { visible: false };
+  };
+  api.getTooltip = () => (shown && known(shown) ? { command: shown, ...tip(shown), visible: true } : null);
   api.getCommandBar = () => ({
     position: 'top',
     items: GROUPS.flatMap(([, names]) => names)
       .filter((name) => typeof api.commands[name] === 'function')
-      .map((command) => ({ command, label: ctx.t(`cmd.${command}`), tabbable: true })),
+      .map((command) => ({ command, label: ctx.t(`cmd.${command}`), tabbable: true, tooltip: tip(command), describedBy: tooltipId(command) })),
     status: api.getCommandStatus(),
   });
 }

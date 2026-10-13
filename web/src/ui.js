@@ -1,7 +1,7 @@
 // DOM との結び付け（ブラウザ専用。app.js は DOM を知らない）。app の状態を描くだけで、状態は持たない。
 import { PANEL_IDS, PANEL_COMMANDS } from './layout.js';
 
-import { GROUPS, ICONS, PRIMARY } from './commandbar.js';
+import { GROUPS, ICONS, PRIMARY, tooltipId } from './commandbar.js';
 
 function icon(doc, command) {
   const t = doc.createElement('template');
@@ -24,6 +24,11 @@ export function mountUI(app, doc = document) {
     return k ? `${k.ctrl ? 'Ctrl+' : ''}${k.alt ? 'Alt+' : ''}${k.shift ? 'Shift+' : ''}${k.key.length === 1 ? k.key.toUpperCase() : k.key}` : '';
   };
 
+  function syncTooltip() {
+    const cur = app.getTooltip();
+    for (const t of toolbar.querySelectorAll('[role="tooltip"]')) t.hidden = !(cur && t.id === cur.id);
+  }
+
   function buildToolbar() {
     toolbar.textContent = '';
     for (const [labelKey, names] of GROUPS) {
@@ -39,16 +44,28 @@ export function mountUI(app, doc = document) {
         b.append(icon(doc, name), lab);
         const kl = keyLabel(name);
         const lbl = app.t(`cmd.${name}`);
-        b.title = kl ? `${lbl} (${kl})` : lbl;
+        // NFR-UX-002: ツールチップ（role=tooltip）を aria-describedby で関連付ける。ホバー・フォーカスで表示
+        const tip = doc.createElement('span');
+        tip.className = 'tooltip'; tip.id = tooltipId(name); tip.setAttribute('role', 'tooltip'); tip.hidden = true;
+        tip.textContent = kl ? `${app.t(`tooltip.${name}`)} (${kl})` : app.t(`tooltip.${name}`);
+        b.setAttribute('aria-describedby', tip.id);
         if (kl) b.setAttribute('aria-keyshortcuts', kl);
         b.addEventListener('click', () => { void app.commands[name]?.(); });
-        fs.append(b);
+        const on = (trig) => () => { app.showTooltip(name, trig); syncTooltip(); };
+        const off = (trig) => () => { app.hideTooltip(name, trig); syncTooltip(); };
+        b.addEventListener('mouseenter', on('hover')); b.addEventListener('mouseleave', off('leave'));
+        b.addEventListener('focus', on('focus')); b.addEventListener('blur', off('blur'));
+        b.addEventListener('keydown', (e) => { if (e.key === 'Escape') { app.hideTooltip(name, 'blur'); syncTooltip(); } });
+        const wrap = doc.createElement('span'); wrap.className = 'tooltip-host';
+        wrap.append(b, tip);
+        fs.append(wrap);
       }
       toolbar.append(fs);
     }
     // 非表示のパネルを戻す操作
     const fs = doc.createElement('fieldset'); fs.className = 'toolbar-group'; fs.dataset.role = 'panel-show';
     toolbar.append(fs);
+    syncTooltip();
   }
 
   function buildPanelMenus() {

@@ -18,6 +18,9 @@ h1 { font-size: var(--font-size-title); } h2 { font-size: var(--font-size-subtit
 .toolbar-group { display: flex; flex-wrap: nowrap; align-items: center; gap: 2px; border: 0; margin: 0; padding: 0; min-width: 0; }
 .toolbar-group legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; padding: 0; }
 .toolbar-group + .toolbar-group { padding-left: var(--space-2); border-left: var(--stroke) solid var(--color-border-subtle); }
+.tooltip-host { position: relative; display: inline-flex; }
+.tooltip { position: absolute; top: calc(100% + 4px); left: 0; z-index: 20; width: max-content; max-width: 260px; padding: var(--space-1) var(--space-2); background: var(--color-surface); color: inherit; border: var(--stroke) solid var(--color-border-subtle); border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,.25); font-size: 0.85rem; pointer-events: none; }
+.tooltip[hidden] { display: none; }
 .toolbar-group:empty, .toolbar-group[hidden] { display: none; }
 .commandbar .btn-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .commandbar .btn-primary .btn-label { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
