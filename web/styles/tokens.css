@@ -1,0 +1,38 @@
+/* デザイン基盤: 色・余白・文字・角丸などの CSS 変数。ダーク/ライト両方で本文 4.5:1 以上（WCAG 2.2 AA）。
+   値は変数にだけ書き、各コンポーネントはここの変数を参照する。 */
+:root, :root[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #f4f6fa;
+  --color-surface: #ffffff;
+  --color-surface-2: #e9edf5;
+  --color-text: #15191f;          /* surface 上で 16:1 */
+  --color-text-muted: #444c5a;    /* surface 上で 8.8:1 */
+  --color-border: #5b6577;
+  --color-primary: #1346a8;       /* 白文字との比 8.6:1 */
+  --color-on-primary: #ffffff;
+  --color-focus: #8a3c00;
+  --color-ok: #0b5d2a;
+  --color-warn: #7a4a00;
+  --color-danger: #9b1c1c;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px;
+  --radius: 8px;
+  --font-sans: system-ui, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+  --font-size: 16px;
+  --shadow: 0 2px 8px rgb(0 0 0 / 0.18);
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #0f1218;
+  --color-surface: #1a1f29;
+  --color-surface-2: #262d3a;
+  --color-text: #eef1f6;          /* surface 上で 14:1 */
+  --color-text-muted: #b9c1d0;    /* surface 上で 8.5:1 */
+  --color-border: #8b95a8;
+  --color-primary: #8db4ff;       /* 黒文字との比 9.5:1 */
+  --color-on-primary: #0b1020;
+  --color-focus: #ffd166;
+  --color-ok: #7fdc9b;
+  --color-warn: #ffc873;
+  --color-danger: #ff9a9a;
+  --shadow: 0 2px 8px rgb(0 0 0 / 0.6);
+}
