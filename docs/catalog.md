@@ -26,7 +26,7 @@
 | NFR-PERF-001 | ほぼリアルタイムの表示 | 承認済み | web/src/app.js | tests/unit/speech.test.js | アプリ組立 |
 | FR-013 | 右パネルでの認識文字列の表示とファイル取込 | 承認済み | web/src/transcript.js, web/src/layout.js, web/src/input.js, web/src/ui.js, web/index.html, web/styles/app.css, web/sw.js | tests/unit/transcript.test.js, tests/system/rightpanel.test.js | アプリ組立, デザイン基盤, 認識文字列 |
 | FR-014 | 認識・取込の内容の図へのリアルタイム反映 | 承認済み | web/src/transcript.js, web/src/speech.js, web/src/input.js, web/src/app.js | tests/unit/transcript.test.js, tests/system/rightpanel.test.js | アプリ組立, 認識文字列 |
-| NFR-UX-001 | Fluent 2 に沿った UI の振る舞い | 承認済み | 未実装 | 未実装 | - |
+| NFR-UX-001 | Fluent 2 に沿った UI の振る舞い | 承認済み | web/styles/tokens.css, web/styles/app.css, web/styles/view3d.css, web/src/commandbar.js, web/src/ui.js, web/src/app.js, web/index.html, web/sw.js | tests/unit/ux.test.js, tests/system/ux.test.js | アプリ組立, デザイン基盤, コマンドバー |
 | NFR-DOC-001 | 日本語の使い方ドキュメント | 承認済み | 未実装 | 未実装 | - |
 
 ## API・イベント
@@ -43,9 +43,10 @@
 
 | 部品名 | ファイル | 用途 | 使っている要求 ID |
 |---|---|---|---|
-| アプリ組立 | web/src/app.js | 状態・コマンド・キー割り当て・パネル描画の拡張点（modules / registerCommand / registerPanelRenderer / addUtterance / addUtterances）。後続の機能はここへ足す | FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, FR-010, FR-011, FR-012, FR-013, FR-014, NFR-PERF-001, NFR-A11Y-001 |
+| アプリ組立 | web/src/app.js | 状態・コマンド・キー割り当て・パネル描画の拡張点（modules / registerCommand / registerPanelRenderer / addUtterance / addUtterances）。後続の機能はここへ足す | FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, FR-010, FR-011, FR-012, FR-013, FR-014, NFR-PERF-001, NFR-A11Y-001, NFR-UX-001 |
 | i18n | web/src/i18n.js | ja/en の UI 文言（addStrings で後続が追加） | FR-006, FR-008 |
-| デザイン基盤 | web/styles/tokens.css, web/styles/app.css | CSS 変数・ダーク/ライト・コントラスト・フォーカス・積み重ね | FR-004, FR-011, FR-013, NFR-A11Y-001 |
+| デザイン基盤 | web/styles/tokens.css, web/styles/app.css, web/styles/view3d.css | Fluent 2 のトークン（colorNeutral/Brand 系・角丸 4/8・4px 余白・Type ramp・影・モーション）・ライト/ダーク/forced-colors・フォーカス 3px・積み重ね・カード風パネル・ボタン（primary/subtle） | FR-004, FR-011, FR-013, NFR-A11Y-001, NFR-UX-001 |
+| コマンドバー | web/src/commandbar.js | コマンドのグループ・インライン SVG アイコン・主要コマンド（getCommandBar / getCommandStatus）。ステータスバーの文言（記録状態・音声認識・言語・表示） | NFR-UX-001 |
 | 認識文字列 | web/src/transcript.js | 右パネル（パネル ID input）の確定結果一覧・暫定結果の区別表示（getTranscript / renderTranscript） | FR-013, FR-014 |
 | キーマップ | web/src/keymap.js | 全操作の Alt+Shift+キー割り当て | NFR-A11Y-001 |
 | 感情語辞書 | web/src/emotion.js | 日英の感情・様子の語 → 絵記号の対応（決定的） | FR-004 |
