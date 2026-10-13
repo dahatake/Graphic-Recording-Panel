@@ -24,6 +24,10 @@
 | NFR-PRIV-001 | 音声データの扱い | 承認済み | web/src/speech.js, web/src/persist.js | tests/unit/speech.test.js | 音声入力源 |
 | NFR-A11Y-001 | 視覚表現の代替手段 | 承認済み | web/src/keymap.js, web/src/outline.js, web/styles/app.css | tests/unit/shell.test.js, tests/system/view.test.js | キーマップ, デザイン基盤, アプリ組立 |
 | NFR-PERF-001 | ほぼリアルタイムの表示 | 承認済み | web/src/app.js | tests/unit/speech.test.js | アプリ組立 |
+| FR-013 | 右パネルでの認識文字列の表示とファイル取込 | 承認済み | 未実装 | 未実装 | - |
+| FR-014 | 認識・取込の内容の図へのリアルタイム反映 | 承認済み | 未実装 | 未実装 | - |
+| NFR-UX-001 | Fluent 2 に沿った UI の振る舞い | 承認済み | 未実装 | 未実装 | - |
+| NFR-DOC-001 | 日本語の使い方ドキュメント | 承認済み | 未実装 | 未実装 | - |
 
 ## API・イベント
 
