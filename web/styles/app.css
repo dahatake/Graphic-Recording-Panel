@@ -42,6 +42,14 @@ h1 { font-size: 1.25rem; } h2 { font-size: 1.05rem; } h3 { font-size: 1rem; disp
 .draft-form { display: flex; flex-direction: column; gap: var(--space-2); }
 textarea { font: inherit; color: var(--color-text); background: var(--color-bg); border: 2px solid var(--color-border); border-radius: var(--radius); padding: var(--space-2); width: 100%; resize: vertical; }
 .message { min-height: 1.6em; margin: var(--space-2) 0 0; color: var(--color-warn); font-weight: 600; }
+.file-import { display: flex; flex-direction: column; gap: var(--space-1); margin-top: var(--space-3); }
+.file-import input[type="file"] { font: inherit; color: var(--color-text); max-width: 100%; }
+
+/* 図（FR-004）: 拡大・縮小・ドラッグ移動できるキャンバス。SVG は自前の紙色で描くので、ダーク時も枠で囲む */
+.diagram-tools { display: flex; gap: var(--space-2); margin-bottom: var(--space-2); }
+.diagram-canvas { overflow: auto; max-height: 100%; border: 2px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface-2); cursor: grab; touch-action: none; }
+.diagram-canvas.is-panning { cursor: grabbing; }
+.diagram-canvas svg { display: block; }
 
 /* テキスト一覧: 状態・選択は色ではなく文字と記号で示し、選択は枠線の太さ・形でも違いが出る（NFR-A11Y-001 AC-037） */
 .outline { margin: 0; padding-left: var(--space-5); }

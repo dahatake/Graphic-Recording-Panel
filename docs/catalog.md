@@ -9,9 +9,9 @@
 | 要求 ID | 題名 | 決定状態 | 実装ファイル | テスト | 使っている共通部品 |
 |---|---|---|---|---|---|
 | FR-001 | 音声認識による発話の取込 | 承認済み | 未実装 | 未実装 | - |
-| FR-002 | 代替入力（手入力・ファイル取込） | 承認済み | 未実装 | 未実装 | - |
-| FR-003 | 発話のシーン分割と要点抽出 | 承認済み | 未実装 | 未実装 | - |
-| FR-004 | 2D のグラフィック・ファシリテーション表示 | 承認済み | 未実装 | 未実装 | - |
+| FR-002 | 代替入力（手入力・ファイル取込） | 承認済み | web/src/input.js, web/src/app.js, web/src/ui.js, web/index.html | tests/unit/core.test.js, tests/system/input.test.js | アプリ組立 |
+| FR-003 | 発話のシーン分割と要点抽出 | 承認済み | web/src/scenes.js, web/src/app.js | tests/unit/core.test.js, tests/system/scenes.test.js | アプリ組立 |
+| FR-004 | 2D のグラフィック・ファシリテーション表示 | 承認済み | web/src/diagram.js, web/src/emotion.js, web/styles/app.css | tests/unit/core.test.js, tests/system/scenes.test.js | アプリ組立, デザイン基盤, 感情語辞書 |
 | FR-005 | 図の手修正 | 承認済み | 未実装 | 未実装 | - |
 | FR-006 | 画像としての保存 | 承認済み | 未実装 | 未実装 | - |
 | FR-007 | PDF としての保存 | 承認済み | 未実装 | 未実装 | - |
@@ -39,7 +39,8 @@
 
 | 部品名 | ファイル | 用途 | 使っている要求 ID |
 |---|---|---|---|
-| アプリ組立 | web/src/app.js | 状態・コマンド・キー割り当て・パネル描画の拡張点（modules / registerCommand / registerPanelRenderer / addUtterance）。後続の機能はここへ足す | FR-008, FR-011, NFR-A11Y-001 |
+| アプリ組立 | web/src/app.js | 状態・コマンド・キー割り当て・パネル描画の拡張点（modules / registerCommand / registerPanelRenderer / addUtterance / addUtterances）。後続の機能はここへ足す | FR-002, FR-003, FR-004, FR-008, FR-011, NFR-A11Y-001 |
 | i18n | web/src/i18n.js | ja/en の UI 文言（addStrings で後続が追加） | FR-008 |
-| デザイン基盤 | web/styles/tokens.css, web/styles/app.css | CSS 変数・ダーク/ライト・コントラスト・フォーカス・積み重ね | FR-011, NFR-A11Y-001 |
+| デザイン基盤 | web/styles/tokens.css, web/styles/app.css | CSS 変数・ダーク/ライト・コントラスト・フォーカス・積み重ね | FR-004, FR-011, NFR-A11Y-001 |
 | キーマップ | web/src/keymap.js | 全操作の Alt+Shift+キー割り当て | NFR-A11Y-001 |
+| 感情語辞書 | web/src/emotion.js | 日英の感情・様子の語 → 絵記号の対応（決定的） | FR-004 |

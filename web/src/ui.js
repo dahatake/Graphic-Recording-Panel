@@ -154,6 +154,15 @@ export function mountUI(app, doc = document) {
 
   $('#draft-form').addEventListener('submit', (e) => { e.preventDefault(); app.submitDraft(); });
   draft.addEventListener('input', () => app.setDraft(draft.value));
+  // ファイル取込: 取り込めたときだけ選択を解除する（記録中でないときは選択を保つ: FR-002 AC-042）
+  const fileInput = $('#import-file');
+  fileInput.addEventListener('change', async () => {
+    const f = fileInput.files?.[0];
+    if (!f) return;
+    const text = await f.text();
+    const r = await app.importTextFile({ name: f.name, type: f.type, size: f.size, text });
+    if (r.ok) fileInput.value = '';
+  });
   app.on('ui:focusInput', () => draft.focus());
   doc.addEventListener('keydown', (e) => {
     const cmd = app.handleKey({ key: e.key, ctrlKey: e.ctrlKey, altKey: e.altKey, shiftKey: e.shiftKey });
