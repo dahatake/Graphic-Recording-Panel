@@ -26,7 +26,7 @@
 | NFR-PERF-001 | ほぼリアルタイムの表示 | 承認済み | web/src/app.js | tests/unit/speech.test.js | アプリ組立 |
 | FR-013 | 右パネルでの認識文字列の表示とファイル取込 | 承認済み | web/src/transcript.js, web/src/layout.js, web/src/input.js, web/src/ui.js, web/index.html, web/styles/app.css, web/sw.js | tests/unit/transcript.test.js, tests/system/rightpanel.test.js | アプリ組立, デザイン基盤, 認識文字列 |
 | FR-014 | 認識・取込の内容の図へのリアルタイム反映 | 承認済み | web/src/transcript.js, web/src/speech.js, web/src/input.js, web/src/app.js | tests/unit/transcript.test.js, tests/system/rightpanel.test.js | アプリ組立, 認識文字列 |
-| NFR-BG-001 | バックグラウンドでの動作継続 | 承認済み | 未実装 | 未実装 | 音声入力源, アプリ組立 |
+| NFR-BG-001 | バックグラウンドでの動作継続 | 承認済み | web/src/speech.js | tests/unit/background.test.js, tests/system/background.test.js | 音声入力源, アプリ組立 |
 | NFR-UX-001 | Fluent 2 に沿った UI の振る舞い | 承認済み | web/styles/tokens.css, web/styles/app.css, web/styles/view3d.css, web/src/commandbar.js, web/src/ui.js, web/src/app.js, web/index.html, web/sw.js | tests/unit/ux.test.js, tests/system/ux.test.js | アプリ組立, デザイン基盤, コマンドバー |
 | NFR-DOC-001 | 日本語の使い方ドキュメント | 承認済み | README.md, users-guide/README.md, users-guide/01-getting-started.md, users-guide/02-voice-and-import.md, users-guide/03-diagram.md, users-guide/04-export.md, users-guide/05-language-and-views.md, users-guide/06-troubleshooting.md | tests/unit/docs.test.js | - |
 
