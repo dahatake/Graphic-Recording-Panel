@@ -80,6 +80,12 @@ export async function createApp(options) -> app   // await 可能（同期で返
 - 図への反映: 確定結果（音声・手入力・ファイル取込）は、受付（取込は完了）から 3 秒（PARAM-001）以内に `renderSvg()`・`renderOutline()` に現れる。テストは `scheduler.advance(3000)` の後に確認する（同期反映でもよい）。受け付けられなかった入力は何も変えない。
 - ファイル取込の反映のテストは 100 行（各 40 文字以下）。上限サイズ全行の負荷は AC から決まらないため範囲外。
 
+## バックグラウンド動作の継続（NFR-BG-001 AC-063 / AC-064 / AC-065、追記。既存の契約は変えない）
+- SpeechSource に **認識の自動終了通知 `onend: null | () => void`** を足す（ブラウザが認識を自動終了したとき実装が呼ぶ。`app` が代入する）。
+- `options.visibility`（省略可。省略時は実ブラウザの `document` の `visibilityState` / `visibilitychange`）: `{ hidden:boolean, onchange:null|()=>void }`。`app` が `onchange` を代入する。テストは `hidden` を書き換えて `onchange()` を呼ぶ（`FakeVisibility.set(bool)`）。
+- 非表示の間も、記録中の `speechSource.onresult`（確定）は通常どおり発話・シーン・要点・`getTranscript().finals` に入り、取りこぼし・重複・並べ替えをしない（非表示を理由に破棄・遅延・バッファの欠落をしない）。可視に戻ってから 2 秒（PARAM-008）以内（テストは `scheduler.advance(2000)` の後）に `renderTranscript()`・`renderSvg()`・`renderOutline()` が最新を表す。
+- `onend()` が来たとき、`session==='recording'` かつ `speechSource.processLocally===true` なら、2 秒以内（`scheduler.setTimeout` 使用可。テストは `advance(2000)` の後）に `speechSource.start({lang})`（現在の表示言語）を再度呼ぶ。`paused`/`stopped`/`preparing`（停止・一時停止の操作後を含む）や `processLocally===false` では呼ばない。再開で発話は増減しない。
+
 ## コマンドバーとステータス（NFR-UX-001 AC-057 / AC-060）
 - `app.getCommandBar()` → `{ position:'top', items:[{command,label,tabbable:boolean}], status:{ role:'status', live:'polite'|'assertive', session:'preparing'|'recording'|'paused'|'stopped', speech:'available'|'unavailable', text:string } }`。`items` は必須コマンドのうち `session.*`・`save.*`・`lang.*`・`view.*`・`presentation.*` を含む。`speech` は `speechSource.processLocally` が真のとき `available`。`status.text` は状態が変わると変わる。
 - `web/index.html` は、コマンドバー（`id="toolbar"` か `role="toolbar"`）と `role="status"` かつ `aria-live` のステータス要素を `<main>` より前に置く。正の `tabindex` を使わない。
