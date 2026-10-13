@@ -24,8 +24,8 @@
 | NFR-PRIV-001 | 音声データの扱い | 承認済み | web/src/speech.js, web/src/persist.js | tests/unit/speech.test.js | 音声入力源 |
 | NFR-A11Y-001 | 視覚表現の代替手段 | 承認済み | web/src/keymap.js, web/src/outline.js, web/styles/app.css | tests/unit/shell.test.js, tests/system/view.test.js | キーマップ, デザイン基盤, アプリ組立 |
 | NFR-PERF-001 | ほぼリアルタイムの表示 | 承認済み | web/src/app.js | tests/unit/speech.test.js | アプリ組立 |
-| FR-013 | 右パネルでの認識文字列の表示とファイル取込 | 承認済み | 未実装 | 未実装 | - |
-| FR-014 | 認識・取込の内容の図へのリアルタイム反映 | 承認済み | 未実装 | 未実装 | - |
+| FR-013 | 右パネルでの認識文字列の表示とファイル取込 | 承認済み | web/src/transcript.js, web/src/layout.js, web/src/input.js, web/src/ui.js, web/index.html, web/styles/app.css, web/sw.js | tests/unit/transcript.test.js, tests/system/rightpanel.test.js | アプリ組立, デザイン基盤, 認識文字列 |
+| FR-014 | 認識・取込の内容の図へのリアルタイム反映 | 承認済み | web/src/transcript.js, web/src/speech.js, web/src/input.js, web/src/app.js | tests/unit/transcript.test.js, tests/system/rightpanel.test.js | アプリ組立, 認識文字列 |
 | NFR-UX-001 | Fluent 2 に沿った UI の振る舞い | 承認済み | 未実装 | 未実装 | - |
 | NFR-DOC-001 | 日本語の使い方ドキュメント | 承認済み | 未実装 | 未実装 | - |
 
@@ -43,9 +43,10 @@
 
 | 部品名 | ファイル | 用途 | 使っている要求 ID |
 |---|---|---|---|
-| アプリ組立 | web/src/app.js | 状態・コマンド・キー割り当て・パネル描画の拡張点（modules / registerCommand / registerPanelRenderer / addUtterance / addUtterances）。後続の機能はここへ足す | FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, FR-010, FR-011, FR-012, NFR-PERF-001, NFR-A11Y-001 |
+| アプリ組立 | web/src/app.js | 状態・コマンド・キー割り当て・パネル描画の拡張点（modules / registerCommand / registerPanelRenderer / addUtterance / addUtterances）。後続の機能はここへ足す | FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, FR-010, FR-011, FR-012, FR-013, FR-014, NFR-PERF-001, NFR-A11Y-001 |
 | i18n | web/src/i18n.js | ja/en の UI 文言（addStrings で後続が追加） | FR-006, FR-008 |
-| デザイン基盤 | web/styles/tokens.css, web/styles/app.css | CSS 変数・ダーク/ライト・コントラスト・フォーカス・積み重ね | FR-004, FR-011, NFR-A11Y-001 |
+| デザイン基盤 | web/styles/tokens.css, web/styles/app.css | CSS 変数・ダーク/ライト・コントラスト・フォーカス・積み重ね | FR-004, FR-011, FR-013, NFR-A11Y-001 |
+| 認識文字列 | web/src/transcript.js | 右パネル（パネル ID input）の確定結果一覧・暫定結果の区別表示（getTranscript / renderTranscript） | FR-013, FR-014 |
 | キーマップ | web/src/keymap.js | 全操作の Alt+Shift+キー割り当て | NFR-A11Y-001 |
 | 感情語辞書 | web/src/emotion.js | 日英の感情・様子の語 → 絵記号の対応（決定的） | FR-004 |
 | 3D ビュー | web/src/view3d.js | CSS 3D transforms による 3D 配置（get3D）、プレゼンのカメラ・タイマー（presentation.*）、WebGL なしの 2D 代替 | FR-009, FR-010 |

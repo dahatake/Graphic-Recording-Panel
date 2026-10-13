@@ -50,6 +50,7 @@ export function inputModule(ctx) {
       return { ok: false, reason: 'empty' };
     }
     const added = ctx.addUtterances(lines, { at: ctx.now(), noGapSplit: true });
+    ctx.transcript?.addFinals(lines.slice(0, added));
     ctx.change(() => ctx.setMessage('msg.imported'));
     return { ok: true, added };
   };

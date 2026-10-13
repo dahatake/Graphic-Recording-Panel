@@ -11,9 +11,9 @@ export function defaultLayout() {
   const mk = (x, y, w, h) => ({ x, y, w, h, visible: true, maximized: false });
   return {
     panels: {
-      input: mk(0, 0, 360, 560),
-      diagram: mk(380, 0, 560, 560),
-      outline: mk(960, 0, 320, 560),
+      diagram: mk(0, 0, 560, 560),
+      outline: mk(580, 0, 320, 560),
+      input: mk(920, 0, 360, 560), // FR-013: 認識文字列パネルは図より右
     },
   };
 }
@@ -73,8 +73,7 @@ export const ops = {
   visible(layout, id, v) {
     const p = layout.panels[id];
     if (!p) return false;
-    p.visible = !!v;
-    if (!p.visible) p.maximized = false;
+    p.visible = !!v; // 最大化の状態は独立に保つ（FR-011/FR-013 AC-049）
     return true;
   },
   maximized(layout, id, v) {

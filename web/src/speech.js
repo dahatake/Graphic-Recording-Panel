@@ -74,7 +74,7 @@ export async function speechModule(ctx) {
       if (ctx.state.session !== 'recording') return; // 記録中以外は無視
       if (isFinal) {
         ctx.change(() => { speech.interim = ''; });
-        ctx.addUtterance(text);
+        if (ctx.addUtterance(text)) ctx.transcript?.addFinals([String(text).trim()]);
       } else {
         ctx.change(() => { speech.interim = String(text ?? ''); }); // 暫定結果は発話にしない
       }

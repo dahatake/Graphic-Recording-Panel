@@ -94,9 +94,14 @@ export function mountUI(app, doc = document) {
         || (b.dataset.command === 'speech.start' && !app.isSpeechAvailable());
     }
     const interim = $('#interim');
-    if (interim) {
-      interim.textContent = !app.isSpeechAvailable() ? app.t('msg.speechUnavailable')
-        : (st.speech?.interim ? `${app.t('speech.interim')}: ${st.speech.interim}` : '');
+    if (interim) interim.textContent = !app.isSpeechAvailable() ? app.t('msg.speechUnavailable') : '';
+    // FR-013/FR-014: 認識文字列。過去を読んでいる間はスクロール位置を奪わない（AC-051）
+    const tr = $('#transcript');
+    if (tr) {
+      const atBottom = tr.scrollHeight - tr.scrollTop - tr.clientHeight <= 8;
+      const keep = tr.scrollTop;
+      tr.innerHTML = app.renderTranscript();
+      tr.scrollTop = atBottom ? tr.scrollHeight : keep;
     }
     if (doc.activeElement !== draft && draft.value !== st.input.draft) draft.value = st.input.draft;
     $('#message').textContent = st.message ? st.message.text : '';
