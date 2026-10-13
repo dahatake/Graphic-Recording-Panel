@@ -4,9 +4,13 @@ import { mountUI } from './ui.js';
 
 const mq = (q) => (globalThis.matchMedia ? globalThis.matchMedia(q).matches : false);
 
+function hasWebGL() {
+  try { return !!globalThis.document?.createElement('canvas').getContext('webgl'); } catch { return false; }
+}
+
 const app = await createApp({
   env: {
-    webgl: false, // 3D の項目が判定を差し込む
+    webgl: hasWebGL(),
     reducedMotion: mq('(prefers-reduced-motion: reduce)'),
     viewportWidth: globalThis.innerWidth,
     prefersDark: mq('(prefers-color-scheme: dark)'),
