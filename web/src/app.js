@@ -23,6 +23,7 @@ import { exportModule } from './export.js';
 import { view3DModule } from './view3d.js';
 import { speechModule } from './speech.js';
 import { transcriptModule } from './transcript.js';
+import { commandBarModule } from './commandbar.js';
 
 const GAP_MS_DEFAULT = 20_000; // PARAM-002
 const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -226,7 +227,7 @@ export async function createApp(options = {}) {
   app.subscribe = (fn) => on('change', fn);
   app.getPanelRenderer = (id) => panelRenderers.get(id) ?? null;
   app.use = async (mod) => { await mod(ctx); };
-  for (const mod of [diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, ...(options.modules ?? [])]) await app.use(mod);
+  for (const mod of [diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, commandBarModule, ...(options.modules ?? [])]) await app.use(mod);
 
   return app;
 }
