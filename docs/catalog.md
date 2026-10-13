@@ -8,7 +8,7 @@
 
 | 要求 ID | 題名 | 決定状態 | 実装ファイル | テスト | 使っている共通部品 |
 |---|---|---|---|---|---|
-| FR-001 | 音声認識による発話の取込 | 承認済み | web/src/speech.js, web/src/app.js, web/src/ui.js, web/index.html | tests/unit/speech.test.js, tests/system/input.test.js | 音声入力源, アプリ組立 |
+| FR-001 | 音声認識による発話の取込 | 承認済み | web/src/speech.js, web/src/commandbar.js, web/src/app.js, web/src/ui.js, web/index.html | tests/unit/speech.test.js, tests/system/input.test.js, tests/system/speech.test.js | 音声入力源, アプリ組立 |
 | FR-002 | 代替入力（手入力・ファイル取込） | 承認済み | web/src/input.js, web/src/app.js, web/src/ui.js, web/index.html | tests/unit/core.test.js, tests/system/input.test.js | アプリ組立 |
 | FR-003 | 発話のシーン分割と要点抽出 | 承認済み | web/src/scenes.js, web/src/app.js | tests/unit/core.test.js, tests/system/scenes.test.js | アプリ組立 |
 | FR-004 | 2D のグラフィック・ファシリテーション表示 | 承認済み | web/src/diagram.js, web/src/emotion.js, web/styles/app.css | tests/unit/core.test.js, tests/system/scenes.test.js | アプリ組立, デザイン基盤, 感情語辞書 |
@@ -20,13 +20,13 @@
 | FR-010 | ダイナミックカメラによるプレゼンテーション | 承認済み | web/src/view3d.js, web/src/keymap.js, web/src/ui.js | tests/unit/view3d.test.js, tests/system/view.test.js | アプリ組立, 3D ビュー |
 | FR-011 | パネルのレイアウト変更と保存 | 承認済み | web/src/layout.js, web/src/app.js, web/src/ui.js, web/styles/app.css | tests/unit/shell.test.js, tests/system/layout.test.js | アプリ組立, デザイン基盤 |
 | FR-012 | セッションの保存と復元 | 承認済み | web/src/persist.js, web/src/app.js, web/src/speech.js | tests/unit/speech.test.js, tests/system/persist.test.js | 音声入力源, アプリ組立 |
-| NFR-OFFLINE-001 | 外部通信なしでの動作 | 承認済み | web/sw.js, web/src/main.js | tests/unit/shell.test.js, tests/system/offline.test.js | - |
-| NFR-PRIV-001 | 音声データの扱い | 承認済み | web/src/speech.js, web/src/persist.js | tests/unit/speech.test.js | 音声入力源 |
+| NFR-OFFLINE-001 | 外部通信なしでの動作 | 承認済み | web/sw.js, web/src/main.js, web/src/speech.js | tests/unit/shell.test.js, tests/unit/speech.test.js, tests/system/offline.test.js, tests/system/speech.test.js | 音声入力源 |
+| NFR-PRIV-001 | 音声データの扱い | 承認済み | web/src/speech.js, web/src/persist.js | tests/unit/speech.test.js, tests/system/speech.test.js | 音声入力源 |
 | NFR-A11Y-001 | 視覚表現の代替手段 | 承認済み | web/src/keymap.js, web/src/outline.js, web/styles/app.css | tests/unit/shell.test.js, tests/system/view.test.js | キーマップ, デザイン基盤, アプリ組立 |
 | NFR-PERF-001 | ほぼリアルタイムの表示 | 承認済み | web/src/app.js | tests/unit/speech.test.js | アプリ組立 |
 | FR-013 | 右パネルでの認識文字列の表示とファイル取込 | 承認済み | web/src/transcript.js, web/src/layout.js, web/src/input.js, web/src/ui.js, web/index.html, web/styles/app.css, web/sw.js | tests/unit/transcript.test.js, tests/system/rightpanel.test.js | アプリ組立, デザイン基盤, 認識文字列 |
 | FR-014 | 認識・取込の内容の図へのリアルタイム反映 | 承認済み | web/src/transcript.js, web/src/speech.js, web/src/input.js, web/src/app.js | tests/unit/transcript.test.js, tests/system/rightpanel.test.js | アプリ組立, 認識文字列 |
-| NFR-BG-001 | バックグラウンドでの動作継続 | 承認済み | web/src/speech.js | tests/unit/background.test.js, tests/system/background.test.js | 音声入力源, アプリ組立 |
+| NFR-BG-001 | バックグラウンドでの動作継続 | 承認済み | web/src/speech.js | tests/unit/background.test.js, tests/system/background.test.js, tests/system/speech.test.js | 音声入力源, アプリ組立 |
 | NFR-UX-001 | Fluent 2 に沿った UI の振る舞い | 承認済み | web/styles/tokens.css, web/styles/app.css, web/styles/view3d.css, web/src/commandbar.js, web/src/ui.js, web/src/app.js, web/index.html, web/sw.js | tests/unit/ux.test.js, tests/system/ux.test.js | アプリ組立, デザイン基盤, コマンドバー |
 | NFR-DOC-001 | 日本語の使い方ドキュメント | 承認済み | README.md, users-guide/README.md, users-guide/01-getting-started.md, users-guide/02-voice-and-import.md, users-guide/03-diagram.md, users-guide/04-export.md, users-guide/05-language-and-views.md, users-guide/06-troubleshooting.md | tests/unit/docs.test.js | - |
 
@@ -52,4 +52,4 @@
 | キーマップ | web/src/keymap.js | 全操作の Alt+Shift+キー割り当て | NFR-A11Y-001 |
 | 感情語辞書 | web/src/emotion.js | 日英の感情・様子の語 → 絵記号の対応（決定的） | FR-004 |
 | 3D ビュー | web/src/view3d.js | CSS 3D transforms による 3D 配置（get3D）、プレゼンのカメラ・タイマー（presentation.*）、WebGL なしの 2D 代替 | FR-009, FR-010 |
-| 音声入力源 | web/src/speech.js | SpeechSource 抽象と実ブラウザ実装（デバイス内処理が確認できるときだけ有効）。注入で差し替え可能 | FR-001, FR-012, NFR-PRIV-001, NFR-BG-001 |
+| 音声入力源 | web/src/speech.js | SpeechSource 抽象と実ブラウザ実装。選択言語だけで判定（local／downloadable は同意不要、remote は同意後のみ開始）。同意 UI・状態表示を含む。注入で差し替え可能 | FR-001, FR-012, NFR-PRIV-001, NFR-OFFLINE-001, NFR-BG-001 |

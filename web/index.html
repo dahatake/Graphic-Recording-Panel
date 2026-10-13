@@ -31,6 +31,12 @@
           <input id="import-file" type="file" accept=".txt,text/plain">
         </div>
         <p id="interim" class="message" role="status" aria-live="polite"></p>
+        <div id="speech-consent-box" class="speech-consent" hidden>
+          <input type="checkbox" id="speech-consent" aria-describedby="speech-consent-notice">
+          <label for="speech-consent" id="speech-consent-label">外部サービスでの音声認識に同意する</label>
+          <span id="speech-consent-state" class="consent-state"></span>
+          <p id="speech-consent-notice" class="message"></p>
+        </div>
       </div>
     </section>
     <section class="panel" data-panel="diagram" aria-labelledby="panel-diagram-title">

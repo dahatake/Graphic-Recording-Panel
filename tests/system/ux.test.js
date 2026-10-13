@@ -88,8 +88,14 @@ test('NFR-UX-001 AC-060: 画面上部のコマンドバーに主要操作が集�
   assert.notEqual(s2.text, s1.text);
 });
 
-test('NFR-UX-001 AC-060 異常系: 音声認識が使えない（デバイス内処理を確認できない）とき、ステータスは不可を示す', async () => {
+test('NFR-UX-001 AC-060 異常系: 音声認識がデバイス内で使えず API がある（要同意）とき、ステータスは可否を区別して示す（FR-001 AC-069）', async () => {
   const { app } = await newApp({ speech: new FakeSpeech({ processLocally: false }) });
+  assert.equal(app.getCommandBar().status.speech, 'consent');
+  assert.ok(app.getCommandBar().status.text.trim().length > 0);
+});
+
+test('NFR-UX-001 AC-060 異常系: 音声認識 API が使えないとき、ステータスは不可を示す', async () => {
+  const { app } = await newApp({ speech: new FakeSpeech({ supported: false }) });
   assert.equal(app.getCommandBar().status.speech, 'unavailable');
   assert.ok(app.getCommandBar().status.text.trim().length > 0);
 });

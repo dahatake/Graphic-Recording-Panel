@@ -30,7 +30,7 @@ export async function createApp(options) -> app   // await 可能（同期で返
   onresult: null | ({text:string, isFinal:boolean}) => void,   // app が代入する
   onerror:  null | ({code:string}) => void }
 ```
-`app.startSpeech()` が `start({lang})` を呼ぶ。`processLocally === false` のときは呼ばずに `{ok:false}` を返し理由メッセージを出す。
+`app.startSpeech()` が `start({lang})` を呼ぶ。`processLocally === false`（デバイス内処理でない）のときは、利用者の同意（下記「音声認識の日本語対応」）がない間は呼ばずに `{ok:false}` を返し理由メッセージを出す（同意があれば呼ぶ）。
 `isFinal:true` だけが発話になる。セッションが記録中でないときの `onresult` は無視する。
 
 ### app の公開面
@@ -87,9 +87,29 @@ export async function createApp(options) -> app   // await 可能（同期で返
 - `onend()` が来たとき、`session==='recording'` かつ `speechSource.processLocally===true` なら、2 秒以内（`scheduler.setTimeout` 使用可。テストは `advance(2000)` の後）に `speechSource.start({lang})`（現在の表示言語）を再度呼ぶ。`paused`/`stopped`/`preparing`（停止・一時停止の操作後を含む）や `processLocally===false` では呼ばない。再開で発話は増減しない。
 
 ## コマンドバーとステータス（NFR-UX-001 AC-057 / AC-060）
-- `app.getCommandBar()` → `{ position:'top', items:[{command,label,tabbable:boolean}], status:{ role:'status', live:'polite'|'assertive', session:'preparing'|'recording'|'paused'|'stopped', speech:'available'|'unavailable', text:string } }`。`items` は必須コマンドのうち `session.*`・`save.*`・`lang.*`・`view.*`・`presentation.*` を含む。`speech` は `speechSource.processLocally` が真のとき `available`。`status.text` は状態が変わると変わる。
+- `app.getCommandBar()` → `{ position:'top', items:[{command,label,tabbable:boolean}], status:{ role:'status', live:'polite'|'assertive', session:'preparing'|'recording'|'paused'|'stopped', speech:'available'|'consent'|'unavailable', text:string } }`。`items` は必須コマンドのうち `session.*`・`save.*`・`lang.*`・`view.*`・`presentation.*` を含む。`speech` は `getSpeechStatus().state`（`local`→`available`、`consent`→`consent`、`unavailable`→`unavailable`。日本語対応で `consent` を追加。デバイス内処理でなく API がある環境は、旧契約の `unavailable` ではなく `consent`）。`text` は `getSpeechStatus().text` を含む。`status.text` は状態が変わると変わる。
 - `web/index.html` は、コマンドバー（`id="toolbar"` か `role="toolbar"`）と `role="status"` かつ `aria-live` のステータス要素を `<main>` より前に置く。正の `tabindex` を使わない。
 
 ## 見た目の資産（NFR-UX-001 AC-057 / AC-061）
 - `web/styles/tokens.css` に `:root`（ライト）と `:root[data-theme="dark"]` で `--color-bg` `--color-surface` `--color-focus` `--font-sans` を定義する。`:focus-visible` の規則は `outline: <2px 以上> solid var(--color-focus)` で、`--color-focus` は両テーマで `--color-bg`・`--color-surface` に対し 3:1 以上。
 - `--font-sans` は先頭が `Segoe UI`・`system-ui`・`-apple-system`・`BlinkMacSystemFont` のいずれかで、`Segoe UI` を含む。`@font-face` の url・`@import` の外部・外部 URL の `href/src` を `web/` に置かない。
+
+## 音声認識の日本語対応（FR-001 AC-040 / AC-066〜069、NFR-PRIV-001 AC-034、追記。processLocally が真なら従来どおり＝後方互換）
+- SpeechSource の任意項目（省略時は括弧内の既定）: `supported:boolean`（SpeechRecognition API の有無。既定 true）、`availabilityFor(lang)->'local'|'downloadable'|'remote'|'unsupported'`（その言語（`'ja-JP'|'en-US'`）だけの判定。既定は `processLocally ? 'local' : 'remote'`。呼ぶたびに現在値を見る）、`install({lang}) -> Promise<{ok:boolean}>`（`downloadable` の言語モデルの導入＝SR.install）。判定は選択中の言語（`lang`→`ja-JP`/`en-US`）だけで行い、他の言語の `availabilityFor` に左右されない。
+- `start(opts)` の `opts` は `{lang}` に加え、デバイス内で開始するとき `processLocally:true` を持つ。同意による外部送信可の開始では `opts` に `processLocally` キーを**持たない**（実装は rec.processLocally を設定しない）。
+- `app.startSpeech()` → `{ok:boolean, reason?:'api_missing'|'language_unsupported'|'model_missing'|'consent_required'|'mic_denied'}` を返す。`downloadable` のときだけ `Promise<同じ形>`（テストは常に `await`）。それ以外は同期。`ok:false` では `start` を呼ばず、`getState().message` に理由別の文言（表示言語、理由ごとに異なる）を出す。
+  - `supported===false` → `api_missing`。`unsupported` → `language_unsupported`。
+  - `local` → 同意不要で `start({lang, processLocally:true})`。
+  - `downloadable` → `install({lang})` を待ち、`ok` なら `start({lang, processLocally:true})`（導入が完了する前は `start` しない）。失敗は `model_missing`（`start` しない）。
+  - `remote` → 同意がなければ `consent_required`（`start` しない）。同意があれば `start({lang})`（processLocally キーなし）。
+- 同意: `app.setSpeechConsent(bool)` / `app.getSpeechConsent()`（既定 false）。`setSpeechConsent(false)` は記録中の認識を `speechSource.stop()` で止める。同意はそのページ利用中（メモリ内）だけ有効で**保存しない**（再読込＝同じ storage での再生成後は未同意）。`availabilityFor` が例外を投げる・未知の値を返す（判定不能）ときは `remote` と同じ（同意なしでは `consent_required`）。音声・認識結果（`onresult` の余分な項目を含む）は保存に含めない。
+- `app.getSpeechStatus()` → `{ state:'local'|'consent'|'unavailable', reason:null|'api'|'language'|'model'|'consent'|'mic', startEnabled:boolean, alternative:boolean, text:string }`。
+  - `local`（`availability` が `local`／`downloadable`）: `text` は「使えます（デバイス内）」を含む（en は ja と異なる非空）。`startEnabled:true`。
+  - `consent`（`remote` で API あり）: `text` は「使えます（要同意・外部送信の可能性）」を含む。未同意は `reason:'consent'`・`startEnabled:false`、同意後は `reason:null`・`startEnabled:true`。
+  - `unavailable`: `text` は「使えません」を含み、`reason` は `api`（API 非対応）/`language`（言語未対応）/`model`（導入失敗後）/`mic`（マイク拒否。`speechSource.onerror({code:'not-allowed'})` か `'service-not-allowed'` で）。`startEnabled:false`、`alternative:true`（手入力 FR-002 への誘導を表示）。理由ごとに `text`・メッセージは異なる。表示言語に合わせる。
+  - 3 状態の `text` は互いに異なる。`app.setLang` で選択言語が変わると判定をやり直す。
+- 同意 UI: `app.getConsentUi()` → `{ visible:boolean, role:'switch'|'checkbox', checked:boolean, tabbable:true, label:string, notice:string, stateText:string, colorOnly:false }`。`visible` は `consent` 状態のとき真。`notice` は `app.t('speech.consent.notice')` と同じ（音声が外部の音声認識サービスへ送られる可能性。ja は「外部」を含み、en は `external` を含む。ja と en で異なる）。`stateText` は同意状態を文字で示す（色だけにしない。同意済み／未同意で異なる）。`checked` は `getSpeechConsent()` と一致。
+- キーボード: コマンド `speech.consent`（`app.commands['speech.consent']()` で同意を切り替える）を `keymap` に持ち、`handleKey` で実行できる。
+- `web/index.html` に同意の操作要素 `id="speech-consent"`（`<input type="checkbox">` か `role="switch"`/`checkbox`）。ネイティブ入力でなければ `aria-checked` と `tabindex="0"`。名前（`<label for>` か `aria-label`）と説明（`aria-describedby`）を持つ。正の `tabindex` は不可。
+- `onend()` の自動再開（NFR-BG-001 AC-064）の条件を次に改める: `session==='recording'` かつ（`availabilityFor`＝`local`、または `remote` かつ同意済み）のときだけ `start`（同意による再開は `processLocally` キーなし）。未同意の `remote`、`unsupported`、停止・一時停止後は再開しない。
+- 外部通信（NFR-OFFLINE-001 AC-031）: 同意による外部送信可の認識を使っても、アプリ自身は `fetch`/`XMLHttpRequest`/`WebSocket`/`EventSource`/`sendBeacon` を呼ばない（ブラウザの認識通信は含めない）。

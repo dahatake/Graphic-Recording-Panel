@@ -43,8 +43,7 @@ export const ICONS = {
 export function commandBarModule(ctx) {
   ctx.i18n.addStrings({
     ja: {
-      'status.speech.available': '音声認識: 使えます',
-      'status.speech.unavailable': '音声認識: 使えません',
+      'status.speech.label': '音声認識',
       'status.lang': '言語',
       'status.view': '表示',
       'status.region': '状態',
@@ -52,8 +51,7 @@ export function commandBarModule(ctx) {
       'view.name.2d': '2D', 'view.name.3d': '3D',
     },
     en: {
-      'status.speech.available': 'Speech: available',
-      'status.speech.unavailable': 'Speech: unavailable',
+      'status.speech.label': 'Speech',
       'status.lang': 'Language',
       'status.view': 'View',
       'status.region': 'Status',
@@ -64,10 +62,11 @@ export function commandBarModule(ctx) {
   const api = ctx.api;
   api.getCommandStatus = () => {
     const st = ctx.state;
-    const speech = api.isSpeechAvailable?.() ? 'available' : 'unavailable';
+    const ss = api.getSpeechStatus();
+    const speech = ss.state === 'local' ? 'available' : ss.state;
     const text = [
       `${ctx.t('session.statusLabel')}: ${ctx.t(`session.state.${st.session}`)}`,
-      ctx.t(`status.speech.${speech}`),
+      `${ctx.t('status.speech.label')}: ${ss.text}`,
       `${ctx.t('status.lang')}: ${ctx.t(`lang.name.${st.lang}`)}`,
       `${ctx.t('status.view')}: ${ctx.t(`view.name.${st.viewMode}`)}`,
     ].join(' ｜ ');

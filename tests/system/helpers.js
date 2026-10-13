@@ -54,15 +54,25 @@ export class FakeVisibility {
 }
 
 export class FakeSpeech {
-  constructor({ processLocally = true } = {}) {
-    this.processLocally = processLocally; this.startCalls = []; this.stopCalls = 0;
+  // 日本語対応（AC-066〜069）: supported（API の有無）、availability（言語ごとの 'local'|'downloadable'|'remote'|'unsupported'。
+  // 省略した言語は processLocally から導く＝従来の疑似音声源と同じ）、installOk（install の結果）。
+  constructor({ processLocally = true, supported = true, availability = {}, installOk = true } = {}) {
+    this.processLocally = processLocally; this.supported = supported; this.availability = { ...availability };
+    this.installOk = installOk; this.installCalls = []; this.startCalls = []; this.stopCalls = 0;
     this.onresult = null; this.onerror = null; this.onend = null;
+  }
+  availabilityFor(lang) { return this.availability[lang] ?? (this.processLocally ? 'local' : 'remote'); }
+  async install(opts) {
+    this.installCalls.push(opts);
+    if (this.installOk) { this.availability[opts.lang] = 'local'; this.processLocally = true; }
+    return { ok: this.installOk };
   }
   start(opts) { this.startCalls.push(opts); }
   stop() { this.stopCalls++; }
   // ブラウザによる音声認識の自動終了の模擬（NFR-BG-001）
   end() { if (this.onend) this.onend(); }
-  emit(text, isFinal = true) { if (this.onresult) this.onresult({ text, isFinal }); }
+  emit(text, isFinal = true, extra = {}) { if (this.onresult) this.onresult({ text, isFinal, ...extra }); }
+  fail(code) { if (this.onerror) this.onerror({ code }); }
 }
 
 // 何を呼ばれても記録して返す Canvas 2D コンテキストの代用。fillText の文字列を集める。
