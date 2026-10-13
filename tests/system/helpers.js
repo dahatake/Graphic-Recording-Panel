@@ -47,13 +47,21 @@ export class FakeScheduler {
   }
 }
 
+// document.visibilityState / visibilitychange の偽装（契約: options.visibility）。
+export class FakeVisibility {
+  constructor() { this.hidden = false; this.onchange = null; }
+  set(hidden) { this.hidden = hidden; if (this.onchange) this.onchange(); }
+}
+
 export class FakeSpeech {
   constructor({ processLocally = true } = {}) {
     this.processLocally = processLocally; this.startCalls = []; this.stopCalls = 0;
-    this.onresult = null; this.onerror = null;
+    this.onresult = null; this.onerror = null; this.onend = null;
   }
   start(opts) { this.startCalls.push(opts); }
   stop() { this.stopCalls++; }
+  // ブラウザによる音声認識の自動終了の模擬（NFR-BG-001）
+  end() { if (this.onend) this.onend(); }
   emit(text, isFinal = true) { if (this.onresult) this.onresult({ text, isFinal }); }
 }
 

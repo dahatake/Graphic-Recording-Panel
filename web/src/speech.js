@@ -11,7 +11,7 @@ export const speechLang = (lang) => LANG_TAG[lang] ?? LANG_TAG.ja;
 export function createBrowserSpeechSource(g = globalThis) {
   const SR = g.SpeechRecognition ?? g.webkitSpeechRecognition;
   if (!SR) return null;
-  const src = { processLocally: false, onresult: null, onerror: null, ready: Promise.resolve() };
+  const src = { processLocally: false, onresult: null, onerror: null, onend: null, ready: Promise.resolve() };
   const supportsLocal = typeof SR.available === 'function' && 'processLocally' in SR.prototype;
   if (supportsLocal) {
     src.ready = Promise.all(Object.values(LANG_TAG).map((l) => Promise.resolve(SR.available({ langs: [l], processLocally: true })).catch(() => 'unavailable')))
@@ -31,12 +31,14 @@ export function createBrowserSpeechSource(g = globalThis) {
       }
     };
     rec.onerror = (ev) => src.onerror?.({ code: String(ev?.error ?? 'error') });
+    rec.onend = () => { if (rec && rec === me) src.onend?.(); }; // NFR-BG-001 AC-064: 自動終了を通知
+    const me = rec;
     try { rec.start(); } catch { src.onerror?.({ code: 'start-failed' }); }
   };
   src.stop = () => {
     if (!rec) return;
     const r = rec; rec = null;
-    r.onresult = r.onerror = null;
+    r.onresult = r.onerror = r.onend = null;
     try { r.stop(); } catch { /* 既に停止 */ }
   };
   return src;
@@ -87,6 +89,37 @@ export async function speechModule(ctx) {
     };
   }
 
+  // NFR-BG-001 AC-064: 記録中にブラウザが認識を自動終了したら、PARAM-008（2 秒）以内に再開する。
+  // 停止・一時停止後（speech.active=false）や、デバイス内処理が確認できないときは再開しない。
+  // 結果が 1 件も得られないまま短時間に再開が続くときは、無限ループを避けて止める。
+  const sched = ctx.options.scheduler ?? { setTimeout: (f, ms) => globalThis.setTimeout(f, ms), clearTimeout: (id) => globalThis.clearTimeout(id) };
+  const RESTART_MS = 500, MAX_FAILS = 5;
+  let restartTimer = null, fails = 0;
+  const cancelRestart = () => { if (restartTimer != null) { sched.clearTimeout(restartTimer); restartTimer = null; } };
+  const canRestart = () => ctx.state.session === 'recording' && speech.active && available();
+  if (source) {
+    const onResult = source.onresult;
+    source.onresult = (e) => { fails = 0; return onResult(e); };
+    source.onend = () => {
+      if (!canRestart() || restartTimer != null) return;
+      if (++fails > MAX_FAILS) {
+        speech.active = false; fails = 0;
+        ctx.change(() => { speech.interim = ''; ctx.setMessage('msg.speechError'); });
+        return;
+      }
+      restartTimer = sched.setTimeout(() => {
+        restartTimer = null;
+        if (canRestart()) begin();
+      }, RESTART_MS);
+    };
+  }
+  // 非表示でも停止・間引きをしない。可視に戻ったときは画面を最新化する（NFR-BG-001 AC-063）。
+  const vis = ctx.options.visibility ?? (globalThis.document ? {
+    get hidden() { return globalThis.document.hidden; },
+    set onchange(f) { globalThis.document.addEventListener('visibilitychange', f); },
+  } : null);
+  if (vis) vis.onchange = () => { if (!vis.hidden) ctx.change(() => {}); };
+
   const begin = () => source.start({ lang: speechLang(ctx.state.lang) });
   ctx.api.startSpeech = () => {
     if (!available()) {
@@ -99,6 +132,7 @@ export async function speechModule(ctx) {
   };
   ctx.api.stopSpeech = () => {
     if (source && speech.active) source.stop();
+    cancelRestart(); fails = 0;
     ctx.change(() => { speech.active = false; speech.interim = ''; });
     return { ok: true };
   };
