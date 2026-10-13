@@ -217,13 +217,17 @@ test('FR-001 AC-068: index.html に名前・説明・状態を持つ同意の操
   assert.ok(!/tabindex="[1-9]/.test(html));
 });
 
-test('FR-001 AC-068 異常系: 同意の保存は同意したか否かだけで、発話・認識結果を含まない', async () => {
-  const { app, env } = await boot(REMOTE);
+test('FR-001 AC-068 異常系: 同意状態は保存されず（AC-067）、再読込後は未同意に戻る。セッションの保存に同意・音声は含まれない', async () => {
+  const { app, env, createApp } = await boot(REMOTE);
   rec(app); app.setSpeechConsent(true); await app.startSpeech();
-  env.speech.emit('秘密の発話テキスト', true);
-  const consentEntries = env.storage.dump().filter(([k]) => /consent/i.test(k));
-  for (const [, v] of consentEntries) assert.match(v, /^(true|false|1|0)$/);
-  assert.ok(consentEntries.every(([, v]) => !v.includes('秘密')));
+  env.speech.emit('秘密の発話テキスト', true, { audio: 'RAW-AUDIO-MARKER-68' });
+  assert.equal(app.getSpeechConsent(), true);
+  const dump = env.storage.dump();
+  assert.equal(dump.filter(([k]) => /consent/i.test(k)).length, 0, '同意のキーが保存されない');
+  assert.ok(!dump.some(([, v]) => /consent|RAW-AUDIO-MARKER-68|audio/i.test(v)), '保存内容に同意・音声が含まれない');
+  const fresh = await createApp({ ...env.options, speechSource: new FakeSpeech(REMOTE) });
+  assert.equal(fresh.getSpeechConsent(), false);
+  assert.equal(fresh.getConsentUi().checked, false);
 });
 
 // FR-001 AC-069
