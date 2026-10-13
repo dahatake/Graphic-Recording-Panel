@@ -51,8 +51,8 @@ export function mountEditUI(app, doc = document) {
     // 保存ボタン: シーン 0 件では無効にして、理由を見える文字で示す
     const save = app.getSaveState();
     const btns = [...doc.querySelectorAll('[data-command^="save."]')];
-    for (const b of btns) { b.disabled = !save.enabled; if (save.reason) b.title = save.reason; }
-    const group = btns[0]?.closest('fieldset');
+    for (const b of btns) { b.disabled = !save.enabled; const lab = b.querySelector('.btn-label')?.textContent ?? ''; b.title = save.reason ? `${lab}: ${save.reason}` : lab; }
+    const group = doc.querySelector('.statusbar');
     if (group) {
       let note = group.querySelector('.save-reason');
       if (!save.enabled) {

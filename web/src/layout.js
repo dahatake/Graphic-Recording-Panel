@@ -11,9 +11,9 @@ export function defaultLayout() {
   const mk = (x, y, w, h) => ({ x, y, w, h, visible: true, maximized: false });
   return {
     panels: {
-      diagram: mk(0, 0, 560, 560),
-      outline: mk(580, 0, 320, 560),
-      input: mk(920, 0, 360, 560), // FR-013: 認識文字列パネルは図より右
+      diagram: mk(0, 0, 410, 560),
+      outline: mk(422, 0, 232, 560),
+      input: mk(666, 0, 320, 560), // FR-013: 認識文字列パネルは図より右（3 列が約 1000px の幅に収まる）
     },
   };
 }

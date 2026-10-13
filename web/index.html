@@ -15,7 +15,7 @@
     <h1 id="app-title" data-i18n="app.title">グラフィックレコーディング パネル</h1>
   </header>
   <nav id="toolbar" class="toolbar commandbar" data-i18n-attr="aria-label:toolbar.label"></nav>
-  <div class="statusbar"><p id="session-status" class="status-chip" role="status" aria-live="polite"></p></div>
+  <div class="statusbar"><p id="session-status" class="status-chip" role="status" aria-live="polite"></p><p id="message" class="message" role="status" aria-live="polite"></p></div>
   <main id="workspace" class="workspace" tabindex="-1">
     <section class="panel" data-panel="input" aria-labelledby="panel-input-title">
       <header class="panel-head"><h2 id="panel-input-title" data-i18n="panel.input">認識文字列</h2><div class="panel-menu" data-menu="input"></div></header>
@@ -31,7 +31,6 @@
           <input id="import-file" type="file" accept=".txt,text/plain">
         </div>
         <p id="interim" class="message" role="status" aria-live="polite"></p>
-        <p id="message" class="message" role="status" aria-live="polite"></p>
       </div>
     </section>
     <section class="panel" data-panel="diagram" aria-labelledby="panel-diagram-title">

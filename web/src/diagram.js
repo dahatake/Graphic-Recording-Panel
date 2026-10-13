@@ -86,7 +86,8 @@ export function renderDiagramSvg(scenes, opts = {}) {
     const y = MARGIN + HEAD_H / 2; const nx = heads[i + 1].x;
     return `<line x1="${h.x + h.w + 4}" y1="${y}" x2="${nx - 4}" y2="${y}" stroke="${INK}" stroke-width="3" marker-end="url(#arrow-flow)"/>`;
   });
-  const width = Math.max(320, x - SCENE_GAP + MARGIN);
+  const emptyW = scenes.length ? 0 : MARGIN * 2 + Math.ceil([...t('diagram.empty')].reduce((n, c) => n + (c.charCodeAt(0) > 255 ? FS : FS * 0.6), 0));
+  const width = Math.max(320, emptyW, x - SCENE_GAP + MARGIN);
   const height = Math.max(160, maxH);
   const markers = PALETTE.map((c, i) => `<marker id="arrow-${i}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`).join('')
     + `<marker id="arrow-flow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="${INK}"/></marker>`;
@@ -109,6 +110,7 @@ export function mountDiagramPanel(host, app, doc = host.ownerDocument) {
     const mk = (cmd, label) => {
       const b = doc.createElement('button'); b.type = 'button'; b.className = 'btn btn-sm'; b.dataset.zoom = cmd; b.textContent = label;
       b.addEventListener('click', () => {
+        host._fit = cmd !== 'reset';
         host._zoom = cmd === 'in' ? clampZoom(host._zoom * ZOOM_STEP) : cmd === 'out' ? clampZoom(host._zoom / ZOOM_STEP) : 1;
         paint(host, app);
       });
@@ -148,7 +150,11 @@ function paint(host, app) {
   const el = canvas.querySelector('svg');
   if (el) {
     const w = Number(el.getAttribute('width')); const h = Number(el.getAttribute('height'));
-    el.setAttribute('width', String(Math.round(w * host._zoom))); el.setAttribute('height', String(Math.round(h * host._zoom)));
+    // 既定は「幅に合わせる」: パネルより広い図は縮めて、右にはみ出さない（ボタンで拡大・縮小すると解除）
+    const avail = canvas.clientWidth - 2;
+    const fit = host._fit !== false && avail > 0 && w > avail ? avail / w : 1;
+    const z = host._fit !== false ? fit * host._zoom : host._zoom;
+    el.setAttribute('width', String(Math.round(w * z))); el.setAttribute('height', String(Math.round(h * z)));
   }
 }
 

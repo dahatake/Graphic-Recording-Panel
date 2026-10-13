@@ -11,12 +11,19 @@ h1 { font-size: var(--font-size-title); } h2 { font-size: var(--font-size-subtit
 .skip-link:focus { top: var(--space-2); }
 
 /* アプリの外枠: タイトル → コマンドバー → ステータスバー → 作業領域 */
-.app-header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4) var(--space-2); background: var(--color-surface); }
-.commandbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-4); padding: var(--space-1) var(--space-4) var(--space-2); background: var(--color-surface); border-bottom: var(--stroke) solid var(--color-border-subtle); }
-.toolbar-group { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); border: 0; margin: 0; padding: 0; min-width: 0; }
-.toolbar-group legend { font-size: var(--font-size-caption); color: var(--color-text-muted); padding: 0; float: left; margin-right: var(--space-2); }
-.toolbar-group + .toolbar-group { padding-left: var(--space-4); border-left: var(--stroke) solid var(--color-border-subtle); }
-.statusbar { display: flex; align-items: center; padding: var(--space-1) var(--space-4); background: var(--color-surface-2); border-bottom: var(--stroke) solid var(--color-border-subtle); font-size: var(--font-size-caption); }
+.app-header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4) var(--space-1); background: var(--color-surface); }
+.app-header h1 { font-size: var(--font-size-subtitle); }
+/* コマンドバー: グループを横に並べて折り返す 1〜2 段。アイコン中心（ラベルはツールチップ・読み上げ）、主要コマンドだけラベル併記 */
+.commandbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); padding: var(--space-1) var(--space-4); background: var(--color-surface); border-bottom: var(--stroke) solid var(--color-border-subtle); }
+.toolbar-group { display: flex; flex-wrap: nowrap; align-items: center; gap: 2px; border: 0; margin: 0; padding: 0; min-width: 0; }
+.toolbar-group legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; padding: 0; }
+.toolbar-group + .toolbar-group { padding-left: var(--space-2); border-left: var(--stroke) solid var(--color-border-subtle); }
+.toolbar-group:empty, .toolbar-group[hidden] { display: none; }
+.commandbar .btn-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.commandbar .btn-primary .btn-label { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
+.statusbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-4); padding: var(--space-1) var(--space-4); background: var(--color-surface-2); border-bottom: var(--stroke) solid var(--color-border-subtle); font-size: var(--font-size-caption); }
+.statusbar .message { margin: 0; min-height: 0; }
+.statusbar .message:empty { display: none; }
 .status-chip { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); color: var(--color-text); font-weight: var(--font-weight-semibold); }
 /* 状態は色だけでなく、形（記号）と文言でも示す */
 .status-chip::before { content: "○"; font-size: 1.1em; }
@@ -40,7 +47,7 @@ h1 { font-size: var(--font-size-title); } h2 { font-size: var(--font-size-subtit
 
 /* ワークスペース: 広い画面は自由配置（px はレイアウトの保存値）、狭い画面は積み重ね（AC-028） */
 .workspace { position: relative; padding: var(--space-3); outline: none; }
-.workspace[data-mode="floating"] { min-height: 70vh; overflow: auto; }
+.workspace[data-mode="floating"] { min-height: 70vh; overflow-x: auto; overflow-y: visible; }
 /* カード風パネル */
 .panel { background: var(--color-surface); border: var(--stroke) solid var(--color-border-subtle); border-radius: var(--radius); box-shadow: var(--shadow); display: flex; flex-direction: column; min-width: 0; }
 .workspace[data-mode="floating"] .panel { position: absolute; }
@@ -48,9 +55,12 @@ h1 { font-size: var(--font-size-title); } h2 { font-size: var(--font-size-subtit
 .workspace[data-mode="stacked"] { display: flex; flex-direction: column; gap: var(--space-3); overflow-x: hidden; }
 .workspace[data-mode="stacked"] .panel { position: static; width: auto !important; height: auto !important; }
 .panel[hidden] { display: none; }
-.panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: var(--stroke) solid var(--color-border-subtle); cursor: grab; touch-action: none; }
-.panel-menu { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.panel-body { padding: var(--space-3); overflow: auto; flex: 1; min-height: 0; overflow-wrap: anywhere; }
+.panel-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-1) var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: var(--stroke) solid var(--color-border-subtle); cursor: grab; touch-action: none; }
+.panel-head h2 { white-space: nowrap; }
+.panel-menu { display: flex; flex-wrap: wrap; gap: 2px; margin-left: auto; }
+.panel-body { padding: var(--space-3); overflow: auto; flex: 1; min-height: 0; min-width: 0; overflow-wrap: anywhere; }
+#diagram.panel-body { display: flex; flex-direction: column; }
+#diagram .diagram-canvas { flex: 1; min-height: 0; max-width: 100%; }
 .resize-grip { position: absolute; right: 0; bottom: 0; width: 20px; height: 20px; cursor: nwse-resize; border-right: 3px solid var(--color-border); border-bottom: 3px solid var(--color-border); border-radius: 0 0 var(--radius) 0; touch-action: none; }
 .workspace[data-mode="stacked"] .resize-grip, .workspace[data-mode="stacked"] .panel-head { cursor: default; }
 .workspace[data-mode="stacked"] .resize-grip { display: none; }
@@ -83,6 +93,14 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .badge-confirmed { font-weight: var(--font-weight-semibold); }
 .badge-selected { font-weight: var(--font-weight-semibold); text-decoration: underline; }
 
+/* 手修正フォーム（テキスト一覧パネルの下のカード） */
+.edit-form { flex: none; max-height: 50%; overflow: auto; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border-top: var(--stroke) solid var(--color-border-subtle); background: var(--color-surface-2); border-radius: 0 0 var(--radius) var(--radius); }
+.edit-form h3 { display: block; font-size: var(--font-size-body); }
+.edit-form label { display: block; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.edit-form label > select, .edit-form label > input { display: block; margin-top: var(--space-1); }
+.edit-form select, .edit-form input[type="text"] { font: inherit; color: var(--color-text); background: var(--color-surface); border: var(--stroke) solid var(--color-border); border-bottom-width: 2px; border-radius: var(--radius-control); padding: var(--space-1) var(--space-2); width: 100%; min-width: 0; }
+.edit-actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+
 .tabs { display: none; gap: var(--space-1); margin-bottom: var(--space-2); flex-wrap: wrap; }
 .workspace[data-mode="stacked"] .tabs { display: flex; }
 .tabs[hidden] { display: none; }
@@ -91,7 +109,7 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 @media (max-width: 767px) {
   .commandbar { flex-direction: column; align-items: stretch; }
   .toolbar-group + .toolbar-group { padding-left: 0; border-left: 0; }
-  .toolbar-group { width: 100%; }
+  .toolbar-group { width: 100%; flex-wrap: wrap; }
   .app-header, .commandbar, .statusbar { padding-left: var(--space-3); padding-right: var(--space-3); }
 }
 
