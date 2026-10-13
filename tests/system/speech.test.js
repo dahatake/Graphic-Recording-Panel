@@ -144,10 +144,32 @@ test('FR-001 AC-067 NFR-PRIV-001 AC-034: 同意を取り消すと認識が停止
   assert.equal(env.speech.startCalls.length, n);
 });
 
-test('FR-001 AC-067 異常系: 同意の状態は既定で未同意であり、再生成したアプリでも自動で同意済みにならない（別の保存領域）', async () => {
-  const { createApp, env } = await boot(REMOTE);
-  const fresh = await createApp({ ...env.options, storage: new (env.storage.constructor)(), speechSource: new FakeSpeech(REMOTE) });
-  assert.equal(fresh.getSpeechConsent(), false);
+test('FR-001 AC-067 異常系: 同意はそのページ利用中だけ有効で保存されず、再読込（同じ storage で再生成）後は未同意に戻り開始できない', async () => {
+  const { app, createApp, env } = await boot(REMOTE);
+  rec(app); app.setSpeechConsent(true);
+  assert.equal(app.getSpeechConsent(), true);
+  assert.equal(env.storage.dump().some(([k, v]) => /consent/i.test(k) && /true|1/.test(v)), false, '同意は保存されない');
+  const sp = new FakeSpeech(REMOTE);
+  const fresh = await createApp({ ...env.options, speechSource: sp });
+  assert.equal(fresh.getSpeechConsent(), false, '再読込後の既定は未同意');
+  rec(fresh);
+  const r = await fresh.startSpeech();
+  assert.equal(r.ok, false); assert.equal(r.reason, 'consent_required');
+  assert.equal(sp.startCalls.length, 0);
+});
+
+test('NFR-PRIV-001 AC-034 異常系: デバイス内処理が判定できない（availabilityFor が例外・未知の値）ときも「使えない」扱いで、同意前は開始されず、同意後に開始する', async () => {
+  for (const mode of ['throw', 'unknown']) {
+    const { app, env } = await boot(REMOTE);
+    env.speech.availabilityFor = () => { if (mode === 'throw') throw new Error('判定不能'); return 'unknown'; };
+    rec(app);
+    const r = await app.startSpeech();
+    assert.equal(r.ok, false, mode); assert.equal(r.reason, 'consent_required', mode);
+    assert.equal(env.speech.startCalls.length, 0, mode);
+    app.setSpeechConsent(true);
+    assert.equal((await app.startSpeech()).ok, true, mode);
+    assert.equal(hasProcLocally(env.speech.startCalls.at(-1)), false, mode);
+  }
 });
 
 test('NFR-PRIV-001 AC-034: 同意があっても音声は保存されない（保存内容に音声・認識結果の余分な項目がない）', async () => {
@@ -298,6 +320,18 @@ test('NFR-BG-001 AC-064 異常系: 同意が得られていない・取り消し
   const n = env.speech.startCalls.length;
   env.speech.end(); env.scheduler.advance(10 * 1000);
   assert.equal(env.speech.startCalls.length, n);
+});
+
+test('NFR-BG-001 AC-064 異常系: 同意を取り消して停止した後は、自動終了・時間経過でも再開されず、再度同意するまで再開しない', async () => {
+  const { app, env } = await boot(REMOTE);
+  rec(app); app.setSpeechConsent(true); await app.startSpeech();
+  app.setSpeechConsent(false);
+  const n = env.speech.startCalls.length;
+  env.speech.end(); env.scheduler.advance(60 * 1000);
+  assert.equal(env.speech.startCalls.length, n, '取り消し後は自動再開しない');
+  app.setSpeechConsent(true);
+  env.scheduler.advance(60 * 1000);
+  assert.equal(env.speech.startCalls.length, n, '再同意しただけでは自動再開せず、利用者の開始操作を待つ');
 });
 
 test('NFR-BG-001 AC-064 異常系: 選択言語が未対応になった（言語を替えた）後の自動終了では再開されない', async () => {
