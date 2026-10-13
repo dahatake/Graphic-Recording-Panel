@@ -16,8 +16,8 @@
 | FR-006 | 画像としての保存 | 承認済み | 未実装 | 未実装 | - |
 | FR-007 | PDF としての保存 | 承認済み | 未実装 | 未実装 | - |
 | FR-008 | 表示言語の切替（日本語・英語） | 承認済み | web/src/i18n.js, web/src/app.js, web/src/ui.js | tests/unit/shell.test.js, tests/system/i18n.test.js | i18n, アプリ組立 |
-| FR-009 | 2D/3D の切替表示 | 承認済み | 未実装 | 未実装 | - |
-| FR-010 | ダイナミックカメラによるプレゼンテーション | 承認済み | 未実装 | 未実装 | - |
+| FR-009 | 2D/3D の切替表示 | 承認済み | web/src/view3d.js, web/styles/view3d.css, web/src/app.js, web/src/main.js | tests/unit/view3d.test.js, tests/system/view.test.js | アプリ組立, 3D ビュー |
+| FR-010 | ダイナミックカメラによるプレゼンテーション | 承認済み | web/src/view3d.js, web/src/keymap.js, web/src/ui.js | tests/unit/view3d.test.js, tests/system/view.test.js | アプリ組立, 3D ビュー |
 | FR-011 | パネルのレイアウト変更と保存 | 承認済み | web/src/layout.js, web/src/app.js, web/src/ui.js, web/styles/app.css | tests/unit/shell.test.js, tests/system/layout.test.js | アプリ組立, デザイン基盤 |
 | FR-012 | セッションの保存と復元 | 承認済み | 未実装 | 未実装 | - |
 | NFR-OFFLINE-001 | 外部通信なしでの動作 | 承認済み | web/sw.js, web/src/main.js | tests/unit/shell.test.js, tests/system/offline.test.js | - |
@@ -39,8 +39,9 @@
 
 | 部品名 | ファイル | 用途 | 使っている要求 ID |
 |---|---|---|---|
-| アプリ組立 | web/src/app.js | 状態・コマンド・キー割り当て・パネル描画の拡張点（modules / registerCommand / registerPanelRenderer / addUtterance / addUtterances）。後続の機能はここへ足す | FR-002, FR-003, FR-004, FR-008, FR-011, NFR-A11Y-001 |
+| アプリ組立 | web/src/app.js | 状態・コマンド・キー割り当て・パネル描画の拡張点（modules / registerCommand / registerPanelRenderer / addUtterance / addUtterances）。後続の機能はここへ足す | FR-002, FR-003, FR-004, FR-008, FR-009, FR-010, FR-011, NFR-A11Y-001 |
 | i18n | web/src/i18n.js | ja/en の UI 文言（addStrings で後続が追加） | FR-008 |
 | デザイン基盤 | web/styles/tokens.css, web/styles/app.css | CSS 変数・ダーク/ライト・コントラスト・フォーカス・積み重ね | FR-004, FR-011, NFR-A11Y-001 |
 | キーマップ | web/src/keymap.js | 全操作の Alt+Shift+キー割り当て | NFR-A11Y-001 |
 | 感情語辞書 | web/src/emotion.js | 日英の感情・様子の語 → 絵記号の対応（決定的） | FR-004 |
+| 3D ビュー | web/src/view3d.js | CSS 3D transforms による 3D 配置（get3D）、プレゼンのカメラ・タイマー（presentation.*）、WebGL なしの 2D 代替 | FR-009, FR-010 |
