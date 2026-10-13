@@ -115,8 +115,13 @@ export async function speechModule(ctx) {
   const curLang = () => speechLang(ctx.state.lang);
   const avail = () => {
     if (!source || source.supported === false) return 'api';
-    const a = typeof source.availabilityFor === 'function' ? source.availabilityFor(curLang()) : (source.processLocally ? 'local' : 'remote');
-    return a === 'unsupported' ? 'language' : a;
+    // 例外・未知の値は「判定不能＝デバイス内不可」として同意経路（remote）に倒す（NFR-PRIV-001 AC-034）。
+    let a;
+    try {
+      a = typeof source.availabilityFor === 'function' ? source.availabilityFor(curLang()) : (source.processLocally ? 'local' : 'remote');
+    } catch { return 'remote'; }
+    if (a === 'unsupported') return 'language';
+    return a === 'local' || a === 'remote' || a === 'downloadable' ? a : 'remote';
   };
   const statusNow = () => {
     const a = avail();

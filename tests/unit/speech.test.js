@@ -132,6 +132,21 @@ test('FR-001 AC-067 NFR-PRIV-001 AC-034: remote は同意前に開始せず、�
   assert.equal(app.getSpeechStatus().state, 'consent');
   assert.ok(!/consent/i.test(storage.dump()));
 });
+// NFR-PRIV-001 AC-034: availabilityFor が例外・未知値でも伝播せず、同意経路（consent）になる
+test('NFR-PRIV-001 AC-034: availabilityFor の例外・未知値は判定不能として扱い、getSpeechStatus も例外を出さない', async () => {
+  for (const mode of ['throw', 'unknown']) {
+    const sp = new Av({});
+    sp.availabilityFor = () => { if (mode === 'throw') throw new Error('x'); return 'bogus'; };
+    const { app } = await mk(sp);
+    app.commands['session.start']();
+    assert.equal(app.getSpeechStatus().state, 'consent', mode);
+    assert.equal((await app.startSpeech()).reason, 'consent_required', mode);
+    assert.equal(sp.startCalls.length, 0, mode);
+    app.setSpeechConsent(true);
+    assert.equal((await app.startSpeech()).ok, true, mode);
+    assert.equal('processLocally' in sp.startCalls[0], false, mode);
+  }
+});
 test('NFR-BG-001 AC-064: 同意取消で停止し、自動終了後に再開しない', async () => {
   const { app, sp } = await mk(new Av({ 'ja-JP': 'remote' }));
   app.commands['session.start']();
