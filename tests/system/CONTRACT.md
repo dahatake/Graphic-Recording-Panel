@@ -89,6 +89,14 @@ export async function createApp(options) -> app   // await 可能（同期で返
 ## コマンドバーとステータス（NFR-UX-001 AC-057 / AC-060）
 - `app.getCommandBar()` → `{ position:'top', items:[{command,label,tabbable:boolean}], status:{ role:'status', live:'polite'|'assertive', session:'preparing'|'recording'|'paused'|'stopped', speech:'available'|'consent'|'unavailable', text:string } }`。`items` は必須コマンドのうち `session.*`・`save.*`・`lang.*`・`view.*`・`presentation.*` を含む。`speech` は `getSpeechStatus().state`（`local`→`available`、`consent`→`consent`、`unavailable`→`unavailable`。日本語対応で `consent` を追加。デバイス内処理でなく API がある環境は、旧契約の `unavailable` ではなく `consent`）。`text` は `getSpeechStatus().text` を含む。`status.text` は状態が変わると変わる。
 - `web/index.html` は、コマンドバー（`id="toolbar"` か `role="toolbar"`）と `role="status"` かつ `aria-live` のステータス要素を `<main>` より前に置く。正の `tabindex` を使わない。
+
+## コマンドバーのツールチップ（NFR-UX-002 AC-071 / AC-072 / AC-073）
+- `app.getCommandBar().items[i]` は `label`・`tabbable` に加え `tooltip:{ id:string, text:string }` を持つ。`text` は現在の表示言語の簡易な説明文（トリム後に非空、`label` と同一でなくてもよい、ボタンごとに異なる）。`items` の全ボタンが対象（アイコンのみのボタンを含む）。
+- `app.showTooltip(command, trigger)`（`trigger` は `'hover'|'focus'`）→ `{visible:true, text, id}`。`app.hideTooltip(command, trigger)`（`'leave'|'blur'`）→ `{visible:false}`。`app.getTooltip()` → `null | {command, text, id, visible:true}`（表示中のものだけ。同時に 1 つ）。`hover` と `focus` の `text` は同一。表示言語の `text` に従う（`getCommandBar().items[i].tooltip.text` と同じ）。
+- `blur`/`leave` で `getTooltip()` は `null`（別ボタンの表示は残さない）。`showTooltip` は不明なコマンドで `{visible:false}`。
+- 各ボタンは `describedBy` を `tooltip.id` として持つ（`items[i].describedBy === items[i].tooltip.id`）。実 DOM では `aria-describedby` が説明文の要素の id を指し、その要素は `role="tooltip"`。
+- `app.setLang` の直後（再読み込みなし）に `items[i].tooltip.text` と、表示中なら `getTooltip().text` が切替後の言語になる。`getStrings()` の `tooltip.<command>` キーは ja・en で同一集合（FR-008 AC-017〜019 と同じ）。
+- `web/index.html`（または `web/src/ui.js`）は `role="tooltip"` を使い、`aria-describedby` を設定する。
 
 ## 見た目の資産（NFR-UX-001 AC-057 / AC-061）
 - `web/styles/tokens.css` に `:root`（ライト）と `:root[data-theme="dark"]` で `--color-bg` `--color-surface` `--color-focus` `--font-sans` を定義する。`:focus-visible` の規則は `outline: <2px 以上> solid var(--color-focus)` で、`--color-focus` は両テーマで `--color-bg`・`--color-surface` に対し 3:1 以上。

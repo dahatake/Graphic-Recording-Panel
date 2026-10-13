@@ -41,7 +41,10 @@
     "AC-067": "sha256:402c378c76d50f9d",
     "AC-068": "sha256:c89bcb9b06cb3404",
     "AC-069": "sha256:18e591971857522f",
-    "AC-034": "sha256:183ff7e3663d4046"
+    "AC-034": "sha256:183ff7e3663d4046",
+    "AC-071": "sha256:dd809a315571b016",
+    "AC-072": "sha256:3f7bd1db19b605dc",
+    "AC-073": "sha256:f4613d37cff276b7"
   },
   "cases": [
     {
@@ -1212,6 +1215,81 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "検証レベルは integration（System Test の対象外）。テストは speech.test.js に参考として残し、可否は実装者の結合テストで行う。契約は CONTRACT.md「音声認識の日本語対応」"
+        }
+      ]
+    },
+    {
+      "id": "E2E-044",
+      "requirement_ids": [
+        "NFR-UX-002"
+      ],
+      "ac_ids": [
+        "AC-071"
+      ],
+      "title": "ツールチップ: 全アイコンボタンの説明文（非空・一意・hover・異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-071\" tests/system/tooltip.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T08:16:52+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-045",
+      "requirement_ids": [
+        "NFR-UX-002"
+      ],
+      "ac_ids": [
+        "AC-072"
+      ],
+      "title": "ツールチップ: フォーカス表示・消去・aria-describedby・異常系",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-072\" tests/system/tooltip.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T08:16:55+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-046",
+      "requirement_ids": [
+        "NFR-UX-002"
+      ],
+      "ac_ids": [
+        "AC-073"
+      ],
+      "title": "ツールチップ: 言語切替で説明文が切替わる（再読込なし・異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-073\" tests/system/tooltip.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T08:16:57+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
         }
       ]
     }
