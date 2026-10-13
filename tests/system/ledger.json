@@ -24,7 +24,15 @@
     "AC-031": "sha256:f25016536cf66685",
     "AC-032": "sha256:70a43cf878f66a04",
     "AC-036": "sha256:318b0f2e4205a0cb",
-    "AC-038": "sha256:d0f3da6ec00b2fe0"
+    "AC-038": "sha256:d0f3da6ec00b2fe0",
+    "AC-049": "sha256:b530880830288c02",
+    "AC-050": "sha256:c90af103da799d1a",
+    "AC-052": "sha256:bf4a4635a20763f2",
+    "AC-053": "sha256:148c246cce07c2be",
+    "AC-054": "sha256:23866f76e1a10949",
+    "AC-057": "sha256:ac812e004e7762a3",
+    "AC-060": "sha256:906295de64a708e1",
+    "AC-061": "sha256:92d94f14949497f9"
   },
   "cases": [
     {
@@ -621,6 +629,206 @@
       "history": [
         {
           "at": "2026-10-14T03:16:27+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-025",
+      "requirement_ids": [
+        "FR-013"
+      ],
+      "ac_ids": [
+        "AC-049"
+      ],
+      "title": "右パネルは図の右・見出しあり・FR-011 の操作と既定に戻す",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-049\" tests/system/rightpanel.test.js",
+      "canary": true,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T04:54:45+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-026",
+      "requirement_ids": [
+        "FR-013"
+      ],
+      "ac_ids": [
+        "AC-050"
+      ],
+      "title": "右パネルの .txt 取込は FR-002 と同じ結果（上限・記録中）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-050\" tests/system/rightpanel.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T04:54:46+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-027",
+      "requirement_ids": [
+        "FR-014"
+      ],
+      "ac_ids": [
+        "AC-052"
+      ],
+      "title": "暫定結果は見た目と読み上げ属性で区別され記録も図更新もされない",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-052\" tests/system/rightpanel.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T04:54:47+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-028",
+      "requirement_ids": [
+        "FR-014"
+      ],
+      "ac_ids": [
+        "AC-053"
+      ],
+      "title": "確定結果で暫定が消え一覧に移り 3 秒以内に図へ反映",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-053\" tests/system/rightpanel.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T04:54:49+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-029",
+      "requirement_ids": [
+        "FR-014"
+      ],
+      "ac_ids": [
+        "AC-054"
+      ],
+      "title": "手入力・ファイル取込の確定結果が 3 秒以内に図へ反映",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-054\" tests/system/rightpanel.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T04:54:50+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-030",
+      "requirement_ids": [
+        "NFR-UX-001"
+      ],
+      "ac_ids": [
+        "AC-057"
+      ],
+      "title": "操作部品のキーボード到達とフォーカス輪郭（コントラスト）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-057\" tests/system/ux.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T04:54:52+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-031",
+      "requirement_ids": [
+        "NFR-UX-001"
+      ],
+      "ac_ids": [
+        "AC-060"
+      ],
+      "title": "コマンドバーとステータス表示（状態・音声認識の可否・読み上げ）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-060\" tests/system/ux.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T04:54:53+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-032",
+      "requirement_ids": [
+        "NFR-UX-001"
+      ],
+      "ac_ids": [
+        "AC-061"
+      ],
+      "title": "外部取得 0 件とシステムフォント先頭の書体指定",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-061\" tests/system/ux.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T04:54:55+09:00",
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
