@@ -19,6 +19,10 @@
       {
         "name": "toolkit-unit",
         "run": "python -m pytest -q tests/toolkit/test_clean_work.py"
+      },
+      {
+        "name": "web-unit",
+        "run": "node --test tests/unit/*.test.js"
       }
     ]
   },

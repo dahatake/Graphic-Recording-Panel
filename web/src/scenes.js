@@ -5,12 +5,28 @@
 export const POINT_MAX = 40;
 export const HEADING_MAX = 24;
 
+// 長い文は読点で区切って POINT_MAX 以内の塊にする（語句はそのまま。決定的）。
+function chunk(sentence) {
+  const chars = [...sentence];
+  if (chars.length <= POINT_MAX) return [sentence];
+  const clauses = sentence.split(/(?<=[、，,])/u).filter(Boolean);
+  const out = []; let cur = '';
+  const flush = () => { if (cur.trim()) out.push(cur.trim()); cur = ''; };
+  for (const c of clauses) {
+    if ([...c].length > POINT_MAX) { flush(); const cs = [...c]; for (let i = 0; i < cs.length; i += POINT_MAX) out.push(cs.slice(i, i + POINT_MAX).join('').trim()); continue; }
+    if ([...(cur + c)].length > POINT_MAX) flush();
+    cur += c;
+  }
+  flush();
+  return out.filter(Boolean);
+}
+
 export function extractPoints(text) {
   const t = String(text).trim();
   if (!t) return [];
-  if ([...t].length <= POINT_MAX) return [t];
-  const parts = t.split(/(?<=[。．.!?！？])\s*/u).map((s) => s.trim()).filter(Boolean);
-  return parts.map((s) => ([...s].length > POINT_MAX ? [...s].slice(0, POINT_MAX).join('') : s));
+  if ([...t].length <= POINT_MAX && !/\n/.test(t)) return [t];
+  const parts = t.split(/(?<=[。．.!?！？])\s*|\s*\n\s*/u).map((s) => s.trim()).filter(Boolean);
+  return parts.flatMap(chunk);
 }
 
 export function makeHeading(text) {

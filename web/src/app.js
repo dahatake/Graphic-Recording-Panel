@@ -16,6 +16,8 @@ import { KEYMAP, matchKey } from './keymap.js';
 import { renderOutline } from './outline.js';
 import { newScene, appendPoints, extractPoints } from './scenes.js';
 import * as P from './persist.js';
+import { diagramModule } from './diagram.js';
+import { inputModule } from './input.js';
 
 const GAP_MS_DEFAULT = 20_000; // PARAM-002
 const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -91,27 +93,32 @@ export async function createApp(options = {}) {
       if (!dup) keymap.push({ ...k });
     },
     registerPanelRenderer(id, fn) { panelRenderers.set(id, fn); },
-    addUtterance(text) {
-      const t = String(text ?? '').trim();
-      if (state.session !== 'recording' || !t) return false;
-      const at = now();
+    // 発話の追加（記録中のみ）。opts.at: 受付時刻の指定、opts.noGapSplit: 無音間隔で分割しない（ファイル取込: FR-003 AC-044）。
+    addUtterance(text, opts) { return ctx.addUtterances([text], opts) > 0; },
+    // 複数の発話を 1 回の状態変更（保存・再描画）で追加する。追加した件数を返す。
+    addUtterances(texts, opts = {}) {
+      const list = texts.map((x) => String(x ?? '').trim()).filter(Boolean);
+      if (state.session !== 'recording' || !list.length) return 0;
+      const at = opts.at ?? now();
       change((s) => {
-        s.utterances.push({ id: nextId('u'), text: t, receivedAt: at });
-        const cur = s.scenes[s.scenes.length - 1];
-        const prevAt = s.utterances.length > 1 ? s.utterances[s.utterances.length - 2].receivedAt : null;
-        const gap = prevAt != null && at - prevAt > gapMs;
-        if (cur && cur.status === 'in_progress' && !breakScene && !gap) {
-          appendPoints(cur, extractPoints(t), nextId);
-        } else {
-          if (cur && cur.status === 'in_progress') cur.status = 'confirmed';
-          const sc = newScene(t, nextId);
-          s.scenes.push(sc);
-          if (!s.selectedSceneId) s.selectedSceneId = sc.id;
+        for (const t of list) {
+          s.utterances.push({ id: nextId('u'), text: t, receivedAt: at });
+          const cur = s.scenes[s.scenes.length - 1];
+          const prevAt = s.utterances.length > 1 ? s.utterances[s.utterances.length - 2].receivedAt : null;
+          const gap = !opts.noGapSplit && prevAt != null && at - prevAt > gapMs;
+          if (cur && cur.status === 'in_progress' && !breakScene && !gap) {
+            appendPoints(cur, extractPoints(t), nextId);
+          } else {
+            if (cur && cur.status === 'in_progress') cur.status = 'confirmed';
+            const sc = newScene(t, nextId);
+            s.scenes.push(sc);
+            if (!s.selectedSceneId) s.selectedSceneId = sc.id;
+          }
+          breakScene = false;
         }
-        breakScene = false;
       });
-      emit('utterance', t);
-      return true;
+      for (const t of list) emit('utterance', t);
+      return list.length;
     },
   };
 
@@ -214,7 +221,7 @@ export async function createApp(options = {}) {
   app.subscribe = (fn) => on('change', fn);
   app.getPanelRenderer = (id) => panelRenderers.get(id) ?? null;
   app.use = async (mod) => { await mod(ctx); };
-  for (const mod of options.modules ?? []) await app.use(mod);
+  for (const mod of [diagramModule, inputModule, ...(options.modules ?? [])]) await app.use(mod);
 
   return app;
 }
