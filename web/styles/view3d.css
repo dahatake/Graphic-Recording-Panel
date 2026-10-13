@@ -1,0 +1,9 @@
+/* FR-009/010: 3D 表示（CSS 3D transforms）。色は tokens.css のトークンを使う。 */
+.scene3d-stage { perspective: 900px; perspective-origin: 50% 40%; overflow: hidden; min-height: 320px; height: 100%; position: relative; border: 1px solid var(--border, #ccc); border-radius: 8px; }
+.scene3d-world { position: absolute; left: 50%; top: 40%; width: 0; height: 0; transform-style: preserve-3d; }
+.scene3d-card { position: absolute; width: 240px; margin-left: -120px; margin-top: -60px; padding: 10px 12px; box-sizing: border-box; background: var(--surface, #fff); color: var(--text, #111); border: 2px solid var(--border, #888); border-radius: 8px; backface-visibility: hidden; }
+.scene3d-card h3 { margin: 0 0 6px; font-size: 1rem; }
+.scene3d-card ul { margin: 0; padding-left: 1.1em; font-size: .85rem; }
+.scene3d-card.is-selected { border-color: var(--accent, #0b5fff); }
+.scene3d-card.is-presenting { outline: 3px solid #f5a623; }
+.scene3d-card:focus-visible { outline: 3px solid var(--accent, #0b5fff); }

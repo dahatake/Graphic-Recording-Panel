@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ja" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>グラフィックレコーディング パネル</title>
+  <link rel="stylesheet" href="./styles/tokens.css">
+  <link rel="stylesheet" href="./styles/app.css">
+  <link rel="stylesheet" href="./styles/view3d.css">
+</head>
+<body>
+  <a class="skip-link" href="#workspace" data-i18n="app.skip">メイン領域へ移動</a>
+  <header class="app-header">
+    <h1 id="app-title" data-i18n="app.title">グラフィックレコーディング パネル</h1>
+    <p id="session-status" class="status-chip" role="status" aria-live="polite"></p>
+  </header>
+  <nav id="toolbar" class="toolbar" data-i18n-attr="aria-label:toolbar.label"></nav>
+  <main id="workspace" class="workspace" tabindex="-1">
+    <section class="panel" data-panel="input" aria-labelledby="panel-input-title">
+      <header class="panel-head"><h2 id="panel-input-title" data-i18n="panel.input">入力</h2><div class="panel-menu" data-menu="input"></div></header>
+      <div class="panel-body">
+        <form id="draft-form" class="draft-form">
+          <label for="draft" data-i18n="input.label">発話を入力</label>
+          <textarea id="draft" rows="4" data-i18n-attr="placeholder:input.placeholder"></textarea>
+          <button type="submit" class="btn btn-primary" data-i18n="input.submit">送信</button>
+        </form>
+        <div class="file-import">
+          <label for="import-file" data-i18n="input.file">テキストファイル（.txt）を取り込む</label>
+          <input id="import-file" type="file" accept=".txt,text/plain">
+        </div>
+        <p id="interim" class="message" role="status" aria-live="polite"></p>
+        <p id="message" class="message" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+    <section class="panel" data-panel="diagram" aria-labelledby="panel-diagram-title">
+      <header class="panel-head"><h2 id="panel-diagram-title" data-i18n="panel.diagram">図</h2><div class="panel-menu" data-menu="diagram"></div></header>
+      <div class="panel-body" id="diagram"></div>
+    </section>
+    <section class="panel" data-panel="outline" aria-labelledby="panel-outline-title">
+      <header class="panel-head"><h2 id="panel-outline-title" data-i18n="panel.outline">テキスト一覧</h2><div class="panel-menu" data-menu="outline"></div></header>
+      <div class="panel-body" id="outline"></div>
+    </section>
+  </main>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
