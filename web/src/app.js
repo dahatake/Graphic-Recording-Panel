@@ -19,6 +19,7 @@ import * as P from './persist.js';
 import { diagramModule } from './diagram.js';
 import { inputModule } from './input.js';
 import { view3DModule } from './view3d.js';
+import { speechModule } from './speech.js';
 
 const GAP_MS_DEFAULT = 20_000; // PARAM-002
 const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -222,7 +223,7 @@ export async function createApp(options = {}) {
   app.subscribe = (fn) => on('change', fn);
   app.getPanelRenderer = (id) => panelRenderers.get(id) ?? null;
   app.use = async (mod) => { await mod(ctx); };
-  for (const mod of [diagramModule, inputModule, view3DModule, ...(options.modules ?? [])]) await app.use(mod);
+  for (const mod of [diagramModule, inputModule, speechModule, view3DModule, ...(options.modules ?? [])]) await app.use(mod);
 
   return app;
 }

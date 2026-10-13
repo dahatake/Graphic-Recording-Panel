@@ -3,6 +3,7 @@ import { PANEL_IDS, PANEL_COMMANDS } from './layout.js';
 
 const GROUPS = [
   ['toolbar.session', ['session.start', 'session.pause', 'session.resume', 'session.stop', 'session.nextScene', 'input.focus']],
+  ['toolbar.speech', ['speech.start', 'speech.stop']],
   ['toolbar.save', ['save.png', 'save.svg', 'save.pdf']],
   ['toolbar.language', ['lang.ja', 'lang.en']],
   ['toolbar.view', ['view.2d', 'view.3d', 'theme.toggle']],
@@ -89,7 +90,13 @@ export function mountUI(app, doc = document) {
     for (const b of toolbar.querySelectorAll('[data-command]')) {
       const f = PRESSED[b.dataset.command];
       if (f) b.setAttribute('aria-pressed', String(f(st)));
-      b.disabled = typeof app.commands[b.dataset.command] !== 'function';
+      b.disabled = typeof app.commands[b.dataset.command] !== 'function'
+        || (b.dataset.command === 'speech.start' && !app.isSpeechAvailable());
+    }
+    const interim = $('#interim');
+    if (interim) {
+      interim.textContent = !app.isSpeechAvailable() ? app.t('msg.speechUnavailable')
+        : (st.speech?.interim ? `${app.t('speech.interim')}: ${st.speech.interim}` : '');
     }
     if (doc.activeElement !== draft && draft.value !== st.input.draft) draft.value = st.input.draft;
     $('#message').textContent = st.message ? st.message.text : '';

@@ -6,7 +6,7 @@ const SHELL = [
   './', './index.html', './styles/tokens.css', './styles/app.css',
   './src/main.js', './src/app.js', './src/ui.js', './src/i18n.js', './src/layout.js',
   './src/keymap.js', './src/outline.js', './src/persist.js', './src/scenes.js',
-  './src/diagram.js', './src/emotion.js', './src/input.js', './src/view3d.js', './styles/view3d.css',
+  './src/diagram.js', './src/emotion.js', './src/input.js', './src/speech.js', './src/view3d.js', './styles/view3d.css',
 ];
 
 self.addEventListener('install', (e) => {

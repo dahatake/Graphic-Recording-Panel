@@ -1,2 +1,5 @@
 # Enterprise App Build Kit: temporary run files (kept 14 days)
 /work/
+
+__pycache__/
+*.pyc
