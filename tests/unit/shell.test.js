@@ -92,7 +92,9 @@ test('NFR-A11Y-001 AC-035 FR-011 AC-025: 拡張点（modules・registerCommand�
   assert.equal(app.handleKey({ key: '2', altKey: true, shiftKey: true }), 'save.svg');
   assert.deepEqual(seen, ['svg']);
   assert.equal(typeof app.getPanelRenderer('diagram'), 'function');
-  assert.equal(app.handleKey({ key: '1', altKey: true, shiftKey: true }), null, '未実装のコマンドは実行しない');
+  // 実装がまだ無いコマンド（後続の項目が足すと該当なしになる）は、キーを押しても実行されない
+  const missing = app.keymap.find((k) => typeof app.commands[k.command] !== 'function');
+  if (missing) assert.equal(app.handleKey({ key: missing.key, altKey: true, shiftKey: true }), null, '未実装のコマンドは実行しない');
 });
 
 test('FR-011 AC-028: 狭い画面では getLayoutMode が stacked になり、幅の変更に追従する', async () => {

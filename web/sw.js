@@ -7,7 +7,8 @@ const SHELL = [
   './src/main.js', './src/app.js', './src/ui.js', './src/i18n.js', './src/layout.js',
   './src/keymap.js', './src/outline.js', './src/persist.js', './src/scenes.js',
   './src/diagram.js', './src/emotion.js', './src/input.js',
-];
+    './src/edit.js', './src/edit-ui.js', './src/export.js',
+  ];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

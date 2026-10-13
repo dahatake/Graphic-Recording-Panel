@@ -18,6 +18,8 @@ import { newScene, appendPoints, extractPoints } from './scenes.js';
 import * as P from './persist.js';
 import { diagramModule } from './diagram.js';
 import { inputModule } from './input.js';
+import { editModule } from './edit.js';
+import { exportModule } from './export.js';
 
 const GAP_MS_DEFAULT = 20_000; // PARAM-002
 const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -221,7 +223,7 @@ export async function createApp(options = {}) {
   app.subscribe = (fn) => on('change', fn);
   app.getPanelRenderer = (id) => panelRenderers.get(id) ?? null;
   app.use = async (mod) => { await mod(ctx); };
-  for (const mod of [diagramModule, inputModule, ...(options.modules ?? [])]) await app.use(mod);
+  for (const mod of [diagramModule, inputModule, editModule, exportModule, ...(options.modules ?? [])]) await app.use(mod);
 
   return app;
 }
