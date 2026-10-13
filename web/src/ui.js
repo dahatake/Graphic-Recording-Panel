@@ -16,6 +16,8 @@ export function mountUI(app, doc = document) {
   const workspace = $('#workspace');
   const draft = $('#draft');
   let builtLang = null;
+  const consentBox = $('#speech-consent');
+  if (consentBox) consentBox.addEventListener('change', () => app.setSpeechConsent(consentBox.checked));
 
   const keyLabel = (name) => {
     const k = app.keymap.find((e) => e.command === name);
@@ -97,7 +99,16 @@ export function mountUI(app, doc = document) {
         || (b.dataset.command === 'speech.start' && !app.isSpeechAvailable());
     }
     const interim = $('#interim');
-    if (interim) interim.textContent = !app.isSpeechAvailable() ? app.t('msg.speechUnavailable') : '';
+    if (interim) { const ss = app.getSpeechStatus(); interim.textContent = ss.state === 'unavailable' ? ss.text : ''; }
+    const cu = app.getConsentUi();
+    const box = $('#speech-consent');
+    if (box) {
+      $('#speech-consent-box').hidden = !cu.visible;
+      box.checked = cu.checked;
+      $('#speech-consent-label').textContent = cu.label;
+      $('#speech-consent-notice').textContent = cu.notice;
+      $('#speech-consent-state').textContent = cu.stateText;
+    }
     // FR-013/FR-014: 認識文字列。過去を読んでいる間はスクロール位置を奪わない（AC-051）
     const tr = $('#transcript');
     if (tr) {
