@@ -132,3 +132,15 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .speech-consent { margin-top: var(--space-2, 8px); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .speech-consent .consent-state { font-weight: 600; }
 .speech-consent input:focus-visible { outline: 3px solid currentColor; outline-offset: 2px; }
+
+/* NFR-UX-003: コマンドバーのラベルをアイコンの下に常に表示（折り返しで横スクロールなし）。トークンのみ使用 */
+.commandbar .btn { flex-direction: column; gap: 0; padding: var(--space-1) var(--space-2); min-width: 56px; line-height: 1.2; }
+.commandbar .btn .btn-label, .commandbar .btn-primary .btn-label { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: nowrap; font-size: var(--font-size-caption); }
+.commandbar .toolbar-group { flex-wrap: wrap; }
+.commandbar { min-width: 0; max-width: 100%; }
+
+/* FR-018/019: 確認ダイアログ */
+.dialog-backdrop { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; background: rgb(0 0 0 / 0.45); padding: var(--space-4); }
+.dialog { max-width: 32rem; width: 100%; padding: var(--space-5); background: var(--color-surface); color: var(--color-text); border: var(--stroke) solid var(--color-border); border-radius: var(--radius); box-shadow: var(--shadow-8); }
+.dialog p { margin: 0 0 var(--space-4); }
+.dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }

@@ -178,7 +178,7 @@ function browserCanvasFactory() {
     return c;
   };
 }
-function browserDownload({ filename, mime, data }) {
+export function browserDownload({ filename, mime, data }) {
   const doc = globalThis.document;
   if (!doc) return;
   const url = URL.createObjectURL(new Blob([data], { type: mime }));

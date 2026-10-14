@@ -219,15 +219,18 @@ export async function speechModule(ctx) {
     }
     return go();
   };
+  let pendingResume = false; // 再開したが同意がなく開始できなかった（同意後に始める）
   ctx.api.setSpeechConsent = (v) => {
     consent = !!v; micDenied = false;
     if (!consent && source && speech.active) { source.stop(); cancelRestart(); fails = 0; }
     ctx.change(() => { if (!consent) { speech.active = false; speech.interim = ''; } });
+    // 記録中に同意を得たら、止まっていた認識を始める（再開時に同意がなかった場合: FR-019 AC-099）
+    if (consent && pendingResume && ctx.state.session === 'recording' && !speech.active && available()) { pendingResume = false; ctx.api.startSpeech(); }
   };
   ctx.registerCommand('speech.consent', () => ctx.api.setSpeechConsent(!consent));
   ctx.registerKey({ key: 'c', alt: true, shift: true, command: 'speech.consent' });
-  ctx.api.stopSpeech = () => {
-    if (source && speech.active) source.stop();
+  ctx.api.stopSpeech = (opts) => {
+    if (source && (speech.active || opts?.force)) { try { source.stop(); } catch { /* 無視 */ } }
     cancelRestart(); fails = 0;
     ctx.change(() => { speech.active = false; speech.interim = ''; });
     return { ok: true };
@@ -238,10 +241,10 @@ export async function speechModule(ctx) {
   ctx.registerKey({ key: 'w', alt: true, shift: true, command: 'speech.stop' });
 
   // 一時停止・停止で止め、再開（復元後の再開を含む）で改めて開始する（FR-012 AC-043）。
-  const halt = () => { if (speech.active) ctx.api.stopSpeech(); };
+  const halt = () => { pendingResume = false; if (speech.active) ctx.api.stopSpeech(); };
   ctx.on('session:pause', halt);
   ctx.on('session:stop', halt);
-  ctx.on('session:resume', () => { if (available()) ctx.api.startSpeech(); });
+  ctx.on('session:resume', () => { if (available()) { pendingResume = false; ctx.api.startSpeech(); } else pendingResume = true; });
   // 言語切替: 次の認識から切替後の言語（AC-039）
   ctx.on('lang', () => {
     micDenied = false; modelFailed = false;

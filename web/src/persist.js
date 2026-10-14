@@ -33,9 +33,10 @@ export function parseSession(raw) {
   return {
     utterances: raw.utterances.map((u) => ({ id: u.id, text: u.text, receivedAt: u.receivedAt })),
     scenes: raw.scenes.map((s) => ({
-      id: s.id, heading: s.heading, status: s.status,
+      id: s.id, heading: s.heading,
       points: s.points.map((p) => ({ id: p.id, text: p.text, ...(p.manual ? { manual: true } : {}) })),
       relations: s.relations.map((r) => ({ from: r.from, to: r.to })),
+      status: s.status,
     })),
     selectedSceneId: isStr(raw.selectedSceneId) ? raw.selectedSceneId : null,
     seq: Number.isInteger(raw.seq) && raw.seq >= 0 ? raw.seq : 0,
