@@ -212,7 +212,21 @@ export async function createApp(options = {}) {
   app.setPanelVisible = (id, v) => layoutChange(L.ops.visible(layout, id, v));
   app.setPanelMaximized = (id, v) => layoutChange(L.ops.maximized(layout, id, v));
   app.panelCommand = (id, name) => layoutChange(L.ops.command(layout, id, name));
-  app.resetLayout = () => { layout = L.defaultLayout(); return layoutChange(true); };
+  app.resetLayout = () => { layout = L.defaultLayout(layout.workArea); return layoutChange(true); };
+  // FR-017: タイル配置・フォーカス・最大化（コマンド・キー・コマンドの検索・ボタンから共通で呼ぶ）
+  app.layoutCommand = (name, panelId) => layoutChange(L.ops.arrange(layout, name, panelId));
+  app.setWorkArea = (w, h) => layoutChange(L.ops.workArea(layout, w, h));
+  commands['layout.tile'] = () => { app.layoutCommand('tile'); };
+  commands['layout.focus'] = () => { app.layoutCommand('focus', layout.mainPanel ?? 'diagram'); };
+  commands['layout.maximize'] = () => { app.layoutCommand('maximize'); };
+  // コマンドの検索: 表示言語のラベルの部分一致（大文字小文字は区別しない）
+  app.searchCommands = (query) => {
+    const q = String(query ?? '').trim().toLowerCase();
+    if (!q) return [];
+    return Object.keys(commands)
+      .map((command) => ({ command, label: i18n.t(`cmd.${command}`) }))
+      .filter((c) => c.label && c.label !== `cmd.${c.command}` && c.label.toLowerCase().includes(q));
+  };
 
   // ---- キーボード ----
   app.handleKey = (ev) => {
