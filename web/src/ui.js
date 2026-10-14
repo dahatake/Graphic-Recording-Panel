@@ -1,7 +1,7 @@
 // DOM との結び付け（ブラウザ専用。app.js は DOM を知らない）。app の状態を描くだけで、状態は持たない。
 import { PANEL_IDS, PANEL_COMMANDS } from './layout.js';
 
-import { GROUPS, ICONS, PRIMARY, tooltipId } from './commandbar.js';
+import { GROUPS, ICONS, PRIMARY, tooltipId, labelKey } from './commandbar.js';
 
 function icon(doc, command) {
   const t = doc.createElement('template');
@@ -40,10 +40,9 @@ export function mountUI(app, doc = document) {
       for (const name of names) {
         const b = doc.createElement('button');
         b.type = 'button'; b.className = PRIMARY.has(name) ? 'btn btn-primary' : 'btn btn-subtle'; b.dataset.command = name;
-        const lab = doc.createElement('span'); lab.className = 'btn-label'; lab.textContent = app.t(`cmd.${name}`);
+        const lab = doc.createElement('span'); lab.className = 'btn-label'; lab.textContent = app.t(labelKey(name));
         b.append(icon(doc, name), lab);
         const kl = keyLabel(name);
-        const lbl = app.t(`cmd.${name}`);
         // NFR-UX-002: ツールチップ（role=tooltip）を aria-describedby で関連付ける。ホバー・フォーカスで表示
         const tip = doc.createElement('span');
         tip.className = 'tooltip'; tip.id = tooltipId(name); tip.setAttribute('role', 'tooltip'); tip.hidden = true;
@@ -229,6 +228,43 @@ export function mountUI(app, doc = document) {
     const r = await app.importTextFile({ name: f.name, type: f.type, size: f.size, text });
     if (r.ok) fileInput.value = '';
   });
+  // FR-019: セッションファイルの選択（.txt の取込とは別の入力）
+  const sessInput = doc.createElement('input');
+  sessInput.type = 'file'; sessInput.accept = '.json,application/json'; sessInput.hidden = true; sessInput.id = 'session-file';
+  sessInput.setAttribute('aria-hidden', 'true'); sessInput.tabIndex = -1;
+  doc.body.append(sessInput);
+  sessInput.addEventListener('change', async () => {
+    const f = sessInput.files?.[0];
+    if (!f) return;
+    const text = await f.text();
+    await app.loadSessionFile({ name: f.name, type: f.type, size: f.size, text });
+    sessInput.value = '';
+  });
+  app.pickSessionFile = () => sessInput.click();
+
+  // FR-018/FR-019: 確認ダイアログ（既定のフォーカスはキャンセル。Esc はキー処理でキャンセル）
+  let dlgEl = null; let dlgKind = null;
+  function syncDialog() {
+    const d = app.getDialog();
+    if (!d) { if (dlgEl) { dlgEl.remove(); dlgEl = null; dlgKind = null; } return; }
+    if (dlgEl && dlgKind === d.kind) { dlgEl.querySelector('p').textContent = d.text; for (const b of d.buttons) { const el = dlgEl.querySelector(`[data-action="${b.id}"]`); if (el) el.textContent = b.label; } return; }
+    dlgEl?.remove();
+    dlgKind = d.kind;
+    dlgEl = doc.createElement('div'); dlgEl.className = 'dialog-backdrop';
+    const box = doc.createElement('div'); box.className = 'dialog'; box.setAttribute('role', 'alertdialog'); box.setAttribute('aria-modal', 'true');
+    const p = doc.createElement('p'); p.id = 'dialog-text'; p.textContent = d.text; box.setAttribute('aria-describedby', p.id);
+    const row = doc.createElement('div'); row.className = 'dialog-actions';
+    for (const b of d.buttons.slice().sort((x) => (x.id === 'cancel' ? -1 : 1))) {
+      const el = doc.createElement('button'); el.type = 'button'; el.dataset.action = b.id; el.textContent = b.label;
+      el.className = b.id === 'confirm' ? 'btn btn-primary' : 'btn';
+      el.addEventListener('click', () => { void app.dialogAction(b.id); });
+      row.append(el);
+    }
+    box.append(p, row); dlgEl.append(box); doc.body.append(dlgEl);
+    row.querySelector(`[data-action="${d.defaultFocus}"]`)?.focus();
+  }
+  app.on('change', syncDialog);
+
   app.on('ui:focusInput', () => draft.focus());
   doc.addEventListener('keydown', (e) => {
     const cmd = app.handleKey({ key: e.key, ctrlKey: e.ctrlKey, altKey: e.altKey, shiftKey: e.shiftKey });
