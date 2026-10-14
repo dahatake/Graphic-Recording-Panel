@@ -44,7 +44,7 @@ export function buildCandidates(scenes, arr, t) {
   }
   for (const c of list) {
     const distinct = new Set(c.values).size;
-    c.available = c.id === 'time' ? scenes.length > 0 : distinct >= 2;
+    c.available = distinct >= 2;
     c.reason = c.available ? null : t(c.kind === 'section' ? 'axes3d.reason.noAssign' : 'axes3d.reason.same');
   }
   return list;

@@ -13,6 +13,7 @@
 - [04 保存](users-guide/04-export.md)
 - [05 言語切替・2D/3D・プレゼンテーション](users-guide/05-language-and-views.md)
 - [06 トラブルシュート](users-guide/06-troubleshooting.md)
+- [07 新機能の使い方](users-guide/07-new-features.md)
 
 ## 起動手順
 

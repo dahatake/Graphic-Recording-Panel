@@ -46,6 +46,27 @@ test('FR-019 AC-097: シーンがある状態で保存すると、外部リク�
   }
 });
 
+// FR-019 AC-098（認識文字列はセッションファイルに含めて復元する。FR-012 のブラウザ内の保存には含めない）
+test('FR-019 AC-098: 音声認識で得た認識文字列がセッションファイルに保存され、初期化後の読込で復元される（音声は含まない）', async () => {
+  const sp = new FakeSpeech({ processLocally: true });
+  const { app, env } = await newApp({ speech: sp });
+  app.commands['session.start']();
+  assert.equal((await app.startSpeech()).ok, true);
+  sp.emit('認識された発話です', true, { audio: 'RAW-AUDIO-MARKER-98' });
+  env.tick(1);
+  const before = app.getState().utterances.map((u) => u.text);
+  assert.ok(before.includes('認識された発話です'));
+  env.downloads.length = 0;
+  await app.commands['file.save']();
+  const d = env.downloads[0];
+  assert.ok(String(d.data).includes('認識された発話です'), 'ファイルに認識文字列が含まれる');
+  assert.ok(!String(d.data).includes('RAW-AUDIO-MARKER-98'), '音声は含まれない');
+  resetAll(app);
+  assert.equal(app.getState().utterances.length, 0);
+  assert.equal((await app.loadSessionFile(toFile(d))).ok, true);
+  assert.deepEqual(app.getState().utterances.map((u) => u.text), before);
+});
+
 test('FR-019 AC-097 異常系: シーンも発話もないときは保存できない旨が示され、ダウンロードされない', async () => {
   const { app, env } = await newApp();
   const r = await app.commands['file.save']();
