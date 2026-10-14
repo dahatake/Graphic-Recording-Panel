@@ -7,3 +7,16 @@
 .scene3d-card.is-selected { border-color: var(--color-primary); }
 .scene3d-card.is-presenting { outline: 3px solid var(--color-warn); }
 .scene3d-card:focus-visible { outline: 3px solid var(--color-primary); }
+
+/* FR-020/021: 評価軸の選択・目盛り・各シーンの値、画面下部の操作説明（トークンのみ使用）。3D の領域が縮むだけで他の表示は隠さない。 */
+#diagram .scene3d-stage { flex: 1 1 auto; height: auto; min-height: 240px; touch-action: none; }
+.scene3d-values { margin: 6px 0 0; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.scene3d-axes, .scene3d-help { flex: none; margin-top: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--color-surface); color: var(--color-text); border: var(--stroke) solid var(--color-border-subtle); border-radius: var(--radius); font-size: var(--font-size-caption); overflow-wrap: anywhere; }
+.scene3d-axes h3, .scene3d-help h3 { margin: 0 0 var(--space-1); font-size: var(--font-size-body); font-weight: var(--font-weight-semibold); }
+.scene3d-axes-row { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.scene3d-axis { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.scene3d-axis select { min-height: var(--target-size); max-width: 100%; background: var(--color-surface); color: var(--color-text); border: var(--stroke) solid var(--color-border); border-radius: var(--radius-control); }
+.scene3d-axes ul, .scene3d-help ul { margin: var(--space-1) 0 0; padding-left: 1.2em; }
+.scene3d-axes select:focus-visible, .scene3d-help button:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.scene3d-help button { min-height: var(--target-size); margin-top: var(--space-1); }
+.scene3d-help { max-height: 40%; overflow: auto; }
