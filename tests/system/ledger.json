@@ -1673,7 +1673,7 @@
       "title": "データ初期化: 実行で全消去・既定に戻る・停止・メッセージ（異常系）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-094\" tests/system/reset.test.js",
-      "canary": true,
+      "canary": false,
       "status": "not_run",
       "last_commit": null,
       "last_run_at": null,
@@ -1696,6 +1696,12 @@
           "by": "test-designer",
           "change": "canary: False -> True",
           "reason": "データ初期化の中核を canary に"
+        },
+        {
+          "at": "2026-10-14T12:00:11+09:00",
+          "by": "conductor",
+          "change": "canary: True -> False",
+          "reason": "未実装の新機能(FR-018)を統合前の canary にすると、先行統合の項目が必ず失敗するため。既存の canary 3 件は維持"
         }
       ]
     },
