@@ -24,6 +24,7 @@ function mem() {
 test('NFR-OFFLINE-001 AC-032: sw.js の SHELL が web/ の全ファイルを網羅し、VERSION が付いている', () => {
   const sw = read('sw.js');
   assert.match(sw, /const VERSION = 'grp-shell-v\d+'/);
+  assert.match(sw, /c\.addAll\(SHELL\.map\(\(url\) => new Request\(url, \{ cache: 'reload' \}\)\)\)/);
   const shell = new Set([...sw.matchAll(/'\.\/([^']*)'/g)].map((m) => m[1]));
   for (const f of files) {
     if (f === 'sw.js') continue;
