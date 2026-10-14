@@ -214,4 +214,11 @@ test('FR-019 AC-102: テキスト取込（.txt）とは別の操作で、互い�
   const b = await app.loadSessionFile({ name: 'memo.txt', type: 'text/plain', size: 12, text: '行1\n行2' });
   assert.equal(b.ok, false, '.txt はセッションファイルとして読めない');
   assert.equal(content(app), before);
+  // FR-022: .vtt も同じテキスト取込の入口で、セッションファイルとは互いに受け付けない
+  const c = await app.importTextFile({ ...file, name: 'session.vtt' });
+  assert.equal(c.ok, false, 'セッションファイルは .vtt 取込でも受け付けない');
+  const vtt = 'WEBVTT\n\n00:00:01.000 --> 00:00:02.000\n<v A>本文</v>\n';
+  const d = await app.loadSessionFile({ name: 'm.vtt', type: 'text/vtt', size: vtt.length, text: vtt });
+  assert.equal(d.ok, false, '.vtt はセッションファイルとして読めない');
+  assert.equal(content(app), before);
 });

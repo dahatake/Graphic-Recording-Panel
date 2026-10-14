@@ -53,6 +53,20 @@ test('FR-013 AC-050: 記録中に .txt を取り込むと、各行が発話と�
   assert.equal(app.getTranscript().interim, null);
 });
 
+// FR-013 AC-050（FR-022: .vtt も同じ入口・同じ結果）
+test('FR-013 AC-050 FR-022: 記録中に .vtt を同じ入口で取り込むと、本文が認識文字列の一覧に確定結果として並ぶ。記録中でないと受け付けない', async () => {
+  const { app } = await newApp();
+  const vtt = 'WEBVTT\n\n00:00:01.000 --> 00:00:02.000\n<v A>一件目</v>\n\n00:00:03.000 --> 00:00:04.000\n<v B>二件目</v>\n';
+  const none = await app.importTextFile({ name: 'a.vtt', type: 'text/vtt', size: vtt.length, text: vtt });
+  assert.equal(none.ok, false);
+  assert.equal(app.getState().utterances.length, 0);
+  startRec(app);
+  const r = await app.importTextFile({ name: 'a.vtt', type: 'text/vtt', size: vtt.length, text: vtt });
+  assert.equal(r.ok, true);
+  assert.deepEqual(finals(app), ['一件目', '二件目']);
+  assert.equal(app.getTranscript().interim, null);
+});
+
 test('FR-013 AC-050 異常系: 上限（1 MB）超過・.txt でない・記録中でないときは受け付けず、一覧も発話も不変', async () => {
   const { app } = await newApp();
   const none = await app.importTextFile({ name: 'a.txt', type: 'text/plain', size: 5, text: '準備中' });

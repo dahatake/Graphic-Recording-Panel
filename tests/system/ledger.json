@@ -26,7 +26,7 @@
     "AC-036": "sha256:318b0f2e4205a0cb",
     "AC-038": "sha256:b7d5386af3599f7f",
     "AC-049": "sha256:b530880830288c02",
-    "AC-050": "sha256:c90af103da799d1a",
+    "AC-050": "sha256:5896729b3d0534ed",
     "AC-052": "sha256:bf4a4635a20763f2",
     "AC-053": "sha256:148c246cce07c2be",
     "AC-054": "sha256:23866f76e1a10949",
@@ -65,13 +65,13 @@
     "AC-098": "sha256:344fc59ed6543ed3",
     "AC-099": "sha256:a527ad28aa83fc2d",
     "AC-100": "sha256:1609dccedbc7af57",
-    "AC-102": "sha256:3f302adeb4060031",
+    "AC-102": "sha256:c5c6db829b0eaa78",
     "AC-103": "sha256:98cba666392c98cb",
     "AC-104": "sha256:f66171397df75dae",
     "AC-106": "sha256:79d009b23128130b",
     "AC-108": "sha256:5ab9bfab110c8582",
     "AC-109": "sha256:bece39cc6a2542bc",
-    "AC-113": "sha256:ba1320f5c76ff353"
+    "AC-113": "sha256:6229ecea244c8fe7"
   },
   "cases": [
     {
@@ -717,7 +717,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-050\" tests/system/rightpanel.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "97e572e",
       "last_run_at": "2026-10-14T23:46:29+09:00",
       "evidence": "work/runs/202610142331/logs/system-test/E2E-026-202610142346.log",
@@ -727,6 +727,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-15T00:00:14+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC-113/AC-050/AC-102 の文面変更（FR-022 受付時刻・共通入口）に合わせケース見直し"
         }
       ]
     },
@@ -1904,7 +1910,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-102\" tests/system/sessionfile.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "97e572e",
       "last_run_at": "2026-10-14T23:46:29+09:00",
       "evidence": "work/runs/202610142331/logs/system-test/E2E-067-202610142346.log",
@@ -1920,6 +1926,12 @@
           "by": "test-designer",
           "change": "title: 'sessionfile' -> 'セッションファイル: キーボード・コマンド検索・読み上げメッセージ・.txt と別操作'",
           "reason": "タイトルの修正"
+        },
+        {
+          "at": "2026-10-15T00:00:15+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC-113/AC-050/AC-102 の文面変更（FR-022 受付時刻・共通入口）に合わせケース見直し"
         }
       ]
     },
@@ -2140,7 +2152,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-113\" tests/system/vtt.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "97e572e",
       "last_run_at": "2026-10-14T23:46:29+09:00",
       "evidence": "work/runs/202610142331/logs/system-test/E2E-075-202610142346.log",
@@ -2150,6 +2162,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-15T00:00:14+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC-113/AC-050/AC-102 の文面変更（FR-022 受付時刻・共通入口）に合わせケース見直し"
         }
       ]
     }
