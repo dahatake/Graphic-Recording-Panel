@@ -125,7 +125,7 @@ test('FR-004 AC-010: SVG は見出し・吹き出し・矢印・シーン間の�
   ];
   const svg = renderDiagramSvg(scenes, { selectedSceneId: 's2', t: (k) => k });
   assert.ok(svg.includes('A &amp; B &lt;x&gt;'));
-  assert.equal((svg.match(/<line /g) || []).length, 2, '要点間 1 + シーン間 1');
+  assert.equal((svg.match(/<(?:line|path) [^>]*data-(?:relation|flow)/g) || []).length, 2, '要点間 1 + シーン間 1');
   assert.ok(svg.includes('stroke-dasharray'), '進行中は破線');
   assert.ok(svg.includes('aria-current="true"'));
   assert.ok(svg.indexOf('data-scene-id="s1"') < svg.indexOf('data-scene-id="s2"'));

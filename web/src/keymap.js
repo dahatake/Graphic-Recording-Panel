@@ -25,6 +25,12 @@ export const KEYMAP = [
   { key: 'ArrowLeft', ...AS, command: 'presentation.prev' },
   { key: 'm', ...AS, command: 'theme.toggle' },
   { key: '0', ...AS, command: 'layout.reset' },
+  { key: 'l', ...AS, command: 'layout.tile' },
+  { key: 'f', ...AS, command: 'layout.focus' },
+  { key: 'z', ...AS, command: 'layout.maximize' },
+  { key: 'ArrowDown', ...AS, command: 'highlight.next' },
+  { key: 'ArrowUp', ...AS, command: 'highlight.prev' },
+  { key: 'Escape', ...AS, command: 'highlight.clear' },
 ];
 
 export function matchKey(keymap, ev) {

@@ -9,7 +9,62 @@ const PALETTE = ['#1346a8', '#0b5d2a', '#8a3c00', '#6b2a8f', '#9b1c1c', '#0b6070
 const INK = '#15191f';
 const PAPER = '#ffffff';
 
-const FS = 14; const FS_HEAD = 16;
+const FS = 14; const FS_HEAD = 18;
+const HL_COLOR = '#b45309'; // 強調（ハイライト）の色。白地に 3:1 以上
+const ICON_W = 28; // 要点の左に置く絵記号の幅
+
+// FR-015 AC-074: 要点の種類。色に加えて形（shape）と絵記号（icon）が異なるので、白黒でも見分けられる。
+export const KINDS = {
+  conclusion: { color: '#0b5d2a', shape: 'banner', icon: 'check' },
+  issue: { color: '#9b1c1c', shape: 'octagon', icon: 'alert' },
+  idea: { color: '#8a3c00', shape: 'hexagon', icon: 'bulb' },
+  note: { color: '#1346a8', shape: 'rect', icon: 'note' },
+};
+// ASSUMPTION: 種類は語のパターンで決める（決定的・外部通信なし）。上から順に最初に合うもの、どれにも合わなければ補足。
+const KIND_RULES = [
+  ['issue', /困|課題|問題|不安|心配|遅れ|高い|高く|できない|足りな|不足|障害|エラー|trouble|problem|issue|risk|bug|stuck|blocked|difficult/i],
+  ['conclusion', /決め|決定|決ま|結論|合意|方針|採用|にする|します|decid|conclu|agree|resolv|chose/i],
+  ['idea', /アイデア|案|しよう|してみ|ひらめ|提案|かも|どう|idea|propos|how about|what if|maybe|[?？]/i],
+];
+export function classifyPoint(text) {
+  const s = String(text ?? '');
+  for (const [k, re] of KIND_RULES) if (re.test(s)) return k;
+  return 'note';
+}
+
+// 決定的な手描き風の線: 文字列から種を作り、同じ入力なら必ず同じ揺らぎにする。
+function rng(seedStr) {
+  let h = 2166136261;
+  for (const ch of String(seedStr)) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619); }
+  return () => { h += 0x6d2b79f5; let t = h; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+const r1 = (n) => Math.round(n * 10) / 10;
+// 折れ線（頂点列）を細かく分け、各点を少しずらした path の d を返す。
+function wobblyD(pts, seed, closed, amp = 1.2) {
+  const rand = rng(seed);
+  const out = [];
+  const n = pts.length;
+  const segs = closed ? n : n - 1;
+  for (let i = 0; i < segs; i++) {
+    const [ax, ay] = pts[i]; const [bx, by] = pts[(i + 1) % n];
+    const len = Math.hypot(bx - ax, by - ay);
+    const k = Math.max(1, Math.round(len / 26));
+    for (let j = 0; j < k; j++) {
+      const f = j / k;
+      out.push([ax + (bx - ax) * f + (rand() - 0.5) * 2 * amp, ay + (by - ay) * f + (rand() - 0.5) * 2 * amp]);
+    }
+  }
+  if (!closed) { const [lx, ly] = pts[n - 1]; out.push([lx + (rand() - 0.5) * amp, ly + (rand() - 0.5) * amp]); }
+  return out.map(([x, y], i) => `${i ? 'L' : 'M'}${r1(x)} ${r1(y)}`).join('') + (closed ? 'Z' : '');
+}
+function outline(shape, x, y, w, h) {
+  switch (shape) {
+    case 'banner': return [[x, y], [x + w - 14, y], [x + w, y + h / 2], [x + w - 14, y + h], [x, y + h]];
+    case 'octagon': return [[x + 10, y], [x + w - 10, y], [x + w, y + 10], [x + w, y + h - 10], [x + w - 10, y + h], [x + 10, y + h], [x, y + h - 10], [x, y + 10]];
+    case 'hexagon': return [[x + 14, y], [x + w - 14, y], [x + w, y + h / 2], [x + w - 14, y + h], [x + 14, y + h], [x, y + h / 2]];
+    default: return [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+  }
+}
 const PAD = 20; const HEAD_H = 44; const BUBBLE_H = 38; const GAP = 30; const SCENE_GAP = 64; const MARGIN = 24;
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -31,6 +86,10 @@ function iconShape(shape, x, y, color) {
     case 'smile': return g('<circle cx="12" cy="12" r="10"/><path d="M8 10h.01M16 10h.01M7.5 14.5q4.5 5 9 0"/>');
     case 'bulb': return g('<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.3 1 2.1h5c0-.8.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>');
     case 'burst': return g('<path d="M12 2l2.5 6L21 7l-4 5 4 5-6.500-1L12 22l-2.500-6L3 17l4-5-4-5 6.500 1z"/>');
+    case 'check': return g('<circle cx="12" cy="12" r="10"/><path d="M7 12.500l3.500 3.500 7-8"/>');
+    case 'alert': return g('<path d="M12 3L22 20H2z"/><path d="M12 10v5M12 17.500v.5"/>');
+    case 'note': return g('<path d="M5 3h10l4 4v14H5z"/><path d="M8 11h8M8 15h8"/>');
+    case 'star': return g('<path d="M12 2l3 7 7 .5-5.500 4.500 2 7.500-6.500-4-6.500 4 2-7.500L2 9.500 9 9z"/>');
     case 'drop': return g('<path d="M12 2q7 8 7 13a7 7 0 0 1-14 0q0-5 7-13z"/>');
     default: return g('<circle cx="12" cy="12" r="9"/>');
   }
@@ -40,42 +99,56 @@ function iconShape(shape, x, y, color) {
 export function renderDiagramSvg(scenes, opts = {}) {
   const t = opts.t ?? ((k) => k);
   const sel = opts.selectedSceneId ?? null;
+  const hlId = opts.highlightPointId ?? null;
   const parts = []; let x = MARGIN; let maxH = 0;
   const heads = [];
   scenes.forEach((s, i) => {
     const color = PALETTE[i % PALETTE.length];
     const emos = sceneEmotions(s);
     const emoW = Math.max(0, ...emos.map((e) => 34 + textWidth(e.word, FS)));
-    const w = Math.ceil(Math.max(240, textWidth(s.heading, FS_HEAD) + 70, ...s.points.map((p) => textWidth(p.text, FS) + 32), emoW + 32));
+    const w = Math.ceil(Math.max(240, textWidth(s.heading, FS_HEAD) + 70, ...s.points.map((p) => textWidth(p.text, FS) + 32 + ICON_W), emoW + 32));
     const isSel = s.id === sel;
     const body = [];
     const cx = x + w / 2;
-    // 見出し（色分けの帯）
-    body.push(`<rect x="${x}" y="${MARGIN}" width="${w}" height="${HEAD_H}" rx="10" fill="${color}"${isSel ? ` stroke="${INK}" stroke-width="4"` : ''}/>`);
-    body.push(`<text x="${x + 14}" y="${MARGIN + 28}" font-size="${FS_HEAD}" font-weight="700" fill="#ffffff" data-role="status">${STATUS_MARK[s.status] ?? ''}${isSel ? SELECTED_MARK : ''}</text>`);
-    body.push(`<text x="${x + 44}" y="${MARGIN + 28}" font-size="${FS_HEAD}" font-weight="700" fill="#ffffff" data-role="heading">${esc(s.heading)}</text>`);
-    // 要点の吹き出し
+    // 見出し（色分けの帯＋太い下線）。要点より大きく太い。
+    body.push(`<path d="${wobblyD(outline('rect', x, MARGIN, w, HEAD_H), `${s.id}:h`, true, 1.4)}" fill="${color}" stroke="${isSel ? INK : color}" stroke-width="${isSel ? 4 : 2}" stroke-linejoin="round" data-role="heading-band"/>`);
+    body.push(`<text x="${x + 14}" y="${MARGIN + 29}" font-size="${FS_HEAD}" font-weight="800" fill="#ffffff" data-role="status">${STATUS_MARK[s.status] ?? ''}${isSel ? SELECTED_MARK : ''}</text>`);
+    body.push(`<text x="${x + 44}" y="${MARGIN + 29}" font-size="${FS_HEAD}" font-weight="800" fill="#ffffff" data-role="heading">${esc(s.heading)}</text>`);
+    body.push(`<path d="${wobblyD([[x + 6, MARGIN + HEAD_H + 6], [x + w - 6, MARGIN + HEAD_H + 6]], `${s.id}:u`, false, 1.2)}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round"/>`);
+    // 要点の吹き出し（種類ごとに 色・形・絵記号 が異なる）
     const top = new Map(); let y = MARGIN + HEAD_H + GAP;
     const dash = s.status === 'in_progress' ? ' stroke-dasharray="6 4"' : '';
     s.points.forEach((p) => {
       top.set(p.id, y);
-      body.push(`<g data-point-id="${attr(p.id)}"><rect x="${x}" y="${y}" width="${w}" height="${BUBBLE_H}" rx="12" fill="${PAPER}" stroke="${color}" stroke-width="2.5"${dash}/>`
-        + `<path d="M${x + 18} ${y + BUBBLE_H}l-6 8l14-8z" fill="${PAPER}" stroke="${color}" stroke-width="2.5" stroke-linejoin="round"/>`
-        + `<text x="${x + 16}" y="${y + 24}" font-size="${FS}" fill="${INK}">${esc(p.text)}</text></g>`);
+      const k = KINDS[classifyPoint(p.text)];
+      const kind = classifyPoint(p.text);
+      const hl = p.id === hlId;
+      const stroke = hl ? HL_COLOR : k.color;
+      const sw = hl ? 5 : 2.5;
+      const frame = hl ? `<path d="${wobblyD(outline(k.shape, x - 6, y - 6, w + 12, BUBBLE_H + 12), `${p.id}:f`, true, 1.2)}" fill="none" stroke="${HL_COLOR}" stroke-width="2" stroke-dasharray="3 3" data-role="highlight-frame"/>` : '';
+      const star = hl ? `<g data-role="highlight-icon">${iconShape('star', x + w - 20, y - 16, HL_COLOR)}</g>` : '';
+      body.push(`<g data-point-id="${attr(p.id)}" data-kind="${kind}"${hl ? ' data-highlight="1"' : ''}>${frame}`
+        + `<path d="${wobblyD(outline(k.shape, x, y, w, BUBBLE_H), p.id, true)}" fill="${PAPER}" stroke="${stroke}" stroke-width="${sw}" stroke-linejoin="round"${dash}/>`
+        + `<path d="${wobblyD([[x + 18, y + BUBBLE_H], [x + 12, y + BUBBLE_H + 8], [x + 26, y + BUBBLE_H]], `${p.id}:t`, false, 0.4)}" fill="${PAPER}" stroke="${stroke}" stroke-width="2.5" stroke-linejoin="round"/>`
+        + iconShape(k.icon, x + 8, y + 7, stroke)
+        + `<text x="${x + 8 + ICON_W}" y="${y + 24}" font-size="${FS}" fill="${INK}">${esc(p.text)}</text>${star}</g>`);
       y += BUBBLE_H + GAP;
     });
-    // 関係線（矢印）
+    // 関係線（手描き風の矢印）
     for (const r of s.relations) {
       const a = top.get(r.from); const b = top.get(r.to);
       if (a == null || b == null) continue;
       const [from, to] = a <= b ? [a, b] : [b, a];
-      body.push(`<line x1="${cx}" y1="${from + BUBBLE_H + 4}" x2="${cx}" y2="${to - 3}" stroke="${color}" stroke-width="2.5" marker-end="url(#arrow-${i % PALETTE.length})"/>`);
+      const hot = hlId != null && (r.from === hlId || r.to === hlId);
+      body.push(`<path data-relation="${attr(r.from)}>${attr(r.to)}"${hot ? ' data-highlight="1"' : ''} d="${wobblyD([[cx, from + BUBBLE_H + 4], [cx, to - 3]], `${r.from}>${r.to}`, false, 1)}" fill="none" stroke="${hot ? HL_COLOR : color}" stroke-width="${hot ? 5 : 2.5}" stroke-linecap="round" marker-end="url(#${hot ? 'arrow-hl' : `arrow-${i % PALETTE.length}`})"/>`);
     }
     // 絵記号（感情・様子の語）
     emos.forEach((e) => {
       body.push(`<g data-emotion="${attr(e.id)}">${iconShape(e.shape, x + 14, y - 8, color)}<text x="${x + 44}" y="${y + 10}" font-size="${FS}" font-weight="700" fill="${INK}">${esc(e.word)}</text></g>`);
       y += 34;
     });
+    // シーンの囲み（背面）
+    body.unshift(`<path d="${wobblyD(outline('rect', x - 10, MARGIN - 10, w + 20, y - MARGIN + 6), `${s.id}:e`, true, 1.6)}" fill="none" stroke="${color}" stroke-width="1.5" stroke-opacity="0.45" stroke-dasharray="2 5" data-role="scene-frame"/>`);
     parts.push(`<g data-scene-id="${attr(s.id)}" data-status="${attr(s.status)}"${isSel ? ' aria-current="true"' : ''}>${body.join('')}</g>`);
     heads.push({ x, w, color });
     maxH = Math.max(maxH, y + MARGIN);
@@ -84,17 +157,64 @@ export function renderDiagramSvg(scenes, opts = {}) {
   // シーン間の矢印（時系列）
   const flows = heads.slice(0, -1).map((h, i) => {
     const y = MARGIN + HEAD_H / 2; const nx = heads[i + 1].x;
-    return `<line x1="${h.x + h.w + 4}" y1="${y}" x2="${nx - 4}" y2="${y}" stroke="${INK}" stroke-width="3" marker-end="url(#arrow-flow)"/>`;
+    return `<path data-flow="${i}" d="${wobblyD([[h.x + h.w + 12, y], [nx - 12, y]], `flow${i}`, false, 1)}" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round" marker-end="url(#arrow-flow)"/>`;
   });
   const emptyW = scenes.length ? 0 : MARGIN * 2 + Math.ceil([...t('diagram.empty')].reduce((n, c) => n + (c.charCodeAt(0) > 255 ? FS : FS * 0.6), 0));
   const width = Math.max(320, emptyW, x - SCENE_GAP + MARGIN);
   const height = Math.max(160, maxH);
   const markers = PALETTE.map((c, i) => `<marker id="arrow-${i}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`).join('')
-    + `<marker id="arrow-flow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="${INK}"/></marker>`;
+    + `<marker id="arrow-flow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="${INK}"/></marker>`
+    + `<marker id="arrow-hl" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="${HL_COLOR}"/></marker>`;
   const title = esc(opts.title ?? '');
   const empty = scenes.length ? '' : `<text x="${MARGIN}" y="${MARGIN + 24}" font-size="${FS}" fill="${INK}">${esc(t('diagram.empty'))}</text>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" font-family="system-ui, 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif" role="img" aria-label="${attr(opts.title ?? '')}">`
     + `<title>${title}</title><defs>${markers}</defs><rect width="100%" height="100%" fill="${PAPER}"/>${parts.join('')}${flows.join('')}${empty}</svg>`;
+}
+
+// FR-016 AC-078 AC-079 AC-089: 意味のある配置（整理の表示）の SVG。model は app.getArrangement()（geometry つき）。
+// 軸の名前・区分の見出し・未分類の領域は <text> の文字で示し、色だけに頼らない。
+export function renderArrangedSvg(scenes, model, opts = {}) {
+  const g = model.geometry;
+  const sel = opts.selectedSceneId ?? null;
+  const hlId = opts.highlightPointId ?? null;
+  const parts = [];
+  // 区分の見出し・枠
+  g.rows.forEach((r) => {
+    parts.push(`<rect x="${g.margin}" y="${r.y}" width="${g.width - g.margin * 2}" height="${r.h}" fill="${r.id ? '#f7f9fc' : '#fff7ed'}" stroke="#8a94a6" stroke-width="1"${r.id ? '' : ' stroke-dasharray="6 4"'} data-role="row" data-section="${attr(r.id ?? 'unclassified')}"/>`);
+    parts.push(`<text x="${g.margin + 8}" y="${r.y + 22}" font-size="${FS}" font-weight="700" fill="${INK}" data-role="row-label">${esc(r.label)}</text>`);
+  });
+  g.cols.forEach((c) => {
+    parts.push(`<path d="M${c.x} ${g.top} V${g.height - g.margin}" stroke="#8a94a6" stroke-width="1"${c.id ? '' : ' stroke-dasharray="6 4"'} data-role="col" data-section="${attr(c.id ?? 'unclassified')}"/>`);
+    parts.push(`<text x="${c.x + 10}" y="${g.top - 8}" font-size="${FS}" font-weight="700" fill="${INK}" data-role="col-label">${esc(c.label)}</text>`);
+  });
+  parts.push(`<text x="${g.margin}" y="${g.margin + 16}" font-size="${FS_HEAD}" font-weight="800" fill="${INK}" data-role="axis-name-h">${esc(model.axisLabels.horizontal)}: ${esc(model.axes.horizontal.name)}</text>`);
+  parts.push(`<text x="${g.margin}" y="${g.margin + 38}" font-size="${FS_HEAD}" font-weight="800" fill="${INK}" data-role="axis-name-v">${esc(model.axisLabels.vertical)}: ${esc(model.axes.vertical.name)}</text>`);
+  // オブジェクト（要点の吹き出し・シーンの見出し）
+  const sceneIdx = new Map(scenes.map((s, i) => [s.id, i]));
+  for (const it of g.items) {
+    const reason = `<title>${esc(it.reason)}</title>`;
+    if (it.kind === 'scene') {
+      const sc = scenes[sceneIdx.get(it.id)];
+      const color = PALETTE[sceneIdx.get(it.id) % PALETTE.length];
+      const isSel = it.id === sel;
+      parts.push(`<g data-scene-id="${attr(it.id)}" data-assigned="${it.unclassified ? 'unclassified' : 'assigned'}"${isSel ? ' aria-current="true"' : ''}>${reason}`
+        + `<path d="${wobblyD(outline('rect', it.x, it.y, it.w, it.h), `${it.id}:h`, true, 1.2)}" fill="${color}" stroke="${isSel ? INK : color}" stroke-width="${isSel ? 4 : 2}" stroke-linejoin="round" data-role="heading-band"/>`
+        + `<text x="${it.x + 10}" y="${it.y + it.h - 11}" font-size="${FS_HEAD - 2}" font-weight="800" fill="#ffffff" data-role="heading">${STATUS_MARK[sc.status] ?? ''}${isSel ? SELECTED_MARK : ''} ${esc(sc.heading)}</text></g>`);
+    } else {
+      const p = scenes.flatMap((s) => s.points).find((q) => q.id === it.id);
+      const kind = classifyPoint(p.text); const k = KINDS[kind];
+      const hl = p.id === hlId;
+      const stroke = hl ? HL_COLOR : k.color;
+      parts.push(`<g data-point-id="${attr(p.id)}" data-kind="${kind}" data-assigned="${it.unclassified ? 'unclassified' : 'assigned'}"${hl ? ' data-highlight="1"' : ''}>${reason}`
+        + `<path d="${wobblyD(outline(k.shape, it.x, it.y, it.w, BUBBLE_H), p.id, true)}" fill="${PAPER}" stroke="${stroke}" stroke-width="${hl ? 5 : 2.5}" stroke-linejoin="round"/>`
+        + iconShape(k.icon, it.x + 8, it.y + 7, stroke)
+        + `<text x="${it.x + 8 + ICON_W}" y="${it.y + 24}" font-size="${FS}" fill="${INK}">${esc(p.text)}</text></g>`);
+    }
+  }
+  const title = esc(opts.title ?? '');
+  const { width, height } = g;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" font-family="system-ui, 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif" role="img" aria-label="${attr(opts.title ?? '')}" data-display-mode="arrange">`
+    + `<title>${title}</title><rect width="100%" height="100%" fill="${PAPER}"/>${parts.join('')}</svg>`;
 }
 
 // ---- パネル（拡大・縮小・移動できるキャンバス） ----
@@ -126,6 +246,10 @@ export function mountDiagramPanel(host, app, doc = host.ownerDocument) {
       const move = (e) => { canvas.scrollLeft = l - (e.clientX - sx); canvas.scrollTop = tp - (e.clientY - sy); };
       const up = () => { canvas.classList.remove('is-panning'); canvas.removeEventListener('pointermove', move); canvas.removeEventListener('pointerup', up); };
       canvas.addEventListener('pointermove', move); canvas.addEventListener('pointerup', up);
+    });
+    canvas.addEventListener('click', (ev) => {
+      const g = ev.target?.closest?.('[data-point-id]');
+      if (g) app.highlightPoint(g.getAttribute('data-point-id'), 'pointer'); else app.clearHighlight();
     });
     canvas.addEventListener('wheel', (ev) => {
       if (!ev.ctrlKey) return;
@@ -170,6 +294,57 @@ export function diagramModule(ctx) {
       'diagram.canvasLabel': 'Diagram (scroll with arrow keys)',
     },
   });
-  ctx.api.renderSvg = () => renderDiagramSvg(ctx.state.scenes, { selectedSceneId: ctx.state.selectedSceneId, t: ctx.t, title: ctx.t('app.title') });
+  ctx.api.renderSvg = () => {
+    const o = { selectedSceneId: ctx.state.selectedSceneId, highlightPointId: currentHighlight()?.pointId ?? null, t: ctx.t, title: ctx.t('app.title') };
+    // FR-016 AC-089: 画面で選んでいる表示（時系列／整理）と同じ配置で出力する（保存もここを通る）
+    if (ctx.state.displayMode === 'arrange' && ctx.api.getArrangement) return renderArrangedSvg(ctx.state.scenes, ctx.api.getArrangement(), o);
+    return renderDiagramSvg(ctx.state.scenes, o);
+  };
+
+  // ---- FR-015 AC-074: 図の演出の記述（見出しと要点の表現） ----
+  ctx.api.getDiagramStyle = () => ({
+    scenes: ctx.state.scenes.map((s) => ({
+      id: s.id,
+      heading: { fontSize: FS_HEAD, fontWeight: 800, framed: true },
+      points: s.points.map((p) => { const kind = classifyPoint(p.text); const k = KINDS[kind]; return { id: p.id, kind, color: k.color, shape: k.shape, icon: k.icon, fontSize: FS, fontWeight: 400 }; }),
+    })),
+  });
+
+  // ---- FR-015 AC-076: 要点の強調（ポインタ・キーボード）。保存しない表示だけの状態 ----
+  let hl = null; // { pointId, source }
+  const allPoints = () => ctx.state.scenes.flatMap((s) => s.points.map((p) => ({ sceneId: s.id, id: p.id })));
+  function currentHighlight() {
+    if (!hl) return null;
+    return allPoints().some((p) => p.id === hl.pointId) ? hl : null;
+  }
+  ctx.api.highlightPoint = (pointId, source = 'pointer') => {
+    if (!allPoints().some((p) => p.id === pointId)) return false;
+    hl = { pointId, source: source === 'keyboard' ? 'keyboard' : 'pointer' };
+    ctx.emit('change', ctx.api);
+    return true;
+  };
+  ctx.api.clearHighlight = () => { if (hl) { hl = null; ctx.emit('change', ctx.api); } };
+  ctx.api.getHighlight = () => {
+    const cur = currentHighlight();
+    if (!cur) return null;
+    const sc = ctx.state.scenes.find((s) => s.points.some((p) => p.id === cur.pointId));
+    return {
+      pointId: cur.pointId,
+      relations: sc.relations.filter((r) => r.from === cur.pointId || r.to === cur.pointId).map((r) => ({ from: r.from, to: r.to })),
+      point: { strokeWidth: 5, framed: true, icon: 'star', color: HL_COLOR },
+      others: { strokeWidth: 2.5, framed: false, color: 'kind' },
+      textLegible: true,
+    };
+  };
+  const step = (d) => {
+    const list = allPoints();
+    if (!list.length) return;
+    const cur = currentHighlight();
+    const i = cur ? list.findIndex((p) => p.id === cur.pointId) : (d > 0 ? -1 : 0);
+    ctx.api.highlightPoint(list[(i + d + list.length) % list.length].id, 'keyboard');
+  };
+  ctx.registerCommand('highlight.next', () => step(1));
+  ctx.registerCommand('highlight.prev', () => step(-1));
+  ctx.registerCommand('highlight.clear', () => ctx.api.clearHighlight());
   ctx.registerPanelRenderer('diagram', (host) => mountDiagramPanel(host, ctx.api));
 }

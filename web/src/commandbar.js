@@ -5,9 +5,9 @@ export const GROUPS = [
   ['toolbar.speech', ['speech.start', 'speech.stop']],
   ['toolbar.save', ['save.png', 'save.svg', 'save.pdf']],
   ['toolbar.language', ['lang.ja', 'lang.en']],
-  ['toolbar.view', ['view.2d', 'view.3d', 'theme.toggle']],
+  ['toolbar.view', ['view.2d', 'view.3d', 'view.timeline', 'view.arrange', 'theme.toggle']],
   ['toolbar.presentation', ['presentation.start', 'presentation.pause', 'presentation.resume', 'presentation.stop', 'presentation.prev', 'presentation.next']],
-  ['toolbar.layout', ['layout.reset']],
+  ['toolbar.layout', ['layout.tile', 'layout.focus', 'layout.maximize', 'layout.reset']],
 ];
 
 // 主要コマンド（Fluent の primary ボタン）。それ以外は subtle。
@@ -30,14 +30,18 @@ const P = {
   theme: 'M10 2a8 8 0 1 0 0 16ZM10 2v16',
   present: 'M3 3h14v10H3zM10 13v4M6 17h8',
   reset: 'M4 10a6 6 0 1 1 2 4.5M4 5v5h5',
+  tile: 'M3 3h14v14H3zM10 3v14M3 10h14',
+  focus: 'M3 3h10v14H3zM13 3h4v14h-4zM13 10h4',
+  maximize: 'M4 4h12v12H4zM4 7h12',
 };
 export const ICONS = {
   'session.start': P.rec, 'session.pause': P.pause, 'session.resume': P.play, 'session.stop': P.stop,
   'session.nextScene': P.next, 'input.focus': P.edit, 'speech.start': P.mic, 'speech.stop': P.micOff,
   'save.png': P.save, 'save.svg': P.save, 'save.pdf': P.save, 'lang.ja': P.lang, 'lang.en': P.lang,
-  'view.2d': P.square, 'view.3d': P.cube, 'theme.toggle': P.theme,
+  'view.2d': P.square, 'view.3d': P.cube, 'theme.toggle': P.theme, 'view.timeline': P.prev, 'view.arrange': P.tile,
   'presentation.start': P.present, 'presentation.pause': P.pause, 'presentation.resume': P.play,
   'presentation.stop': P.stop, 'presentation.prev': P.prev, 'presentation.next': P.next, 'layout.reset': P.reset,
+  'layout.tile': P.tile, 'layout.focus': P.focus, 'layout.maximize': P.maximize,
 };
 
 // NFR-UX-002 AC-071〜073: 各ボタンの簡易説明（ツールチップ）。文言キーは tooltip.<command>（ja・en 同一集合）。
@@ -57,6 +61,8 @@ const TIP = {
   'lang.en': ['表示言語を英語に切り替えます', 'Switch the display language to English'],
   'view.2d': ['図を平面（2D）で表示します', 'Show the diagram in flat 2D'],
   'view.3d': ['図を立体（3D）で表示します', 'Show the diagram in 3D'],
+  'view.timeline': ['図を時系列の配置で表示します', 'Show the diagram in timeline order'],
+  'view.arrange': ['図を縦軸・横軸の区分に整理して表示します', 'Show the diagram arranged by vertical and horizontal axes'],
   'theme.toggle': ['画面の配色をダークとライトで切り替えます', 'Toggle the screen colors between dark and light'],
   'presentation.start': ['シーンを順に見せるプレゼンテーションを始めます', 'Start a presentation that plays the scenes in order'],
   'presentation.pause': ['プレゼンテーションを一時停止します', 'Pause the presentation'],
@@ -65,6 +71,9 @@ const TIP = {
   'presentation.prev': ['プレゼンテーションで前のシーンに戻ります', 'Go back to the previous scene in the presentation'],
   'presentation.next': ['プレゼンテーションで次のシーンに進みます', 'Go on to the next scene in the presentation'],
   'layout.reset': ['パネルの配置を初期状態に戻します', 'Restore the panels to the default layout'],
+  'layout.tile': ['全パネルを隙間なく並べるタイル配置に整列します', 'Arrange all panels as gapless tiles'],
+  'layout.focus': ['選んだパネルを全体の 75% に広げ、ほかを残りに均等に並べます', 'Enlarge the main panel to 75% and share the rest equally'],
+  'layout.maximize': ['パネルを作業領域いっぱいに最大化します', 'Maximize the panel to fill the work area'],
 };
 export const tooltipId = (command) => `tooltip-${command.replace(/[^a-zA-Z0-9]+/g, '-')}`;
 

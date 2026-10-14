@@ -24,6 +24,7 @@ import { view3DModule } from './view3d.js';
 import { speechModule } from './speech.js';
 import { transcriptModule } from './transcript.js';
 import { commandBarModule } from './commandbar.js';
+import { arrangeModule } from './arrange.js';
 
 const GAP_MS_DEFAULT = 20_000; // PARAM-002
 const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -67,6 +68,7 @@ export async function createApp(options = {}) {
     state.utterances = saved.utterances; state.scenes = saved.scenes;
     state.selectedSceneId = saved.scenes.some((s) => s.id === saved.selectedSceneId) ? saved.selectedSceneId : null;
     seq = saved.seq;
+    state.displayMode = saved.displayMode; state.arrange = saved.arrange;
     if (saved.utterances.length || saved.scenes.length) state.session = 'paused';
   }
 
@@ -78,6 +80,7 @@ export async function createApp(options = {}) {
     if (!state.utterances.length && !state.scenes.length) return;
     P.writeJson(storage, P.SESSION_KEY, {
       utterances: state.utterances, scenes: state.scenes, selectedSceneId: state.selectedSceneId, seq,
+      displayMode: state.displayMode, arrange: state.arrange,
     });
   }
   // 状態を変える唯一の入口: 自動保存と再描画の通知。
@@ -166,7 +169,7 @@ export async function createApp(options = {}) {
     change((s) => { s.viewMode = mode; });
     return true;
   };
-  app.renderOutline = () => renderOutline(state.scenes, state.selectedSceneId, i18n.t);
+  app.renderOutline = () => renderOutline(state.scenes, state.selectedSceneId, i18n.t, app.getOutlineAnnotation?.() ?? null);
   app.clearSavedSession = () => { P.remove(storage, P.SESSION_KEY); };
 
   // ---- 記録の状態 ----
@@ -212,7 +215,21 @@ export async function createApp(options = {}) {
   app.setPanelVisible = (id, v) => layoutChange(L.ops.visible(layout, id, v));
   app.setPanelMaximized = (id, v) => layoutChange(L.ops.maximized(layout, id, v));
   app.panelCommand = (id, name) => layoutChange(L.ops.command(layout, id, name));
-  app.resetLayout = () => { layout = L.defaultLayout(); return layoutChange(true); };
+  app.resetLayout = () => { layout = L.defaultLayout(layout.workArea); return layoutChange(true); };
+  // FR-017: タイル配置・フォーカス・最大化（コマンド・キー・コマンドの検索・ボタンから共通で呼ぶ）
+  app.layoutCommand = (name, panelId) => layoutChange(L.ops.arrange(layout, name, panelId));
+  app.setWorkArea = (w, h) => layoutChange(L.ops.workArea(layout, w, h));
+  commands['layout.tile'] = () => { app.layoutCommand('tile'); };
+  commands['layout.focus'] = () => { app.layoutCommand('focus', layout.mainPanel ?? 'diagram'); };
+  commands['layout.maximize'] = () => { app.layoutCommand('maximize'); };
+  // コマンドの検索: 表示言語のラベルの部分一致（大文字小文字は区別しない）
+  app.searchCommands = (query) => {
+    const q = String(query ?? '').trim().toLowerCase();
+    if (!q) return [];
+    return Object.keys(commands)
+      .map((command) => ({ command, label: i18n.t(`cmd.${command}`) }))
+      .filter((c) => c.label && c.label !== `cmd.${c.command}` && c.label.toLowerCase().includes(q));
+  };
 
   // ---- キーボード ----
   app.handleKey = (ev) => {
@@ -227,7 +244,7 @@ export async function createApp(options = {}) {
   app.subscribe = (fn) => on('change', fn);
   app.getPanelRenderer = (id) => panelRenderers.get(id) ?? null;
   app.use = async (mod) => { await mod(ctx); };
-  for (const mod of [diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, commandBarModule, ...(options.modules ?? [])]) await app.use(mod);
+  for (const mod of [diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, ...(options.modules ?? [])]) await app.use(mod);
 
   return app;
 }

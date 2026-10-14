@@ -8,7 +8,7 @@ function icon(doc, command) {
   t.innerHTML = `<svg viewBox="0 0 20 20" class="icon" aria-hidden="true" focusable="false"><path d="${ICONS[command] ?? ICONS['session.start']}"></path></svg>`;
   return t.content.firstChild;
 }
-const PRESSED = { 'lang.ja': (s) => s.lang === 'ja', 'lang.en': (s) => s.lang === 'en', 'view.2d': (s) => s.viewMode === '2d', 'view.3d': (s) => s.viewMode === '3d' };
+const PRESSED = { 'lang.ja': (s) => s.lang === 'ja', 'lang.en': (s) => s.lang === 'en', 'view.2d': (s) => s.viewMode === '2d', 'view.3d': (s) => s.viewMode === '3d', 'view.timeline': (s) => s.displayMode !== 'arrange', 'view.arrange': (s) => s.displayMode === 'arrange' };
 
 export function mountUI(app, doc = document) {
   const $ = (sel, root = doc) => root.querySelector(sel);
@@ -87,6 +87,8 @@ export function mountUI(app, doc = document) {
         b.setAttribute('aria-label', `${app.t(`panel.${id}`)}: ${app.t(`panel.cmd.${c}`)}`);
       }
       const max = add('', () => app.setPanelMaximized(id, !app.getLayout().panels[id].maximized), { act: 'max' });
+      const focusBtn = add(app.t('panel.focus'), () => app.layoutCommand('focus', id), { act: 'focus' });
+      focusBtn.setAttribute('aria-label', `${app.t(`panel.${id}`)}: ${app.t('panel.focus')}`);
       const hide = add(app.t('panel.hide'), () => app.setPanelVisible(id, false));
       hide.setAttribute('aria-label', `${app.t(`panel.${id}`)}: ${app.t('panel.hide')}`);
       max.dataset.panel = id;
@@ -141,6 +143,9 @@ export function mountUI(app, doc = document) {
     const layout = app.getLayout();
     const mode = app.getLayoutMode();
     workspace.dataset.mode = mode;
+    workspace.dataset.kind = layout.kind;
+    const kindEl = $('#layout-kind');
+    if (kindEl) kindEl.textContent = `${app.t('layout.kind.label')}: ${app.t(`layout.kind.${layout.kind}`)}`;
     const showBar = $('[data-role="panel-show"]');
     showBar.textContent = '';
     for (const id of PANEL_IDS) {
@@ -165,12 +170,30 @@ export function mountUI(app, doc = document) {
     }
     if (!app.getPanelRenderer('diagram')) $('#diagram').textContent = app.t('diagram.empty');
     showBar.hidden = !showBar.childElementCount;
-    // 自由配置の作業領域は、はみ出したパネルの端まで広げる（スクロールで到達できる）
-    if (mode === 'floating') {
+    // 自由配置の作業領域は、はみ出したパネルの端まで広げる（スクロールで到達できる）。
+    // タイル・フォーカス・最大化は、作業領域に固定する（FR-017）
+    const fixed = layout.kind === 'tile' || layout.kind === 'focus' || layout.kind === 'maximized';
+    if (mode === 'floating' && fixed) {
+      workspace.style.minHeight = '';
+      workspace.style.height = `${layout.workArea.h}px`;
+    } else if (mode === 'floating') {
+      workspace.style.height = '';
       const vis = PANEL_IDS.map((id) => layout.panels[id]).filter((p) => p.visible);
       workspace.style.minHeight = `${Math.max(0, ...vis.map((p) => p.y + p.h)) + 24}px`;
-    } else workspace.style.minHeight = '';
+    } else { workspace.style.minHeight = ''; workspace.style.height = ''; }
+    measureWorkArea();
   }
+
+  // 作業領域の大きさを実際の表示領域に合わせる（タイル・フォーカスの再計算は app 側）
+  function measureWorkArea() {
+    if (app.getLayoutMode() !== 'floating') return;
+    const w = Math.floor(workspace.clientWidth);
+    const top = workspace.getBoundingClientRect?.().top ?? 0;
+    const vh = (doc.defaultView?.innerHeight ?? 0) - Math.max(0, top) - 16;
+    const h = Math.max(480, Math.floor(vh));
+    if (w > 0) app.setWorkArea(w, h);
+  }
+  doc.defaultView?.addEventListener('resize', measureWorkArea);
 
   // ドラッグ移動・大きさ変更（同じ操作はボタンとキーボードでもできる: AC-027）
   function drag(el, id, kind) {

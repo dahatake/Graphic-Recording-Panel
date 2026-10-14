@@ -121,3 +121,20 @@ export async function createApp(options) -> app   // await 可能（同期で返
 - `web/index.html` に同意の操作要素 `id="speech-consent"`（`<input type="checkbox">` か `role="switch"`/`checkbox`）。ネイティブ入力でなければ `aria-checked` と `tabindex="0"`。名前（`<label for>` か `aria-label`）と説明（`aria-describedby`）を持つ。正の `tabindex` は不可。
 - `onend()` の自動再開（NFR-BG-001 AC-064）の条件を次に改める: `session==='recording'` かつ（`availabilityFor`＝`local`、または `remote` かつ同意済み）のときだけ `start`（同意による再開は `processLocally` キーなし）。未同意の `remote`、`unsupported`、停止・一時停止後は再開しない。
 - 外部通信（NFR-OFFLINE-001 AC-031）: 同意による外部送信可の認識を使っても、アプリ自身は `fetch`/`XMLHttpRequest`/`WebSocket`/`EventSource`/`sendBeacon` を呼ばない（ブラウザの認識通信は含めない）。
+
+## 図の演出（FR-015 AC-074 / AC-076、追記）
+- `app.getDiagramStyle()` → `{ scenes:[{ id, heading:{fontSize:number, fontWeight:number, framed:boolean}, points:[{ id, kind:string, color:string, shape:string, icon:string, fontSize:number, fontWeight:number }] }] }`。見出しは `fontSize` が要点より大きく `fontWeight` が要点より大きい、または `framed:true`（囲み・色帯）。`kind` は要点の種類（結論・課題・アイデア・補足など）。種類が異なる要点は、`color` が異なり、かつ `shape` か `icon` のどちらかも異なる（白黒でも見分けられる）。テストの入力は課題の語（「困った」）と決定の語（「決める」）を含む。
+- 強調: `app.highlightPoint(pointId, source)`（`source` は `'pointer'|'keyboard'`）、`app.clearHighlight()`、`app.getHighlight()` → `null | { pointId, relations:[{from,to}]（その要点とつながる関係線）, point:{strokeWidth:number, framed:boolean, icon:string, color:string}, others:{strokeWidth:number, framed:boolean, color:string}, textLegible:boolean }`。キーボード: コマンド `highlight.next` `highlight.prev` `highlight.clear` を `keymap` に持つ（`handleKey` で実行）。強調中も `renderSvg()` は全要点の文字列を `<text>` に含む。
+
+## 意味のある配置による 2D 整理（FR-016 AC-078〜081、追記）
+- `app.setDisplayMode('timeline'|'arrange')` / `app.getDisplayMode()`（既定 `'timeline'`）。
+- `app.getArrangement()` → `{ mode, presets:[{id,label}], axes:{ vertical:{name, sections:[{id,label}]}, horizontal:{name, sections:[{id,label}]} }, unclassified:{label:string}, assignments:[{ objectId, kind:'point'|'scene', v:sectionId|null, h:sectionId|null, unclassified:boolean, position:{x,y} }] }`。既定の組 `presets` に `id:'logical-physical_workflow'`（縦軸「論理層→物理層」、横軸「ワークフロー／部署のステップ」）を含み、`app.setArrangePreset(id)` で選ぶ。各軸の `sections` は 2 件以上で `label` は非空。`app.setAxis('vertical'|'horizontal', {name, sections:[label,...]})` で編集（`ok` を返す）。
+- `app.assignObject(objectId, {v, h})` → `{ok}`（区分 ID。`null` で未分類）。`app.describeObject(objectId)` → `{ vertical:label|null, horizontal:label|null, text:string }`（位置の理由。未分類は `text` が `unclassified.label` を含む）。割り当てのない要点は `unclassified:true`。
+- 整理の表示の `renderSvg()` は、両軸の名前・各区分の `label`・未分類の領域の `label` を `<text>` に含む。
+- ドラッグなしの移動: `app.arrangeCommand(objectId, 'section-up'|'section-down'|'section-left'|'section-right')`（隣の区分へ。`ok`）。コマンド `arrange.up` `arrange.down` `arrange.left` `arrange.right`（選択中の要点を対象）を `keymap` に持つ。手動の割り当ては以後の自動処理（新しい発話の取込）で変わらない。
+
+## パネルのタイル配置とフォーカス（FR-017 AC-083〜086、追記）
+- `app.getLayout()` に `workArea:{w,h}`、`kind:'tile'|'focus'|'maximized'`（現在のレイアウトの種類。表示用）、`mainPanel:string|null` を加える。表示中（`visible`）のパネルの矩形 `{x,y,w,h}` は区切り線を含めた領域で、互いに重ならず、作業領域（原点 0,0）を隙間なく埋める（面積の合計が `w*h` に等しい）。既定のレイアウトとタイル配置の直後、表示/非表示の変更の直後に成り立つ。
+- `app.layoutCommand('tile')`＝タイル配置に整列、`app.layoutCommand('focus', panelId)`＝フォーカス（メインに指定）、`app.layoutCommand('maximize', panelId)`＝最大化。コマンド `layout.tile` `layout.focus` `layout.maximize` を `keymap` に持つ（`layout.focus` は現在のメインか、未指定なら `diagram`）。`app.searchCommands(query)` → `[{command,label}]`（コマンドの検索。表示言語の `label` の部分一致）。
+- フォーカスではメインの面積が作業領域の 75%（PARAM-009）、ほかの表示中のパネルは残りを均等な面積で分ける。1 パネルだけ表示なら全領域。
+- ドラッグなしの移動は `panelCommand`（FR-011）。
