@@ -33,6 +33,11 @@
 | FR-015 | 図の演出（アイコン・色・手描き風・吹き出し・囲み・矢印・強調表示） | 承認済み | web/src/diagram.js, web/src/keymap.js, web/src/i18n.js | tests/unit/decoration.test.js, tests/unit/core.test.js, tests/system/decoration.test.js | アプリ組立, i18n, キーマップ, 感情語辞書 |
 | FR-016 | 意味のある配置による 2D 整理（軸と見出し・ラベル） | 承認済み | web/src/arrange.js, web/src/diagram.js, web/src/export.js, web/src/outline.js, web/src/persist.js, web/src/app.js, web/src/commandbar.js, web/src/ui.js, web/src/i18n.js, web/sw.js | tests/unit/arrange.test.js, tests/system/arrange.test.js | アプリ組立, i18n, コマンドバー |
 | FR-017 | パネルのタイル配置とフォーカス／最大化レイアウトの切替 | 承認済み | web/src/layout.js, web/src/app.js, web/src/ui.js, web/src/keymap.js, web/src/commandbar.js, web/src/i18n.js, web/index.html, web/styles/app.css | tests/unit/tile.test.js, tests/system/tile.test.js | アプリ組立, デザイン基盤, コマンドバー, キーマップ, i18n |
+| FR-018 | データの初期化 | 承認済み | 未実装 | 未実装 | - |
+| FR-019 | 議論途中のデータのファイル保存と読込 | 承認済み | 未実装 | 未実装 | - |
+| FR-020 | 3D 表現の評価軸の選択 | 承認済み | 未実装 | 未実装 | - |
+| FR-021 | 3D 表現の画面操作と操作説明の表示 | 承認済み | 未実装 | 未実装 | - |
+| NFR-UX-003 | コマンドバーのアイコンの常時ラベル | 承認済み | 未実装 | 未実装 | - |
 
 ## API・イベント
 
