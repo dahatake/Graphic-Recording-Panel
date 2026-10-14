@@ -35,7 +35,7 @@ export function wrapLines(text, fs, width) {
   return lines;
 }
 
-export function buildPdf(scenes, { title = '' } = {}) {
+export function buildPdf(scenes, { title = '', arrange = null } = {}) {
   const FS_H = 15; const FS_P = 11; const LH_H = 22; const LH_P = 16;
   const width = A4.w - A4.margin * 2;
   const pages = [[]];
@@ -52,11 +52,27 @@ export function buildPdf(scenes, { title = '' } = {}) {
     y -= lines.length * lh + 4;
   };
   if (title) block(title, 12, 18, 0);
-  scenes.forEach((sc, i) => {
-    y -= i ? 10 : 0;
-    block(sc.heading, FS_H, LH_H, 0);
-    for (const p of sc.points) block(p.text, FS_P, LH_P, 16);
-  });
+  if (arrange) {
+    // FR-016 AC-089: 整理の表示。軸の名前・区分の見出しと、区分（未分類を含む）ごとのオブジェクトを出力する。
+    const g = arrange.geometry;
+    block(`${arrange.axisLabels.vertical}: ${arrange.axes.vertical.name}（${arrange.axes.vertical.sections.map((s) => s.label).join(' / ')} / ${arrange.unclassified.label}）`, FS_P, LH_P, 0);
+    block(`${arrange.axisLabels.horizontal}: ${arrange.axes.horizontal.name}（${arrange.axes.horizontal.sections.map((s) => s.label).join(' / ')} / ${arrange.unclassified.label}）`, FS_P, LH_P, 0);
+    const byId = new Map(scenes.flatMap((s) => [[s.id, s.heading], ...s.points.map((p) => [p.id, p.text])]));
+    for (const r of g.rows) {
+      for (const c of g.cols) {
+        const here = g.items.filter((it) => it.y >= r.y && it.y < r.y + r.h && it.x >= c.x && it.x < c.x + c.w);
+        if (!here.length) continue;
+        block(`${r.label} × ${c.label}`, FS_H, LH_H, 0);
+        for (const it of here) block(byId.get(it.id), FS_P, LH_P, 16);
+      }
+    }
+  } else {
+    scenes.forEach((sc, i) => {
+      y -= i ? 10 : 0;
+      block(sc.heading, FS_H, LH_H, 0);
+      for (const p of sc.points) block(p.text, FS_P, LH_P, 16);
+    });
+  }
 
   const objs = []; // 1 起点の番号 → 本文
   const add = (body) => { objs.push(body); return objs.length; };
@@ -83,7 +99,8 @@ export function buildPdf(scenes, { title = '' } = {}) {
 }
 
 // ---- PNG（canvasFactory に全シーンの見出しと要点を描く） ----
-export async function renderPng(scenes, canvasFactory, { title = '' } = {}) {
+export async function renderPng(scenes, canvasFactory, { title = '', arrange = null } = {}) {
+  if (arrange) return renderArrangedPng(scenes, arrange, canvasFactory);
   const FS_H = 18; const FS_P = 15; const ROW_H = 30; const HEAD_H = 40; const GAP = 22;
   const font = (px, bold) => `${bold ? '700 ' : ''}${px}px system-ui, 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif`;
   const probe = canvasFactory(8, 8).getContext('2d');
@@ -113,6 +130,41 @@ export async function renderPng(scenes, canvasFactory, { title = '' } = {}) {
     y += GAP;
   });
   void title;
+  return canvas.toBytes();
+}
+
+// FR-016 AC-089: 整理の表示の PNG（軸の名前・区分の見出し・未分類の領域・各オブジェクトを、整理の配置どおりに描く）
+async function renderArrangedPng(scenes, model, canvasFactory) {
+  const g = model.geometry;
+  const font = (px, bold) => `${bold ? '700 ' : ''}${px}px system-ui, 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif`;
+  const canvas = canvasFactory(g.width, g.height);
+  const c = canvas.getContext('2d');
+  c.fillStyle = '#ffffff'; c.fillRect(0, 0, g.width, g.height);
+  c.textBaseline = 'middle';
+  const ink = '#15191f';
+  for (const r of g.rows) {
+    c.fillStyle = r.id ? '#f7f9fc' : '#fff7ed'; c.fillRect(g.margin, r.y, g.width - g.margin * 2, r.h);
+    c.strokeStyle = '#8a94a6'; c.lineWidth = 1; c.strokeRect(g.margin, r.y, g.width - g.margin * 2, r.h);
+    c.fillStyle = ink; c.font = font(14, true); c.fillText(r.label, g.margin + 8, r.y + 20);
+  }
+  for (const col of g.cols) {
+    c.strokeStyle = '#8a94a6'; c.lineWidth = 1; c.strokeRect(col.x, g.top, col.w, g.height - g.margin - g.top);
+    c.fillStyle = ink; c.font = font(14, true); c.fillText(col.label, col.x + 10, g.top - 14);
+  }
+  c.fillStyle = ink; c.font = font(18, true);
+  c.fillText(`${model.axisLabels.horizontal}: ${model.axes.horizontal.name}`, g.margin, g.margin + 14);
+  c.fillText(`${model.axisLabels.vertical}: ${model.axes.vertical.name}`, g.margin, g.margin + 38);
+  const idx = new Map(scenes.map((s, i) => [s.id, i]));
+  const pts = new Map(scenes.flatMap((s) => s.points.map((p) => [p.id, p])));
+  for (const it of g.items) {
+    if (it.kind === 'scene') {
+      c.fillStyle = PALETTE[idx.get(it.id) % PALETTE.length]; c.fillRect(it.x, it.y, it.w, it.h);
+      c.fillStyle = '#ffffff'; c.font = font(16, true); c.fillText(scenes[idx.get(it.id)].heading, it.x + 10, it.y + it.h / 2);
+    } else {
+      c.strokeStyle = ink; c.lineWidth = 2; c.strokeRect(it.x, it.y, it.w, it.h);
+      c.fillStyle = ink; c.font = font(14, false); c.fillText(pts.get(it.id).text, it.x + 10, it.y + it.h / 2);
+    }
+  }
   return canvas.toBytes();
 }
 
@@ -166,11 +218,13 @@ export function exportModule(ctx) {
     return { ok: true };
   }
   const scenes = () => ctx.state.scenes;
+  // 整理の表示を選んでいるときは、その配置（軸・区分・未分類を含む）で出力する（AC-089）
+  const arranged = () => (ctx.state.displayMode === 'arrange' && ctx.api.getArrangement ? ctx.api.getArrangement() : null);
   ctx.registerCommand('save.svg', () => run('svg', 'image/svg+xml', () => ctx.api.renderSvg()));
-  ctx.registerCommand('save.pdf', () => run('pdf', 'application/pdf', () => buildPdf(scenes(), { title: ctx.t('app.title') })));
+  ctx.registerCommand('save.pdf', () => run('pdf', 'application/pdf', () => buildPdf(scenes(), { title: ctx.t('app.title'), arrange: arranged() })));
   ctx.registerCommand('save.png', () => run('png', 'image/png', async () => {
     const factory = ctx.options.canvasFactory ?? browserCanvasFactory();
     if (!factory) throw new Error('no canvas');
-    return renderPng(scenes(), factory);
+    return renderPng(scenes(), factory, { arrange: arranged() });
   }));
 }

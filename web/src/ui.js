@@ -8,7 +8,7 @@ function icon(doc, command) {
   t.innerHTML = `<svg viewBox="0 0 20 20" class="icon" aria-hidden="true" focusable="false"><path d="${ICONS[command] ?? ICONS['session.start']}"></path></svg>`;
   return t.content.firstChild;
 }
-const PRESSED = { 'lang.ja': (s) => s.lang === 'ja', 'lang.en': (s) => s.lang === 'en', 'view.2d': (s) => s.viewMode === '2d', 'view.3d': (s) => s.viewMode === '3d' };
+const PRESSED = { 'lang.ja': (s) => s.lang === 'ja', 'lang.en': (s) => s.lang === 'en', 'view.2d': (s) => s.viewMode === '2d', 'view.3d': (s) => s.viewMode === '3d', 'view.timeline': (s) => s.displayMode !== 'arrange', 'view.arrange': (s) => s.displayMode === 'arrange' };
 
 export function mountUI(app, doc = document) {
   const $ = (sel, root = doc) => root.querySelector(sel);

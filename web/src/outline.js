@@ -9,15 +9,18 @@ export function escapeHtml(s) {
 export const STATUS_MARK = { in_progress: '○', confirmed: '●' };
 export const SELECTED_MARK = '▶';
 
-export function renderOutline(scenes, selectedSceneId, t) {
+export function renderOutline(scenes, selectedSceneId, t, annot = null) {
   if (!scenes.length) return `<p class="outline-empty">${escapeHtml(t('outline.empty'))}</p>`;
+  // FR-016 AC-082: 整理の表示では軸・区分・割り当てを文字で添える（順序は常に時系列）
+  const note = (id) => (annot ? ` <span class="outline-arrange">[${escapeHtml(annot.of(id))}]</span>` : '');
   const items = scenes.map((s) => {
     const sel = s.id === selectedSceneId;
     const status = `<span class="badge badge-${escapeHtml(s.status)}"><span aria-hidden="true">${STATUS_MARK[s.status] ?? ''}</span> ${escapeHtml(t(`scene.status.${s.status}`))}</span>`;
     const selected = sel ? ` <span class="badge badge-selected"><span aria-hidden="true">${SELECTED_MARK}</span> ${escapeHtml(t('scene.selected'))}</span>` : '';
-    const pts = s.points.map((p) => `<li data-point-id="${escapeHtml(p.id)}">${escapeHtml(p.text)}</li>`).join('');
+    const pts = s.points.map((p) => `<li data-point-id="${escapeHtml(p.id)}">${escapeHtml(p.text)}${note(p.id)}</li>`).join('');
     return `<li class="outline-scene${sel ? ' is-selected' : ''}" data-scene-id="${escapeHtml(s.id)}"${sel ? ' aria-current="true"' : ''}>`
-      + `<h3>${escapeHtml(s.heading)}</h3> ${status}${selected}<ul>${pts}</ul></li>`;
+      + `<h3>${escapeHtml(s.heading)}</h3>${note(s.id)} ${status}${selected}<ul>${pts}</ul></li>`;
   });
-  return `<ol class="outline">${items.join('')}</ol>`;
+  const head = annot ? `<p class="outline-arrange-head">${escapeHtml(annot.header)}</p>` : '';
+  return `${head}<ol class="outline">${items.join('')}</ol>`;
 }

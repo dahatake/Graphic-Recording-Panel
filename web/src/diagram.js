@@ -171,6 +171,52 @@ export function renderDiagramSvg(scenes, opts = {}) {
     + `<title>${title}</title><defs>${markers}</defs><rect width="100%" height="100%" fill="${PAPER}"/>${parts.join('')}${flows.join('')}${empty}</svg>`;
 }
 
+// FR-016 AC-078 AC-079 AC-089: 意味のある配置（整理の表示）の SVG。model は app.getArrangement()（geometry つき）。
+// 軸の名前・区分の見出し・未分類の領域は <text> の文字で示し、色だけに頼らない。
+export function renderArrangedSvg(scenes, model, opts = {}) {
+  const g = model.geometry;
+  const sel = opts.selectedSceneId ?? null;
+  const hlId = opts.highlightPointId ?? null;
+  const parts = [];
+  // 区分の見出し・枠
+  g.rows.forEach((r) => {
+    parts.push(`<rect x="${g.margin}" y="${r.y}" width="${g.width - g.margin * 2}" height="${r.h}" fill="${r.id ? '#f7f9fc' : '#fff7ed'}" stroke="#8a94a6" stroke-width="1"${r.id ? '' : ' stroke-dasharray="6 4"'} data-role="row" data-section="${attr(r.id ?? 'unclassified')}"/>`);
+    parts.push(`<text x="${g.margin + 8}" y="${r.y + 22}" font-size="${FS}" font-weight="700" fill="${INK}" data-role="row-label">${esc(r.label)}</text>`);
+  });
+  g.cols.forEach((c) => {
+    parts.push(`<path d="M${c.x} ${g.top} V${g.height - g.margin}" stroke="#8a94a6" stroke-width="1"${c.id ? '' : ' stroke-dasharray="6 4"'} data-role="col" data-section="${attr(c.id ?? 'unclassified')}"/>`);
+    parts.push(`<text x="${c.x + 10}" y="${g.top - 8}" font-size="${FS}" font-weight="700" fill="${INK}" data-role="col-label">${esc(c.label)}</text>`);
+  });
+  parts.push(`<text x="${g.margin}" y="${g.margin + 16}" font-size="${FS_HEAD}" font-weight="800" fill="${INK}" data-role="axis-name-h">${esc(model.axisLabels.horizontal)}: ${esc(model.axes.horizontal.name)}</text>`);
+  parts.push(`<text x="${g.margin}" y="${g.margin + 38}" font-size="${FS_HEAD}" font-weight="800" fill="${INK}" data-role="axis-name-v">${esc(model.axisLabels.vertical)}: ${esc(model.axes.vertical.name)}</text>`);
+  // オブジェクト（要点の吹き出し・シーンの見出し）
+  const sceneIdx = new Map(scenes.map((s, i) => [s.id, i]));
+  for (const it of g.items) {
+    const reason = `<title>${esc(it.reason)}</title>`;
+    if (it.kind === 'scene') {
+      const sc = scenes[sceneIdx.get(it.id)];
+      const color = PALETTE[sceneIdx.get(it.id) % PALETTE.length];
+      const isSel = it.id === sel;
+      parts.push(`<g data-scene-id="${attr(it.id)}" data-assigned="${it.unclassified ? 'unclassified' : 'assigned'}"${isSel ? ' aria-current="true"' : ''}>${reason}`
+        + `<path d="${wobblyD(outline('rect', it.x, it.y, it.w, it.h), `${it.id}:h`, true, 1.2)}" fill="${color}" stroke="${isSel ? INK : color}" stroke-width="${isSel ? 4 : 2}" stroke-linejoin="round" data-role="heading-band"/>`
+        + `<text x="${it.x + 10}" y="${it.y + it.h - 11}" font-size="${FS_HEAD - 2}" font-weight="800" fill="#ffffff" data-role="heading">${STATUS_MARK[sc.status] ?? ''}${isSel ? SELECTED_MARK : ''} ${esc(sc.heading)}</text></g>`);
+    } else {
+      const p = scenes.flatMap((s) => s.points).find((q) => q.id === it.id);
+      const kind = classifyPoint(p.text); const k = KINDS[kind];
+      const hl = p.id === hlId;
+      const stroke = hl ? HL_COLOR : k.color;
+      parts.push(`<g data-point-id="${attr(p.id)}" data-kind="${kind}" data-assigned="${it.unclassified ? 'unclassified' : 'assigned'}"${hl ? ' data-highlight="1"' : ''}>${reason}`
+        + `<path d="${wobblyD(outline(k.shape, it.x, it.y, it.w, BUBBLE_H), p.id, true)}" fill="${PAPER}" stroke="${stroke}" stroke-width="${hl ? 5 : 2.5}" stroke-linejoin="round"/>`
+        + iconShape(k.icon, it.x + 8, it.y + 7, stroke)
+        + `<text x="${it.x + 8 + ICON_W}" y="${it.y + 24}" font-size="${FS}" fill="${INK}">${esc(p.text)}</text></g>`);
+    }
+  }
+  const title = esc(opts.title ?? '');
+  const { width, height } = g;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" font-family="system-ui, 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif" role="img" aria-label="${attr(opts.title ?? '')}" data-display-mode="arrange">`
+    + `<title>${title}</title><rect width="100%" height="100%" fill="${PAPER}"/>${parts.join('')}</svg>`;
+}
+
 // ---- パネル（拡大・縮小・移動できるキャンバス） ----
 export const ZOOM_MIN = 0.4; export const ZOOM_MAX = 3; export const ZOOM_STEP = 1.25;
 export const clampZoom = (z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
@@ -248,7 +294,12 @@ export function diagramModule(ctx) {
       'diagram.canvasLabel': 'Diagram (scroll with arrow keys)',
     },
   });
-  ctx.api.renderSvg = () => renderDiagramSvg(ctx.state.scenes, { selectedSceneId: ctx.state.selectedSceneId, highlightPointId: currentHighlight()?.pointId ?? null, t: ctx.t, title: ctx.t('app.title') });
+  ctx.api.renderSvg = () => {
+    const o = { selectedSceneId: ctx.state.selectedSceneId, highlightPointId: currentHighlight()?.pointId ?? null, t: ctx.t, title: ctx.t('app.title') };
+    // FR-016 AC-089: 画面で選んでいる表示（時系列／整理）と同じ配置で出力する（保存もここを通る）
+    if (ctx.state.displayMode === 'arrange' && ctx.api.getArrangement) return renderArrangedSvg(ctx.state.scenes, ctx.api.getArrangement(), o);
+    return renderDiagramSvg(ctx.state.scenes, o);
+  };
 
   // ---- FR-015 AC-074: 図の演出の記述（見出しと要点の表現） ----
   ctx.api.getDiagramStyle = () => ({
