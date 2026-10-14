@@ -17,8 +17,9 @@ const app = await createApp({
     prefersDark: mq('(prefers-color-scheme: dark)'),
   },
 });
-mountUI(app);
+const ui = mountUI(app);
 mountEditUI(app);
+ui.measureWorkArea();
 globalThis.addEventListener('resize', () => { /* 幅の変化に合わせて再描画 */ app.setViewportWidth?.(globalThis.innerWidth); });
 
 if ('serviceWorker' in navigator) {

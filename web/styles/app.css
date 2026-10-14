@@ -51,6 +51,7 @@ h1 { font-size: var(--font-size-title); } h2 { font-size: var(--font-size-subtit
 /* ワークスペース: 広い画面は自由配置（px はレイアウトの保存値）、狭い画面は積み重ね（AC-028） */
 .workspace { position: relative; padding: var(--space-3); outline: none; }
 .workspace[data-mode="floating"] { min-height: 70vh; overflow-x: auto; overflow-y: visible; }
+.workspace[data-mode="floating"][data-kind="tile"], .workspace[data-mode="floating"][data-kind="focus"], .workspace[data-mode="floating"][data-kind="maximized"] { min-height: 0; }
 /* カード風パネル */
 .panel { background: var(--color-surface); border: var(--stroke) solid var(--color-border-subtle); border-radius: var(--radius); box-shadow: var(--shadow); display: flex; flex-direction: column; min-width: 0; }
 .workspace[data-mode="floating"] .panel { position: absolute; box-sizing: border-box; }

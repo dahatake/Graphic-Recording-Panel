@@ -1,5 +1,5 @@
 // DOM との結び付け（ブラウザ専用。app.js は DOM を知らない）。app の状態を描くだけで、状態は持たない。
-import { PANEL_IDS, PANEL_COMMANDS } from './layout.js';
+import { PANEL_IDS, PANEL_COMMANDS, MIN_H } from './layout.js';
 
 import { GROUPS, ICONS, PRIMARY, tooltipId, labelKey } from './commandbar.js';
 
@@ -31,11 +31,11 @@ export function mountUI(app, doc = document) {
 
   function buildToolbar() {
     toolbar.textContent = '';
-    for (const [labelKey, names] of GROUPS) {
+    for (const [groupLabelKey, names] of GROUPS) {
       const fs = doc.createElement('fieldset');
       fs.className = 'toolbar-group';
       const lg = doc.createElement('legend');
-      lg.textContent = app.t(labelKey);
+      lg.textContent = app.t(groupLabelKey);
       fs.append(lg);
       for (const name of names) {
         const b = doc.createElement('button');
@@ -105,7 +105,7 @@ export function mountUI(app, doc = document) {
 
   function render() {
     const st = app.getState();
-    if (builtLang !== st.lang) { builtLang = st.lang; applyStatic(); buildToolbar(); buildPanelMenus(); }
+    if (builtLang !== st.lang) { applyStatic(); buildToolbar(); buildPanelMenus(); builtLang = st.lang; }
     doc.documentElement.dataset.theme = app.getTheme();
     const cs = app.getCommandStatus();
     $('#session-status').textContent = cs.text;
@@ -189,10 +189,15 @@ export function mountUI(app, doc = document) {
     const w = Math.floor(workspace.clientWidth);
     const top = workspace.getBoundingClientRect?.().top ?? 0;
     const vh = (doc.defaultView?.innerHeight ?? 0) - Math.max(0, top) - 16;
-    const h = Math.max(480, Math.floor(vh));
+    const h = Math.max(MIN_H, Math.floor(vh));
     if (w > 0) app.setWorkArea(w, h);
   }
   doc.defaultView?.addEventListener('resize', measureWorkArea);
+  const ResizeObserver = doc.defaultView?.ResizeObserver;
+  if (ResizeObserver) {
+    const observer = new ResizeObserver(measureWorkArea);
+    for (const el of [$('.app-header'), toolbar, $('.statusbar')]) observer.observe(el);
+  }
 
   // ドラッグ移動・大きさ変更（同じ操作はボタンとキーボードでもできる: AC-027）
   function drag(el, id, kind) {
@@ -272,5 +277,5 @@ export function mountUI(app, doc = document) {
   });
   app.subscribe(render);
   render();
-  return { render };
+  return { render, measureWorkArea };
 }

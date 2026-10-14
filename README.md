@@ -17,14 +17,24 @@
 
 ## 起動手順
 
-1. Python 3 が使えるマシンで、リポジトリのルートから静的サーバーを起動します。
+1. Python 3.7 以上が使えるマシンで、リポジトリのルートにある OS 別のスクリプトを実行します。
 
+   **Windows（PowerShell）**
    ```powershell
-   python -m http.server -d web 8080
+   powershell -ExecutionPolicy Bypass -File .\start.ps1
+   ```
+
+   **macOS（ターミナル）**
+   ```sh
+   sh ./start.sh
    ```
 
 2. ブラウザで <http://localhost:8080/> を開きます（Chrome / Edge の最新版を推奨）。
    初回表示後は Service Worker（`web/sw.js`）が画面一式を保存するため、以降はオフラインでも起動できます。
+
+スクリプトは自身の場所を基準に `web/` を配信するため、別のフォルダーから絶対パスで実行しても使えます。サーバーは `127.0.0.1:8080` だけで待ち受けます。停止するには起動したターミナルで `Ctrl+C` を押してください。ポート 8080 が使用中というエラーが出た場合は、そのポートの使用を終了してから再実行してください。
+
+手動で起動する場合は、リポジトリのルートで `python -m http.server --bind 127.0.0.1 -d web 8080`（macOS では `python3`）を実行できます。
 
 ### file:// での起動
 `web/index.html` をダブルクリックして `file://` で開く方法は**使えません**。ブラウザが `file://` からの ES モジュールの読み込みと Service Worker の登録を拒否するためです。必ず上の静的サーバー（`localhost`）経由で開いてください。サーバーは Python 以外（`npx serve web` など）でもかまいません。
