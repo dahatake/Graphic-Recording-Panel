@@ -138,3 +138,30 @@ export async function createApp(options) -> app   // await 可能（同期で返
 - `app.layoutCommand('tile')`＝タイル配置に整列、`app.layoutCommand('focus', panelId)`＝フォーカス（メインに指定）、`app.layoutCommand('maximize', panelId)`＝最大化。コマンド `layout.tile` `layout.focus` `layout.maximize` を `keymap` に持つ（`layout.focus` は現在のメインか、未指定なら `diagram`）。`app.searchCommands(query)` → `[{command,label}]`（コマンドの検索。表示言語の `label` の部分一致）。
 - フォーカスではメインの面積が作業領域の 75%（PARAM-009）、ほかの表示中のパネルは残りを均等な面積で分ける。1 パネルだけ表示なら全領域。
 - ドラッグなしの移動は `panelCommand`（FR-011）。
+
+## コマンドバーの常時ラベル（NFR-UX-003 AC-090・091、追記）
+- `getCommandBar().items` に `data.reset`（データの初期化）・`file.save`（ファイルに保存）・`file.load`（ファイルから読込）を加える。各 `items[i]` は `label`（アイコンの下に常に表示する短い文字。非空、ボタンごとに異なる）、`labelVisible:true`（ホバー・フォーカス不要）、`accessibleName`（ボタンのアクセシブルな名前。`label` と一致）、`tooltip`（NFR-UX-002 のまま）を持つ。
+- `app.getCommandBarLayout({viewportWidth})` → `{ items:[{command, labelLines:number}], scrollsHorizontally:boolean }`（`viewportWidth` 省略時は `env.viewportWidth`）。
+- ラベルの長さは全角 1・半角 0.5 と数え、PARAM-011（6）以内。表示言語の切替は再生成なしで `label`・`accessibleName` に反映される。
+
+## データの初期化（FR-018 AC-093〜096、追記）
+- `app.commands['data.reset']()` → `{ok:true, pending:true}`。確認を開くだけで、データは変えない。`app.getDialog()` → `null | { kind:'reset'|'load-replace', text:string, buttons:[{id:'confirm'|'cancel', label:string}], defaultFocus:'cancel', keyboard:true }`（`reset` の `text` は、消える内容と元に戻せない旨を含む。`confirm` の `label` は ja「初期化する」、`cancel` は「キャンセル」）。
+- `app.dialogAction('confirm'|'cancel')`（`load-replace` の confirm は Promise。常に `await`）。`app.handleKey({key:'Escape'})` は開いている確認を `cancel` と同じに閉じる（返り値 `'dialog.cancel'`）。確認が開いている間は、状態は何も変わらない。
+- 手修正: `app.editPoint(pointId, text)` → `{ok}`、`app.getManualEdits()` → `[{pointId, text}]`。
+- 初期化の結果: `utterances=[]`、`scenes=[]`、`selectedSceneId=null`、`session:'preparing'`、`viewMode:'2d'`、`getDisplayMode()==='timeline'`、`getArrangement().assignments=[]`、`getAxes3D().axes` は既定、`getManualEdits()=[]`。記録中の認識は `speechSource.stop()` で止める。`getState().message`（`{key,text}`）に結果を示し、`getCommandBar().status.role==='status'`。`grp.session` は空の内容か無し、`grp.layout`・`lang`・`getLayout()` は不変。
+
+## セッションファイル（FR-019 AC-097〜102、追記）
+- `await app.commands['file.save']()` → `{ok, reason?:'empty'}`。成功で `options.download({filename, mime:'application/json', data:string})` を 1 回。シーンも発話もない場合は `ok:false`、`reason:'empty'`、download を呼ばず `message` に理由。`data` は音声（`audio` を名前に持つ項目、バイナリ）を含まない JSON 文字列。
+- `await app.loadSessionFile({name,type,size,text})` → データなしなら `{ok:true}` で読込。現在のデータがあれば `{ok:false, pending:true}` で `getDialog().kind==='load-replace'` を開く（`await app.dialogAction('confirm')` で置換し `{ok:true}`、`cancel` で不変）。不正は `{ok:false, reason:string}`（`message` に理由）で状態不変。`.txt` は受け付けず、`importTextFile` はセッションファイルを受け付けない。
+- 読込の復元: 発話・シーン・要点・手修正・整理の割り当て（と軸）・`viewMode`・`getDisplayMode()`・`getAxes3D().axes`・`selectedSceneId`。復元後の `session` は `paused`。`renderSvg()`・`renderOutline()` は保存時と同一。完了・失敗は `getState().message` で示す。
+- キーボード: コマンド `file.save`・`file.load` を `keymap` に持つ。`app.searchCommands(label)` で見つかる。
+
+## 3D の評価軸（FR-020 AC-103・104・106、追記）
+- `app.getAxes3D()` → `{ axes:{x,y,z}（候補 ID）, candidates:[{id, label, available:boolean, reason:string|null}] }`。候補 ID は `time`・`pointCount`・`utterances`・`emotion`・`arrangeV`・`arrangeH` と、要点の種類ごとの数（`kindCount` で始まる ID が 1 件以上）。既定は `{x:'pointCount', y:'emotion', z:'time'}`。値が得られない候補は `available:false` で `reason` が非空。
+- `app.setAxis3D('x'|'y'|'z', id)` → `{ok, reason?}`。同じ候補を 2 方向に選ぶ・`available:false` の候補は `ok:false`（不変）。記録中も変更できる。
+- `get3D().nodes[i].position` は選んだ軸の値の順序・数値に従う（値が大きいほど大きい座標。同値は同座標軸値。3 軸の組が同じシーンでも位置は重ならない）。
+- 軸の選択は `grp.session` に含めない（再読込で既定）。
+
+## 3D の画面操作と操作説明（FR-021 AC-108・109、追記）
+- `app.getViewpoint()` → `{azimuth, elevation, distance, panX, panY}`。`app.viewControl(op, source)`（`op`: `rotate-left|rotate-right|rotate-up|rotate-down|zoom-in|zoom-out|pan-left|pan-right|pan-up|pan-down|reset`、`source`: `'pointer'|'keyboard'`）→ `{ok}`。3D 表示でないときは `ok:false`。`op` のコマンド `view.<op>` を `keymap` に持つ（`handleKey` は `source:'keyboard'` 相当）。`reset` は初期の視点に戻す。操作はシーンの選択・軸の選択を変えない。
+- `app.getViewControls()` → `{ visible:boolean, role:string, region:'bottom', wrap:'wrap'|'collapsible', hidesOthers:boolean, operations:[{id:'rotate'|'zoom'|'pan'|'reset', mouse:string, touch:string, keyboard:string}] }`。`viewMode==='3d'` かつ WebGL ありのときだけ `visible:true`。幅が PARAM-006 以下でも `visible` のまま `hidesOthers:false`。

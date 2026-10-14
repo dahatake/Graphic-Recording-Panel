@@ -42,7 +42,7 @@
     "AC-068": "sha256:c89bcb9b06cb3404",
     "AC-069": "sha256:18e591971857522f",
     "AC-034": "sha256:183ff7e3663d4046",
-    "AC-071": "sha256:dd809a315571b016",
+    "AC-071": "sha256:5c062e032598db79",
     "AC-072": "sha256:3f7bd1db19b605dc",
     "AC-073": "sha256:f4613d37cff276b7",
     "AC-074": "sha256:8ba50b57132b2dd7",
@@ -54,7 +54,23 @@
     "AC-083": "sha256:d2ec8f52f2f93e85",
     "AC-084": "sha256:45867f6555c9af69",
     "AC-085": "sha256:530594fd0a98db0e",
-    "AC-086": "sha256:079a0e09ec5b3c6a"
+    "AC-086": "sha256:079a0e09ec5b3c6a",
+    "AC-090": "sha256:76a0be49322cfa02",
+    "AC-091": "sha256:68ba6f2beb1088e4",
+    "AC-093": "sha256:9a080531660ba5eb",
+    "AC-094": "sha256:16180703dbedbb3e",
+    "AC-095": "sha256:adda8087459d4034",
+    "AC-096": "sha256:0732a10da7c18adb",
+    "AC-097": "sha256:d9c25f1b34ffa920",
+    "AC-098": "sha256:344fc59ed6543ed3",
+    "AC-099": "sha256:a527ad28aa83fc2d",
+    "AC-100": "sha256:1609dccedbc7af57",
+    "AC-102": "sha256:3f302adeb4060031",
+    "AC-103": "sha256:91e3caee6570e2f4",
+    "AC-104": "sha256:f66171397df75dae",
+    "AC-106": "sha256:79d009b23128130b",
+    "AC-108": "sha256:5ab9bfab110c8582",
+    "AC-109": "sha256:bece39cc6a2542bc"
   },
   "cases": [
     {
@@ -1550,6 +1566,508 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "ケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-057",
+      "requirement_ids": [
+        "NFR-UX-003"
+      ],
+      "ac_ids": [
+        "AC-090"
+      ],
+      "title": "コマンドバー常時ラベル: 全ボタンに非空・異なる・6文字以内・1行（英語の異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-090\" tests/system/cmdlabel.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T11:47:19+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-14T11:48:02+09:00",
+          "by": "test-designer",
+          "change": "title: 'cmdlabel' -> 'コマンドバー常時ラベル: 全ボタンに非空・異なる・6文字以内・1行（英語の異常系）'",
+          "reason": "タイトルの修正"
+        }
+      ]
+    },
+    {
+      "id": "E2E-058",
+      "requirement_ids": [
+        "NFR-UX-003"
+      ],
+      "ac_ids": [
+        "AC-091"
+      ],
+      "title": "コマンドバー常時ラベル: 言語切替で全ラベル更新・名前一致・ツールチップ維持",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-091\" tests/system/cmdlabel.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T11:47:21+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-14T11:48:02+09:00",
+          "by": "test-designer",
+          "change": "title: 'cmdlabel' -> 'コマンドバー常時ラベル: 言語切替で全ラベル更新・名前一致・ツールチップ維持'",
+          "reason": "タイトルの修正"
+        }
+      ]
+    },
+    {
+      "id": "E2E-059",
+      "requirement_ids": [
+        "FR-018"
+      ],
+      "ac_ids": [
+        "AC-093"
+      ],
+      "title": "データ初期化: 確認の表示・確認中は不変・既定フォーカスはキャンセル（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-093\" tests/system/reset.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T11:47:23+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-14T11:48:03+09:00",
+          "by": "test-designer",
+          "change": "title: 'reset' -> 'データ初期化: 確認の表示・確認中は不変・既定フォーカスはキャンセル（異常系）'",
+          "reason": "タイトルの修正"
+        }
+      ]
+    },
+    {
+      "id": "E2E-060",
+      "requirement_ids": [
+        "FR-018"
+      ],
+      "ac_ids": [
+        "AC-094"
+      ],
+      "title": "データ初期化: 実行で全消去・既定に戻る・停止・メッセージ（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-094\" tests/system/reset.test.js",
+      "canary": true,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T11:47:25+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-14T11:48:03+09:00",
+          "by": "test-designer",
+          "change": "title: 'reset' -> 'データ初期化: 実行で全消去・既定に戻る・停止・メッセージ（異常系）'",
+          "reason": "タイトルの修正"
+        },
+        {
+          "at": "2026-10-14T11:48:08+09:00",
+          "by": "test-designer",
+          "change": "canary: False -> True",
+          "reason": "データ初期化の中核を canary に"
+        }
+      ]
+    },
+    {
+      "id": "E2E-061",
+      "requirement_ids": [
+        "FR-018"
+      ],
+      "ac_ids": [
+        "AC-095"
+      ],
+      "title": "データ初期化: キャンセル／Esc で不変（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-095\" tests/system/reset.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T11:47:27+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-14T11:48:04+09:00",
+          "by": "test-designer",
+          "change": "title: 'reset' -> 'データ初期化: キャンセル／Esc で不変（異常系）'",
+          "reason": "タイトルの修正"
+        }
+      ]
+    },
+    {
+      "id": "E2E-062",
+      "requirement_ids": [
+        "FR-018"
+      ],
+      "ac_ids": [
+        "AC-096"
+      ],
+      "title": "データ初期化: 再読込で復元されない・自動保存は空・レイアウト等保持・再開可能",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-096\" tests/system/reset.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T11:47:29+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-14T11:48:04+09:00",
+          "by": "test-designer",
+          "change": "title: 'reset' -> 'データ初期化: 再読込で復元されない・自動保存は空・レイアウト等保持・再開可能'",
+          "reason": "タイトルの修正"
+        }
+      ]
+    },
+    {
+      "id": "E2E-063",
+      "requirement_ids": [
+        "FR-019"
+      ],
+      "ac_ids": [
+        "AC-097"
+      ],
+      "title": "セッションファイル保存: 外部通信なしのダウンロード・音声なし・空は不可（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-097\" tests/system/sessionfile.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T11:47:31+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-14T11:48:04+09:00",
+          "by": "test-designer",
+          "change": "title: 'sessionfile' -> 'セッションファイル保存: 外部通信なしのダウンロード・音声なし・空は不可（異常系）'",
+          "reason": "タイトルの修正"
+        }
+      ]
+    },
+    {
+      "id": "E2E-064",
+      "requirement_ids": [
+        "FR-019"
+      ],
+      "ac_ids": [
+        "AC-098"
+      ],
+      "title": "セッションファイル: 保存→初期化→読込で全内容・表示・軸・選択が復元",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-098\" tests/system/sessionfile.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T11:47:33+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-14T11:48:05+09:00",
+          "by": "test-designer",
+          "change": "title: 'sessionfile' -> 'セッションファイル: 保存→初期化→読込で全内容・表示・軸・選択が復元'",
+          "reason": "タイトルの修正"
+        }
+      ]
+    },
+    {
+      "id": "E2E-065",
+      "requirement_ids": [
+        "FR-019"
+      ],
+      "ac_ids": [
+        "AC-099"
+      ],
+      "title": "セッションファイル: 読込後は一時停止・再開まで追加なし・同意再取得（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-099\" tests/system/sessionfile.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T11:47:35+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-14T11:48:05+09:00",
+          "by": "test-designer",
+          "change": "title: 'sessionfile' -> 'セッションファイル: 読込後は一時停止・再開まで追加なし・同意再取得（異常系）'",
+          "reason": "タイトルの修正"
+        }
+      ]
+    },
+    {
+      "id": "E2E-066",
+      "requirement_ids": [
+        "FR-019"
+      ],
+      "ac_ids": [
+        "AC-100"
+      ],
+      "title": "セッションファイル: データありの読込は置換の確認・キャンセルで不変（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-100\" tests/system/sessionfile.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T11:47:37+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-14T11:48:05+09:00",
+          "by": "test-designer",
+          "change": "title: 'sessionfile' -> 'セッションファイル: データありの読込は置換の確認・キャンセルで不変（異常系）'",
+          "reason": "タイトルの修正"
+        }
+      ]
+    },
+    {
+      "id": "E2E-067",
+      "requirement_ids": [
+        "FR-019"
+      ],
+      "ac_ids": [
+        "AC-102"
+      ],
+      "title": "セッションファイル: キーボード・コマンド検索・読み上げメッセージ・.txt と別操作",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-102\" tests/system/sessionfile.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T11:47:39+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-14T11:48:06+09:00",
+          "by": "test-designer",
+          "change": "title: 'sessionfile' -> 'セッションファイル: キーボード・コマンド検索・読み上げメッセージ・.txt と別操作'",
+          "reason": "タイトルの修正"
+        }
+      ]
+    },
+    {
+      "id": "E2E-068",
+      "requirement_ids": [
+        "FR-020"
+      ],
+      "ac_ids": [
+        "AC-103"
+      ],
+      "title": "3D評価軸: 候補7種・既定の組・選べない候補と同一軸の拒否（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-103\" tests/system/axes3d.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T11:47:41+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-14T11:48:06+09:00",
+          "by": "test-designer",
+          "change": "title: 'axes3d' -> '3D評価軸: 候補7種・既定の組・選べない候補と同一軸の拒否（異常系）'",
+          "reason": "タイトルの修正"
+        }
+      ]
+    },
+    {
+      "id": "E2E-069",
+      "requirement_ids": [
+        "FR-020"
+      ],
+      "ac_ids": [
+        "AC-104"
+      ],
+      "title": "3D評価軸: 値に従う配置・変更で更新・同値でも重ならない（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-104\" tests/system/axes3d.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T11:47:43+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-14T11:48:06+09:00",
+          "by": "test-designer",
+          "change": "title: 'axes3d' -> '3D評価軸: 値に従う配置・変更で更新・同値でも重ならない（異常系）'",
+          "reason": "タイトルの修正"
+        }
+      ]
+    },
+    {
+      "id": "E2E-070",
+      "requirement_ids": [
+        "FR-020"
+      ],
+      "ac_ids": [
+        "AC-106"
+      ],
+      "title": "3D評価軸: 記録中の変更・追加後も保持・再読込で既定・ファイル読込で復元",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-106\" tests/system/axes3d.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T11:47:45+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-14T11:48:07+09:00",
+          "by": "test-designer",
+          "change": "title: 'axes3d' -> '3D評価軸: 記録中の変更・追加後も保持・再読込で既定・ファイル読込で復元'",
+          "reason": "タイトルの修正"
+        }
+      ]
+    },
+    {
+      "id": "E2E-071",
+      "requirement_ids": [
+        "FR-021"
+      ],
+      "ac_ids": [
+        "AC-108"
+      ],
+      "title": "3D画面操作: ポインタ・キーボードで回転/拡縮/移動・初期視点・2Dは不可（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-108\" tests/system/view3dhelp.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T11:47:47+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-14T11:48:07+09:00",
+          "by": "test-designer",
+          "change": "title: 'view3dhelp' -> '3D画面操作: ポインタ・キーボードで回転/拡縮/移動・初期視点・2Dは不可（異常系）'",
+          "reason": "タイトルの修正"
+        }
+      ]
+    },
+    {
+      "id": "E2E-072",
+      "requirement_ids": [
+        "FR-021"
+      ],
+      "ac_ids": [
+        "AC-109"
+      ],
+      "title": "3D操作説明: 3Dのみ下部表示・各操作の方法・640px以下でも省かれない（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-109\" tests/system/view3dhelp.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T11:47:50+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-14T11:48:08+09:00",
+          "by": "test-designer",
+          "change": "title: 'view3dhelp' -> '3D操作説明: 3Dのみ下部表示・各操作の方法・640px以下でも省かれない（異常系）'",
+          "reason": "タイトルの修正"
         }
       ]
     }
