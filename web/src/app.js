@@ -104,15 +104,16 @@ export async function createApp(options = {}) {
       if (!dup) keymap.push({ ...k });
     },
     registerPanelRenderer(id, fn) { panelRenderers.set(id, fn); },
-    // 発話の追加（記録中のみ）。opts.at: 受付時刻の指定、opts.noGapSplit: 無音間隔で分割しない（ファイル取込: FR-003 AC-044）。
+    // 発話の追加（記録中のみ）。opts.at: 受付時刻の指定、opts.ats: 発話ごとの受付時刻（件数が同じときのみ。FR-022）、opts.noGapSplit: 無音間隔で分割しない（ファイル取込: FR-003 AC-044）。
     addUtterance(text, opts) { return ctx.addUtterances([text], opts) > 0; },
     // 複数の発話を 1 回の状態変更（保存・再描画）で追加する。追加した件数を返す。
     addUtterances(texts, opts = {}) {
       const list = texts.map((x) => String(x ?? '').trim()).filter(Boolean);
       if (state.session !== 'recording' || !list.length) return 0;
-      const at = opts.at ?? now();
+      const at0 = opts.at ?? now();
       change((s) => {
-        for (const t of list) {
+        for (const [i, t] of list.entries()) {
+          const at = Array.isArray(opts.ats) && opts.ats.length === list.length ? opts.ats[i] : at0;
           s.utterances.push({ id: nextId('u'), text: t, receivedAt: at });
           const cur = s.scenes[s.scenes.length - 1];
           const prevAt = s.utterances.length > 1 ? s.utterances[s.utterances.length - 2].receivedAt : null;
@@ -250,3 +251,4 @@ export async function createApp(options = {}) {
 
   return app;
 }
+

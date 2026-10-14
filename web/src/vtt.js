@@ -9,8 +9,17 @@ export function decodeEntities(s) {
   return s.replace(/&(?:lt|gt|nbsp|amp);/g, (m) => ENTITIES[m]);
 }
 
-// 戻り値: 発話になる cue 本文の配列（ファイルの順）
-export function parseVtt(text) {
+// cue 開始時刻（hh:mm:ss.mmm / mm:ss.mmm）をミリ秒に。読めなければ null。
+export function parseCueStart(line) {
+  const m = /^\s*(?:(\d+):)?(\d{1,2}):(\d{2})[.,](\d{3})\s*-->/.exec(line);
+  return m ? ((Number(m[1] ?? 0) * 60 + Number(m[2])) * 60 + Number(m[3])) * 1000 + Number(m[4]) : null;
+}
+
+// 戻り値: 本文の配列（ファイルの順）
+export function parseVtt(text) { return parseVttCues(text).map((c) => c.text); }
+
+// 戻り値: 発話になる cue の { text, startMs（読めなければ null） } の配列（ファイルの順）
+export function parseVttCues(text) {
   const src = String(text ?? '').replace(/^\uFEFF/, '').replace(/\r\n|\r/g, '\n');
   const blocks = src.split(/\n[ \t]*\n/).map((b) => b.split('\n').filter((l, i, a) => l.trim() || a.slice(0, i).some((x) => x.trim())));
   const out = [];
@@ -23,7 +32,8 @@ export function parseVtt(text) {
       .map((l) => decodeEntities(l.replace(/<[^>]*>/g, '')).trim())
       .filter(Boolean)
       .join(' ');
-    if (body) out.push(body);
+    if (body) out.push({ text: body, startMs: parseCueStart(lines[t]) });
   }
   return out;
 }
+
