@@ -279,6 +279,11 @@ function paint(host, app) {
     const fit = host._fit !== false && avail > 0 && w > avail ? avail / w : 1;
     const z = host._fit !== false ? fit * host._zoom : host._zoom;
     el.setAttribute('width', String(Math.round(w * z))); el.setAttribute('height', String(Math.round(h * z)));
+    // 図が空のときは案内文の紙面を図の幅いっぱいに広げる（文字は等倍のまま）
+    if (!el.querySelector('[data-scene-id]') && avail > w * z) {
+      el.setAttribute('viewBox', `0 0 ${avail / z} ${h}`);
+      el.setAttribute('width', String(avail));
+    }
   }
 }
 
