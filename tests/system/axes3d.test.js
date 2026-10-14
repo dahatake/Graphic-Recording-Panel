@@ -52,6 +52,37 @@ test('FR-020 AC-103: 整理の割り当てがあると整理の区分の軸が�
   assert.equal(app.getAxes3D().axes.x, 'arrangeV');
 });
 
+// FR-020 AC-103
+test('FR-020 AC-103 異常系: 既定の軸のうち値が得られない軸（感情語 0 件・シーン 1 件）は別の軸に置き換えられず、選べない状態で理由が表示される（初期化・復元の後も同じ）', async () => {
+  const { app, env } = await newApp();
+  app.commands['session.start']();
+  app.setDraft('会議を始めます'); assert.equal(app.submitDraft().ok, true); env.tick(1);
+  assert.equal(app.getState().scenes.length, 1);
+  app.setViewMode('3d');
+  const DEF = { x: 'pointCount', y: 'emotion', z: 'time' };
+  const check = (label) => {
+    const g = app.getAxes3D();
+    assert.deepEqual(g.axes, DEF, `${label}: 既定の軸の組のまま（別の軸に置き換えない）`);
+    for (const id of ['time', 'emotion']) {
+      const c = g.candidates.find((k) => k.id === id);
+      assert.equal(c.available, false, `${label}: ${id} は値が得られず選べない`);
+      assert.ok(c.reason?.trim(), `${label}: ${id} の理由が示される`);
+    }
+  };
+  check('初期');
+  await app.commands['file.save']();
+  const d = env.downloads.at(-1);
+  app.commands['data.reset'](); app.dialogAction('confirm');
+  app.commands['session.start']();
+  app.setDraft('会議を始めます'); app.submitDraft(); env.tick(1);
+  app.setViewMode('3d');
+  check('初期化後');
+  app.commands['data.reset'](); app.dialogAction('confirm');
+  const r = await app.loadSessionFile({ name: d.filename, type: d.mime, size: Buffer.byteLength(String(d.data)), text: String(d.data) });
+  assert.equal(r.ok, true);
+  check('復元後');
+});
+
 // FR-020 AC-104
 test('FR-020 AC-104: 軸の値に従って配置され、軸を変更すると配置が更新され、選択中のシーンは保たれる', async () => {
   const { app } = await threeD();

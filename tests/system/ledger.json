@@ -24,7 +24,7 @@
     "AC-031": "sha256:cbf49cc1a0e87ed8",
     "AC-032": "sha256:70a43cf878f66a04",
     "AC-036": "sha256:318b0f2e4205a0cb",
-    "AC-038": "sha256:d0f3da6ec00b2fe0",
+    "AC-038": "sha256:b7d5386af3599f7f",
     "AC-049": "sha256:b530880830288c02",
     "AC-050": "sha256:c90af103da799d1a",
     "AC-052": "sha256:bf4a4635a20763f2",
@@ -36,10 +36,10 @@
     "AC-063": "sha256:52e3d2400f012178",
     "AC-064": "sha256:cea138c713e4e5e4",
     "AC-065": "sha256:47f67d016cc7606d",
-    "AC-040": "sha256:93a7cc3cee6ffc1b",
+    "AC-040": "sha256:96db3759f2a77ac0",
     "AC-066": "sha256:98b5bf8c2f46f3e6",
-    "AC-067": "sha256:402c378c76d50f9d",
-    "AC-068": "sha256:c89bcb9b06cb3404",
+    "AC-067": "sha256:56556691900514c6",
+    "AC-068": "sha256:458676de47a71a94",
     "AC-069": "sha256:18e591971857522f",
     "AC-034": "sha256:183ff7e3663d4046",
     "AC-071": "sha256:5c062e032598db79",
@@ -55,7 +55,7 @@
     "AC-084": "sha256:45867f6555c9af69",
     "AC-085": "sha256:530594fd0a98db0e",
     "AC-086": "sha256:079a0e09ec5b3c6a",
-    "AC-090": "sha256:76a0be49322cfa02",
+    "AC-090": "sha256:a147fa93cb645e5f",
     "AC-091": "sha256:68ba6f2beb1088e4",
     "AC-093": "sha256:9a080531660ba5eb",
     "AC-094": "sha256:16180703dbedbb3e",
@@ -66,7 +66,7 @@
     "AC-099": "sha256:a527ad28aa83fc2d",
     "AC-100": "sha256:1609dccedbc7af57",
     "AC-102": "sha256:3f302adeb4060031",
-    "AC-103": "sha256:91e3caee6570e2f4",
+    "AC-103": "sha256:98cba666392c98cb",
     "AC-104": "sha256:f66171397df75dae",
     "AC-106": "sha256:79d009b23128130b",
     "AC-108": "sha256:5ab9bfab110c8582",
@@ -2074,6 +2074,56 @@
           "by": "test-designer",
           "change": "title: 'view3dhelp' -> '3D操作説明: 3Dのみ下部表示・各操作の方法・640px以下でも省かれない（異常系）'",
           "reason": "タイトルの修正"
+        }
+      ]
+    },
+    {
+      "id": "E2E-073",
+      "requirement_ids": [
+        "FR-020"
+      ],
+      "ac_ids": [
+        "AC-103"
+      ],
+      "title": "既定軸の値が得られないとき置換せず選べない理由を表示（初期化・復元後も）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"既定の軸のうち\" tests/system/axes3d.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T12:51:29+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-074",
+      "requirement_ids": [
+        "FR-019"
+      ],
+      "ac_ids": [
+        "AC-098"
+      ],
+      "title": "認識文字列がセッションファイルに保存・復元される（音声は含まない）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"認識文字列\" tests/system/sessionfile.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T12:51:32+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
         }
       ]
     }
