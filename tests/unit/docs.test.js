@@ -56,3 +56,11 @@ test('NFR-DOC-001 AC-062: 起動コマンドとキー割り当てが実装と一
     assert.match(read('users-guide/05-language-and-views.md'), new RegExp(`\\b${k.toUpperCase()}\\b`));
   }
 });
+
+// NFR-DOC-001 AC-112: 新機能（NFR-UX-003・FR-018〜FR-021）の主題の見出しが日本語の文書にある
+test('NFR-DOC-001 AC-112: 新機能の各主題に見出しがある', () => {
+  const heads = GUIDE.flatMap((f) => read(f).split('\n').filter((l) => /^#{1,3} /.test(l)));
+  for (const s of ['ラベル', '初期化', 'セッションファイルの保存と読込', '3D の評価軸', '3D の画面操作と操作説明']) {
+    assert.ok(heads.some((h) => h.includes(s)), `見出し「${s}」がない`);
+  }
+});
