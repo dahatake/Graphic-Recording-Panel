@@ -39,5 +39,8 @@ export function parseSession(raw) {
     })),
     selectedSceneId: isStr(raw.selectedSceneId) ? raw.selectedSceneId : null,
     seq: Number.isInteger(raw.seq) && raw.seq >= 0 ? raw.seq : 0,
+    // FR-016 AC-082: 選んでいる表示と整理の割り当て（形の検証は arrange.js の parseArrange）
+    displayMode: raw.displayMode === 'arrange' ? 'arrange' : 'timeline',
+    arrange: raw.arrange && typeof raw.arrange === 'object' ? raw.arrange : null,
   };
 }
