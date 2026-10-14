@@ -112,3 +112,13 @@ test('FR-021 AC-108: 視点の操作は純関数で境界を超えず、reset �
   const { app } = await threeD();
   for (const op of ['rotate-left', 'zoom-out', 'pan-up', 'reset']) assert.ok(keyFor(app, `view.${op}`), op);
 });
+
+// FR-020 AC-103: シーン 1 件では時間も値が得られず選べない（理由つき）。2 件以上なら選べる
+test('FR-020 AC-103 異常系: シーン 1 件の時間は選べず理由が示され、2 件以上では選べる', () => {
+  const t = (k) => k;
+  const sc = (id) => ({ id, heading: id, points: [{ text: 'a' }] });
+  const one = buildCandidates([sc('s1')], null, t).find((c) => c.id === 'time');
+  assert.equal(one.available, false);
+  assert.ok(one.reason);
+  assert.equal(buildCandidates([sc('s1'), sc('s2')], null, t).find((c) => c.id === 'time').available, true);
+});
