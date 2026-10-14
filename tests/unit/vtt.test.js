@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from '../../web/src/app.js';
-import { parseVtt, isWebVtt } from '../../web/src/vtt.js';
+import { parseVtt, parseCueStart, isWebVtt } from '../../web/src/vtt.js';
 
 function mem() {
   const m = new Map();
@@ -85,3 +85,23 @@ test('FR-022 AC-113: .txt の取込は従来どおり行ごと', async () => {
   await app.importTextFile({ name: 'a.txt', type: 'text/plain', size: 8, text: 'WEBVTT\n甲' });
   assert.deepEqual(texts(app), ['WEBVTT', '甲']);
 });
+
+// FR-022 AC-113: cue 開始時刻の解析
+test('FR-022 AC-113: parseCueStart は hh:mm:ss.mmm と mm:ss.mmm を読み、読めなければ null', () => {
+  assert.equal(parseCueStart('01:02:03.004 --> 01:02:05.000 align:start'), 3723004);
+  assert.equal(parseCueStart('02:03.500 --> 02:05.000'), 123500);
+  assert.equal(parseCueStart('xx --> yy'), null);
+});
+
+// FR-022 AC-113: 受付時刻は開始時刻の差で相対的に与える
+test('FR-022 AC-113: 受付時刻は最初の cue が取込時刻、以降は差分、読めない・戻る cue は直前の時刻、シーンは差で分かれる', async () => {
+  const { app } = await mk();
+  app.commands['session.start']();
+  const v = ['WEBVTT', '', '00:10.000 --> 00:12.000', '<v A>予算の話をする</v>', '',
+    '00:14.500 --> 00:16.000', '<v A>予算の見積もり</v>', '', '00:05.000 --> 00:06.000', '<v A>戻る</v>', '',
+    'bad --> x', '<v A>読めない</v>', '', '01:20.000 --> 01:21.000', '<v A>発売時期の話</v>', ''].join('\n');
+  await app.importTextFile(f('t.vtt', v));
+  assert.deepEqual(app.getState().utterances.map((u) => u.receivedAt - 1_000_000), [0, 4500, 4500, 4500, 70000]);
+  assert.equal(app.getState().scenes.length, 2);
+});
+
