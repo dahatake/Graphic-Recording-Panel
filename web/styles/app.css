@@ -53,7 +53,10 @@ h1 { font-size: var(--font-size-title); } h2 { font-size: var(--font-size-subtit
 .workspace[data-mode="floating"] { min-height: 70vh; overflow-x: auto; overflow-y: visible; }
 /* カード風パネル */
 .panel { background: var(--color-surface); border: var(--stroke) solid var(--color-border-subtle); border-radius: var(--radius); box-shadow: var(--shadow); display: flex; flex-direction: column; min-width: 0; }
-.workspace[data-mode="floating"] .panel { position: absolute; }
+.workspace[data-mode="floating"] .panel { position: absolute; box-sizing: border-box; }
+/* FR-017: タイル・フォーカスは作業領域に固定し、パネルの境界線で区切る（隙間なし） */
+.workspace[data-mode="floating"][data-kind="tile"], .workspace[data-mode="floating"][data-kind="focus"] { overflow: hidden; padding: 0; }
+.workspace[data-mode="floating"][data-kind="tile"] .panel, .workspace[data-mode="floating"][data-kind="focus"] .panel { border-radius: 0; box-shadow: none; }
 .workspace[data-mode="floating"] .panel.is-maximized { inset: var(--space-3); width: auto !important; height: auto !important; left: var(--space-3) !important; top: var(--space-3) !important; z-index: 20; box-shadow: var(--shadow-8); }
 .workspace[data-mode="stacked"] { display: flex; flex-direction: column; gap: var(--space-3); overflow-x: hidden; }
 .workspace[data-mode="stacked"] .panel { position: static; width: auto !important; height: auto !important; }
