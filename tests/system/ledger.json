@@ -70,7 +70,8 @@
     "AC-104": "sha256:f66171397df75dae",
     "AC-106": "sha256:79d009b23128130b",
     "AC-108": "sha256:5ab9bfab110c8582",
-    "AC-109": "sha256:bece39cc6a2542bc"
+    "AC-109": "sha256:bece39cc6a2542bc",
+    "AC-113": "sha256:ba1320f5c76ff353"
   },
   "cases": [
     {
@@ -2121,6 +2122,31 @@
       "history": [
         {
           "at": "2026-10-14T12:51:32+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-075",
+      "requirement_ids": [
+        "FR-022"
+      ],
+      "ac_ids": [
+        "AC-113"
+      ],
+      "title": "vtt 取込で cue ごとの本文だけが順に発話になる（話者・時刻なし。上限超過・非 WebVTT・空・非記録中は拒否）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-113\" tests/system/vtt.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-14T23:38:41+09:00",
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
