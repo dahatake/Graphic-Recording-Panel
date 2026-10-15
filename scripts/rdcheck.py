@@ -24,6 +24,7 @@ from typing import Dict, List, Optional, Set
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ebaklib as h  # noqa: E402
+import entities as ent  # noqa: E402
 
 # requirements that must have a row in the function table of the catalog (same as rdfix.CATALOG_STATES)
 CATALOG_STATES = ("承認済み", "承認待ち", "保留")
@@ -670,6 +671,9 @@ class Checker:
                     for s in states:
                         if s not in defined:
                             self.err("CHK-25", loc, f"{r.id} の関係する状態「{s}」が状態の表（{'、'.join(with_states)}）にありません")
+            # FR-1020 AC-152: optional fields 「エンティティの使い方」「利用シナリオ」 (absent = valid)
+            for problem in ent.optional_field_problems(self.doc, r):
+                self.err("CHK-25", loc, f"{r.id} の{problem}")
             listed = set(re.findall(r"PARAM-\d{3,}", r.fields.get("参照パラメータ", "")))
             text = " ".join(r.body) + " " + " ".join(self.doc.acs[a].full_text() for a in r.acs if a in self.doc.acs)
             used = set(h.PARAM_REF_RE.findall(text))
@@ -677,6 +681,9 @@ class Checker:
                 self.err("CHK-25", loc, f"{r.id} の本文・受入基準が {{{p}}} を使っていますが、参照パラメータの欄にありません")
             for p in sorted(listed - used):
                 self.warn("CHK-25", loc, f"{r.id} の参照パラメータ {p} が本文・受入基準で {{{p}}} として使われていません")
+        # FR-1025 AC-170: the optional column definitions of the catalog (absent = valid)
+        for f, ln, msg in ent.column_problems(self.doc, self.root, self.cfg):
+            self.err("CHK-25", self.loc(f, ln), msg)
 
     # ------------------------------------------------------------------ CHK-26
     def chk26(self) -> None:
