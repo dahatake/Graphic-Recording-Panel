@@ -39,6 +39,8 @@
 | FR-020 | 3D 表現の評価軸の選択 | 承認済み | web/src/axes3d.js, web/src/view3d.js, web/styles/view3d.css, web/sw.js | tests/unit/axes3d.test.js, tests/system/axes3d.test.js | アプリ組立, 3D ビュー, i18n, デザイン基盤 |
 | FR-021 | 3D 表現の画面操作と操作説明の表示 | 承認済み | web/src/view3d.js, web/src/i18n.js, web/styles/view3d.css | tests/unit/axes3d.test.js, tests/system/view3dhelp.test.js | アプリ組立, 3D ビュー, i18n, キーマップ, デザイン基盤 |
 | NFR-UX-003 | コマンドバーのアイコンの常時ラベル | 承認済み | web/src/commandbar.js, web/src/ui.js, web/styles/app.css | tests/unit/session.test.js, tests/system/cmdlabel.test.js | コマンドバー, i18n, デザイン基盤, アプリ組立 |
+| FR-023 | 字幕ファイル取込の処理中表示と再取込 | 承認済み | 未実装 | 未実装 | - |
+| FR-024 | オブジェクト選択時のテキスト一覧のポップアップ表示 | 承認済み | 未実装 | 未実装 | - |
 
 ## API・イベント
 
