@@ -64,7 +64,7 @@ export function arrangeModule(ctx) {
       'arrange.h.1': 'ステップ1 受付（営業部）', 'arrange.h.2': 'ステップ2 審査（管理部）', 'arrange.h.3': 'ステップ3 実行（運用部）', 'arrange.h.4': 'ステップ4 確認（品質部）',
       'arrange.unclassified': '未分類',
       'arrange.axis.vertical': '縦軸', 'arrange.axis.horizontal': '横軸',
-      'arrange.reason': '位置の理由',
+      'arrange.reason': '位置の理由', 'arrange.breakdown': '内訳', 'arrange.countUnit': '件',
       'view.name.timeline': '時系列', 'view.name.arrange': '整理',
       'arrange.outline.heading': '整理の表示',
     },
@@ -75,7 +75,7 @@ export function arrangeModule(ctx) {
       'arrange.h.1': 'Step 1 Intake (Sales)', 'arrange.h.2': 'Step 2 Review (Admin)', 'arrange.h.3': 'Step 3 Execute (Operations)', 'arrange.h.4': 'Step 4 Check (Quality)',
       'arrange.unclassified': 'Unclassified',
       'arrange.axis.vertical': 'Vertical axis', 'arrange.axis.horizontal': 'Horizontal axis',
-      'arrange.reason': 'Why here',
+      'arrange.reason': 'Why here', 'arrange.breakdown': 'Breakdown', 'arrange.countUnit': ' pt',
       'view.name.timeline': 'Timeline', 'view.name.arrange': 'Arranged',
       'arrange.outline.heading': 'Arranged layout',
     },
@@ -90,21 +90,60 @@ export function arrangeModule(ctx) {
   const secLabel = (s) => s.label ?? t(s.key);
   const unLabel = () => t('arrange.unclassified');
   const objects = () => st.scenes.flatMap((s) => [{ id: s.id, kind: 'scene', text: s.heading }, ...s.points.map((p) => ({ id: p.id, kind: 'point', text: p.text }))]);
-  const find = (id) => objects().find((o) => o.id === id) ?? null;
+  const level = () => api.getDetailLevel?.() ?? 'detail';
+  // FR-026 AC-137: 詳細度が「大項目」「中項目」のとき図に描かれる単位（トピック、中項目ではシーンの見出し）
+  const unitObjects = () => {
+    const lv = level();
+    if (lv === 'detail') return [];
+    return api.getTopics().flatMap((tp) => [
+      { id: tp.id, kind: 'topic', text: tp.title, pointIds: tp.pointIds },
+      ...(lv === 'middle' ? tp.sceneIds.map((sid) => { const sc = st.scenes.find((s) => s.id === sid); return { id: sid, kind: 'scene', text: sc.heading, pointIds: sc.points.map((p) => p.id) }; }) : []),
+    ]);
+  };
+  const drawnObjects = () => (level() === 'detail' ? objects() : unitObjects());
+  const find = (id) => objects().find((o) => o.id === id) ?? unitObjects().find((o) => o.id === id) ?? null;
   const assignOf = (id) => {
     const a = st.arrange.assignments[id] ?? {};
     const { vertical: V, horizontal: H } = st.arrange.axes;
     return { v: V.sections.some((s) => s.id === a.v) ? a.v : null, h: H.sections.some((s) => s.id === a.h) ? a.h : null };
   };
+  // 属する要点の割り当てのうち最も多い区分（同数のときは区分の並び順で先のもの）。内訳は区分の組ごとの件数。
+  function unitAssign(pointIds) {
+    const { vertical: V, horizontal: H } = st.arrange.axes;
+    const as = pointIds.map(assignOf);
+    const top = (A, k) => {
+      let best = null; let n = 0;
+      for (const s of A.sections) { const c = as.filter((a) => a[k] === s.id).length; if (c > n) { best = s.id; n = c; } }
+      return best;
+    };
+    const rows = new Map();
+    for (const a of as) { const key = `${a.v}|${a.h}`; rows.set(key, { v: a.v, h: a.h, count: (rows.get(key)?.count ?? 0) + 1 }); }
+    const ord = (A, id) => (id ? A.sections.findIndex((s) => s.id === id) : A.sections.length);
+    const breakdown = [...rows.values()].sort((x, y) => ord(V, x.v) - ord(V, y.v) || ord(H, x.h) - ord(H, y.h));
+    return { v: top(V, 'v'), h: top(H, 'h'), breakdown };
+  }
+  const isUnit = (o) => o.kind === 'topic' || (o.kind === 'scene' && level() !== 'detail');
+  const assignFor = (o) => {
+    if (o.kind === 'topic') return unitAssign(o.pointIds);
+    if (isUnit(o)) return unitAssign(st.scenes.find((s) => s.id === o.id)?.points.map((p) => p.id) ?? []);
+    return assignOf(o.id);
+  };
 
   function describe(id) {
     const o = find(id);
     if (!o) return null;
-    const a = assignOf(id); const { vertical: V, horizontal: H } = st.arrange.axes;
+    const unit = o.kind === 'topic' || (o.kind === 'scene' && level() === 'middle');
+    const ua = unit ? assignFor(o.kind === 'topic' ? o : { ...o, kind: 'scene' }) : null;
+    const a = ua ?? assignOf(id); const { vertical: V, horizontal: H } = st.arrange.axes;
     const vs = V.sections.find((s) => s.id === a.v); const hs = H.sections.find((s) => s.id === a.h);
     const vertical = vs ? secLabel(vs) : null; const horizontal = hs ? secLabel(hs) : null;
     const part = (axisKey, A, label) => `${t(`arrange.axis.${axisKey}`)}「${axisName(A)}」: ${label ?? unLabel()}`;
-    const text = `${t('arrange.reason')}: ${part('vertical', V, vertical)} / ${part('horizontal', H, horizontal)}`;
+    let text = `${t('arrange.reason')}: ${part('vertical', V, vertical)} / ${part('horizontal', H, horizontal)}`;
+    if (ua) {
+      const lab = (A, v) => { const s = A.sections.find((x) => x.id === v); return s ? secLabel(s) : unLabel(); };
+      const items = ua.breakdown.map((b) => `${lab(V, b.v)}・${lab(H, b.h)} ${b.count}${t('arrange.countUnit')}`);
+      text += ` / ${t('arrange.breakdown')}: ${items.length ? items.join('、') : `0${t('arrange.countUnit')}`}`;
+    }
     return { vertical, horizontal, text };
   }
 
@@ -113,8 +152,8 @@ export function arrangeModule(ctx) {
     const { vertical: V, horizontal: H } = st.arrange.axes;
     const nv = V.sections.length; const nh = H.sections.length;
     const cells = new Map();
-    const items = objects().map((o) => {
-      const a = assignOf(o.id);
+    const items = drawnObjects().map((o) => {
+      const a = assignFor(o);
       const ri = a.v ? V.sections.findIndex((s) => s.id === a.v) : nv;
       const ci = a.h ? H.sections.findIndex((s) => s.id === a.h) : nh;
       const key = `${ri}:${ci}`;
@@ -122,7 +161,7 @@ export function arrangeModule(ctx) {
       return { ...o, ri, ci, idx, unclassified: !a.v && !a.h, reason: describe(o.id).text, a };
     });
     const colW = Array.from({ length: nh + 1 }, () => MIN_COL_W);
-    for (const it of items) colW[it.ci] = Math.max(colW[it.ci], Math.ceil((it.kind === 'scene' ? tw(it.text, 16) + 50 : tw(it.text, 14) + 70) + 20));
+    for (const it of items) colW[it.ci] = Math.max(colW[it.ci], Math.ceil((it.kind !== 'point' ? tw(it.text, 16) + 50 : tw(it.text, 14) + 70) + 20));
     for (let j = 0; j <= nh; j++) {
       const label = j < nh ? secLabel(H.sections[j]) : unLabel();
       colW[j] = Math.max(colW[j], Math.ceil(tw(label, 14) + 24));
@@ -138,8 +177,8 @@ export function arrangeModule(ctx) {
     for (const h of rowH) { rowY.push(y); y += h; }
     const width = x + MARGIN; const height = y + MARGIN;
     const out = items.map((it) => ({
-      id: it.id, kind: it.kind, unclassified: it.unclassified, reason: it.reason,
-      x: colX[it.ci] + 10, y: rowY[it.ri] + ITEM_PAD + it.idx * ITEM_H, w: colW[it.ci] - 20, h: it.kind === 'scene' ? 36 : 38,
+      id: it.id, kind: it.kind, text: it.text, unclassified: it.unclassified, reason: it.reason,
+      x: colX[it.ci] + 10, y: rowY[it.ri] + ITEM_PAD + it.idx * ITEM_H, w: colW[it.ci] - 20, h: it.kind !== 'point' ? 36 : 38,
     }));
     return {
       margin: MARGIN, top, width, height,
@@ -172,10 +211,16 @@ export function arrangeModule(ctx) {
       axes: { vertical: ax(V), horizontal: ax(H) },
       axisLabels: { vertical: t('arrange.axis.vertical'), horizontal: t('arrange.axis.horizontal') },
       unclassified: { label: unLabel() },
-      assignments: objects().map((o) => {
-        const a = assignOf(o.id);
-        return { objectId: o.id, kind: o.kind, v: a.v, h: a.h, unclassified: !a.v && !a.h, position: pos.get(o.id) };
-      }),
+      assignments: [
+        ...unitObjects().map((o) => {
+          const a = assignFor(o);
+          return { objectId: o.id, kind: o.kind, v: a.v, h: a.h, unclassified: !a.v && !a.h, position: pos.get(o.id), breakdown: a.breakdown };
+        }),
+        ...objects().filter((o) => level() === 'detail' || o.kind === 'point').map((o) => {
+          const a = assignOf(o.id);
+          return { objectId: o.id, kind: o.kind, v: a.v, h: a.h, unclassified: !a.v && !a.h, position: pos.get(o.id) };
+        }),
+      ],
       geometry: g,
     };
   };
@@ -199,7 +244,7 @@ export function arrangeModule(ctx) {
     return { ok: true };
   };
   api.assignObject = (objectId, def) => {
-    if (!find(objectId)) return { ok: false, reason: 'no_object' };
+    if (!objects().some((o) => o.id === objectId)) return { ok: false, reason: 'no_object' };
     const { vertical: V, horizontal: H } = st.arrange.axes;
     const cur = assignOf(objectId);
     const pick = (val, A, keep) => (val === undefined ? keep : (val === null ? null : (A.sections.some((s) => s.id === val) ? val : false)));
@@ -212,7 +257,7 @@ export function arrangeModule(ctx) {
   const DIRS = { 'section-up': ['v', -1], 'section-down': ['v', 1], 'section-left': ['h', -1], 'section-right': ['h', 1] };
   api.arrangeCommand = (objectId, name) => {
     const d = DIRS[name];
-    if (!d || !find(objectId)) return { ok: false, reason: 'invalid' };
+    if (!d || !objects().some((o) => o.id === objectId)) return { ok: false, reason: 'invalid' };
     const [k, step] = d;
     const A = st.arrange.axes[k === 'v' ? 'vertical' : 'horizontal'];
     const cur = assignOf(objectId)[k];

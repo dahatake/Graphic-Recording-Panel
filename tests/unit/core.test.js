@@ -105,6 +105,7 @@ test('FR-004 AC-011: 感情・様子の語があるシーンにだけ絵記号�
   assert.deepEqual(detectEmotions('We are really worried').map((e) => e.id), ['anxious']);
   assert.deepEqual(detectEmotions('来月の計画を決める'), []);
   const { app } = await mk();
+  app.setDetailLevel('detail'); // FR-026: 絵記号を図で確かめるため「詳細」にする
   app.commands['session.start']();
   app.setDraft('納期が近くて困った'); app.submitDraft();
   app.commands['session.nextScene']();

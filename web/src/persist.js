@@ -43,5 +43,7 @@ export function parseSession(raw) {
     // FR-016 AC-082: 選んでいる表示と整理の割り当て（形の検証は arrange.js の parseArrange）
     displayMode: raw.displayMode === 'arrange' ? 'arrange' : 'timeline',
     arrange: raw.arrange && typeof raw.arrange === 'object' ? raw.arrange : null,
+    // FR-025 AC-136: トピックの手修正（題名・所属）。形の検証は topics.js の parseEdits
+    topicEdits: raw.topicEdits && typeof raw.topicEdits === 'object' ? raw.topicEdits : null,
   };
 }

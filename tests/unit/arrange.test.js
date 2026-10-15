@@ -70,6 +70,7 @@ test('FR-016 AC-082: 注釈のない一覧は従来と同じ（時系列の表�
 // FR-016 AC-089: 保存（SVG・PNG・PDF）は画面で選んでいる表示と同じ配置で出力される
 test('FR-016 AC-089: 整理の表示で保存すると軸・区分・未分類を含む配置で、時系列の表示では時系列の配置で出力される', async () => {
   const { app, env } = await newApp();
+  app.setDetailLevel('detail'); // FR-026: 要点を図で確かめるため「詳細」にする
   await seedThreeScenes(app, env);
   const a = app.getArrangement();
   const labels = [a.axes.vertical.name, a.axes.horizontal.name, a.unclassified.label, ...a.axes.vertical.sections.map((s) => s.label), ...a.axes.horizontal.sections.map((s) => s.label)];
