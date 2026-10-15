@@ -148,6 +148,15 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .dialog { max-width: 32rem; width: 100%; padding: var(--space-5); background: var(--color-surface); color: var(--color-text); border: var(--stroke) solid var(--color-border); border-radius: var(--radius); box-shadow: var(--shadow-8); }
 .dialog p { margin: 0 0 var(--space-4); }
 .dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
+/* FR-030 ［設定］画面。狭い画面でも縦に並べ、項目を欠かさない。FR-027 選択中の型は枠とチェック印でも示す */
+.settings-dialog { position: fixed; z-index: 190; top: var(--space-5); right: var(--space-4); max-width: min(32rem, calc(100vw - 2 * var(--space-4))); max-height: calc(100vh - 2 * var(--space-5)); overflow: auto; }
+.settings-dialog[hidden] { display: none; }
+.settings-form { display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-4); }
+.settings-row { display: flex; flex-direction: column; gap: var(--space-1); }
+.settings-check { display: inline-flex; align-items: center; gap: var(--space-1); margin-right: var(--space-3); }
+.btn[data-selected-mark] { outline: 2px solid currentColor; outline-offset: -3px; }
+.btn[data-selected-mark="frame"] { outline-width: 3px; }
+.sel-mark { margin-left: 2px; font-weight: 700; }
 
 /* FR-024: シーンのポップアップ */
 .scene-popup { z-index: 50; padding: var(--space-3) var(--space-4); background: var(--color-surface); color: var(--color-text); border: var(--stroke) solid var(--color-border); border-radius: var(--radius); box-shadow: var(--shadow-8); }

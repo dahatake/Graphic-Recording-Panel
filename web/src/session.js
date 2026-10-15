@@ -27,6 +27,7 @@ export function parseSessionFile({ name, type, size, text } = {}) {
       displayMode: raw.displayMode === 'arrange' ? 'arrange' : 'timeline',
       viewMode: raw.viewMode === '3d' ? '3d' : '2d',
       axes3d: parseAxes(raw.axes3d),
+      viewSettings: { layoutTypes: raw.layoutTypes, drawStyle: raw.drawStyle }, // FR-027・FR-029: 手動の型・描画スタイルの現在値（検証は settings.js）
     },
   };
 }
@@ -101,6 +102,7 @@ export function sessionModule(ctx) {
       s.utterances = []; s.scenes = []; s.selectedSceneId = null; s.session = 'preparing';
       s.viewMode = '2d'; s.displayMode = 'timeline'; s.arrange = presetArrange(); s.topicEdits = emptyEdits();
       s.axes3d = { ...DEFAULT_AXES }; s.viewpoint = { ...INITIAL_VIEWPOINT };
+      api.importViewSettings?.(null);
       s.input.draft = '';
       if (s.speech) s.speech.interim = '';
       ctx.setMessage('msg.resetDone');
@@ -119,6 +121,7 @@ export function sessionModule(ctx) {
       s.selectedSceneId = sess.scenes.some((x) => x.id === sess.selectedSceneId) ? sess.selectedSceneId : null;
       s.displayMode = sess.displayMode;       s.arrange = parseArrange(sess.arrange); s.topicEdits = parseEdits(sess.topicEdits);
       s.viewMode = sess.viewMode; s.axes3d = sess.axes3d; s.viewpoint = { ...INITIAL_VIEWPOINT };
+      api.importViewSettings?.(sess.viewSettings);
       s.session = 'paused';
       s.input.draft = '';
       ctx.setMessage('msg.fileLoaded');
@@ -156,7 +159,8 @@ export function sessionModule(ctx) {
       format: FORMAT, version: VERSION,
       utterances: state.utterances, scenes: state.scenes, selectedSceneId: state.selectedSceneId, seq: ctx.getSeq(),
       displayMode: state.displayMode, arrange: state.arrange, topicEdits: state.topicEdits, viewMode: state.viewMode, axes3d: state.axes3d,
-    });
+            ...(api.exportViewSettings?.() ?? {}),
+          });
     await (ctx.options.download ?? browserDownload)({ filename: `grp-session-${stampName(ctx.now())}.json`, mime: 'application/json', data });
     say('msg.fileSaved');
     return { ok: true };

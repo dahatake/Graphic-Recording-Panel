@@ -32,6 +32,19 @@ export function classifyPoint(text) {
   return 'note';
 }
 
+// FR-029: 描画スタイル（drawstyles.js の定義）。描画の間だけ有効（同期処理）。既定は手書き調＝従来の見た目。
+const HAND = { line: { width: 1, jitter: 1 }, fill: { mode: 'paper' }, text: { decor: 'standard', icons: true } };
+let ST = HAND;
+const HEAD_WEIGHT = { standard: 800, bold: 900, plain: 700 };
+const sw = (n) => Math.round(n * ST.line.width * 100) / 100; // 線の太さ（スタイルの倍率）
+// 塗り: 'tint' は種類の色を白に薄く混ぜた面、'paper' は白地
+function paperFor(color) {
+  if (ST.fill.mode !== 'tint' || !/^#[0-9a-f]{6}$/i.test(color)) return '#ffffff';
+  const mix = (i) => Math.round(parseInt(color.slice(i, i + 2), 16) * 0.14 + 255 * 0.86).toString(16).padStart(2, '0');
+  return `#${mix(1)}${mix(3)}${mix(5)}`;
+}
+const decoIcon = (shape, x, y, color) => (ST.text.icons ? iconShape(shape, x, y, color) : '');
+
 // 決定的な手描き風の線: 文字列から種を作り、同じ入力なら必ず同じ揺らぎにする。
 function rng(seedStr) {
   let h = 2166136261;
@@ -40,8 +53,9 @@ function rng(seedStr) {
 }
 const r1 = (n) => Math.round(n * 10) / 10;
 // 折れ線（頂点列）を細かく分け、各点を少しずらした path の d を返す。
-function wobblyD(pts, seed, closed, amp = 1.2) {
+function wobblyD(pts, seed, closed, amp0 = 1.2) {
   const rand = rng(seed);
+  const amp = amp0 * ST.line.jitter;
   const out = [];
   const n = pts.length;
   const segs = closed ? n : n - 1;
@@ -97,6 +111,7 @@ function iconShape(shape, x, y, color) {
 
 // scenes: アプリの状態のシーン配列。opts: { selectedSceneId, t, title }
 export function renderDiagramSvg(scenes, opts = {}) {
+  ST = opts.style ?? HAND;
   const t = opts.t ?? ((k) => k);
   const sel = opts.selectedSceneId ?? null;
   const hlId = opts.highlightPointId ?? null;
@@ -111,10 +126,10 @@ export function renderDiagramSvg(scenes, opts = {}) {
     const body = [];
     const cx = x + w / 2;
     // 見出し（色分けの帯＋太い下線）。要点より大きく太い。
-    body.push(`<path d="${wobblyD(outline('rect', x, MARGIN, w, HEAD_H), `${s.id}:h`, true, 1.4)}" fill="${color}" stroke="${isSel ? INK : color}" stroke-width="${isSel ? 4 : 2}" stroke-linejoin="round" data-role="heading-band"/>`);
-    body.push(`<text x="${x + 14}" y="${MARGIN + 29}" font-size="${FS_HEAD}" font-weight="800" fill="#ffffff" data-role="status">${STATUS_MARK[s.status] ?? ''}${isSel ? SELECTED_MARK : ''}</text>`);
-    body.push(`<text x="${x + 44}" y="${MARGIN + 29}" font-size="${FS_HEAD}" font-weight="800" fill="#ffffff" data-role="heading">${esc(s.heading)}</text>`);
-    body.push(`<path d="${wobblyD([[x + 6, MARGIN + HEAD_H + 6], [x + w - 6, MARGIN + HEAD_H + 6]], `${s.id}:u`, false, 1.2)}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round"/>`);
+    body.push(`<path d="${wobblyD(outline('rect', x, MARGIN, w, HEAD_H), `${s.id}:h`, true, 1.4)}" fill="${color}" stroke="${isSel ? INK : color}" stroke-width="${sw(isSel ? 4 : 2)}" stroke-linejoin="round" data-role="heading-band"/>`);
+    body.push(`<text x="${x + 14}" y="${MARGIN + 29}" font-size="${FS_HEAD}" font-weight="${HEAD_WEIGHT[ST.text.decor]}" fill="#ffffff" data-role="status">${STATUS_MARK[s.status] ?? ''}${isSel ? SELECTED_MARK : ''}</text>`);
+    body.push(`<text x="${x + 44}" y="${MARGIN + 29}" font-size="${FS_HEAD}" font-weight="${HEAD_WEIGHT[ST.text.decor]}" fill="#ffffff" data-role="heading">${esc(s.heading)}</text>`);
+    body.push(`<path d="${wobblyD([[x + 6, MARGIN + HEAD_H + 6], [x + w - 6, MARGIN + HEAD_H + 6]], `${s.id}:u`, false, 1.2)}" fill="none" stroke="${color}" stroke-width="${sw(3)}" stroke-linecap="round"/>`);
     // 要点の吹き出し（種類ごとに 色・形・絵記号 が異なる）
     const top = new Map(); let y = MARGIN + HEAD_H + GAP;
     const dash = s.status === 'in_progress' ? ' stroke-dasharray="6 4"' : '';
@@ -124,13 +139,14 @@ export function renderDiagramSvg(scenes, opts = {}) {
       const kind = classifyPoint(p.text);
       const hl = p.id === hlId;
       const stroke = hl ? HL_COLOR : k.color;
-      const sw = hl ? 5 : 2.5;
+      const sWidth = sw(hl ? 5 : 2.5);
       const frame = hl ? `<path d="${wobblyD(outline(k.shape, x - 6, y - 6, w + 12, BUBBLE_H + 12), `${p.id}:f`, true, 1.2)}" fill="none" stroke="${HL_COLOR}" stroke-width="2" stroke-dasharray="3 3" data-role="highlight-frame"/>` : '';
       const star = hl ? `<g data-role="highlight-icon">${iconShape('star', x + w - 20, y - 16, HL_COLOR)}</g>` : '';
+      const paper = paperFor(k.color);
       body.push(`<g data-point-id="${attr(p.id)}" data-kind="${kind}"${hl ? ' data-highlight="1"' : ''}>${frame}`
-        + `<path d="${wobblyD(outline(k.shape, x, y, w, BUBBLE_H), p.id, true)}" fill="${PAPER}" stroke="${stroke}" stroke-width="${sw}" stroke-linejoin="round"${dash}/>`
-        + `<path d="${wobblyD([[x + 18, y + BUBBLE_H], [x + 12, y + BUBBLE_H + 8], [x + 26, y + BUBBLE_H]], `${p.id}:t`, false, 0.4)}" fill="${PAPER}" stroke="${stroke}" stroke-width="2.5" stroke-linejoin="round"/>`
-        + iconShape(k.icon, x + 8, y + 7, stroke)
+        + `<path d="${wobblyD(outline(k.shape, x, y, w, BUBBLE_H), p.id, true)}" fill="${paper}" stroke="${stroke}" stroke-width="${sWidth}" stroke-linejoin="round"${dash}/>`
+        + `<path d="${wobblyD([[x + 18, y + BUBBLE_H], [x + 12, y + BUBBLE_H + 8], [x + 26, y + BUBBLE_H]], `${p.id}:t`, false, 0.4)}"         fill="${paper}" stroke="${stroke}" stroke-width="${sw(2.5)}" stroke-linejoin="round"/>`
+        + decoIcon(k.icon, x + 8, y + 7, stroke)
         + `<text x="${x + 8 + ICON_W}" y="${y + 24}" font-size="${FS}" fill="${INK}">${esc(p.text)}</text>${star}</g>`);
       y += BUBBLE_H + GAP;
     });
@@ -140,11 +156,11 @@ export function renderDiagramSvg(scenes, opts = {}) {
       if (a == null || b == null) continue;
       const [from, to] = a <= b ? [a, b] : [b, a];
       const hot = hlId != null && (r.from === hlId || r.to === hlId);
-      body.push(`<path data-relation="${attr(r.from)}>${attr(r.to)}"${hot ? ' data-highlight="1"' : ''} d="${wobblyD([[cx, from + BUBBLE_H + 4], [cx, to - 3]], `${r.from}>${r.to}`, false, 1)}" fill="none" stroke="${hot ? HL_COLOR : color}" stroke-width="${hot ? 5 : 2.5}" stroke-linecap="round" marker-end="url(#${hot ? 'arrow-hl' : `arrow-${i % PALETTE.length}`})"/>`);
+      body.push(`<path data-relation="${attr(r.from)}>${attr(r.to)}"${hot ? ' data-highlight="1"' : ''} d="${wobblyD([[cx, from + BUBBLE_H + 4], [cx, to - 3]], `${r.from}>${r.to}`, false, 1)}" fill="none" stroke="${hot ? HL_COLOR : color}" stroke-width="${sw(hot ? 5 : 2.5)}" stroke-linecap="round" marker-end="url(#${hot ? 'arrow-hl' : `arrow-${i % PALETTE.length}`})"/>`);
     }
     // 絵記号（感情・様子の語）
     emos.forEach((e) => {
-      body.push(`<g data-emotion="${attr(e.id)}">${iconShape(e.shape, x + 14, y - 8, color)}<text x="${x + 44}" y="${y + 10}" font-size="${FS}" font-weight="700" fill="${INK}">${esc(e.word)}</text></g>`);
+      body.push(`<g data-emotion="${attr(e.id)}">${decoIcon(e.shape, x + 14, y - 8, color)}<text x="${x + 44}" y="${y + 10}" font-size="${FS}" font-weight="700" fill="${INK}">${esc(e.word)}</text></g>`);
       y += 34;
     });
     // シーンの囲み（背面）
@@ -175,6 +191,7 @@ export function renderDiagramSvg(scenes, opts = {}) {
 // トピック間の関係は線と種類の文字（順・関連）で示し、色だけに頼らない。要点・関係線・絵記号は描かない（テキスト一覧・ポップアップで確認できる）。
 // topics: [{id,title,sceneIds,containsSelected}]、relations: [{id,from,to,kind,label}]、scenes: アプリのシーン配列。opts: { level, selectedSceneId, t, title }
 export function renderTopicsSvg(topics, relations, scenes, opts = {}) {
+  ST = opts.style ?? HAND;
   const t = opts.t ?? ((k) => k);
   const level = opts.level === 'middle' ? 'middle' : 'major';
   const sel = opts.selectedSceneId ?? null;
@@ -241,6 +258,7 @@ export function renderTopicsSvg(topics, relations, scenes, opts = {}) {
 // FR-016 AC-078 AC-079 AC-089: 意味のある配置（整理の表示）の SVG。model は app.getArrangement()（geometry つき）。
 // 軸の名前・区分の見出し・未分類の領域は <text> の文字で示し、色だけに頼らない。
 export function renderArrangedSvg(scenes, model, opts = {}) {
+  ST = opts.style ?? HAND;
   const g = model.geometry;
   const sel = opts.selectedSceneId ?? null;
   const hlId = opts.highlightPointId ?? null;
@@ -391,13 +409,20 @@ export function diagramModule(ctx) {
     },
   });
   ctx.api.renderSvg = () => {
-    const o = { selectedSceneId: ctx.state.selectedSceneId, highlightPointId: currentHighlight()?.pointId ?? null, t: ctx.t, title: ctx.t('app.title') };
+    const o = { selectedSceneId: ctx.state.selectedSceneId, highlightPointId: currentHighlight()?.pointId ?? null, t: ctx.t, title: ctx.t('app.title'), style: ctx.api.getDrawStyleSpec?.() };
     const level = ctx.api.getDetailLevel?.() ?? 'detail';
     const units = level !== 'detail' && ctx.state.scenes.length ? { topics: ctx.api.getTopics(), relations: ctx.api.getTopicRelations(), level } : null;
+    // FR-029 AC-146: 現在の描画スタイル、FR-027 AC-140: 時系列の 2D の図に適用している型を、ルートの属性で示す（整理の表示に型は適用されない）
+    const mark = (svg) => {
+      const info = ctx.api.getLayoutInfo?.();
+      const attrs = [`data-draw-style="${ctx.api.getDrawStyle?.() ?? 'handwritten'}"`];
+      if (info && info.applied) attrs.push(`data-layout-types="${info.selected.join(' ')}"`, `data-layout-head="${info.head}"`);
+      return svg.replace('<svg ', `<svg ${attrs.join(' ')} `);
+    };
     // FR-016 AC-089: 画面で選んでいる表示（時系列／整理）と同じ配置で出力する（保存もここを通る）
-    if (ctx.state.displayMode === 'arrange' && ctx.api.getArrangement) return renderArrangedSvg(ctx.state.scenes, ctx.api.getArrangement(), { ...o, ...(units ?? {}), selectedLabel: ctx.t('topic.selected') });
-    if (units) return renderTopicsSvg(units.topics, units.relations, ctx.state.scenes, { ...o, level });
-    return renderDiagramSvg(ctx.state.scenes, o);
+    if (ctx.state.displayMode === 'arrange' && ctx.api.getArrangement) return mark(renderArrangedSvg(ctx.state.scenes, ctx.api.getArrangement(), { ...o, ...(units ?? {}), selectedLabel: ctx.t('topic.selected') }));
+    if (units) return mark(renderTopicsSvg(units.topics, units.relations, ctx.state.scenes, { ...o, level }));
+    return mark(renderDiagramSvg(ctx.state.scenes, o));
   };
 
   // ---- FR-015 AC-074: 図の演出の記述（見出しと要点の表現） ----
@@ -405,7 +430,7 @@ export function diagramModule(ctx) {
     scenes: ctx.state.scenes.map((s) => ({
       id: s.id,
       heading: { fontSize: FS_HEAD, fontWeight: 800, framed: true },
-      points: s.points.map((p) => { const kind = classifyPoint(p.text); const k = KINDS[kind]; return { id: p.id, kind, color: k.color, shape: k.shape, icon: k.icon, fontSize: FS, fontWeight: 400 }; }),
+      points: s.points.map((p) => { const kind = classifyPoint(p.text); const k = KINDS[kind]; const icons = ctx.api.getDrawStyleSpec?.()?.text.icons !== false; return { id: p.id, kind, color: k.color, shape: k.shape, icon: icons ? k.icon : 'none', fontSize: FS, fontWeight: 400 }; }),
     })),
   });
 
