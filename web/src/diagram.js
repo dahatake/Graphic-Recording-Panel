@@ -406,6 +406,56 @@ function commonPlacementSvg(L) {
   for (const g of L.groups ?? []) {
     parts.push(`<g data-group-id="${attr(g.id)}" data-group-kind="${attr(g.kind)}"><rect data-role="frame" x="${g.frame.x}" y="${g.frame.y}" width="${g.frame.w}" height="${g.frame.h}" rx="8" fill="none" stroke="currentColor" stroke-width="1.5"/><text data-role="subheading" x="${g.headingRect.x}" y="${g.headingRect.y + 14}" font-size="13" font-weight="700">${esc(g.heading)}</text></g>`);
   }
+  // FR-031〜033: 各単位（data-unit-id・data-order）・中心のテーマ・矢印（data-flow-from/to）。強調は太さ・二重枠・文字の印（色だけにしない）
+  const wrap = (text, w, fs, max) => {
+    const lines = []; let cur = ''; let cw = 0;
+    for (const ch of [...String(text ?? '')]) {
+      const c = ch.codePointAt(0) >= 0x2e80 ? fs : fs * 0.56;
+      if (cw + c > w && cur) { lines.push(cur); cur = ''; cw = 0; }
+      cur += ch; cw += c;
+    }
+    if (cur) lines.push(cur);
+    if (lines.length > max) { lines.length = max; lines[max - 1] = `${lines[max - 1].slice(0, -1)}…`; }
+    return lines;
+  };
+  const rectOf = (id) => (id === 'center' ? L.center : (L.units ?? []).find((u) => u.id === id));
+  const clip = (r, tx, ty) => { // 矩形 r の中心から (tx,ty) へ向かう線が矩形の縁と交わる点
+    const cx = r.x + r.w / 2; const cy = r.y + r.h / 2; const dx = tx - cx; const dy = ty - cy;
+    if (!dx && !dy) return [cx, cy];
+    const k = Math.min(dx ? (r.w / 2) / Math.abs(dx) : Infinity, dy ? (r.h / 2) / Math.abs(dy) : Infinity);
+    return [cx + dx * k, cy + dy * k];
+  };
+  const box = (u, extra, fs) => {
+    const emph = u.emphasis ? 3.5 : 1.5;
+    const jag = u.shape === 'jagged';
+    let frame;
+    if (jag) {
+      const pts = []; const n = 14; const cx = u.x + u.w / 2; const cy = u.y + u.h / 2;
+      for (let i = 0; i < n * 2; i++) { const a = (Math.PI * i) / n; const k = i % 2 ? 0.88 : 1; pts.push(`${r1(cx + Math.cos(a) * (u.w / 2) * k)} ${r1(cy + Math.sin(a) * (u.h / 2) * k)}`); }
+      frame = `<path data-role="unit-frame" d="M${pts.join('L')}Z" fill="#fff" stroke="currentColor" stroke-width="${emph}"/>`;
+    } else frame = `<rect data-role="unit-frame" x="${u.x}" y="${u.y}" width="${u.w}" height="${u.h}" rx="${u.shape === 'round' ? 14 : 6}" fill="#fff" stroke="currentColor" stroke-width="${emph}"/>`;
+    const inner = u.emphasis ? `<rect data-role="emphasis-frame" x="${u.x + 4}" y="${u.y + 4}" width="${u.w - 8}" height="${u.h - 8}" rx="4" fill="none" stroke="currentColor" stroke-width="1"/>` : '';
+    const lines = wrap(u.text, u.w - 28, fs, Math.max(1, Math.floor((u.h - 8) / (fs + 3))));
+    const text = lines.map((ln, i) => `<text x="${u.x + 14}" y="${u.y + 6 + fs + i * (fs + 3)}" font-size="${fs}"${u.emphasis ? ' font-weight="800"' : ''}>${esc(ln)}</text>`).join('');
+    const num = (L.orderMark === 'number' || L.orderMark === 'both') && u.order != null ? `<text data-role="order" x="${u.x + 4}" y="${u.y + 12}" font-size="11" font-weight="700">${u.order + 1}</text>` : '';
+    const badge = u.badge ? `<text data-role="emphasis-mark" x="${u.x + u.w - 6}" y="${u.y + 14}" font-size="11" font-weight="800" text-anchor="end">${esc(u.badge)}</text>` : '';
+    const rel = (u.relations ?? []).map((rl, i) => `<text data-role="inner-relation" x="${u.x + u.w - 6}" y="${u.y + u.h - 6 - i * 12}" font-size="10" text-anchor="end">${esc(rl.label)}</text>`).join('');
+    return `${frame}${inner}${text}${num}${badge}${rel}${extra}`;
+  };
+  if (L.center) {
+    const c = L.center;
+    parts.push(`<g data-unit-id="center" data-role="center">${box({ ...c, emphasis: 'center', shape: 'round', text: c.text }, '', 20)}</g>`);
+  }
+  for (const u of L.units ?? []) {
+    parts.push(`<g data-unit-id="${attr(u.id)}" data-order="${u.order}" data-unit-kind="${attr(u.kind)}"${u.role ? ` data-role-kind="${u.role}"` : ''}${u.attachedTo ? ` data-attached-to="${attr(u.attachedTo)}"` : ''}${u.shape ? ` data-bubble-shape="${u.shape}"` : ''}${u.emphasis ? ` data-emphasis="${u.emphasis}"` : ''}>${box(u, '', 12)}</g>`);
+  }
+  for (const a of L.arrows ?? []) {
+    const f = rectOf(a.from); const t = rectOf(a.to);
+    if (!f || !t) continue;
+    const [x1, y1] = clip(f, t.x + t.w / 2, t.y + t.h / 2); const [x2, y2] = clip(t, f.x + f.w / 2, f.y + f.h / 2);
+    const ang = Math.atan2(y2 - y1, x2 - x1); const hx = (k) => r1(x2 - Math.cos(ang + k) * 9); const hy = (k) => r1(y2 - Math.sin(ang + k) * 9);
+    parts.push(`<g data-role="flow"><line data-flow-from="${attr(a.from)}" data-flow-to="${attr(a.to)}" x1="${r1(x1)}" y1="${r1(y1)}" x2="${r1(x2)}" y2="${r1(y2)}" stroke="currentColor" stroke-width="1.5"/><polygon points="${r1(x2)},${r1(y2)} ${hx(0.4)},${hy(0.4)} ${hx(-0.4)},${hy(-0.4)}" fill="currentColor"/>${a.label ? `<text data-role="arrow-label" x="${r1((x1 + x2) / 2 + 4)}" y="${r1((y1 + y2) / 2 - 4)}" font-size="11" font-weight="700">${esc(a.label)}</text>` : ''}</g>`);
+  }
   return parts.join('');
 }
 
