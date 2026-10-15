@@ -41,19 +41,46 @@ export function timelineLayout(input) {
   const info = input.titleInfo ?? {};
   const visible = ['series', 'theme', 'date', 'venue'].some((k) => String(info[k] ?? '').trim());
   const title = { x: M, y: M, w: W - M * 2, h: TITLE_H, visible };
+  // FR-036 AC-167: 各まとまり（トピック）に小見出しと外枠が付く。大項目では 1 トピック 1 単位、それ以外ではトピックごとに行を改めて並べる。
+  const topicOf = new Map();
+  for (const tp of input.topics) for (const id of tp.sceneIds) topicOf.set(id, tp);
   const src = input.level === 'major'
-    ? input.topics.map((tp) => ({ id: tp.id, kind: 'topic' }))
-    : input.scenes.map((sc) => ({ id: sc.id, kind: 'scene' }));
+    ? input.topics.map((tp) => ({ id: tp.id, kind: 'topic', run: tp.id, heading: tp.title }))
+    : input.scenes.map((sc) => ({ id: sc.id, kind: 'scene', run: topicOf.get(sc.id)?.id ?? `scene:${sc.id}`, heading: topicOf.get(sc.id)?.title ?? sc.heading }));
   const bodyY = M + TITLE_H + GAP / 2;
   const uw = Math.floor((W - M * 2 - GAP * (COLS - 1)) / COLS);
-  const units = src.map((u, i) => ({ ...u, order: i, x: M + (i % COLS) * (uw + GAP), y: bodyY + Math.floor(i / COLS) * (H + GAP), w: uw, h: H }));
-  const rows = Math.ceil(units.length / COLS);
+  const cells = []; let row = -1; let col = COLS; let prev = null;
+  src.forEach((u, i) => {
+    if (u.run !== prev || col >= COLS) { row += 1; col = 0; } // トピックが変わるか行が埋まったら次の行
+    prev = u.run;
+    cells.push({ ...u, order: i, row, x: M + col * (uw + GAP), y: bodyY + row * (H + GAP), w: uw, h: H });
+    col += 1;
+  });
+  const rows = row + 1;
   const bodyH = rows ? rows * H + (rows - 1) * GAP : 0;
+  const runs = []; // 連続した同じトピックの範囲 = 1 つのまとまり
+  for (const c of cells) {
+    const last = runs.at(-1);
+    if (last && last.run === c.run) last.cells.push(c); else runs.push({ run: c.run, heading: c.heading, cells: [c] });
+  }
+  const seen = new Map();
+  const groups = runs.map((r) => {
+    const n = (seen.get(r.run) ?? 0) + 1; seen.set(r.run, n);
+    const x0 = Math.min(...r.cells.map((c) => c.x)); const y0 = Math.min(...r.cells.map((c) => c.y));
+    const x1 = Math.max(...r.cells.map((c) => c.x + c.w)); const y1 = Math.max(...r.cells.map((c) => c.y + c.h));
+    const frame = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+    return { id: n === 1 ? r.run : `${r.run}#${n}`, kind: 'topic', heading: String(r.heading ?? '').trim() || String(r.run), frame, headingRect: { x: x0 + 8, y: y0 + 4, w: x1 - x0 - 16, h: 18 }, top: y0 };
+  });
+  const units = cells.map(({ run, heading, row: rw, ...c }) => {
+    const top = groups.find((g) => g.top === c.y && c.x >= g.frame.x && c.x + c.w <= g.frame.x + g.frame.w) ? 24 : 6; // 小見出しの下に収める
+    return { ...c, x: c.x + 8, w: c.w - 16, y: c.y + top, h: c.h - top - 6 };
+  });
   const arrows = units.slice(1).map((u, i) => ({ from: units[i].id, to: u.id, label: null }));
   return {
     canvas: { w: W, h: bodyY + bodyH + M }, title,
     body: { x: M, y: bodyY, w: W - M * 2, h: bodyH },
-    units, arrows, orderMark: 'both', groups: [], centered: false,
+    units, arrows, orderMark: 'both', groups: groups.map(({ top, ...g }) => g), centered: false,
+    titleLines: ['series', 'theme', 'date', 'venue'].map((k) => String(info[k] ?? '').trim()).filter(Boolean),
   };
 }
 

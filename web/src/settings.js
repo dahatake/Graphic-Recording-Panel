@@ -140,6 +140,18 @@ export function settingsModule(ctx) {
   api.setAutoLayoutSelector = (fn) => { if (typeof fn === 'function') { autoSelector = fn; ctx.emit('change', api); } };
   api.getLayoutTypeRegistry = () => types;
 
+  // ---- FR-036 AC-166: タイトル情報（シリーズ名・演題・日付・会場）。セッション内のみで保持し、保存（grp.*・セッションファイル）には含めない ----
+  const TITLE_KEYS = ['series', 'theme', 'date', 'venue'];
+  let titleInfo = { series: '', theme: '', date: '', venue: '' };
+  api.getTitleInfo = () => ({ ...titleInfo });
+  api.setTitleInfo = (info) => {
+    if (!info || typeof info !== 'object' || Array.isArray(info)) return { ok: false, reason: 'invalid' };
+    const next = { ...titleInfo };
+    for (const k of TITLE_KEYS) if (k in info) { if (typeof info[k] !== 'string') return { ok: false, reason: 'invalid' }; next[k] = info[k].trim().slice(0, 100); }
+    titleInfo = next; ctx.emit('change', api);
+    return { ok: true };
+  };
+
   // ---- 2D・時系列の配置（型ごとの実装はレジストリで差し替える。先頭の型が配置を決める） ----
   api.getDiagramLayout = () => {
     const info = api.getLayoutInfo();
