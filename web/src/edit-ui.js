@@ -27,6 +27,25 @@ export function mountEditUI(app, doc = document) {
     mk('merge', (pid) => { const sc = find(pid); if (sc) app.mergeScenes(sc.id); });
     mk('split', (pid) => { const sc = find(pid); if (sc) app.splitScene(sc.id, pid); });
     panel.append(form);
+    buildTopicForm();
+  }
+
+  // FR-025 AC-136: トピックの題名の編集・シーンの移動（ドラッグなし。キーボードのコマンド topic.* でも行える）
+  let tform = null;
+  function buildTopicForm() {
+    tform = doc.createElement('form');
+    tform.className = 'edit-form topic-form'; tform.setAttribute('role', 'group');
+    tform.innerHTML = '<h3 data-k="title"></h3>'
+      + '<label>[<span data-k="target"></span>] <select data-f="topic"></select></label>'
+      + '<label>[<span data-k="text"></span>] <input type="text" data-f="title" autocomplete="off"></label>'
+      + '<div class="edit-actions"></div>';
+    const acts = tform.querySelector('.edit-actions');
+    const topic = () => tform.querySelector('[data-f="topic"]').value;
+    const mk = (key, fn) => { const b = doc.createElement('button'); b.type = 'button'; b.className = 'btn btn-sm'; b.dataset.topicEdit = key; b.addEventListener('click', fn); acts.append(b); };
+    mk('rename', () => { const inp = tform.querySelector('[data-f="title"]'); if (topic() && app.renameTopic(topic(), inp.value).ok) inp.value = ''; });
+    mk('moveHere', () => { const sid = app.getState().selectedSceneId; if (sid && topic()) app.moveSceneToTopic(sid, topic()); });
+    mk('moveNew', () => { const sid = app.getState().selectedSceneId; if (sid) app.moveSceneToTopic(sid, null); });
+    panel.append(tform);
   }
 
   function sync() {
@@ -47,6 +66,16 @@ export function mountEditUI(app, doc = document) {
     });
     if ([...sel.options].some((o) => o.value === cur)) sel.value = cur;
     form.hidden = !st.scenes.length;
+    if (tform) {
+      tform.setAttribute('aria-label', app.t('topic.edit.title'));
+      for (const el of tform.querySelectorAll('[data-k]')) el.textContent = app.t(`topic.edit.${el.dataset.k}`);
+      for (const b of tform.querySelectorAll('[data-topic-edit]')) b.textContent = app.t(`topic.edit.${b.dataset.topicEdit}`);
+      const ts = tform.querySelector('[data-f="topic"]'); const tcur = ts.value;
+      ts.textContent = '';
+      for (const tp of app.getTopics()) { const o = doc.createElement('option'); o.value = tp.id; o.textContent = tp.title; ts.append(o); }
+      if ([...ts.options].some((o) => o.value === tcur)) ts.value = tcur;
+      tform.hidden = !st.scenes.length;
+    }
 
     // 保存ボタン: シーン 0 件では無効にして、理由を見える文字で示す
     const save = app.getSaveState();

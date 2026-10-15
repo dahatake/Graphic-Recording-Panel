@@ -175,6 +175,7 @@ test('FR-001 AC-040 AC-066 AC-067: 実ブラウザ源は言語別に判定し、
 
 test('NFR-PERF-001 AC-038: 100 件の後の 1 件が同期的に反映され {PARAM-001}=3 秒以内', async () => {
   const { app, sp } = await mk();
+  app.setDetailLevel('detail'); // FR-026: 要点を図で確かめるため「詳細」にする
   app.commands['session.start']();
   app.startSpeech();
   for (let i = 0; i < 100; i++) sp.emit(`発話${i}`, true);

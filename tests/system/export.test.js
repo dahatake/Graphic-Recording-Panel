@@ -2,7 +2,7 @@
 // 公開 API: await app.commands['save.png'|'save.pdf'|'save.svg']() → options.download({filename,mime,data})
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { newApp, seedThreeScenes, visibleTexts, pdfTexts, bytesToLatin1 } from './helpers.js';
+import { newApp, seedThreeScenes, visibleTexts, pdfTexts, bytesToLatin1, toDetail } from './helpers.js';
 
 async function withNetSpy(fn) {
   const calls = [];
@@ -69,7 +69,7 @@ test('FR-007 AC-016: PDF 生成中の外部リクエストが 0 件で、PDF に
 });
 
 test('FR-007 AC-015 補助: SVG 保存（FR-006）の文字列に全シーンの見出しと要点が含まれる', async () => {
-  const { app, env } = await newApp();
+  const { app, env } = await newApp(); toDetail(app);
   await seedThreeScenes(app, env);
   await app.commands['save.svg']();
   const d = env.downloads[0];

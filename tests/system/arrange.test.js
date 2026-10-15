@@ -1,13 +1,17 @@
 // FR-016 AC-078 AC-079 AC-080 AC-081（契約: setDisplayMode / getArrangement / assignObject / describeObject / arrangeCommand、CONTRACT.md「意味のある配置」）
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { newApp, seedThreeScenes, keyFor } from './helpers.js';
+import { newApp, seedThreeScenes, keyFor, toDetail } from './helpers.js';
+
+// 手順: 詳細度の既定は「大項目」。要点の割り当て・移動（AC-079〜081）は「詳細」で行うため、arranged() で toDetail(app) により「詳細」へ切り替えてから整理の表示にする。
+// 軸・区分の見出しは詳細度によらず表示される（AC-078）。大項目・中項目での配置は detail.test.js（AC-137）。
 
 const PRESET = 'logical-physical_workflow';
 
 async function arranged() {
   const { app, env } = await newApp();
   await seedThreeScenes(app, env);
+  toDetail(app);
   app.setDisplayMode('arrange');
   return { app, env };
 }

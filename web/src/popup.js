@@ -11,6 +11,11 @@ export function renderPopupHtml(scene) {
   return `<h3>${escapeHtml(scene.heading)}</h3><ul>${pts}</ul>`;
 }
 
+export function renderTopicPopupHtml(topic, scenes) {
+  const body = scenes.map((s) => `<h4>${escapeHtml(s.heading)}</h4><ul>${s.points.map((p) => `<li data-point-id="${escapeHtml(p.id)}">${escapeHtml(p.text)}</li>`).join('')}</ul>`).join('');
+  return `<h3>${escapeHtml(topic.title)}</h3>${body}`;
+}
+
 // 画面端・狭い画面でも見切れない配置。入りきらないときは scrollable（スクロールで全体を確認できる）。
 export function popupPlacement(scene, env) {
   const vw = Number(env.viewportWidth) > 0 ? Number(env.viewportWidth) : 1280;
@@ -29,17 +34,36 @@ export function popupModule(ctx) {
   const { api, state, t } = ctx;
   let open = false; let focused = false;
   let chosenId = null; // 利用者が明示的に選んだシーン（自動の初期選択では開かない）
+  let topicId = null; // 2D の大項目で選んだトピック（FR-026 AC-137。シーンの選択は変えない）
   const notify = () => ctx.emit('change', api);
   const sel = () => state.scenes.find((s) => s.id === state.selectedSceneId) ?? null;
-  const close = () => { if (!open && !focused) return; open = false; focused = false; notify(); };
+  const close = () => { if (!open && !focused) return; open = false; focused = false; topicId = null; notify(); };
 
   const baseSelect = api.selectScene;
   api.selectScene = (id) => {
+    topicId = null;
     if (id === null || id === undefined) { chosenId = null; open = false; focused = false; ctx.change((s) => { s.selectedSceneId = null; }); return true; }
     if (!state.scenes.some((s) => s.id === id)) return false;
     open = true; focused = false; chosenId = id; baseSelect(id);
   };
+  api.selectTopic = (id) => {
+    if (!api.getTopics().some((tp) => tp.id === id)) return { ok: false, reason: 'not_found' };
+    open = true; focused = false; topicId = id; notify();
+    return { ok: true };
+  };
+  const topicPopup = () => {
+    const tp = api.getTopics().find((x) => x.id === topicId);
+    if (!tp) { topicId = null; open = false; focused = false; return null; }
+    const scenes = tp.sceneIds.map((id) => state.scenes.find((s) => s.id === id)).filter(Boolean);
+    const flat = { points: scenes.flatMap((s) => [{ text: s.heading }, ...s.points]) };
+    return {
+      open: true, topicId: tp.id, title: tp.title,
+      scenes: scenes.map((s) => ({ id: s.id, heading: s.heading, points: s.points.map((p) => ({ id: p.id, text: p.text })) })),
+      html: renderTopicPopupHtml(tp, scenes), role: 'dialog', label: `${t('popup.label')}: ${tp.title}`, focused, placement: popupPlacement(flat, ctx.env),
+    };
+  };
   api.getScenePopup = () => {
+    if (open && topicId) return topicPopup();
     const sc = open ? sel() : null;
     if (!sc) return null;
     const label = `${t('popup.label')}: ${sc.heading}`;
@@ -50,7 +74,7 @@ export function popupModule(ctx) {
     };
   };
   api.popupOutside = () => close();
-  ctx.on('change', () => { if (state.selectedSceneId !== chosenId) chosenId = null; if (open && !sel()) { open = false; focused = false; } });
+  ctx.on('change', () => { if (state.selectedSceneId !== chosenId) chosenId = null; if (open && !topicId && !sel()) { open = false; focused = false; } if (topicId && !api.getTopics().some((x) => x.id === topicId)) { topicId = null; open = false; focused = false; } });
 
   const move = (d) => {
     const n = state.scenes.length; if (!n) return;

@@ -1,7 +1,7 @@
 // FR-015 AC-074 AC-076（契約: getDiagramStyle / highlightPoint / clearHighlight / getHighlight、CONTRACT.md「図の演出」）
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { newApp, keyFor } from './helpers.js';
+import { newApp, keyFor, toDetail } from './helpers.js';
 
 async function seed() {
   const { app, env } = await newApp();
@@ -44,7 +44,7 @@ test('FR-015 AC-074 異常系: 同じ種類の要点は同じ表現で、要点 
 
 // FR-015 AC-076
 test('FR-015 AC-076: ポインタで要点を選ぶと、その要点とつながる関係線が強調され、色以外（太さ・枠・絵記号）でも示され、解除で戻り、文字は判読できる', async () => {
-  const { app } = await seed();
+  const { app } = await seed(); toDetail(app);
   const sc = app.getState().scenes.find((s) => s.points.length >= 2);
   assert.ok(sc, '要点 2 件以上のシーン');
   const target = sc.points[0];

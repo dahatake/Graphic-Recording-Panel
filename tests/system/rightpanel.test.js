@@ -2,7 +2,7 @@
 // 右パネル = 既存の 'input' パネル（FR-013: 既存の入力パネルを右側の認識文字列パネルに位置づけ直す）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { newApp, PARAM } from './helpers.js';
+import { newApp, PARAM, toDetail } from './helpers.js';
 
 const REFLECT_MS = 3 * 1000; // PARAM-001
 const MB = 1024 * 1024;       // PARAM-003
@@ -148,7 +148,7 @@ test('FR-014 AC-053 異常系: 一時停止中に届いた確定結果は一覧�
 
 // FR-014 AC-054（件数は AC の文言から決まる範囲: 手入力 1 件、取込は 100 行（各 40 文字以下）。上限 1 MB 全行の負荷は AC から決まらないので範囲外）
 test('FR-014 AC-054: 手入力の確定結果が、送信から 3 秒以内に図へ反映される', async () => {
-  const { app, env } = await newApp();
+  const { app, env } = await newApp(); toDetail(app);
   app.commands['session.start']();
   app.setDraft('手入力の要点');
   assert.equal(app.submitDraft().ok, true);
@@ -157,7 +157,7 @@ test('FR-014 AC-054: 手入力の確定結果が、送信から 3 秒以内に�
 });
 
 test('FR-014 AC-054: ファイル取込の確定結果（100 行）が、取込の完了から 3 秒以内に図へ反映される', async () => {
-  const { app, env } = await newApp();
+  const { app, env } = await newApp(); toDetail(app);
   app.commands['session.start']();
   const lines = Array.from({ length: 100 }, (_, i) => `取込行${i + 1}の要点`);
   const r = await app.importTextFile({ name: 'm.txt', type: 'text/plain', size: 2000, text: lines.join('\n') });

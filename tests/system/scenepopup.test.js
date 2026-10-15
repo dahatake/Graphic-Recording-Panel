@@ -2,11 +2,12 @@
 // AC-126 は検証レベル integration のため対象外。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { newApp, seedThreeScenes } from './helpers.js';
+import { newApp, seedThreeScenes, toDetail } from './helpers.js';
 
 async function seeded() {
   const { app, env } = await newApp();
   await seedThreeScenes(app, env);
+  toDetail(app); // 手順: 既定の「大項目」では 2D にシーンが描かれないため、「詳細」へ切り替えてからシーンを選択する（AC-123。トピックの選択は AC-137）
   assert.equal(app.getState().scenes.length, 3);
   return { app, env };
 }
