@@ -1,11 +1,14 @@
 // NFR-UX-001 AC-057 AC-060: コマンドバー（画面上部）とステータス表示の定義。DOM を知らない（描画は ui.js）。
 // アイコンはインライン SVG のパス（Fluent System Icons 風の 20px・線画）。外部の資産は使わない。
+import { LAYOUT_TYPE_IDS, LAYOUT_TYPE_META } from './layouttypes.js';
+
 export const GROUPS = [
   ['toolbar.session', ['session.start', 'session.pause', 'session.resume', 'session.stop', 'session.nextScene', 'input.focus']],
   ['toolbar.speech', ['speech.start', 'speech.stop']],
   ['toolbar.save', ['save.png', 'save.svg', 'save.pdf']],
   ['toolbar.language', ['lang.ja', 'lang.en']],
   ['toolbar.view', ['view.2d', 'view.3d', 'view.timeline', 'view.arrange', 'detail.next', 'theme.toggle']],
+  ['toolbar.layoutType', [...LAYOUT_TYPE_IDS.map((id) => `layoutType.${id}`), 'layoutType.clear', 'settings.open']],
   ['toolbar.presentation', ['presentation.start', 'presentation.pause', 'presentation.resume', 'presentation.stop', 'presentation.prev', 'presentation.next']],
   ['toolbar.layout', ['layout.tile', 'layout.focus', 'layout.maximize', 'layout.reset']],
   ['toolbar.data', ['data.reset', 'file.save', 'file.load']],
@@ -24,6 +27,8 @@ const LABELS = {
   'presentation.stop': ['発表終了', 'End talk'], 'presentation.prev': ['前へ', 'Previous'], 'presentation.next': ['次へ', 'Next'],
   'layout.tile': ['タイル', 'Tile'], 'layout.focus': ['集中', 'Focus'], 'layout.maximize': ['最大化', 'Maximize'], 'layout.reset': ['配置初期化', 'Reset layout'],
   'data.reset': ['データ初期化', 'Reset data'], 'file.save': ['ファイル保存', 'Save file'], 'file.load': ['ファイル読込', 'Load file'],
+  // FR-027: レイアウト型のアイコンの名称ラベル（label.layoutType.clear・label.settings.open は settings.js が文言を足す）
+  ...Object.fromEntries(LAYOUT_TYPE_IDS.map((id) => [`layoutType.${id}`, [LAYOUT_TYPE_META[id].ja.label, LAYOUT_TYPE_META[id].en.label]])),
 };
 export const labelKey = (command) => `label.${command}`;
 
@@ -64,6 +69,8 @@ export const ICONS = {
   'presentation.stop': P.stop, 'presentation.prev': P.prev, 'presentation.next': P.next, 'layout.reset': P.reset,
   'layout.tile': P.tile, 'layout.focus': P.focus, 'layout.maximize': P.maximize,
   'data.reset': P.trash, 'file.save': P.fileSave, 'file.load': P.fileLoad,
+  'layoutType.clear': P.reset, 'settings.open': 'M10 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM10 2v2M10 16v2M2 10h2M16 10h2M4.500 4.500l1.500 1.500M14 14l1.500 1.500M4.500 15.500L6 14M14 6l1.500-1.500',
+  ...Object.fromEntries(LAYOUT_TYPE_IDS.map((id) => [`layoutType.${id}`, LAYOUT_TYPE_META[id].icon])),
 };
 
 // NFR-UX-002 AC-071〜073: 各ボタンの簡易説明（ツールチップ）。文言キーは tooltip.<command>（ja・en 同一集合）。
@@ -100,6 +107,7 @@ const TIP = {
   'data.reset': ['確認のうえ、議論の内容と保存されたセッションを消去して初期状態に戻します。元に戻せません', 'After confirmation, erase the discussion and the saved session and return to the initial state. Cannot be undone'],
   'file.save': ['議論の途中のデータを 1 つのセッションファイルとして端末に保存します', 'Save the discussion in progress as one session file on this device'],
   'file.load': ['保存したセッションファイルを読み込んで議論の途中を復元します', 'Load a saved session file to restore the discussion in progress'],
+  ...Object.fromEntries(LAYOUT_TYPE_IDS.map((id) => [`layoutType.${id}`, [LAYOUT_TYPE_META[id].ja.tip, LAYOUT_TYPE_META[id].en.tip]])),
 };
 export const tooltipId = (command) => `tooltip-${command.replace(/[^a-zA-Z0-9]+/g, '-')}`;
 
