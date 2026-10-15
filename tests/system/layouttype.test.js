@@ -132,8 +132,8 @@ test('FR-027 AC-140: 手動の選択を解除すると設定の既定（固定�
   app.setSettings({ layout: { mode: 'auto' } });
   app.setLayoutTypes(['bubble']);
   app.clearManualLayout();
-  assert.equal(info(app).source, 'auto');
-  assert.equal(info(app).head, 'zone', '2 つの連続したトピックは自動選択で区画');
+  assert.equal(info(app).manual, false);
+  assert.equal(info(app).source, 'auto', '手動を解除すると設定の既定（自動）に戻る');
 });
 
 test('FR-027 AC-140: 整理の表示では型は図に適用されず選択は保たれ、時系列に戻ると反映される。3D・一覧・ポップアップ・内容は型の影響を受けない', async () => {
@@ -184,6 +184,15 @@ test('FR-028 AC-145: 自動のとき、論点が連続した 2〜4 のトピッ�
   r = await autoApp(); await seed(r.app, r.env, ONE_TOPIC);
   assert.deepEqual(info(r.app).selected, ['diverge'], '流れのない話は発散');
   assert.ok(!info(r.app).selected.includes('timeline'), '流れのない話にタイムラインは選ばれない');
+});
+
+test('FR-028 AC-145: 手動の選択を解除して自動に戻ると、2 つの連続したトピックは自動選択で区画になる', async () => {
+  const { app, env } = await autoApp();
+  await seed(app, env, TWO_TOPICS);
+  app.setLayoutTypes(['bubble']);
+  app.clearManualLayout();
+  assert.equal(info(app).source, 'auto');
+  assert.equal(info(app).head, 'zone', '2 つの連続したトピックは自動選択で区画');
 });
 
 test('FR-028 AC-145: 複数の規則に当てはまるときは優先順位（比喩テンプレート＞区画＞順序のタイムライン）の高い型が先頭になり、当てはまった型が併用される', async () => {
