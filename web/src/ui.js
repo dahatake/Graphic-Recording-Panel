@@ -116,6 +116,17 @@ export function mountUI(app, doc = document) {
       b.disabled = typeof app.commands[b.dataset.command] !== 'function'
         || (b.dataset.command === 'speech.start' && !app.isSpeechAvailable());
     }
+    // FR-027 AC-139: 選択中のレイアウト型は、色だけでなく枠（先頭の型）・チェック印でも示す
+    for (const it of app.getCommandBar().items) {
+      if (!('pressed' in it)) continue;
+      const b = toolbar.querySelector(`[data-command="${it.command}"]`);
+      if (!b) continue;
+      b.setAttribute('aria-pressed', String(it.pressed));
+      if (it.selectedMark) b.dataset.selectedMark = it.selectedMark; else delete b.dataset.selectedMark;
+      let mk = b.querySelector('.sel-mark');
+      if (!mk) { mk = doc.createElement('span'); mk.className = 'sel-mark'; mk.setAttribute('aria-hidden', 'true'); b.append(mk); }
+      mk.textContent = it.selectedMark ? '✓' : '';
+    }
     const interim = $('#interim');
     if (interim) { const ss = app.getSpeechStatus(); interim.textContent = ss.state === 'unavailable' ? ss.text : ''; }
     const cu = app.getConsentUi();
@@ -278,6 +289,50 @@ export function mountUI(app, doc = document) {
     row.querySelector(`[data-action="${d.defaultFocus}"]`)?.focus();
   }
   app.on('change', syncDialog);
+
+  // FR-030: ［設定］画面（既定のレイアウト・描画スタイル）。状態は app が持ち、ここは描くだけ。
+  const setEl = $('#settings-dialog');
+  let setBuilt = null;
+  function syncSettings() {
+    if (!setEl) return;
+    const d = app.getSettingsDialog();
+    if (!d) { setEl.hidden = true; setBuilt = null; return; }
+    const key = app.getState().lang;
+    if (setBuilt !== key) {
+      setBuilt = key; setEl.textContent = '';
+      const o = app.getSettingsOptions();
+      setEl.setAttribute('aria-label', d.label);
+      const h = doc.createElement('h2'); h.textContent = d.label; h.id = 'settings-title';
+      const form = doc.createElement('div'); form.className = 'settings-form';
+      const row = (id, label, control) => { const w = doc.createElement('div'); w.className = 'settings-row'; w.dataset.field = id; const l = doc.createElement('label'); l.textContent = label; l.htmlFor = `settings-${id}`; control.id = `settings-${id}`; w.append(l, control); form.append(w); };
+      const mode = doc.createElement('select');
+      for (const m of o.modes) { const op = doc.createElement('option'); op.value = m.value; op.textContent = m.label; mode.append(op); }
+      mode.addEventListener('change', () => app.setSettings({ layout: { mode: mode.value } }));
+      row('layout.mode', d.fields[0].label, mode);
+      const types = doc.createElement('div'); types.setAttribute('role', 'group'); types.setAttribute('aria-label', d.fields[1].label);
+      for (const ty of o.types) {
+        const lab = doc.createElement('label'); lab.className = 'settings-check';
+        const cb = doc.createElement('input'); cb.type = 'checkbox'; cb.value = ty.value;
+        cb.addEventListener('change', () => { const cur = app.getSettings().layout; const next = cb.checked ? [...cur.types, ty.value] : cur.types.filter((x) => x !== ty.value); app.setSettings({ layout: { mode: cur.mode, types: next } }); });
+        lab.append(cb, ` ${ty.label}`); types.append(lab);
+      }
+      row('layout.types', d.fields[1].label, types);
+      const style = doc.createElement('select');
+      for (const s of o.styles) { const op = doc.createElement('option'); op.value = s.value; op.textContent = s.label; style.append(op); }
+      style.addEventListener('change', () => app.setSettings({ drawStyle: style.value }));
+      row('drawStyle', d.fields[2].label, style);
+      const close = doc.createElement('button'); close.type = 'button'; close.className = 'btn btn-primary'; close.textContent = o.closeLabel; close.dataset.action = 'settings-close';
+      close.addEventListener('click', () => app.commands['settings.close']());
+      setEl.append(h, form, close);
+    }
+    const vals = Object.fromEntries(d.fields.map((f) => [f.id, f.value]));
+    setEl.querySelector('select#settings-layout\\.mode').value = vals['layout.mode'];
+    setEl.querySelector('select#settings-drawStyle').value = vals.drawStyle;
+    for (const cb of setEl.querySelectorAll('input[type=checkbox]')) cb.checked = vals['layout.types'].includes(cb.value);
+    const wasHidden = setEl.hidden; setEl.hidden = false;
+    if (wasHidden) setEl.querySelector('select')?.focus();
+  }
+  app.on('change', syncSettings);
 
   app.on('ui:focusInput', () => draft.focus());
   doc.addEventListener('keydown', (e) => {

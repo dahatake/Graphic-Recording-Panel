@@ -13,7 +13,7 @@
 import { createI18n } from './i18n.js';
 import * as L from './layout.js';
 import { KEYMAP, matchKey } from './keymap.js';
-import { renderOutline } from './outline.js';
+import { renderOutline, escapeHtml } from './outline.js';
 import { newScene, appendPoints, extractPoints } from './scenes.js';
 import * as P from './persist.js';
 import { diagramModule } from './diagram.js';
@@ -28,6 +28,9 @@ import { arrangeModule } from './arrange.js';
 import { sessionModule } from './session.js';
 import { popupModule } from './popup.js';
 import { topicsModule } from './topics.js';
+import { settingsModule } from './settings.js';
+import { autoLayoutModule } from './autolayout.js';
+import { layoutKindsModule } from './layoutkinds.js';
 
 const GAP_MS_DEFAULT = 20_000; // PARAM-002
 const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -174,7 +177,13 @@ export async function createApp(options = {}) {
     change((s) => { s.viewMode = mode; });
     return true;
   };
-  app.renderOutline = () => renderOutline(state.scenes, state.selectedSceneId, i18n.t, app.getOutlineAnnotation?.() ?? null, app.getTopicOutline?.() ?? null);
+  app.renderOutline = () => {
+    const html = renderOutline(state.scenes, state.selectedSceneId, i18n.t, app.getOutlineAnnotation?.() ?? null, app.getTopicOutline?.() ?? null);
+    // FR-036 AC-167: 各まとまり（トピック・区画・囲み）の小見出しを文字でも示す（時系列の表示のとき）
+    const applied = app.getLayoutInfo?.().applied;
+    const groups = applied && state.scenes.length ? (app.getDiagramLayout?.().groups ?? []) : [];
+    return groups.length ? `${html}<section class="outline-groups" aria-label="${i18n.t('outline.groups')}"><h2>${i18n.t('outline.groups')}</h2><ul>${groups.map((g) => `<li data-group-id="${escapeHtml(g.id)}">${escapeHtml(g.heading)}</li>`).join('')}</ul></section>` : html;
+  };
   app.clearSavedSession = () => { P.remove(storage, P.SESSION_KEY); };
 
   // ---- 記録の状態 ----
@@ -249,7 +258,7 @@ export async function createApp(options = {}) {
   app.subscribe = (fn) => on('change', fn);
   app.getPanelRenderer = (id) => panelRenderers.get(id) ?? null;
   app.use = async (mod) => { await mod(ctx); };
-  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, sessionModule, ...(options.modules ?? [])]) await app.use(mod);
+  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, sessionModule, settingsModule, autoLayoutModule, layoutKindsModule, ...(options.modules ?? [])]) await app.use(mod);
 
   return app;
 }

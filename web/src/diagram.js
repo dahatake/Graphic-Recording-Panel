@@ -32,6 +32,19 @@ export function classifyPoint(text) {
   return 'note';
 }
 
+// FR-029: 描画スタイル（drawstyles.js の定義）。描画の間だけ有効（同期処理）。既定は手書き調＝従来の見た目。
+const HAND = { line: { width: 1, jitter: 1 }, fill: { mode: 'paper' }, text: { decor: 'standard', icons: true } };
+let ST = HAND;
+const HEAD_WEIGHT = { standard: 800, bold: 900, plain: 700 };
+const sw = (n) => Math.round(n * ST.line.width * 100) / 100; // 線の太さ（スタイルの倍率）
+// 塗り: 'tint' は種類の色を白に薄く混ぜた面、'paper' は白地
+function paperFor(color) {
+  if (ST.fill.mode !== 'tint' || !/^#[0-9a-f]{6}$/i.test(color)) return '#ffffff';
+  const mix = (i) => Math.round(parseInt(color.slice(i, i + 2), 16) * 0.14 + 255 * 0.86).toString(16).padStart(2, '0');
+  return `#${mix(1)}${mix(3)}${mix(5)}`;
+}
+const decoIcon = (shape, x, y, color) => (ST.text.icons ? iconShape(shape, x, y, color) : '');
+
 // 決定的な手描き風の線: 文字列から種を作り、同じ入力なら必ず同じ揺らぎにする。
 function rng(seedStr) {
   let h = 2166136261;
@@ -40,8 +53,9 @@ function rng(seedStr) {
 }
 const r1 = (n) => Math.round(n * 10) / 10;
 // 折れ線（頂点列）を細かく分け、各点を少しずらした path の d を返す。
-function wobblyD(pts, seed, closed, amp = 1.2) {
+function wobblyD(pts, seed, closed, amp0 = 1.2) {
   const rand = rng(seed);
+  const amp = amp0 * ST.line.jitter;
   const out = [];
   const n = pts.length;
   const segs = closed ? n : n - 1;
@@ -97,6 +111,7 @@ function iconShape(shape, x, y, color) {
 
 // scenes: アプリの状態のシーン配列。opts: { selectedSceneId, t, title }
 export function renderDiagramSvg(scenes, opts = {}) {
+  ST = opts.style ?? HAND;
   const t = opts.t ?? ((k) => k);
   const sel = opts.selectedSceneId ?? null;
   const hlId = opts.highlightPointId ?? null;
@@ -111,10 +126,10 @@ export function renderDiagramSvg(scenes, opts = {}) {
     const body = [];
     const cx = x + w / 2;
     // 見出し（色分けの帯＋太い下線）。要点より大きく太い。
-    body.push(`<path d="${wobblyD(outline('rect', x, MARGIN, w, HEAD_H), `${s.id}:h`, true, 1.4)}" fill="${color}" stroke="${isSel ? INK : color}" stroke-width="${isSel ? 4 : 2}" stroke-linejoin="round" data-role="heading-band"/>`);
-    body.push(`<text x="${x + 14}" y="${MARGIN + 29}" font-size="${FS_HEAD}" font-weight="800" fill="#ffffff" data-role="status">${STATUS_MARK[s.status] ?? ''}${isSel ? SELECTED_MARK : ''}</text>`);
-    body.push(`<text x="${x + 44}" y="${MARGIN + 29}" font-size="${FS_HEAD}" font-weight="800" fill="#ffffff" data-role="heading">${esc(s.heading)}</text>`);
-    body.push(`<path d="${wobblyD([[x + 6, MARGIN + HEAD_H + 6], [x + w - 6, MARGIN + HEAD_H + 6]], `${s.id}:u`, false, 1.2)}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round"/>`);
+    body.push(`<path d="${wobblyD(outline('rect', x, MARGIN, w, HEAD_H), `${s.id}:h`, true, 1.4)}" fill="${color}" stroke="${isSel ? INK : color}" stroke-width="${sw(isSel ? 4 : 2)}" stroke-linejoin="round" data-role="heading-band"/>`);
+    body.push(`<text x="${x + 14}" y="${MARGIN + 29}" font-size="${FS_HEAD}" font-weight="${HEAD_WEIGHT[ST.text.decor]}" fill="#ffffff" data-role="status">${STATUS_MARK[s.status] ?? ''}${isSel ? SELECTED_MARK : ''}</text>`);
+    body.push(`<text x="${x + 44}" y="${MARGIN + 29}" font-size="${FS_HEAD}" font-weight="${HEAD_WEIGHT[ST.text.decor]}" fill="#ffffff" data-role="heading">${esc(s.heading)}</text>`);
+    body.push(`<path d="${wobblyD([[x + 6, MARGIN + HEAD_H + 6], [x + w - 6, MARGIN + HEAD_H + 6]], `${s.id}:u`, false, 1.2)}" fill="none" stroke="${color}" stroke-width="${sw(3)}" stroke-linecap="round"/>`);
     // 要点の吹き出し（種類ごとに 色・形・絵記号 が異なる）
     const top = new Map(); let y = MARGIN + HEAD_H + GAP;
     const dash = s.status === 'in_progress' ? ' stroke-dasharray="6 4"' : '';
@@ -124,13 +139,14 @@ export function renderDiagramSvg(scenes, opts = {}) {
       const kind = classifyPoint(p.text);
       const hl = p.id === hlId;
       const stroke = hl ? HL_COLOR : k.color;
-      const sw = hl ? 5 : 2.5;
+      const sWidth = sw(hl ? 5 : 2.5);
       const frame = hl ? `<path d="${wobblyD(outline(k.shape, x - 6, y - 6, w + 12, BUBBLE_H + 12), `${p.id}:f`, true, 1.2)}" fill="none" stroke="${HL_COLOR}" stroke-width="2" stroke-dasharray="3 3" data-role="highlight-frame"/>` : '';
       const star = hl ? `<g data-role="highlight-icon">${iconShape('star', x + w - 20, y - 16, HL_COLOR)}</g>` : '';
+      const paper = paperFor(k.color);
       body.push(`<g data-point-id="${attr(p.id)}" data-kind="${kind}"${hl ? ' data-highlight="1"' : ''}>${frame}`
-        + `<path d="${wobblyD(outline(k.shape, x, y, w, BUBBLE_H), p.id, true)}" fill="${PAPER}" stroke="${stroke}" stroke-width="${sw}" stroke-linejoin="round"${dash}/>`
-        + `<path d="${wobblyD([[x + 18, y + BUBBLE_H], [x + 12, y + BUBBLE_H + 8], [x + 26, y + BUBBLE_H]], `${p.id}:t`, false, 0.4)}" fill="${PAPER}" stroke="${stroke}" stroke-width="2.5" stroke-linejoin="round"/>`
-        + iconShape(k.icon, x + 8, y + 7, stroke)
+        + `<path d="${wobblyD(outline(k.shape, x, y, w, BUBBLE_H), p.id, true)}" fill="${paper}" stroke="${stroke}" stroke-width="${sWidth}" stroke-linejoin="round"${dash}/>`
+        + `<path d="${wobblyD([[x + 18, y + BUBBLE_H], [x + 12, y + BUBBLE_H + 8], [x + 26, y + BUBBLE_H]], `${p.id}:t`, false, 0.4)}"         fill="${paper}" stroke="${stroke}" stroke-width="${sw(2.5)}" stroke-linejoin="round"/>`
+        + decoIcon(k.icon, x + 8, y + 7, stroke)
         + `<text x="${x + 8 + ICON_W}" y="${y + 24}" font-size="${FS}" fill="${INK}">${esc(p.text)}</text>${star}</g>`);
       y += BUBBLE_H + GAP;
     });
@@ -140,11 +156,11 @@ export function renderDiagramSvg(scenes, opts = {}) {
       if (a == null || b == null) continue;
       const [from, to] = a <= b ? [a, b] : [b, a];
       const hot = hlId != null && (r.from === hlId || r.to === hlId);
-      body.push(`<path data-relation="${attr(r.from)}>${attr(r.to)}"${hot ? ' data-highlight="1"' : ''} d="${wobblyD([[cx, from + BUBBLE_H + 4], [cx, to - 3]], `${r.from}>${r.to}`, false, 1)}" fill="none" stroke="${hot ? HL_COLOR : color}" stroke-width="${hot ? 5 : 2.5}" stroke-linecap="round" marker-end="url(#${hot ? 'arrow-hl' : `arrow-${i % PALETTE.length}`})"/>`);
+      body.push(`<path data-relation="${attr(r.from)}>${attr(r.to)}"${hot ? ' data-highlight="1"' : ''} d="${wobblyD([[cx, from + BUBBLE_H + 4], [cx, to - 3]], `${r.from}>${r.to}`, false, 1)}" fill="none" stroke="${hot ? HL_COLOR : color}" stroke-width="${sw(hot ? 5 : 2.5)}" stroke-linecap="round" marker-end="url(#${hot ? 'arrow-hl' : `arrow-${i % PALETTE.length}`})"/>`);
     }
     // 絵記号（感情・様子の語）
     emos.forEach((e) => {
-      body.push(`<g data-emotion="${attr(e.id)}">${iconShape(e.shape, x + 14, y - 8, color)}<text x="${x + 44}" y="${y + 10}" font-size="${FS}" font-weight="700" fill="${INK}">${esc(e.word)}</text></g>`);
+      body.push(`<g data-emotion="${attr(e.id)}">${decoIcon(e.shape, x + 14, y - 8, color)}<text x="${x + 44}" y="${y + 10}" font-size="${FS}" font-weight="700" fill="${INK}">${esc(e.word)}</text></g>`);
       y += 34;
     });
     // シーンの囲み（背面）
@@ -175,6 +191,7 @@ export function renderDiagramSvg(scenes, opts = {}) {
 // トピック間の関係は線と種類の文字（順・関連）で示し、色だけに頼らない。要点・関係線・絵記号は描かない（テキスト一覧・ポップアップで確認できる）。
 // topics: [{id,title,sceneIds,containsSelected}]、relations: [{id,from,to,kind,label}]、scenes: アプリのシーン配列。opts: { level, selectedSceneId, t, title }
 export function renderTopicsSvg(topics, relations, scenes, opts = {}) {
+  ST = opts.style ?? HAND;
   const t = opts.t ?? ((k) => k);
   const level = opts.level === 'middle' ? 'middle' : 'major';
   const sel = opts.selectedSceneId ?? null;
@@ -241,6 +258,7 @@ export function renderTopicsSvg(topics, relations, scenes, opts = {}) {
 // FR-016 AC-078 AC-079 AC-089: 意味のある配置（整理の表示）の SVG。model は app.getArrangement()（geometry つき）。
 // 軸の名前・区分の見出し・未分類の領域は <text> の文字で示し、色だけに頼らない。
 export function renderArrangedSvg(scenes, model, opts = {}) {
+  ST = opts.style ?? HAND;
   const g = model.geometry;
   const sel = opts.selectedSceneId ?? null;
   const hlId = opts.highlightPointId ?? null;
@@ -378,6 +396,102 @@ function paint(host, app) {
   }
 }
 
+// FR-035: 比喩の絵（SVG の図形だけ。色だけにせず、各要素に文字のラベル）
+function metaphorSvg(m) {
+  const out = [];
+  const lab = (e, x, y) => `<text data-role="metaphor-label" x="${r1(x)}" y="${r1(y)}" font-size="12" font-weight="700" fill="#555">${esc(e.label)}</text>`;
+  for (const e of m.elements) {
+    let shape = '';
+    if (e.type === 'sun') {
+      const cx = e.x + e.w / 2; const cy = e.y + e.h / 2 - 8; const r = 40;
+      const rays = Array.from({ length: 8 }, (_, i) => { const a = (Math.PI * i) / 4; return `<line x1="${r1(cx + Math.cos(a) * (r + 6))}" y1="${r1(cy + Math.sin(a) * (r + 6))}" x2="${r1(cx + Math.cos(a) * (r + 20))}" y2="${r1(cy + Math.sin(a) * (r + 20))}" stroke="#d9a400" stroke-width="3"/>`; }).join('');
+      shape = `${rays}<circle cx="${r1(cx)}" cy="${r1(cy)}" r="${r}" fill="#ffe27a" stroke="#d9a400" stroke-width="2"/>${lab(e, cx - 18, cy + r + 36)}`;
+    } else if (e.type === 'mountain') {
+      shape = `<polygon points="${e.x},${e.y + e.h} ${r1(e.x + e.w * 0.45)},${e.y + 24} ${e.x + e.w},${e.y + e.h}" fill="#e3ebe0" stroke="#9fb39a" stroke-width="1"/>${lab(e, e.x + e.w * 0.45 - 36, e.y + 20)}`;
+    } else if (e.type === 'bridge') {
+      shape = `<path d="M${e.x} ${e.y + e.h} Q${r1(e.x + e.w / 2)} ${e.y + e.h - 70} ${e.x + e.w} ${e.y + e.h}" fill="none" stroke="#b9a58c" stroke-width="5"/>${lab(e, e.x + e.w / 2 - 36, e.y + e.h - 36)}`;
+    } else if (e.type === 'road') {
+      shape = `<rect x="${e.x}" y="${e.y}" width="${r1(e.w)}" height="${e.h}" rx="18" fill="#ececec" stroke="#b5b5b5" stroke-width="1"/><line x1="${e.x + 16}" y1="${e.y + e.h / 2}" x2="${r1(e.x + e.w - 16)}" y2="${e.y + e.h / 2}" stroke="#ffffff" stroke-width="3" stroke-dasharray="14 10"/>${lab(e, e.x + 24, e.y + 14)}`;
+    } else {
+      shape = `<rect x="${r1(e.x)}" y="${r1(e.y)}" width="${r1(e.w)}" height="${r1(e.h)}" fill="none" stroke="#bdbdbd" stroke-width="1" stroke-dasharray="4 4"/>`;
+      if (m.axes) shape += `<line x1="${r1(e.x + e.w / 2)}" y1="${r1(e.y)}" x2="${r1(e.x + e.w / 2)}" y2="${r1(e.y + e.h)}" stroke="#7a7a7a" stroke-width="1.5"/><line x1="${r1(e.x)}" y1="${r1(e.y + e.h / 2)}" x2="${r1(e.x + e.w)}" y2="${r1(e.y + e.h / 2)}" stroke="#7a7a7a" stroke-width="1.5"/>`;
+    }
+    out.push(`<g data-metaphor-element="${attr(e.type)}">${shape}</g>`);
+  }
+  if (m.axes) {
+    out.push(`<g data-role="axes"><text data-role="axis-label" data-axis="x" x="${r1(m.axes.x.x1)}" y="${r1(m.axes.x.y1)}" font-size="12" font-weight="700">${esc(m.axes.x.label)}</text><text data-role="axis-label" data-axis="y" x="${r1(m.axes.y.x1)}" y="${r1(m.axes.y.y1 + 14)}" font-size="12" font-weight="700">${esc(m.axes.y.label)}</text></g>`);
+  }
+  return `<g data-role="metaphor" data-metaphor-kind="${attr(m.kind)}">${out.join('')}${(m.sections ?? []).map((s) => `<g data-metaphor-section="${attr(s.id)}"><rect data-role="frame" x="${r1(s.frame.x)}" y="${r1(s.frame.y)}" width="${r1(s.frame.w)}" height="${r1(s.frame.h)}" rx="8" fill="none" stroke="#9a9a9a" stroke-width="1"/><text data-role="subheading" x="${r1(s.headingRect.x)}" y="${r1(s.headingRect.y + 14)}" font-size="13" font-weight="700">${esc(s.heading)}</text></g>`).join('')}</g>`;
+}
+
+// FR-036: 共通配置（タイトル欄・各まとまりの小見出しと外枠）の SVG。まとまりは <g data-group-id>、小見出しは data-role="subheading"、外枠は data-role="frame"。
+function commonPlacementSvg(L) {
+  if (!L) return '';
+  const parts = [];
+  if (L.title?.visible && L.titleLines?.length) {
+    parts.push(`<g data-role="title">${L.titleLines.map((line, i) => `<text x="${L.title.x}" y="${L.title.y + 14 + i * 16}" font-size="13" font-weight="700">${esc(line)}</text>`).join('')}</g>`);
+  }
+  // FR-035: 比喩（道・山・橋・太陽・4 象限）を先に描く。文字のラベルを必ず付け、外部の画像は使わない
+  if (L.metaphor) parts.push(metaphorSvg(L.metaphor));
+  const divided = (L.dividers ?? []).length > 0; // FR-034: 区切り線があるとき、区画の外枠は線にしない
+  for (const g of L.groups ?? []) {
+    parts.push(`<g data-group-id="${attr(g.id)}" data-group-kind="${attr(g.kind)}"><rect data-role="frame" x="${g.frame.x}" y="${g.frame.y}" width="${g.frame.w}" height="${g.frame.h}" rx="8" fill="none" stroke="${divided && g.kind === 'zone' ? 'none' : 'currentColor'}" stroke-width="1.5"/><text data-role="subheading" x="${g.headingRect.x}" y="${g.headingRect.y + 14}" font-size="13" font-weight="700">${esc(g.heading)}</text></g>`);
+  }
+  // FR-034: 区画の区切り線（グレー。本文より細く、高コントラスト表示では CSS が GrayText にする）
+  for (const d of L.dividers ?? []) parts.push(`<line data-role="zone-divider" x1="${d.x1}" y1="${d.y1}" x2="${d.x2}" y2="${d.y2}" stroke="#8a8a8a" stroke-width="1"/>`);
+  // FR-031〜033: 各単位（data-unit-id・data-order）・中心のテーマ・矢印（data-flow-from/to）。強調は太さ・二重枠・文字の印（色だけにしない）
+  const wrap = (text, w, fs, max) => {
+    const lines = []; let cur = ''; let cw = 0;
+    for (const ch of [...String(text ?? '')]) {
+      const c = ch.codePointAt(0) >= 0x2e80 ? fs : fs * 0.56;
+      if (cw + c > w && cur) { lines.push(cur); cur = ''; cw = 0; }
+      cur += ch; cw += c;
+    }
+    if (cur) lines.push(cur);
+    if (lines.length > max) { lines.length = max; lines[max - 1] = `${lines[max - 1].slice(0, -1)}…`; }
+    return lines;
+  };
+  const rectOf = (id) => (id === 'center' ? L.center : (L.units ?? []).find((u) => u.id === id));
+  const clip = (r, tx, ty) => { // 矩形 r の中心から (tx,ty) へ向かう線が矩形の縁と交わる点
+    const cx = r.x + r.w / 2; const cy = r.y + r.h / 2; const dx = tx - cx; const dy = ty - cy;
+    if (!dx && !dy) return [cx, cy];
+    const k = Math.min(dx ? (r.w / 2) / Math.abs(dx) : Infinity, dy ? (r.h / 2) / Math.abs(dy) : Infinity);
+    return [cx + dx * k, cy + dy * k];
+  };
+  const box = (u, extra, fs) => {
+    const emph = u.emphasis ? 3.5 : 1.5;
+    const jag = u.shape === 'jagged';
+    let frame;
+    if (jag) {
+      const pts = []; const n = 14; const cx = u.x + u.w / 2; const cy = u.y + u.h / 2;
+      for (let i = 0; i < n * 2; i++) { const a = (Math.PI * i) / n; const k = i % 2 ? 0.88 : 1; pts.push(`${r1(cx + Math.cos(a) * (u.w / 2) * k)} ${r1(cy + Math.sin(a) * (u.h / 2) * k)}`); }
+      frame = `<path data-role="unit-frame" d="M${pts.join('L')}Z" fill="#fff" stroke="currentColor" stroke-width="${emph}"/>`;
+    } else frame = `<rect data-role="unit-frame" x="${u.x}" y="${u.y}" width="${u.w}" height="${u.h}" rx="${u.shape === 'round' ? 14 : 6}" fill="#fff" stroke="currentColor" stroke-width="${emph}"/>`;
+    const inner = u.emphasis ? `<rect data-role="emphasis-frame" x="${u.x + 4}" y="${u.y + 4}" width="${u.w - 8}" height="${u.h - 8}" rx="4" fill="none" stroke="currentColor" stroke-width="1"/>` : '';
+    const lines = wrap(u.text, u.w - 28, fs, Math.max(1, Math.floor((u.h - 8) / (fs + 3))));
+    const text = lines.map((ln, i) => `<text x="${u.x + 14}" y="${u.y + 6 + fs + i * (fs + 3)}" font-size="${fs}"${u.emphasis ? ' font-weight="800"' : ''}>${esc(ln)}</text>`).join('');
+    const num = (L.orderMark === 'number' || L.orderMark === 'both') && u.order != null ? `<text data-role="order" x="${u.x + 4}" y="${u.y + 12}" font-size="11" font-weight="700">${u.order + 1}</text>` : '';
+    const badge = u.badge ? `<text data-role="emphasis-mark" x="${u.x + u.w - 6}" y="${u.y + 14}" font-size="11" font-weight="800" text-anchor="end">${esc(u.badge)}</text>` : '';
+    const rel = (u.relations ?? []).map((rl, i) => `<text data-role="inner-relation" x="${u.x + u.w - 6}" y="${u.y + u.h - 6 - i * 12}" font-size="10" text-anchor="end">${esc(rl.label)}</text>`).join('');
+    return `${frame}${inner}${text}${num}${badge}${rel}${extra}`;
+  };
+  if (L.center) {
+    const c = L.center;
+    parts.push(`<g data-unit-id="center" data-role="center">${box({ ...c, emphasis: 'center', shape: 'round', text: c.text }, '', 20)}</g>`);
+  }
+  for (const u of L.units ?? []) {
+    parts.push(`<g data-unit-id="${attr(u.id)}" data-order="${u.order}" data-unit-kind="${attr(u.kind)}"${u.role ? ` data-role-kind="${u.role}"` : ''}${u.attachedTo ? ` data-attached-to="${attr(u.attachedTo)}"` : ''}${u.shape ? ` data-bubble-shape="${u.shape}"` : ''}${u.emphasis ? ` data-emphasis="${u.emphasis}"` : ''}>${box(u, '', 12)}</g>`);
+  }
+  for (const a of L.arrows ?? []) {
+    const f = rectOf(a.from); const t = rectOf(a.to);
+    if (!f || !t) continue;
+    const [x1, y1] = clip(f, t.x + t.w / 2, t.y + t.h / 2); const [x2, y2] = clip(t, f.x + f.w / 2, f.y + f.h / 2);
+    const ang = Math.atan2(y2 - y1, x2 - x1); const hx = (k) => r1(x2 - Math.cos(ang + k) * 9); const hy = (k) => r1(y2 - Math.sin(ang + k) * 9);
+    parts.push(`<g data-role="flow"><line data-flow-from="${attr(a.from)}" data-flow-to="${attr(a.to)}" x1="${r1(x1)}" y1="${r1(y1)}" x2="${r1(x2)}" y2="${r1(y2)}" stroke="currentColor" stroke-width="1.5"/><polygon points="${r1(x2)},${r1(y2)} ${hx(0.4)},${hy(0.4)} ${hx(-0.4)},${hy(-0.4)}" fill="currentColor"/>${a.label ? `<text data-role="arrow-label" x="${r1((x1 + x2) / 2 + 4)}" y="${r1((y1 + y2) / 2 - 4)}" font-size="11" font-weight="700">${esc(a.label)}</text>` : ''}</g>`);
+  }
+  return parts.join('');
+}
+
 // アプリ組立の拡張（modules）: 図の描画・文言・パネル
 export function diagramModule(ctx) {
   ctx.i18n.addStrings({
@@ -391,13 +505,22 @@ export function diagramModule(ctx) {
     },
   });
   ctx.api.renderSvg = () => {
-    const o = { selectedSceneId: ctx.state.selectedSceneId, highlightPointId: currentHighlight()?.pointId ?? null, t: ctx.t, title: ctx.t('app.title') };
+    const o = { selectedSceneId: ctx.state.selectedSceneId, highlightPointId: currentHighlight()?.pointId ?? null, t: ctx.t, title: ctx.t('app.title'), style: ctx.api.getDrawStyleSpec?.() };
     const level = ctx.api.getDetailLevel?.() ?? 'detail';
     const units = level !== 'detail' && ctx.state.scenes.length ? { topics: ctx.api.getTopics(), relations: ctx.api.getTopicRelations(), level } : null;
+    // FR-029 AC-146: 現在の描画スタイル、FR-027 AC-140: 時系列の 2D の図に適用している型を、ルートの属性で示す（整理の表示に型は適用されない）
+    const mark = (svg) => {
+      const info = ctx.api.getLayoutInfo?.();
+      const attrs = [`data-draw-style="${ctx.api.getDrawStyle?.() ?? 'handwritten'}"`];
+      if (info && info.applied) attrs.push(`data-layout-types="${info.selected.join(' ')}"`, `data-layout-head="${info.head}"`);
+      let out = svg.replace('<svg ', `<svg ${attrs.join(' ')} `);
+      if (info && info.applied) out = out.replace(/<\/svg>\s*$/, `${commonPlacementSvg(ctx.api.getDiagramLayout?.())}</svg>`);
+      return out;
+    };
     // FR-016 AC-089: 画面で選んでいる表示（時系列／整理）と同じ配置で出力する（保存もここを通る）
-    if (ctx.state.displayMode === 'arrange' && ctx.api.getArrangement) return renderArrangedSvg(ctx.state.scenes, ctx.api.getArrangement(), { ...o, ...(units ?? {}), selectedLabel: ctx.t('topic.selected') });
-    if (units) return renderTopicsSvg(units.topics, units.relations, ctx.state.scenes, { ...o, level });
-    return renderDiagramSvg(ctx.state.scenes, o);
+    if (ctx.state.displayMode === 'arrange' && ctx.api.getArrangement) return mark(renderArrangedSvg(ctx.state.scenes, ctx.api.getArrangement(), { ...o, ...(units ?? {}), selectedLabel: ctx.t('topic.selected') }));
+    if (units) return mark(renderTopicsSvg(units.topics, units.relations, ctx.state.scenes, { ...o, level }));
+    return mark(renderDiagramSvg(ctx.state.scenes, o));
   };
 
   // ---- FR-015 AC-074: 図の演出の記述（見出しと要点の表現） ----
@@ -405,7 +528,7 @@ export function diagramModule(ctx) {
     scenes: ctx.state.scenes.map((s) => ({
       id: s.id,
       heading: { fontSize: FS_HEAD, fontWeight: 800, framed: true },
-      points: s.points.map((p) => { const kind = classifyPoint(p.text); const k = KINDS[kind]; return { id: p.id, kind, color: k.color, shape: k.shape, icon: k.icon, fontSize: FS, fontWeight: 400 }; }),
+      points: s.points.map((p) => { const kind = classifyPoint(p.text); const k = KINDS[kind]; const icons = ctx.api.getDrawStyleSpec?.()?.text.icons !== false; return { id: p.id, kind, color: k.color, shape: k.shape, icon: icons ? k.icon : 'none', fontSize: FS, fontWeight: 400 }; }),
     })),
   });
 
