@@ -41,7 +41,7 @@ test('FR-020 AC-103 異常系: 値が得られない候補（整理の割り当�
 });
 
 test('FR-020 AC-103: 整理の割り当てがあると整理の区分の軸が選べる', async () => {
-  const { app } = await threeD();
+  const { app } = await threeD(); toDetail(app); // assignObject はシーン単位（詳細度が必要）
   const st = app.getState();
   app.setDisplayMode('arrange');
   const arr = app.getArrangement();
