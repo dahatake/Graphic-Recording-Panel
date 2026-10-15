@@ -1,7 +1,7 @@
 // NFR-BG-001 AC-063 AC-064 AC-065（System Test。契約: tests/system/CONTRACT.md「バックグラウンド動作の継続」）
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { newApp, FakeVisibility } from './helpers.js';
+import { newApp, FakeVisibility, toDetail } from './helpers.js';
 
 const BG_MS = 2 * 1000; // PARAM-008
 const startRec = (app) => { app.commands['session.start'](); app.startSpeech(); };
@@ -15,7 +15,7 @@ const finals = (app) => app.getTranscript().finals.map((f) => f.text);
 
 // NFR-BG-001 AC-063
 test('NFR-BG-001 AC-063: 記録中に非表示になっても確定結果が発話・シーン・要点に反映され、可視に戻ると 2 秒以内に右パネルと図が最新になる', async () => {
-  const { app, env, vis } = await boot();
+  const { app, env, vis } = await boot(); toDetail(app);
   startRec(app);
   env.speech.emit('最初の発言です');
   vis.set(true);

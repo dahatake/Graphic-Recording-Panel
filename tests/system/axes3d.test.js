@@ -1,7 +1,7 @@
 // FR-020 AC-103 AC-104 AC-106（System Test。契約: CONTRACT.md「3D の評価軸」）
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { newApp, seedThreeScenes } from './helpers.js';
+import { newApp, seedThreeScenes, toDetail } from './helpers.js';
 
 const BASE = ['time', 'pointCount', 'utterances', 'emotion', 'arrangeV', 'arrangeH'];
 const cand = (app, id) => app.getAxes3D().candidates.find((c) => c.id === id);
@@ -16,7 +16,7 @@ async function threeD() {
 
 // FR-020 AC-103
 test('FR-020 AC-103: 3D 表示に評価軸の候補 7 種類があり、既定の組は 横=要点の数・縦=感情の強さ・奥行き=時間', async () => {
-  const { app } = await threeD();
+  const { app } = await threeD(); toDetail(app);
   const g = app.getAxes3D();
   const ids = g.candidates.map((c) => c.id);
   for (const id of BASE) assert.ok(ids.includes(id), id);
