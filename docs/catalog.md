@@ -39,7 +39,7 @@
 | FR-020 | 3D 表現の評価軸の選択 | 承認済み | web/src/axes3d.js, web/src/view3d.js, web/styles/view3d.css, web/sw.js | tests/unit/axes3d.test.js, tests/system/axes3d.test.js | アプリ組立, 3D ビュー, i18n, デザイン基盤 |
 | FR-021 | 3D 表現の画面操作と操作説明の表示 | 承認済み | web/src/view3d.js, web/src/i18n.js, web/styles/view3d.css | tests/unit/axes3d.test.js, tests/system/view3dhelp.test.js | アプリ組立, 3D ビュー, i18n, キーマップ, デザイン基盤 |
 | NFR-UX-003 | コマンドバーのアイコンの常時ラベル | 承認済み | web/src/commandbar.js, web/src/ui.js, web/styles/app.css | tests/unit/session.test.js, tests/system/cmdlabel.test.js | コマンドバー, i18n, デザイン基盤, アプリ組立 |
-| FR-023 | 字幕ファイル取込の処理中表示と再取込 | 承認済み | 未実装 | 未実装 | - |
+| FR-023 | 字幕ファイル取込の処理中表示と再取込 | 承認済み | web/src/input.js, web/src/ui.js, web/index.html | tests/unit/importstatus.test.js, tests/system/importstatus.test.js | アプリ組立 |
 | FR-024 | オブジェクト選択時のテキスト一覧のポップアップ表示 | 承認済み | 未実装 | 未実装 | - |
 
 ## API・イベント
@@ -56,7 +56,7 @@
 
 | 部品名 | ファイル | 用途 | 使っている要求 ID |
 |---|---|---|---|
-| アプリ組立 | web/src/app.js | 状態・コマンド・キー割り当て・パネル描画の拡張点（modules / registerCommand / registerPanelRenderer / addUtterance / addUtterances）。後続の機能はここへ足す | FR-001、FR-002、FR-003、FR-004、FR-005、FR-006、FR-007、FR-008、FR-009、FR-010、FR-011、FR-012、FR-013、FR-014、FR-015、FR-016、FR-017、FR-018、FR-019、FR-020、FR-021、FR-022、NFR-A11Y-001、NFR-BG-001、NFR-PERF-001、NFR-UX-001、NFR-UX-003 |
+| アプリ組立 | web/src/app.js | 状態・コマンド・キー割り当て・パネル描画の拡張点（modules / registerCommand / registerPanelRenderer / addUtterance / addUtterances）。後続の機能はここへ足す | FR-001、FR-002、FR-003、FR-004、FR-005、FR-006、FR-007、FR-008、FR-009、FR-010、FR-011、FR-012、FR-013、FR-014、FR-015、FR-016、FR-017、FR-018、FR-019、FR-020、FR-021、FR-022、FR-023、NFR-A11Y-001、NFR-BG-001、NFR-PERF-001、NFR-UX-001、NFR-UX-003 |
 | i18n | web/src/i18n.js | ja/en の UI 文言（addStrings で後続が追加） | FR-006, FR-008, FR-015, FR-016, FR-017, FR-020, FR-021, NFR-UX-002, FR-018, FR-019, NFR-UX-003 |
 | デザイン基盤 | web/styles/tokens.css, web/styles/app.css, web/styles/view3d.css | Fluent 2 のトークン（colorNeutral/Brand 系・角丸 4/8・4px 余白・Type ramp・影・モーション）・ライト/ダーク/forced-colors・フォーカス 3px・積み重ね・カード風パネル・ボタン（primary/subtle） | FR-004, FR-011, FR-013, FR-017, FR-020, FR-021, NFR-A11Y-001, NFR-UX-001, NFR-UX-002, FR-018, NFR-UX-003 |
 | コマンドバー | web/src/commandbar.js | コマンドのグループ・インライン SVG アイコン・主要コマンド（getCommandBar / getCommandStatus）。ステータスバーの文言（記録状態・音声認識・言語・表示）。ボタンの簡易説明（showTooltip / hideTooltip / getTooltip、tooltip.<command>） | NFR-UX-001, NFR-UX-002, FR-016, FR-017, FR-018, FR-019, NFR-UX-003 |
