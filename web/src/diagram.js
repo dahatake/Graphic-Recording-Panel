@@ -396,6 +396,34 @@ function paint(host, app) {
   }
 }
 
+// FR-035: 比喩の絵（SVG の図形だけ。色だけにせず、各要素に文字のラベル）
+function metaphorSvg(m) {
+  const out = [];
+  const lab = (e, x, y) => `<text data-role="metaphor-label" x="${r1(x)}" y="${r1(y)}" font-size="12" font-weight="700" fill="#555">${esc(e.label)}</text>`;
+  for (const e of m.elements) {
+    let shape = '';
+    if (e.type === 'sun') {
+      const cx = e.x + e.w / 2; const cy = e.y + e.h / 2 - 8; const r = 40;
+      const rays = Array.from({ length: 8 }, (_, i) => { const a = (Math.PI * i) / 4; return `<line x1="${r1(cx + Math.cos(a) * (r + 6))}" y1="${r1(cy + Math.sin(a) * (r + 6))}" x2="${r1(cx + Math.cos(a) * (r + 20))}" y2="${r1(cy + Math.sin(a) * (r + 20))}" stroke="#d9a400" stroke-width="3"/>`; }).join('');
+      shape = `${rays}<circle cx="${r1(cx)}" cy="${r1(cy)}" r="${r}" fill="#ffe27a" stroke="#d9a400" stroke-width="2"/>${lab(e, cx - 18, cy + r + 36)}`;
+    } else if (e.type === 'mountain') {
+      shape = `<polygon points="${e.x},${e.y + e.h} ${r1(e.x + e.w * 0.45)},${e.y + 24} ${e.x + e.w},${e.y + e.h}" fill="#e3ebe0" stroke="#9fb39a" stroke-width="1"/>${lab(e, e.x + e.w * 0.45 - 36, e.y + 20)}`;
+    } else if (e.type === 'bridge') {
+      shape = `<path d="M${e.x} ${e.y + e.h} Q${r1(e.x + e.w / 2)} ${e.y + e.h - 70} ${e.x + e.w} ${e.y + e.h}" fill="none" stroke="#b9a58c" stroke-width="5"/>${lab(e, e.x + e.w / 2 - 36, e.y + e.h - 36)}`;
+    } else if (e.type === 'road') {
+      shape = `<rect x="${e.x}" y="${e.y}" width="${r1(e.w)}" height="${e.h}" rx="18" fill="#ececec" stroke="#b5b5b5" stroke-width="1"/><line x1="${e.x + 16}" y1="${e.y + e.h / 2}" x2="${r1(e.x + e.w - 16)}" y2="${e.y + e.h / 2}" stroke="#ffffff" stroke-width="3" stroke-dasharray="14 10"/>${lab(e, e.x + 24, e.y + 14)}`;
+    } else {
+      shape = `<rect x="${r1(e.x)}" y="${r1(e.y)}" width="${r1(e.w)}" height="${r1(e.h)}" fill="none" stroke="#bdbdbd" stroke-width="1" stroke-dasharray="4 4"/>`;
+      if (m.axes) shape += `<line x1="${r1(e.x + e.w / 2)}" y1="${r1(e.y)}" x2="${r1(e.x + e.w / 2)}" y2="${r1(e.y + e.h)}" stroke="#7a7a7a" stroke-width="1.5"/><line x1="${r1(e.x)}" y1="${r1(e.y + e.h / 2)}" x2="${r1(e.x + e.w)}" y2="${r1(e.y + e.h / 2)}" stroke="#7a7a7a" stroke-width="1.5"/>`;
+    }
+    out.push(`<g data-metaphor-element="${attr(e.type)}">${shape}</g>`);
+  }
+  if (m.axes) {
+    out.push(`<g data-role="axes"><text data-role="axis-label" data-axis="x" x="${r1(m.axes.x.x1)}" y="${r1(m.axes.x.y1)}" font-size="12" font-weight="700">${esc(m.axes.x.label)}</text><text data-role="axis-label" data-axis="y" x="${r1(m.axes.y.x1)}" y="${r1(m.axes.y.y1 + 14)}" font-size="12" font-weight="700">${esc(m.axes.y.label)}</text></g>`);
+  }
+  return `<g data-role="metaphor" data-metaphor-kind="${attr(m.kind)}">${out.join('')}${(m.sections ?? []).map((s) => `<g data-metaphor-section="${attr(s.id)}"><rect data-role="frame" x="${r1(s.frame.x)}" y="${r1(s.frame.y)}" width="${r1(s.frame.w)}" height="${r1(s.frame.h)}" rx="8" fill="none" stroke="#9a9a9a" stroke-width="1"/><text data-role="subheading" x="${r1(s.headingRect.x)}" y="${r1(s.headingRect.y + 14)}" font-size="13" font-weight="700">${esc(s.heading)}</text></g>`).join('')}</g>`;
+}
+
 // FR-036: 共通配置（タイトル欄・各まとまりの小見出しと外枠）の SVG。まとまりは <g data-group-id>、小見出しは data-role="subheading"、外枠は data-role="frame"。
 function commonPlacementSvg(L) {
   if (!L) return '';
@@ -403,9 +431,14 @@ function commonPlacementSvg(L) {
   if (L.title?.visible && L.titleLines?.length) {
     parts.push(`<g data-role="title">${L.titleLines.map((line, i) => `<text x="${L.title.x}" y="${L.title.y + 14 + i * 16}" font-size="13" font-weight="700">${esc(line)}</text>`).join('')}</g>`);
   }
+  // FR-035: 比喩（道・山・橋・太陽・4 象限）を先に描く。文字のラベルを必ず付け、外部の画像は使わない
+  if (L.metaphor) parts.push(metaphorSvg(L.metaphor));
+  const divided = (L.dividers ?? []).length > 0; // FR-034: 区切り線があるとき、区画の外枠は線にしない
   for (const g of L.groups ?? []) {
-    parts.push(`<g data-group-id="${attr(g.id)}" data-group-kind="${attr(g.kind)}"><rect data-role="frame" x="${g.frame.x}" y="${g.frame.y}" width="${g.frame.w}" height="${g.frame.h}" rx="8" fill="none" stroke="currentColor" stroke-width="1.5"/><text data-role="subheading" x="${g.headingRect.x}" y="${g.headingRect.y + 14}" font-size="13" font-weight="700">${esc(g.heading)}</text></g>`);
+    parts.push(`<g data-group-id="${attr(g.id)}" data-group-kind="${attr(g.kind)}"><rect data-role="frame" x="${g.frame.x}" y="${g.frame.y}" width="${g.frame.w}" height="${g.frame.h}" rx="8" fill="none" stroke="${divided && g.kind === 'zone' ? 'none' : 'currentColor'}" stroke-width="1.5"/><text data-role="subheading" x="${g.headingRect.x}" y="${g.headingRect.y + 14}" font-size="13" font-weight="700">${esc(g.heading)}</text></g>`);
   }
+  // FR-034: 区画の区切り線（グレー。本文より細く、高コントラスト表示では CSS が GrayText にする）
+  for (const d of L.dividers ?? []) parts.push(`<line data-role="zone-divider" x1="${d.x1}" y1="${d.y1}" x2="${d.x2}" y2="${d.y2}" stroke="#8a8a8a" stroke-width="1"/>`);
   // FR-031〜033: 各単位（data-unit-id・data-order）・中心のテーマ・矢印（data-flow-from/to）。強調は太さ・二重枠・文字の印（色だけにしない）
   const wrap = (text, w, fs, max) => {
     const lines = []; let cur = ''; let cw = 0;

@@ -131,6 +131,7 @@ textarea:focus { border-bottom-color: var(--color-primary); }
   .btn-primary { forced-color-adjust: none; background: ButtonText; color: ButtonFace; }
   .btn[aria-pressed="true"] { border-color: Highlight; border-width: 2px; }
   .btn[disabled] { border-color: GrayText; color: GrayText; opacity: 1; }
+  [data-role="zone-divider"] { stroke: CanvasText; stroke-dasharray: 6 4; } /* FR-034 AC-162 */
 }
 
 .speech-consent { margin-top: var(--space-2, 8px); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
