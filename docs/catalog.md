@@ -43,6 +43,16 @@
 | FR-024 | オブジェクト選択時のテキスト一覧のポップアップ表示 | 承認済み | web/src/popup.js, web/src/app.js, web/src/ui.js, web/src/i18n.js, web/styles/app.css, web/sw.js | tests/unit/popup.test.js, tests/system/scenepopup.test.js | アプリ組立, デザイン基盤 |
 | FR-025 | シーンのトピックへの分類と集約 | 承認済み | web/src/topics.js, web/src/diagram.js, web/src/arrange.js, web/src/popup.js, web/src/outline.js, web/src/persist.js, web/src/session.js, web/src/edit-ui.js, web/src/app.js, web/src/i18n.js, web/styles/app.css, web/sw.js | tests/unit/topics.test.js, tests/system/detail.test.js | アプリ組立, i18n, キーマップ |
 | FR-026 | 図の表示の詳細度の設定（初期値は大項目） | 承認済み | web/src/topics.js, web/src/diagram.js, web/src/arrange.js, web/src/popup.js, web/src/commandbar.js, web/src/ui.js, web/src/i18n.js, web/sw.js | tests/unit/topics.test.js, tests/system/detail.test.js | アプリ組立, デザイン基盤, i18n, コマンドバー, キーマップ |
+| FR-027 | レイアウト型の切替（上部アイコン・名称ラベル・手動上書き・併用） | 承認済み | 未実装 | 未実装 | - |
+| FR-028 | 会話の内容からのレイアウト型の自動選択 | 承認済み | 未実装 | 未実装 | - |
+| FR-029 | 描画スタイルの選択（拡張可能） | 承認済み | 未実装 | 未実装 | - |
+| FR-030 | レイアウト・描画スタイルの［設定］画面での選択 | 承認済み | 未実装 | 未実装 | - |
+| FR-031 | タイムライン型の描画 | 承認済み | 未実装 | 未実装 | - |
+| FR-032 | 吹き出し型の描画 | 承認済み | 未実装 | 未実装 | - |
+| FR-033 | 発散型の描画 | 承認済み | 未実装 | 未実装 | - |
+| FR-034 | 区画型の描画 | 承認済み | 未実装 | 未実装 | - |
+| FR-035 | 比喩テンプレート型の描画 | 承認済み | 未実装 | 未実装 | - |
+| FR-036 | 共通配置（タイトル・登壇者・本編・小見出しと外枠） | 承認済み | 未実装 | 未実装 | - |
 
 ## API・イベント
 
