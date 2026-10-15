@@ -165,3 +165,17 @@ export async function createApp(options) -> app   // await 可能（同期で返
 ## 3D の画面操作と操作説明（FR-021 AC-108・109、追記）
 - `app.getViewpoint()` → `{azimuth, elevation, distance, panX, panY}`。`app.viewControl(op, source)`（`op`: `rotate-left|rotate-right|rotate-up|rotate-down|zoom-in|zoom-out|pan-left|pan-right|pan-up|pan-down|reset`、`source`: `'pointer'|'keyboard'`）→ `{ok}`。3D 表示でないときは `ok:false`。`op` のコマンド `view.<op>` を `keymap` に持つ（`handleKey` は `source:'keyboard'` 相当）。`reset` は初期の視点に戻す。操作はシーンの選択・軸の選択を変えない。
 - `app.getViewControls()` → `{ visible:boolean, role:string, region:'bottom', wrap:'wrap'|'collapsible', hidesOthers:boolean, operations:[{id:'rotate'|'zoom'|'pan'|'reset', mouse:string, touch:string, keyboard:string}] }`。`viewMode==='3d'` かつ WebGL ありのときだけ `visible:true`。幅が PARAM-006 以下でも `visible` のまま `hidesOthers:false`。
+
+## 取込の処理中表示と再取込（FR-023 AC-118〜122、追記）
+- `options.importYield`（省略可、`() => Promise`）: 取込は 50 cue（行）処理するごとに `await options.importYield()` を 1 回呼ぶ（省略時は即時に解決）。テストはこれで処理の途中を観測する。
+- `app.getImportStatus()` → `{ state:'idle'|'processing'|'done'|'failed', label:string, processed:number, total:number, added:number|null, reason:string|null, nextAction:string|null, text:string, role:'status'|'alert', live:'polite'|'assertive', inputReset:boolean }`。
+  - `importTextFile` を呼んだ同期の時点で `state:'processing'`、`total`＝cue（.txt は空でない行）数、`processed` は処理済みの数（0 以上 total 以下、単調増加）。完了で `done`（`added` 件数、`text` に件数）、失敗で `failed`（`reason`、`nextAction` は空でない文字列、`text` に原因と次の操作）。完了・失敗で `processing` ではなくなる。
+  - `label` は文字による状態名（ja: `処理中`・`完了`・`失敗`）。`text` は `label` を含む（色だけで示さない）。
+  - `done`・`failed` の後は `inputReset:true`（ファイル入力の選択値を空に戻し、同じファイルの再選択が通る）。
+- 実 DOM: `web/index.html` に `id="import-status"` の要素（`role="status"` か `role="alert"`、`aria-live` あり）と、`id="import-file"` の `<input type="file">`（名前を持ち、正の `tabindex` なし）。コマンド `file.import`（`keymap` と `searchCommands` にあり、ファイル選択を開く）。
+
+## オブジェクト選択のポップアップ（FR-024 AC-123〜125、追記）
+- `app.getScenePopup()` → `null | { open:true, sceneId, heading, points:[{id,text}], html:string, role:'dialog'|'region'|'tooltip', label:string, focused:boolean, placement:{x,y,w,h,maxHeight:number, scrollable:boolean} }`。`selectScene(id)`（2D・3D とも、存在するシーン id）で開く。存在しない id・`null` では開かず、`null` は選択も解除する（選択の解除でポップアップは閉じる）。
+- `heading`・`points` は `getState().scenes` のそのシーンと同じで、`html` に含まれる。
+- コマンド（`keymap` に割り当てあり）: `scene.next` `scene.prev`（選択を移す）、`popup.open`、`popup.focusContent`（内容へ移る。`focused:true`）、`popup.close`。`handleKey({key:'Escape'})` は開いていれば `'popup.close'` を返して閉じる。`app.popupOutside()` は外側の操作で閉じる。閉じても `selectedSceneId`・draft・`getLayout()`・`getDisplayMode()`・`renderSvg()` は変わらない。
+- ドラッグを要する操作はない。`html` に `draggable` を含めない。

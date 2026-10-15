@@ -71,7 +71,14 @@
     "AC-106": "sha256:79d009b23128130b",
     "AC-108": "sha256:5ab9bfab110c8582",
     "AC-109": "sha256:bece39cc6a2542bc",
-    "AC-113": "sha256:308059a669b0b0cb"
+    "AC-113": "sha256:308059a669b0b0cb",
+    "AC-118": "sha256:ad373d766518ebfd",
+    "AC-119": "sha256:d84d87c369b5cb82",
+    "AC-120": "sha256:04d0acc479d82ac6",
+    "AC-122": "sha256:03467f7bb4a4c841",
+    "AC-123": "sha256:bef2196b47d0ecbb",
+    "AC-124": "sha256:3905a9f0693ba233",
+    "AC-125": "sha256:5133d2fd677f9133"
   },
   "cases": [
     {
@@ -2168,6 +2175,181 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "AC-113/AC-050/AC-102 の文面変更（FR-022 受付時刻・共通入口）に合わせケース見直し"
+        }
+      ]
+    },
+    {
+      "id": "E2E-076",
+      "requirement_ids": [
+        "FR-023"
+      ],
+      "ac_ids": [
+        "AC-118"
+      ],
+      "title": "取込の処理中表示（1 秒以内）・処理済み/全 cue の更新・完了/失敗で消える",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-118\" tests/system/importstatus.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-15T22:37:53+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-077",
+      "requirement_ids": [
+        "FR-023"
+      ],
+      "ac_ids": [
+        "AC-119"
+      ],
+      "title": "取込の完了件数・失敗の原因と次の操作・文字と読み上げでの識別（既存の発話は不変）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-119\" tests/system/importstatus.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-15T22:37:56+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-078",
+      "requirement_ids": [
+        "FR-023"
+      ],
+      "ac_ids": [
+        "AC-120"
+      ],
+      "title": "失敗・未記録のあと同じファイルを選び直して取込できる",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-120\" tests/system/importstatus.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-15T22:37:59+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-079",
+      "requirement_ids": [
+        "FR-023"
+      ],
+      "ac_ids": [
+        "AC-122"
+      ],
+      "title": "取込の追加発話が 3 秒以内に一覧と図へ反映・キーボード操作",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-122\" tests/system/importstatus.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-15T22:38:03+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-080",
+      "requirement_ids": [
+        "FR-024"
+      ],
+      "ac_ids": [
+        "AC-123"
+      ],
+      "title": "オブジェクト選択でシーンの見出し・要点がポップアップ（2D/3D・切替・異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-123\" tests/system/scenepopup.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-15T22:38:06+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-081",
+      "requirement_ids": [
+        "FR-024"
+      ],
+      "ac_ids": [
+        "AC-124"
+      ],
+      "title": "Esc・解除・外側操作でポップアップが閉じ、状態が失われない",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-124\" tests/system/scenepopup.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-15T22:38:09+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-082",
+      "requirement_ids": [
+        "FR-024"
+      ],
+      "ac_ids": [
+        "AC-125"
+      ],
+      "title": "キーボードだけでポップアップを開く・内容へ移る・閉じる・読み上げ対象",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-125\" tests/system/scenepopup.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-15T22:38:12+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
         }
       ]
     }
