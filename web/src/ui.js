@@ -137,6 +137,11 @@ export function mountUI(app, doc = document) {
     }
     if (doc.activeElement !== draft && draft.value !== st.input.draft) draft.value = st.input.draft;
     $('#message').textContent = st.message ? st.message.text : '';
+    const is = app.getImportStatus?.(); const ise = $('#import-status');
+    if (is && ise) {
+      ise.textContent = is.text; ise.setAttribute('role', is.role); ise.setAttribute('aria-live', is.live);
+      ise.dataset.state = is.state;
+    }
     $('#outline').innerHTML = app.renderOutline();
 
     const layout = app.getLayout();
@@ -230,9 +235,13 @@ export function mountUI(app, doc = document) {
     const f = fileInput.files?.[0];
     if (!f) return;
     const text = await f.text();
-    const r = await app.importTextFile({ name: f.name, type: f.type, size: f.size, text });
-    if (r.ok) fileInput.value = '';
+    let r;
+    try { r = await app.importTextFile({ name: f.name, type: f.type, size: f.size, text }); } finally {
+      // FR-023 AC-120: 成功・失敗どちらでも選択を解除し、同じファイルを選び直しても change が起きるようにする
+      if (!r || r.reason !== 'busy') fileInput.value = '';
+    }
   });
+  app.on('ui:pickImportFile', () => fileInput.click());
   // FR-019: セッションファイルの選択（.txt の取込とは別の入力）
   const sessInput = doc.createElement('input');
   sessInput.type = 'file'; sessInput.accept = '.json,application/json'; sessInput.hidden = true; sessInput.id = 'session-file';
@@ -275,6 +284,23 @@ export function mountUI(app, doc = document) {
     const cmd = app.handleKey({ key: e.key, ctrlKey: e.ctrlKey, altKey: e.altKey, shiftKey: e.shiftKey });
     if (cmd) e.preventDefault();
   });
+  // FR-024: オブジェクト選択のポップアップ（図の上。role=dialog・名前つき。Esc・外側の操作で閉じる）
+  let popEl = null;
+  function syncPopup() {
+    const p = app.getScenePopup();
+    if (!p) { if (popEl) { popEl.remove(); popEl = null; } return; }
+    if (!popEl) {
+      popEl = doc.createElement('div'); popEl.id = 'scene-popup'; popEl.className = 'scene-popup'; popEl.tabIndex = -1;
+      doc.body.append(popEl);
+    }
+    popEl.setAttribute('role', p.role); popEl.setAttribute('aria-label', p.label); popEl.dataset.sceneId = p.sceneId;
+    popEl.style.cssText = `position:fixed;left:${p.placement.x}px;top:${p.placement.y}px;width:${p.placement.w}px;max-height:${p.placement.maxHeight}px;overflow:auto;`;
+    if (popEl.dataset.html !== p.html) { popEl.innerHTML = p.html; popEl.dataset.html = p.html; }
+    if (p.focused && doc.activeElement !== popEl) popEl.focus();
+  }
+  app.on('change', syncPopup);
+  doc.addEventListener('pointerdown', (e) => { if (popEl && !e.target.closest?.('#scene-popup, [data-scene-id]')) app.popupOutside(); });
+
   app.subscribe(render);
   render();
   return { render, measureWorkArea };

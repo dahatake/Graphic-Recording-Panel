@@ -29,7 +29,8 @@
         <div class="file-import">
           <label for="import-file" data-i18n="input.file"          >テキストファイル（.txt）・字幕ファイル（.vtt）を取り込む</label>
                     <input id="import-file" type="file" accept=".txt,.vtt,text/plain,text/vtt">
-        </div>
+                              <p id="import-status" class="message" role="status" aria-live="polite"></p>
+                            </div>
         <p id="interim" class="message" role="status" aria-live="polite"></p>
         <div id="speech-consent-box" class="speech-consent" hidden>
           <input type="checkbox" id="speech-consent" aria-describedby="speech-consent-notice">

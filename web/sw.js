@@ -5,7 +5,7 @@ const VERSION = 'grp-shell-v13';
 const SHELL = [
   './', './index.html', './styles/tokens.css', './styles/app.css',
   './src/main.js', './src/app.js', './src/ui.js', './src/i18n.js', './src/layout.js',
-  './src/keymap.js', './src/outline.js', './src/persist.js', './src/scenes.js',
+  './src/keymap.js', './src/outline.js', './src/popup.js', './src/persist.js', './src/scenes.js',
   './src/diagram.js', './src/emotion.js', './src/input.js', './src/vtt.js', './src/speech.js', './src/view3d.js', './styles/view3d.css',
   './src/edit.js', './src/edit-ui.js', './src/export.js', './src/transcript.js', './src/commandbar.js', './src/arrange.js', './src/axes3d.js', './src/session.js',
 ];
