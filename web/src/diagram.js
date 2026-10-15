@@ -396,6 +396,19 @@ function paint(host, app) {
   }
 }
 
+// FR-036: 共通配置（タイトル欄・各まとまりの小見出しと外枠）の SVG。まとまりは <g data-group-id>、小見出しは data-role="subheading"、外枠は data-role="frame"。
+function commonPlacementSvg(L) {
+  if (!L) return '';
+  const parts = [];
+  if (L.title?.visible && L.titleLines?.length) {
+    parts.push(`<g data-role="title">${L.titleLines.map((line, i) => `<text x="${L.title.x}" y="${L.title.y + 14 + i * 16}" font-size="13" font-weight="700">${esc(line)}</text>`).join('')}</g>`);
+  }
+  for (const g of L.groups ?? []) {
+    parts.push(`<g data-group-id="${attr(g.id)}" data-group-kind="${attr(g.kind)}"><rect data-role="frame" x="${g.frame.x}" y="${g.frame.y}" width="${g.frame.w}" height="${g.frame.h}" rx="8" fill="none" stroke="currentColor" stroke-width="1.5"/><text data-role="subheading" x="${g.headingRect.x}" y="${g.headingRect.y + 14}" font-size="13" font-weight="700">${esc(g.heading)}</text></g>`);
+  }
+  return parts.join('');
+}
+
 // アプリ組立の拡張（modules）: 図の描画・文言・パネル
 export function diagramModule(ctx) {
   ctx.i18n.addStrings({
@@ -417,7 +430,9 @@ export function diagramModule(ctx) {
       const info = ctx.api.getLayoutInfo?.();
       const attrs = [`data-draw-style="${ctx.api.getDrawStyle?.() ?? 'handwritten'}"`];
       if (info && info.applied) attrs.push(`data-layout-types="${info.selected.join(' ')}"`, `data-layout-head="${info.head}"`);
-      return svg.replace('<svg ', `<svg ${attrs.join(' ')} `);
+      let out = svg.replace('<svg ', `<svg ${attrs.join(' ')} `);
+      if (info && info.applied) out = out.replace(/<\/svg>\s*$/, `${commonPlacementSvg(ctx.api.getDiagramLayout?.())}</svg>`);
+      return out;
     };
     // FR-016 AC-089: 画面で選んでいる表示（時系列／整理）と同じ配置で出力する（保存もここを通る）
     if (ctx.state.displayMode === 'arrange' && ctx.api.getArrangement) return mark(renderArrangedSvg(ctx.state.scenes, ctx.api.getArrangement(), { ...o, ...(units ?? {}), selectedLabel: ctx.t('topic.selected') }));

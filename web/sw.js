@@ -7,7 +7,7 @@ const SHELL = [
   './src/main.js', './src/app.js', './src/ui.js', './src/i18n.js', './src/layout.js',
   './src/keymap.js', './src/outline.js', './src/popup.js', './src/persist.js', './src/scenes.js',
   './src/diagram.js', './src/emotion.js', './src/input.js', './src/vtt.js', './src/speech.js', './src/view3d.js', './styles/view3d.css',
-  './src/edit.js', './src/edit-ui.js', './src/export.js', './src/transcript.js', './src/commandbar.js', './src/arrange.js', './src/axes3d.js',   './src/session.js', './src/topics.js', './src/settings.js', './src/layouttypes.js', './src/drawstyles.js',
+  './src/edit.js', './src/edit-ui.js', './src/export.js', './src/transcript.js', './src/commandbar.js', './src/arrange.js', './src/axes3d.js',   './src/session.js', './src/topics.js', './src/settings.js', './src/layouttypes.js', './src/autolayout.js', './src/drawstyles.js',
 ];
 
 self.addEventListener('install', (e) => {

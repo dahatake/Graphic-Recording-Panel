@@ -96,6 +96,7 @@ const BASE = {
     'scene.selected': '選択中',
     'scene.heading': 'シーン',
     'outline.empty': 'まだシーンがありません',
+    'outline.groups': 'まとまりの小見出し',
     'diagram.empty': 'まだ図がありません。記録を開始して発話を入力してください',
   },
   en: {
@@ -187,6 +188,7 @@ const BASE = {
     'scene.selected': 'Selected',
     'scene.heading': 'Scene',
     'outline.empty': 'No scenes yet',
+    'outline.groups': 'Group subheadings',
     'diagram.empty': 'No diagram yet. Start recording and enter an utterance',
   },
 };
