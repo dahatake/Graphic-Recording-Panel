@@ -6,6 +6,7 @@ import { buildPdf, wrapLines } from '../../web/src/export.js';
 
 test('FR-005 AC-012: 要点の編集・削除・追加が表示に反映され、以後の発話で上書きされない', async () => {
   const { app, env } = await newApp();
+  app.setDetailLevel('detail'); // FR-026: 要点を図で確かめるため「詳細」にする
   app.commands['session.start']();
   app.setDraft('最初の要点です'); app.submitDraft();
   const sc = app.getState().scenes[0];

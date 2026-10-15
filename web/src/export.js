@@ -63,7 +63,7 @@ export function buildPdf(scenes, { title = '', arrange = null } = {}) {
         const here = g.items.filter((it) => it.y >= r.y && it.y < r.y + r.h && it.x >= c.x && it.x < c.x + c.w);
         if (!here.length) continue;
         block(`${r.label} × ${c.label}`, FS_H, LH_H, 0);
-        for (const it of here) block(byId.get(it.id), FS_P, LH_P, 16);
+        for (const it of here) block(byId.get(it.id) ?? it.text, FS_P, LH_P, 16);
       }
     }
   } else {
@@ -157,7 +157,10 @@ async function renderArrangedPng(scenes, model, canvasFactory) {
   const idx = new Map(scenes.map((s, i) => [s.id, i]));
   const pts = new Map(scenes.flatMap((s) => s.points.map((p) => [p.id, p])));
   for (const it of g.items) {
-    if (it.kind === 'scene') {
+    if (it.kind === 'topic') {
+      c.fillStyle = ink; c.fillRect(it.x, it.y, it.w, it.h);
+      c.fillStyle = '#ffffff'; c.font = font(16, true); c.fillText(it.text, it.x + 10, it.y + it.h / 2);
+    } else if (it.kind === 'scene') {
       c.fillStyle = PALETTE[idx.get(it.id) % PALETTE.length]; c.fillRect(it.x, it.y, it.w, it.h);
       c.fillStyle = '#ffffff'; c.font = font(16, true); c.fillText(scenes[idx.get(it.id)].heading, it.x + 10, it.y + it.h / 2);
     } else {

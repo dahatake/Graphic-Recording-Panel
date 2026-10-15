@@ -293,13 +293,13 @@ export function mountUI(app, doc = document) {
       popEl = doc.createElement('div'); popEl.id = 'scene-popup'; popEl.className = 'scene-popup'; popEl.tabIndex = -1;
       doc.body.append(popEl);
     }
-    popEl.setAttribute('role', p.role); popEl.setAttribute('aria-label', p.label); popEl.dataset.sceneId = p.sceneId;
+    popEl.setAttribute('role', p.role); popEl.setAttribute('aria-label', p.label); popEl.dataset.sceneId = p.sceneId ?? ''; popEl.dataset.topicId = p.topicId ?? '';
     popEl.style.cssText = `position:fixed;left:${p.placement.x}px;top:${p.placement.y}px;width:${p.placement.w}px;max-height:${p.placement.maxHeight}px;overflow:auto;`;
     if (popEl.dataset.html !== p.html) { popEl.innerHTML = p.html; popEl.dataset.html = p.html; }
     if (p.focused && doc.activeElement !== popEl) popEl.focus();
   }
   app.on('change', syncPopup);
-  doc.addEventListener('pointerdown', (e) => { if (popEl && !e.target.closest?.('#scene-popup, [data-scene-id]')) app.popupOutside(); });
+  doc.addEventListener('pointerdown', (e) => { if (popEl && !e.target.closest?.('#scene-popup, [data-scene-id], [data-topic-id]')) app.popupOutside(); });
 
   app.subscribe(render);
   render();

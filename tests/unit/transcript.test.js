@@ -54,6 +54,7 @@ test('FR-014 AC-052: 暫定は区別表示され発話にならず、記録中�
 
 test('FR-014 AC-053 AC-054: 確定・手入力・取込は即座に図へ反映される', async () => {
   const { app, sp } = await mk();
+  app.setDetailLevel('detail'); // FR-026: 要点を図で確かめるため「詳細」にする
   sp.emit('予算', false);
   sp.emit('予算を見直す', true);
   assert.equal(app.getTranscript().interim, null);

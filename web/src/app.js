@@ -27,6 +27,7 @@ import { commandBarModule } from './commandbar.js';
 import { arrangeModule } from './arrange.js';
 import { sessionModule } from './session.js';
 import { popupModule } from './popup.js';
+import { topicsModule } from './topics.js';
 
 const GAP_MS_DEFAULT = 20_000; // PARAM-002
 const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -70,7 +71,7 @@ export async function createApp(options = {}) {
     state.utterances = saved.utterances; state.scenes = saved.scenes;
     state.selectedSceneId = saved.scenes.some((s) => s.id === saved.selectedSceneId) ? saved.selectedSceneId : null;
     seq = saved.seq;
-    state.displayMode = saved.displayMode; state.arrange = saved.arrange;
+    state.displayMode = saved.displayMode; state.arrange = saved.arrange; state.topicEdits = saved.topicEdits;
     if (saved.utterances.length || saved.scenes.length) state.session = 'paused';
   }
 
@@ -82,7 +83,7 @@ export async function createApp(options = {}) {
     if (!state.utterances.length && !state.scenes.length) return;
     P.writeJson(storage, P.SESSION_KEY, {
       utterances: state.utterances, scenes: state.scenes, selectedSceneId: state.selectedSceneId, seq,
-      displayMode: state.displayMode, arrange: state.arrange,
+      displayMode: state.displayMode, arrange: state.arrange, topicEdits: state.topicEdits,
     });
   }
   // 状態を変える唯一の入口: 自動保存と再描画の通知。
@@ -173,7 +174,7 @@ export async function createApp(options = {}) {
     change((s) => { s.viewMode = mode; });
     return true;
   };
-  app.renderOutline = () => renderOutline(state.scenes, state.selectedSceneId, i18n.t, app.getOutlineAnnotation?.() ?? null);
+  app.renderOutline = () => renderOutline(state.scenes, state.selectedSceneId, i18n.t, app.getOutlineAnnotation?.() ?? null, app.getTopicOutline?.() ?? null);
   app.clearSavedSession = () => { P.remove(storage, P.SESSION_KEY); };
 
   // ---- 記録の状態 ----
@@ -248,7 +249,7 @@ export async function createApp(options = {}) {
   app.subscribe = (fn) => on('change', fn);
   app.getPanelRenderer = (id) => panelRenderers.get(id) ?? null;
   app.use = async (mod) => { await mod(ctx); };
-  for (const mod of [diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, sessionModule, ...(options.modules ?? [])]) await app.use(mod);
+  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, sessionModule, ...(options.modules ?? [])]) await app.use(mod);
 
   return app;
 }

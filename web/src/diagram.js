@@ -171,6 +171,73 @@ export function renderDiagramSvg(scenes, opts = {}) {
     + `<title>${title}</title><defs>${markers}</defs><rect width="100%" height="100%" fill="${PAPER}"/>${parts.join('')}${flows.join('')}${empty}</svg>`;
 }
 
+// FR-025/FR-026: 2D の時系列で詳細度が「大項目」「中項目」のときの図。トピックを大項目の箱（題名）、中項目ではその下にシーンの見出しを描く。
+// トピック間の関係は線と種類の文字（順・関連）で示し、色だけに頼らない。要点・関係線・絵記号は描かない（テキスト一覧・ポップアップで確認できる）。
+// topics: [{id,title,sceneIds,containsSelected}]、relations: [{id,from,to,kind,label}]、scenes: アプリのシーン配列。opts: { level, selectedSceneId, t, title }
+export function renderTopicsSvg(topics, relations, scenes, opts = {}) {
+  const t = opts.t ?? ((k) => k);
+  const level = opts.level === 'middle' ? 'middle' : 'major';
+  const sel = opts.selectedSceneId ?? null;
+  const byId = new Map(scenes.map((s) => [s.id, s]));
+  const ROW = 32; const BOX_GAP = 90;
+  const selText = t('topic.selected');
+  const boxes = []; const groups = []; let x = MARGIN;
+  const span = (r) => Math.abs(topics.findIndex((q) => q.id === r.to) - topics.findIndex((q) => q.id === r.from));
+  const arcMax = Math.max(0, ...relations.filter((r) => r.kind === 'related').map((r) => 36 + 20 * span(r)));
+  const top = MARGIN + (arcMax ? arcMax + 22 : 0);
+  let maxH = 0;
+  topics.forEach((tp, i) => {
+    const color = PALETTE[i % PALETTE.length];
+    const heads = tp.sceneIds.map((id) => byId.get(id)).filter(Boolean);
+    const marks = (s) => `${s.id === sel ? SELECTED_MARK : ''}`;
+    const w = Math.ceil(Math.max(220, textWidth(tp.title, FS_HEAD) + 40,
+      level === 'middle' ? Math.max(0, ...heads.map((s) => textWidth(s.heading, FS) + 48)) : 0,
+      tp.containsSelected && level === 'major' ? textWidth(selText, FS) + 48 : 0));
+    const body = [];
+    body.push(`<path d="${wobblyD(outline('rect', x, top, w, HEAD_H), `${tp.id}:h`, true, 1.4)}" fill="${color}" stroke="${tp.containsSelected ? INK : color}" stroke-width="${tp.containsSelected ? 4 : 2}" stroke-linejoin="round" data-role="topic-band"/>`);
+    body.push(`<text x="${x + 14}" y="${top + 29}" font-size="${FS_HEAD}" font-weight="800" fill="#ffffff" data-role="topic-title">${esc(tp.title)}</text>`);
+    let y = top + HEAD_H + 22;
+    if (level === 'major' && tp.containsSelected) {
+      body.push(`<text x="${x + 10}" y="${y}" font-size="${FS}" font-weight="700" fill="${INK}" data-role="contains-selected">${SELECTED_MARK} ${esc(selText)}</text>`);
+      y += ROW - 6;
+    }
+    if (level === 'middle') {
+      for (const s of heads) {
+        const on = s.id === sel;
+        body.push(`<text x="${x + 10}" y="${y}" font-size="${FS}" font-weight="${on ? 800 : 600}" fill="${INK}" data-scene-id="${attr(s.id)}" data-role="scene-heading"${on ? ' aria-current="true"' : ''}>${STATUS_MARK[s.status] ?? ''}${marks(s)} ${esc(s.heading)}</text>`);
+        y += ROW;
+      }
+    }
+    body.unshift(`<path d="${wobblyD(outline('rect', x - 10, top - 10, w + 20, y - top + 2), `${tp.id}:e`, true, 1.6)}" fill="none" stroke="${color}" stroke-width="1.5" stroke-opacity="0.45" stroke-dasharray="2 5" data-role="topic-frame"/>`);
+    boxes.push({ id: tp.id, x, w, color });
+    groups.push(`<g data-topic-id="${attr(tp.id)}"${tp.containsSelected ? ' aria-current="true"' : ''}>${body.join('')}</g>`);
+    maxH = Math.max(maxH, y + MARGIN);
+    x += w + BOX_GAP;
+  });
+  const pos = new Map(boxes.map((b) => [b.id, b]));
+  const lines = [];
+  for (const r of relations) {
+    const a = pos.get(r.from); const b = pos.get(r.to);
+    if (!a || !b) continue;
+    const label = esc(r.label ?? t(`topic.rel.${r.kind}`));
+    if (r.kind === 'order') {
+      const y = top + HEAD_H / 2;
+      lines.push(`<g data-topic-relation="${attr(r.id)}" data-kind="order"><path d="M${a.x + a.w + 10} ${y} L${b.x - 12} ${y}" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round" marker-end="url(#arrow-flow)"/>`
+        + `<text x="${(a.x + a.w + b.x) / 2}" y="${y - 8}" text-anchor="middle" font-size="${FS}" font-weight="700" fill="${INK}" data-role="relation-label">${label}</text></g>`);
+    } else {
+      const ax = a.x + a.w / 2; const bx = b.x + b.w / 2; const h = 36 + 20 * Math.abs(topics.findIndex((q) => q.id === r.to) - topics.findIndex((q) => q.id === r.from));
+      lines.push(`<g data-topic-relation="${attr(r.id)}" data-kind="related"><path d="M${ax} ${top - 10} C${ax} ${top - 10 - h} ${bx} ${top - 10 - h} ${bx} ${top - 12}" fill="none" stroke="${INK}" stroke-width="2.5" stroke-dasharray="6 4" stroke-linecap="round" marker-end="url(#arrow-flow)"/>`
+        + `<text x="${(ax + bx) / 2}" y="${top - 10 - h * 0.75 - 4}" text-anchor="middle" font-size="${FS}" font-weight="700" fill="${INK}" data-role="relation-label">${label}</text></g>`);
+    }
+  }
+  const width = Math.max(320, x - BOX_GAP + MARGIN);
+  const height = Math.max(160, maxH);
+  const marker = `<marker id="arrow-flow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="${INK}"/></marker>`;
+  const title = esc(opts.title ?? '');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" font-family="system-ui, 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif" role="img" aria-label="${attr(opts.title ?? '')}">`
+    + `<title>${title}</title><defs>${marker}</defs><rect width="100%" height="100%" fill="${PAPER}"/>${groups.join('')}${lines.join('')}</svg>`;
+}
+
 // FR-016 AC-078 AC-079 AC-089: 意味のある配置（整理の表示）の SVG。model は app.getArrangement()（geometry つき）。
 // 軸の名前・区分の見出し・未分類の領域は <text> の文字で示し、色だけに頼らない。
 export function renderArrangedSvg(scenes, model, opts = {}) {
@@ -191,9 +258,28 @@ export function renderArrangedSvg(scenes, model, opts = {}) {
   parts.push(`<text x="${g.margin}" y="${g.margin + 38}" font-size="${FS_HEAD}" font-weight="800" fill="${INK}" data-role="axis-name-v">${esc(model.axisLabels.vertical)}: ${esc(model.axes.vertical.name)}</text>`);
   // オブジェクト（要点の吹き出し・シーンの見出し）
   const sceneIdx = new Map(scenes.map((s, i) => [s.id, i]));
+  // FR-025 AC-135: 大項目・中項目の整理では、トピック間の関係を線と種類の文字で示す（色だけに頼らない）
+  const topicIdx = new Map((opts.topics ?? []).map((tp, i) => [tp.id, i]));
+  const cen = new Map(g.items.filter((q) => q.kind === 'topic').map((q) => [q.id, { x: q.x + q.w / 2, y: q.y + q.h / 2 }]));
+  const relLabels = [];
+  for (const r of opts.relations ?? []) {
+    const a = cen.get(r.from); const b = cen.get(r.to);
+    if (!a || !b) continue;
+    parts.push(`<path data-topic-relation="${attr(r.id)}" data-kind="${attr(r.kind)}" d="M${a.x} ${a.y} L${b.x} ${b.y}" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"${r.kind === 'related' ? ' stroke-dasharray="6 4"' : ''}/>`);
+    relLabels.push(`<text x="${(a.x + b.x) / 2}" y="${(a.y + b.y) / 2 - 4}" text-anchor="middle" font-size="${FS}" font-weight="700" fill="${INK}" stroke="${PAPER}" stroke-width="3" paint-order="stroke" data-role="relation-label">${esc(r.label)}</text>`);
+  }
   for (const it of g.items) {
     const reason = `<title>${esc(it.reason)}</title>`;
-    if (it.kind === 'scene') {
+    if (it.kind === 'topic') {
+      const tp = (opts.topics ?? []).find((q) => q.id === it.id);
+      const color = PALETTE[(topicIdx.get(it.id) ?? 0) % PALETTE.length];
+      const cs = !!tp?.containsSelected;
+      parts.push(`<g data-topic-id="${attr(it.id)}" data-assigned="${it.unclassified ? 'unclassified' : 'assigned'}"${cs ? ' aria-current="true"' : ''}>${reason}`
+        + `<path d="${wobblyD(outline('rect', it.x, it.y, it.w, it.h), `${it.id}:h`, true, 1.2)}" fill="${color}" stroke="${cs ? INK : color}" stroke-width="${cs ? 4 : 2}" stroke-linejoin="round" data-role="topic-band"/>`
+        + `<text x="${it.x + 10}" y="${it.y + it.h - 11}" font-size="${FS_HEAD - 2}" font-weight="800" fill="#ffffff" data-role="topic-title">${cs ? SELECTED_MARK : ''} ${esc(it.text)}</text>`
+        + (cs ? `<text x="${it.x + 10}" y="${it.y + it.h + 12}" font-size="${FS - 2}" fill="${INK}" data-role="contains-selected">${esc(opts.selectedLabel ?? '')}</text>` : '')
+        + '</g>');
+    } else if (it.kind === 'scene') {
       const sc = scenes[sceneIdx.get(it.id)];
       const color = PALETTE[sceneIdx.get(it.id) % PALETTE.length];
       const isSel = it.id === sel;
@@ -211,6 +297,7 @@ export function renderArrangedSvg(scenes, model, opts = {}) {
         + `<text x="${it.x + 8 + ICON_W}" y="${it.y + 24}" font-size="${FS}" fill="${INK}">${esc(p.text)}</text></g>`);
     }
   }
+  parts.push(...relLabels);
   const title = esc(opts.title ?? '');
   const { width, height } = g;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" font-family="system-ui, 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif" role="img" aria-label="${attr(opts.title ?? '')}" data-display-mode="arrange">`
@@ -249,7 +336,11 @@ export function mountDiagramPanel(host, app, doc = host.ownerDocument) {
     });
     canvas.addEventListener('click', (ev) => {
       const g = ev.target?.closest?.('[data-point-id]');
-      if (g) app.highlightPoint(g.getAttribute('data-point-id'), 'pointer'); else app.clearHighlight();
+      if (g) { app.highlightPoint(g.getAttribute('data-point-id'), 'pointer'); return; }
+      app.clearHighlight();
+      // FR-026 AC-137: 2D でトピック（大項目）・シーン（中項目）を選ぶ
+      const tp = ev.target?.closest?.('[data-topic-id]'); const sc = ev.target?.closest?.('[data-scene-id]');
+      if (tp) app.selectTopic?.(tp.getAttribute('data-topic-id')); else if (sc) app.selectScene(sc.getAttribute('data-scene-id'));
     });
     canvas.addEventListener('wheel', (ev) => {
       if (!ev.ctrlKey) return;
@@ -280,7 +371,7 @@ function paint(host, app) {
     const z = host._fit !== false ? fit * host._zoom : host._zoom;
     el.setAttribute('width', String(Math.round(w * z))); el.setAttribute('height', String(Math.round(h * z)));
     // 図が空のときは案内文の紙面を図の幅いっぱいに広げる（文字は等倍のまま）
-    if (!el.querySelector('[data-scene-id]') && avail > w * z) {
+    if (!el.querySelector('[data-scene-id], [data-topic-id]') && avail > w * z) {
       el.setAttribute('viewBox', `0 0 ${avail / z} ${h}`);
       el.setAttribute('width', String(avail));
     }
@@ -301,8 +392,11 @@ export function diagramModule(ctx) {
   });
   ctx.api.renderSvg = () => {
     const o = { selectedSceneId: ctx.state.selectedSceneId, highlightPointId: currentHighlight()?.pointId ?? null, t: ctx.t, title: ctx.t('app.title') };
+    const level = ctx.api.getDetailLevel?.() ?? 'detail';
+    const units = level !== 'detail' && ctx.state.scenes.length ? { topics: ctx.api.getTopics(), relations: ctx.api.getTopicRelations(), level } : null;
     // FR-016 AC-089: 画面で選んでいる表示（時系列／整理）と同じ配置で出力する（保存もここを通る）
-    if (ctx.state.displayMode === 'arrange' && ctx.api.getArrangement) return renderArrangedSvg(ctx.state.scenes, ctx.api.getArrangement(), o);
+    if (ctx.state.displayMode === 'arrange' && ctx.api.getArrangement) return renderArrangedSvg(ctx.state.scenes, ctx.api.getArrangement(), { ...o, ...(units ?? {}), selectedLabel: ctx.t('topic.selected') });
+    if (units) return renderTopicsSvg(units.topics, units.relations, ctx.state.scenes, { ...o, level });
     return renderDiagramSvg(ctx.state.scenes, o);
   };
 

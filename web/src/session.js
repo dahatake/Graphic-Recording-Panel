@@ -2,6 +2,7 @@
 // DOM に依存しない。確認（dialog）の状態はここで持ち、ui.js が描く。外部へ通信しない（ファイルはブラウザ内だけで作る・読む）。
 import * as P from './persist.js';
 import { parseArrange, presetArrange } from './arrange.js';
+import { parseEdits, emptyEdits } from './topics.js';
 import { parseAxes, DEFAULT_AXES } from './axes3d.js';
 import { INITIAL_VIEWPOINT } from './view3d.js';
 import { stampName, browserDownload } from './export.js';
@@ -98,7 +99,7 @@ export function sessionModule(ctx) {
     ctx.setSeq(0);
     ctx.change((s) => {
       s.utterances = []; s.scenes = []; s.selectedSceneId = null; s.session = 'preparing';
-      s.viewMode = '2d'; s.displayMode = 'timeline'; s.arrange = presetArrange();
+      s.viewMode = '2d'; s.displayMode = 'timeline'; s.arrange = presetArrange(); s.topicEdits = emptyEdits();
       s.axes3d = { ...DEFAULT_AXES }; s.viewpoint = { ...INITIAL_VIEWPOINT };
       s.input.draft = '';
       if (s.speech) s.speech.interim = '';
@@ -116,7 +117,7 @@ export function sessionModule(ctx) {
     ctx.change((s) => {
       s.utterances = sess.utterances; s.scenes = sess.scenes;
       s.selectedSceneId = sess.scenes.some((x) => x.id === sess.selectedSceneId) ? sess.selectedSceneId : null;
-      s.displayMode = sess.displayMode; s.arrange = parseArrange(sess.arrange);
+      s.displayMode = sess.displayMode;       s.arrange = parseArrange(sess.arrange); s.topicEdits = parseEdits(sess.topicEdits);
       s.viewMode = sess.viewMode; s.axes3d = sess.axes3d; s.viewpoint = { ...INITIAL_VIEWPOINT };
       s.session = 'paused';
       s.input.draft = '';
@@ -154,7 +155,7 @@ export function sessionModule(ctx) {
     const data = JSON.stringify({
       format: FORMAT, version: VERSION,
       utterances: state.utterances, scenes: state.scenes, selectedSceneId: state.selectedSceneId, seq: ctx.getSeq(),
-      displayMode: state.displayMode, arrange: state.arrange, viewMode: state.viewMode, axes3d: state.axes3d,
+      displayMode: state.displayMode, arrange: state.arrange, topicEdits: state.topicEdits, viewMode: state.viewMode, axes3d: state.axes3d,
     });
     await (ctx.options.download ?? browserDownload)({ filename: `grp-session-${stampName(ctx.now())}.json`, mime: 'application/json', data });
     say('msg.fileSaved');

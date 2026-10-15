@@ -96,6 +96,9 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .outline { margin: 0; padding-left: var(--space-5); }
 .outline-scene { margin-bottom: var(--space-3); padding: var(--space-2); border: var(--stroke) solid var(--color-border-subtle); border-radius: var(--radius-control); }
 .outline-scene.is-selected { border: 4px double var(--color-primary); }
+.outline-topics { margin: 0 0 var(--space-3); padding: var(--space-2); border: var(--stroke) solid var(--color-border-subtle); border-radius: var(--radius-control); }
+.outline-topics h2 { font-size: var(--font-size-body); margin: 0 0 var(--space-1); }
+.outline-topics ol, .outline-topics ul { margin: 0; padding-left: var(--space-5); }
 .badge { display: inline-block; font-size: var(--font-size-caption); padding: 0 var(--space-2); border: var(--stroke) solid var(--color-border); border-radius: var(--radius-control); margin-left: var(--space-1); }
 .badge-confirmed { font-weight: var(--font-weight-semibold); }
 .badge-selected { font-weight: var(--font-weight-semibold); text-decoration: underline; }
