@@ -10,7 +10,7 @@ export const LAYOUT_TYPE_META = {
   timeline: {
     icon: 'M3 4h4v4H3zM13 12h4v4h-4zM7 6h6a2 2 0 0 1 2 2v4M3 12h6',
     ja: { label: 'タイムライン', tip: '話の順に左上から右下へ並べるタイムライン型で図を描きます', cmd: 'タイムライン型にする' },
-    en: { label: 'Timeline', tip: 'Draw the diagram as a timeline, from top-left to bottom-right in talk order', cmd: 'Use the timeline layout' },
+    en: { label: 'Time flow', tip: 'Draw the diagram as a timeline, from top-left to bottom-right in talk order', cmd: 'Use the timeline layout' },
   },
   bubble: {
     icon: 'M3 3h14v10H9l-4 4v-4H3z',
