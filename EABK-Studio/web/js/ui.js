@@ -5,9 +5,9 @@ import { store } from './store.js';
 export const TYPE_COLOR = {
   goal: '#ffb020', req: '#4f9dff', nfr: '#2fd3c9', ac: '#9b8cff', part: '#ff6bd6', api: '#34e0a1', table: '#ffd166',
   entity: '#ff8a5c', file: '#8aa1b5', test: '#7ee7a8', component: '#e4e9f0', case: '#ff5c7a', param: '#c3a6ff',
-  question: '#ff4d6d', persona: '#f5a3ff', external: '#7dd3fc',
+  question: '#ff4d6d', persona: '#f5a3ff', external: '#7dd3fc', integration: '#7dd3fc',
 };
-export const TYPE_ORDER = ['goal', 'req', 'ac', 'entity', 'part', 'api', 'table', 'param', 'question', 'file', 'component', 'case', 'persona', 'external'];
+export const TYPE_ORDER = ['goal', 'req', 'ac', 'entity', 'part', 'api', 'table', 'param', 'question', 'file', 'component', 'case', 'persona', 'external', 'integration'];
 export const STATUS_COLOR = { approved: '#34e0a1', proposed: '#ffb020', hold: '#8aa1b5', rejected: '#ff5c7a', retired: '#62708f', unknown: '#62708f' };
 export const BUSINESS_ICON = {
   dashboard: ['📊', 'Dashboard'],
@@ -16,6 +16,7 @@ export const BUSINESS_ICON = {
   diagrams: ['🧩', 'Diagrams'],
   placement: ['🧭', 'Data placement'],
   entities: ['🔗', 'Entity × use case'],
+  integrations: ['🔌', 'External integrations'],
   source: ['💻', 'Source'],
   tables: ['📋', 'Data tables'],
   maintenance: ['🛠️', 'Integrity maintenance'],
@@ -85,10 +86,20 @@ export function vscodeUrl(path, line) {
 }
 
 let toastTimer;
-export function toast(msg) {
+// NFR-OPS-003 AC-028: with `actions` ([{label, run}]) the toast stays until an action is taken.
+export function toast(msg, actions) {
   const e = document.getElementById('toast');
-  e.textContent = msg; e.hidden = false;
   clearTimeout(toastTimer);
+  e.textContent = msg; e.hidden = false;
+  if (actions && actions.length) {
+    for (const a of actions) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn ghost'; b.textContent = a.label;
+      b.addEventListener('click', () => { e.hidden = true; a.run?.(); });
+      e.append(b);
+    }
+    return;
+  }
   toastTimer = setTimeout(() => (e.hidden = true), 2600);
 }
 
