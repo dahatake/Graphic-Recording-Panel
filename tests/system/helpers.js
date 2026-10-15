@@ -139,6 +139,13 @@ export async function seedThreeScenes(app, env) {
   return texts.flat();
 }
 
+// 詳細度の既定は「大項目」（AC-130）。要点・関係線・絵記号を図で確かめるテストは、冒頭でこれを呼んで「詳細」へ切り替える（FR-026、CONTRACT.md「図の詳細度」）。
+export function toDetail(app, level = 'detail') {
+  const r = app.setDetailLevel(level);
+  if (!r || r.ok !== true || app.getDetailLevel() !== level) throw new Error(`詳細度を ${level} に切り替えられない`);
+  return app;
+}
+
 export function visibleTexts(state) {
   const out = [];
   for (const s of state.scenes) { out.push(s.heading); for (const p of s.points) out.push(p.text); }

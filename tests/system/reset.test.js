@@ -1,13 +1,16 @@
 // FR-018 AC-093 AC-094 AC-095 AC-096（System Test。契約: CONTRACT.md「データの初期化」）
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { newApp, seedThreeScenes } from './helpers.js';
+import { newApp, seedThreeScenes, toDetail } from './helpers.js';
+
+// 手順（AC-094）: 詳細度の既定は「大項目」。初期化で詳細度が変わらないことを確かめるため、populated() で toDetail(app, 'middle') により既定以外へ切り替えてから初期化する。
 
 // 発話・シーン・手修正・整理の割り当て・表示設定・3D 軸・選択中シーンがある状態にする
 async function populated(over = {}) {
   const ctx = await newApp(over);
   const { app, env } = ctx;
   await seedThreeScenes(app, env);
+  toDetail(app, 'middle');
   const st = app.getState();
   const pid = st.scenes[0].points[0].id;
   app.editPoint(pid, '手で直した要点');
@@ -64,6 +67,7 @@ test('FR-018 AC-094: 「初期化する」で全データが 0 件になり、�
   assert.deepEqual(app.getManualEdits(), []);
   assert.deepEqual(app.getArrangement().assignments, []);
   assert.deepEqual(app.getAxes3D().axes, { x: 'pointCount', y: 'emotion', z: 'time' });
+  assert.equal(app.getDetailLevel(), 'middle', '図の詳細度は初期化の対象外で変わらない');
   assert.ok(env.speech.stopCalls >= 1, '音声認識は先に停止される');
   assert.ok(st.message?.text?.trim(), '結果のメッセージ');
   assert.equal(app.getCommandBar().status.role, 'status');

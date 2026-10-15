@@ -5,8 +5,8 @@
     "AC-001": "sha256:8e91f4fa84f6f3e3",
     "AC-004": "sha256:9d23cebd5d6f64f1",
     "AC-005": "sha256:6c47b7ed396fbf91",
-    "AC-009": "sha256:a2f80a0e59d8e08c",
-    "AC-010": "sha256:1056340da8283204",
+    "AC-009": "sha256:ea12566b56bfd7f6",
+    "AC-010": "sha256:7ad499846fb55b0e",
     "AC-013": "sha256:e3e6b53eed814289",
     "AC-015": "sha256:8b0e0c7d087b37c9",
     "AC-016": "sha256:1bd7bc8e31179e43",
@@ -47,10 +47,10 @@
     "AC-073": "sha256:f4613d37cff276b7",
     "AC-074": "sha256:8ba50b57132b2dd7",
     "AC-076": "sha256:a313a4a37c4f2c1d",
-    "AC-078": "sha256:d8d6ce4510272fc8",
-    "AC-079": "sha256:99cab4aae4d1c92d",
-    "AC-080": "sha256:4f35d8221b8b48a8",
-    "AC-081": "sha256:98361c593c848428",
+    "AC-078": "sha256:ac04b3f8734ee4d3",
+    "AC-079": "sha256:e89916b86880b8e0",
+    "AC-080": "sha256:ca402d44e9140441",
+    "AC-081": "sha256:4ed7c199b3d6fe57",
     "AC-083": "sha256:d2ec8f52f2f93e85",
     "AC-084": "sha256:45867f6555c9af69",
     "AC-085": "sha256:530594fd0a98db0e",
@@ -58,7 +58,7 @@
     "AC-090": "sha256:a147fa93cb645e5f",
     "AC-091": "sha256:68ba6f2beb1088e4",
     "AC-093": "sha256:9a080531660ba5eb",
-    "AC-094": "sha256:16180703dbedbb3e",
+    "AC-094": "sha256:2124fbcff8462bc7",
     "AC-095": "sha256:adda8087459d4034",
     "AC-096": "sha256:0732a10da7c18adb",
     "AC-097": "sha256:d9c25f1b34ffa920",
@@ -76,9 +76,13 @@
     "AC-119": "sha256:d84d87c369b5cb82",
     "AC-120": "sha256:04d0acc479d82ac6",
     "AC-122": "sha256:03467f7bb4a4c841",
-    "AC-123": "sha256:bef2196b47d0ecbb",
+    "AC-123": "sha256:156739a7cf5488fd",
     "AC-124": "sha256:3905a9f0693ba233",
-    "AC-125": "sha256:5133d2fd677f9133"
+    "AC-125": "sha256:5133d2fd677f9133",
+    "AC-130": "sha256:577eb75379dc3777",
+    "AC-131": "sha256:a16d3de259554f88",
+    "AC-133": "sha256:bd912fe37a65725f",
+    "AC-137": "sha256:fc3fb6a046a5a16e"
   },
   "cases": [
     {
@@ -189,11 +193,11 @@
       "ac_ids": [
         "AC-009"
       ],
-      "title": "発話追加で進行中シーンの図が更新され要点が表示される",
+      "title": "詳細度「詳細」: 発話追加で進行中シーンの図が更新され要点が表示される／大項目・中項目はテキスト一覧に表示",
       "layer": "e2e",
-      "command": "node --test --test-name-pattern=\"AC-009\" tests/system/scenes.test.js",
+      "command": "node --test --test-name-pattern=\"AC-009\" tests/system/scenes.test.js tests/system/detail.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "fbc0f90",
       "last_run_at": "2026-10-15T22:57:23+09:00",
       "evidence": "work/runs/202610152227/logs/system-test/E2E-005-202610152256.log",
@@ -203,6 +207,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-15T23:31:00+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test --test-name-pattern=\"AC-009\" tests/system/scenes.test.js' -> 'node --test --test-name-pattern=\"AC-009\" tests/system/scenes.test.js tests/system/detail.test.js'; title: '発話追加で進行中シーンの図が更新され要点が表示される' -> '詳細度「詳細」: 発話追加で進行中シーンの図が更新され要点が表示される／大項目・中項目はテキスト一覧に表示'",
+          "reason": "期待結果を詳細度「詳細」（FR-026）前提に改訂: 既定は大項目のため各テストの冒頭で setDetailLevel(detail) へ切り替える（helpers.toDetail）。CONTRACT.md「図の詳細度」参照"
         }
       ]
     },
@@ -214,11 +224,11 @@
       "ac_ids": [
         "AC-010"
       ],
-      "title": "シーンが見出し・要点・関係線を持ち時系列に並ぶ",
+      "title": "詳細度「詳細」の時系列: シーンが見出し・要点・関係線を持ち時系列に並ぶ（既定は時系列）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-010\" tests/system/scenes.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "fbc0f90",
       "last_run_at": "2026-10-15T22:57:23+09:00",
       "evidence": "work/runs/202610152227/logs/system-test/E2E-006-202610152256.log",
@@ -228,6 +238,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-15T23:31:01+09:00",
+          "by": "test-designer",
+          "change": "title: 'シーンが見出し・要点・関係線を持ち時系列に並ぶ' -> '詳細度「詳細」の時系列: シーンが見出し・要点・関係線を持ち時系列に並ぶ（既定は時系列）'",
+          "reason": "期待結果を詳細度「詳細」（FR-026）前提に改訂: 既定は大項目のため各テストの冒頭で setDetailLevel(detail) へ切り替える（helpers.toDetail）。CONTRACT.md「図の詳細度」参照"
         }
       ]
     },
@@ -1391,11 +1407,11 @@
       "ac_ids": [
         "AC-078"
       ],
-      "title": "整理の表示: 軸の名前と区分の見出し・既定の組・編集（異常系）",
+      "title": "整理の表示（詳細度によらず）: 軸の名前と区分の見出し・既定の組・編集（異常系）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-078\" tests/system/arrange.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "fbc0f90",
       "last_run_at": "2026-10-15T22:57:23+09:00",
       "evidence": "work/runs/202610152227/logs/system-test/E2E-049-202610152256.log",
@@ -1405,6 +1421,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "ケースを作成"
+        },
+        {
+          "at": "2026-10-15T23:31:01+09:00",
+          "by": "test-designer",
+          "change": "title: '整理の表示: 軸の名前と区分の見出し・既定の組・編集（異常系）' -> '整理の表示（詳細度によらず）: 軸の名前と区分の見出し・既定の組・編集（異常系）'",
+          "reason": "期待結果を詳細度「詳細」（FR-026）前提に改訂: 既定は大項目のため各テストの冒頭で setDetailLevel(detail) へ切り替える（helpers.toDetail）。CONTRACT.md「図の詳細度」参照"
         }
       ]
     },
@@ -1416,11 +1438,11 @@
       "ac_ids": [
         "AC-079"
       ],
-      "title": "整理の表示: 割り当て位置・理由表示・未分類（異常系）",
+      "title": "詳細度「詳細」の整理: 割り当て位置・理由表示・未分類（異常系）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-079\" tests/system/arrange.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "fbc0f90",
       "last_run_at": "2026-10-15T22:57:23+09:00",
       "evidence": "work/runs/202610152227/logs/system-test/E2E-050-202610152256.log",
@@ -1430,6 +1452,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "ケースを作成"
+        },
+        {
+          "at": "2026-10-15T23:31:02+09:00",
+          "by": "test-designer",
+          "change": "title: '整理の表示: 割り当て位置・理由表示・未分類（異常系）' -> '詳細度「詳細」の整理: 割り当て位置・理由表示・未分類（異常系）'",
+          "reason": "期待結果を詳細度「詳細」（FR-026）前提に改訂: 既定は大項目のため各テストの冒頭で setDetailLevel(detail) へ切り替える（helpers.toDetail）。CONTRACT.md「図の詳細度」参照"
         }
       ]
     },
@@ -1441,11 +1469,11 @@
       "ac_ids": [
         "AC-080"
       ],
-      "title": "整理の表示: 記録中の移動で状態が失われず戻されない（異常系）",
+      "title": "詳細度「詳細」の整理: 記録中の移動で状態が失われず戻されない（異常系）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-080\" tests/system/arrange.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "fbc0f90",
       "last_run_at": "2026-10-15T22:57:23+09:00",
       "evidence": "work/runs/202610152227/logs/system-test/E2E-051-202610152256.log",
@@ -1455,6 +1483,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "ケースを作成"
+        },
+        {
+          "at": "2026-10-15T23:31:02+09:00",
+          "by": "test-designer",
+          "change": "title: '整理の表示: 記録中の移動で状態が失われず戻されない（異常系）' -> '詳細度「詳細」の整理: 記録中の移動で状態が失われず戻されない（異常系）'",
+          "reason": "期待結果を詳細度「詳細」（FR-026）前提に改訂: 既定は大項目のため各テストの冒頭で setDetailLevel(detail) へ切り替える（helpers.toDetail）。CONTRACT.md「図の詳細度」参照"
         }
       ]
     },
@@ -1466,11 +1500,11 @@
       "ac_ids": [
         "AC-081"
       ],
-      "title": "整理の表示: ドラッグなしの移動（メニュー・キーボード・異常系）",
+      "title": "詳細度「詳細」の整理: ドラッグなしの移動（メニュー・キーボード・異常系）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-081\" tests/system/arrange.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "fbc0f90",
       "last_run_at": "2026-10-15T22:57:23+09:00",
       "evidence": "work/runs/202610152227/logs/system-test/E2E-052-202610152256.log",
@@ -1480,6 +1514,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "ケースを作成"
+        },
+        {
+          "at": "2026-10-15T23:31:03+09:00",
+          "by": "test-designer",
+          "change": "title: '整理の表示: ドラッグなしの移動（メニュー・キーボード・異常系）' -> '詳細度「詳細」の整理: ドラッグなしの移動（メニュー・キーボード・異常系）'",
+          "reason": "期待結果を詳細度「詳細」（FR-026）前提に改訂: 既定は大項目のため各テストの冒頭で setDetailLevel(detail) へ切り替える（helpers.toDetail）。CONTRACT.md「図の詳細度」参照"
         }
       ]
     },
@@ -1684,11 +1724,11 @@
       "ac_ids": [
         "AC-094"
       ],
-      "title": "データ初期化: 実行で全消去・既定に戻る・停止・メッセージ（異常系）",
+      "title": "データ初期化: 実行で全消去・既定に戻る・停止・メッセージ・詳細度は変わらない（異常系）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-094\" tests/system/reset.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "fbc0f90",
       "last_run_at": "2026-10-15T22:57:23+09:00",
       "evidence": "work/runs/202610152227/logs/system-test/E2E-060-202610152257.log",
@@ -1716,6 +1756,12 @@
           "by": "conductor",
           "change": "canary: True -> False",
           "reason": "未実装の新機能(FR-018)を統合前の canary にすると、先行統合の項目が必ず失敗するため。既存の canary 3 件は維持"
+        },
+        {
+          "at": "2026-10-15T23:31:03+09:00",
+          "by": "test-designer",
+          "change": "title: 'データ初期化: 実行で全消去・既定に戻る・停止・メッセージ（異常系）' -> 'データ初期化: 実行で全消去・既定に戻る・停止・メッセージ・詳細度は変わらない（異常系）'",
+          "reason": "期待結果を詳細度「詳細」（FR-026）前提に改訂: 既定は大項目のため各テストの冒頭で setDetailLevel(detail) へ切り替える（helpers.toDetail）。CONTRACT.md「図の詳細度」参照"
         }
       ]
     },
@@ -2286,11 +2332,11 @@
       "ac_ids": [
         "AC-123"
       ],
-      "title": "オブジェクト選択でシーンの見出し・要点がポップアップ（2D/3D・切替・異常系）",
+      "title": "オブジェクト選択でシーンの見出し・要点がポップアップ（2D 詳細・3D・切替・異常系）",
       "layer": "e2e",
-      "command": "node --test --test-name-pattern=\"AC-123\" tests/system/scenepopup.test.js",
+      "command": "node --test --test-name-pattern=\"AC-123\" tests/system/scenepopup.test.js tests/system/detail.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "fbc0f90",
       "last_run_at": "2026-10-15T22:57:23+09:00",
       "evidence": "work/runs/202610152227/logs/system-test/E2E-080-202610152257.log",
@@ -2300,6 +2346,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-15T23:31:03+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test --test-name-pattern=\"AC-123\" tests/system/scenepopup.test.js' -> 'node --test --test-name-pattern=\"AC-123\" tests/system/scenepopup.test.js tests/system/detail.test.js'; title: 'オブジェクト選択でシーンの見出し・要点がポップアップ（2D/3D・切替・異常系）' -> 'オブジェクト選択でシーンの見出し・要点がポップアップ（2D 詳細・3D・切替・異常系）'",
+          "reason": "期待結果を詳細度「詳細」（FR-026）前提に改訂: 既定は大項目のため各テストの冒頭で setDetailLevel(detail) へ切り替える（helpers.toDetail）。CONTRACT.md「図の詳細度」参照"
         }
       ]
     },
@@ -2347,6 +2399,106 @@
       "history": [
         {
           "at": "2026-10-15T22:38:12+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-083",
+      "requirement_ids": [
+        "FR-026"
+      ],
+      "ac_ids": [
+        "AC-130"
+      ],
+      "title": "詳細度の既定は大項目: トピックの題名だけが図に出る（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-130\" tests/system/detail.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-15T23:30:32+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-084",
+      "requirement_ids": [
+        "FR-026"
+      ],
+      "ac_ids": [
+        "AC-131"
+      ],
+      "title": "詳細度の切替（大項目・中項目・詳細）で内容・選択・記録中が失われない（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-131\" tests/system/detail.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-15T23:30:34+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-085",
+      "requirement_ids": [
+        "FR-026"
+      ],
+      "ac_ids": [
+        "AC-133"
+      ],
+      "title": "詳細度の設定: キーボード・コマンド検索・ラベル・読み上げ・3D/一覧は不変（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-133\" tests/system/detail.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-15T23:30:36+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-086",
+      "requirement_ids": [
+        "FR-026"
+      ],
+      "ac_ids": [
+        "AC-137"
+      ],
+      "title": "整理の大項目・中項目: 最多の区分への配置・理由・トピックのポップアップ（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-137\" tests/system/detail.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-15T23:30:38+09:00",
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"

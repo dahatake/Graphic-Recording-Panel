@@ -2,10 +2,12 @@
 // 公開 API: app.renderSvg(), app.getState().scenes, app.commands['session.nextScene'], app.submitDraft
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { newApp, seedThreeScenes, visibleTexts, PARAM } from './helpers.js';
+import { newApp, seedThreeScenes, visibleTexts, toDetail, PARAM } from './helpers.js';
 
-test('FR-004 AC-009: 発話を追加すると進行中のシーンの図が更新され、新しい要点が表示される', async () => {
-  const { app, env } = await newApp();
+// 手順: 詳細度の既定は「大項目」（AC-130）。AC-009・AC-010 は要点を図で確かめるため、各テストの冒頭で toDetail(app)（setDetailLevel('detail')）で「詳細」へ切り替える。
+
+test('FR-004 AC-009: 詳細度「詳細」で、発話を追加すると進行中のシーンの図が更新され、新しい要点が表示される', async () => {
+  const { app, env } = await newApp(); toDetail(app);
   app.commands['session.start']();
   app.setDraft('在庫の数を減らしたい'); app.submitDraft(); env.tick(1);
   let st = app.getState();
@@ -19,14 +21,15 @@ test('FR-004 AC-009: 発話を追加すると進行中のシーンの図が更�
 });
 
 test('FR-004 AC-009 異常系: 記録中でない発話は図を更新しない', async () => {
-  const { app } = await newApp();
+  const { app } = await newApp(); toDetail(app);
   app.setDraft('記録前の話'); app.submitDraft();
   assert.equal(app.getState().scenes.length, 0);
   assert.ok(!app.renderSvg().includes('記録前の話'));
 });
 
-test('FR-004 AC-010: 各シーンは見出し 1 つ・要点 1 件以上・関係線を持ち、時系列順に並ぶ', async () => {
-  const { app, env } = await newApp();
+test('FR-004 AC-010: 詳細度「詳細」の時系列で、各シーンは見出し 1 つ・要点 1 件以上・関係線を持ち、時系列順に並ぶ', async () => {
+  const { app, env } = await newApp(); toDetail(app);
+  assert.equal(app.getDisplayMode(), 'timeline', '起動時の既定の表示は時系列');
   await seedThreeScenes(app, env);
   const { scenes } = app.getState();
   assert.equal(scenes.length, 3);
@@ -50,13 +53,13 @@ test('FR-004 AC-010: 各シーンは見出し 1 つ・要点 1 件以上・関�
 });
 
 test('FR-004 AC-010 異常系: シーン 0 件のとき図にシーンは現れない', async () => {
-  const { app } = await newApp();
+  const { app } = await newApp(); toDetail(app);
   assert.equal(app.getState().scenes.length, 0);
   assert.ok(!/data-scene-id=/.test(app.renderSvg()));
 });
 
 test(`NFR-PERF-001 AC-038: 100 件の後の 1 件の要点が ${PARAM.UPPER_SEC} 秒以内に表示される`, async () => {
-  const { app, env } = await newApp();
+  const { app, env } = await newApp(); toDetail(app);
   app.commands['session.start']();
   for (let i = 0; i < 100; i++) {
     app.setDraft(`既存の発話その${i}について話す`); app.submitDraft(); env.tick(1);

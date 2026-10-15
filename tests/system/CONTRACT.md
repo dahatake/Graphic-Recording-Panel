@@ -179,3 +179,18 @@ export async function createApp(options) -> app   // await 可能（同期で返
 - `heading`・`points` は `getState().scenes` のそのシーンと同じで、`html` に含まれる。
 - コマンド（`keymap` に割り当てあり）: `scene.next` `scene.prev`（選択を移す）、`popup.open`、`popup.focusContent`（内容へ移る。`focused:true`）、`popup.close`。`handleKey({key:'Escape'})` は開いていれば `'popup.close'` を返して閉じる。`app.popupOutside()` は外側の操作で閉じる。閉じても `selectedSceneId`・draft・`getLayout()`・`getDisplayMode()`・`renderSvg()` は変わらない。
 - ドラッグを要する操作はない。`html` に `draggable` を含めない。
+
+## 図の詳細度（FR-026 AC-130・131・133・009・010・078〜082・089・094・123、FR-025 AC-128・137、追記）
+詳細度は 3 段階 `'major'`（大項目）・`'middle'`（中項目）・`'detail'`（詳細）。**起動時の既定は `'major'`**（保存された設定がないとき）。既存の System Test（AC-009・010・078〜081・094・123）は要点・関係線・絵記号を図で確かめるため、各テストの冒頭で必ず `app.setDetailLevel('detail')` で「詳細」へ切り替える（`helpers.js` の `toDetail(app)`）。大項目・中項目での図は AC-130・131・137 のテスト（`detail.test.js`）が確かめる。
+- `app.getDetailLevel()` → `'major'|'middle'|'detail'`。`app.setDetailLevel(level)` → `{ok}`（不正な値は `ok:false` で不変）。端末ごとの設定として `grp.detail`（保存キー。値は level 文字列）に保存し、`createApp` が復元する（再読込後も保たれる）。セッションファイル（`file.save` の `data`）には含まれず、`file.load`・`data.reset`・`clearSavedSession` でも変わらない。変更しても発話・シーン・要点・手修正・割り当て・`selectedSceneId`・`getState().session`・draft・`getDisplayMode()` は不変。記録中（発話の追加中）でも変更でき、直後の発話も受け付ける。
+- `app.getDetailInfo()` → `{ level, label, options:[{level,label,current:boolean}] }`（現在の詳細度の表示。`label` は表示言語で、全角 1・半角 0.5 と数えて PARAM-011（6）以内。ja は「大項目」「中項目」「詳細」）。
+- コマンド（すべて `keymap` に割り当てを持ち、`app.searchCommands(label)` で見つかる）: `detail.major` `detail.middle` `detail.detail`、および 1 段階ずつ切り替える `detail.next`。実行すると `getState().message.text` に変更の結果（新しい詳細度の `label` を含む）が出て、`getCommandBar().status.role==='status'`。
+- `app.getTopics()` → `[{ id, title, sceneIds:[sceneId], pointIds:[pointId] }]`（FR-025、時系列順）。すべてのシーンはちょうど 1 つのトピックに属し、トピック数はシーン数以下。シーンが 1 つだけのトピックの `title` はそのシーンの見出し。
+- `renderSvg()`（2D）:
+  - `'major'`: トピックごとに `<g data-topic-id="<id>">` があり `title` を `<text>` に含む。トピック間の関係は `<line>`／`<path>` で `data-topic-relation`。**要点の文字列・シーンの見出し（トピックの題名と同じ場合を除く）は含まない**。`data-scene-id` を持つ要素は無い。
+  - `'middle'`: `'major'` に加え、各トピックの下に属するシーンの見出しを `<text>`（`data-scene-id` 付き）で含む。要点は含まない。
+  - `'detail'`: 従来どおり（見出し・要点・関係線・絵記号）。
+  - どの詳細度でも `renderOutline()`（テキスト一覧）は全シーンの見出し・全要点を時系列順で含み、3D（`get3D()`）・ポップアップ（`getScenePopup()`）は詳細度の影響を受けない。
+- 2D の図での選択: `app.selectTopic(topicId)` → `{ok}`（存在しない id は `ok:false` で不変）。2D・`'major'` で開く `getScenePopup()` は、`{ open:true, topicId, title, scenes:[{id,heading,points:[{id,text}]}], html }`（トピックの題名・属するシーンの見出し・要点を `html` に含む。`role`・`label`・`placement` は従来のポップアップと同じ）。閉じ方・選択の保持は AC-124 のとおり。`selectScene(id)` は `'detail'`・`'middle'`・3D で従来どおりシーンのポップアップを開く。
+- 整理の表示（`getDisplayMode()==='arrange'`）: `getArrangement().assignments` に、`'major'`/`'middle'` で図に描かれる単位が `{ objectId: topicId|sceneId, kind:'topic'|'scene', v, h, unclassified, position, breakdown:[{v,h,count}] }` として加わる（要点の割り当てを集計。`v`・`h` は属する要点の割り当てのうち最も多い区分で、同数のときは区分の並び順で先のもの）。`describeObject(topicId|sceneId)` の `text` に置かれた区分のラベルと、`breakdown` の内訳（区分ラベルと件数）が文字で含まれる。軸の名前・各区分の見出し・未分類の領域の `label` は、どの詳細度でも `renderSvg()` の `<text>` にある。要点の移動（`assignObject`・`arrangeCommand`）は `'detail'` で行い、その後 `'major'`/`'middle'` に切り替えると位置に反映される。
+- 画面の読み上げ: 変更結果は `getState().message`、図の `label`（`app.getStrings()` の ja・en）に新しいキーが両言語で存在する。
