@@ -1,4 +1,4 @@
-// FR-031 タイムライン型 / FR-032 吹き出し型 / FR-033 発散型の配置（共通部品「レイアウト型レジストリ」へ registerLayoutType で登録する）。
+// FR-031 タイムライン型 / FR-032 吹き出し型 / FR-033 発散型 / FR-034 区画型 / FR-035 比喩テンプレート型の配置（共通部品「レイアウト型レジストリ」へ registerLayoutType で登録する）。
 // DOM・外部通信に依存しない決定的な純粋関数。話者の識別は対象外（Q-006。AC-157 は BLOCKED）のため吹き出しは話者で分けない。
 import { timelineLayout } from './layouttypes.js';
 import { classifyPoint } from './diagram.js';
@@ -141,9 +141,134 @@ export function divergeLayout(input) {
   };
 }
 
-// アプリ組立の拡張（modules）。settingsModule の後に足す。
-export function layoutKindsModule(ctx) {
-  ctx.api.registerLayoutType('timeline', { layout: timelineTypeLayout });
-  ctx.api.registerLayoutType('bubble', { layout: bubbleLayout });
-  ctx.api.registerLayoutType('diverge', { layout: divergeLayout });
+    // ---- FR-034 区画型 / FR-035 比喩テンプレート型の共通: 描く単位（大項目＝トピック、それ以外＝シーン。詳細は要点も添える） ----
+    export const MAX_ZONES = 4; // PARAM-017（autolayout.js と同じ値。この型では超えた分を最後の区画にまとめる）
+    const UW_H = (input) => (input.level === 'detail' ? 64 : 44);
+    function unitSources(input) {
+      const tOf = topicOfScene(input.topics);
+      const idx = new Map(input.topics.map((tp, i) => [tp.id, i]));
+      if (input.level === 'major') return input.topics.map((tp, i) => ({ id: tp.id, kind: 'topic', text: tp.title, topicIndex: i, sceneIds: tp.sceneIds }));
+      return input.scenes.map((s) => {
+        const tp = tOf.get(s.id);
+        const pts = s.points.map((p) => p.text).join('／');
+        return { id: s.id, kind: 'scene', text: input.level === 'detail' && pts ? `${s.heading}：${pts}` : s.heading, topicIndex: tp ? idx.get(tp.id) : -1, sceneIds: [s.id], points: s.points };
+      });
+    }
+    const SZ = (input, ja, en) => (input.lang === 'en' ? en : ja);
+
+    // ---- FR-034 区画型: 図を縦線で 2〜4 の区画（基本 3）に区切り、1 区画に 1 トピック。1 つなら区切り線なし。超えた分は最後の区画へ ----
+    export function zoneLayout(input) {
+      const info = input.titleInfo ?? {};
+      const visible = titleLines(info).length > 0;
+      const title = { x: M, y: M, w: W - M * 2, h: TITLE_H, visible };
+      const src = unitSources(input);
+      const topics = input.topics;
+      const k = Math.max(1, Math.min(topics.length, MAX_ZONES));
+      const zoneOf = (s) => Math.min(Math.max(s.topicIndex, 0), k - 1);
+      const zw = (W - M * 2) / k; const HEAD = 26; const UH = UW_H(input); const UG = 12;
+      const cols = Array.from({ length: k }, () => []);
+      for (const s of src) cols[zoneOf(s)].push(s);
+      const units = []; let order = 0;
+      const flat = src.map((s) => ({ s, z: zoneOf(s) }));
+      const ordinal = new Map(flat.map((f, i) => [f.s.id, i]));
+      cols.forEach((col, z) => col.forEach((s, r) => {
+        units.push({ id: s.id, kind: s.kind, order: ordinal.get(s.id), x: M + z * zw + 8, y: BODY_Y + HEAD + r * (UH + UG), w: zw - 16, h: UH, text: s.text, emphasis: null, badge: null, relations: [] });
+        order += 1;
+      }));
+      units.sort((a, b) => a.order - b.order);
+      const rows = Math.max(1, ...cols.map((c) => c.length));
+      const bodyH = HEAD + rows * (UH + UG) + 4;
+      const groups = topics.length ? Array.from({ length: k }, (_, z) => {
+        const tp = topics[z];
+        const frame = { x: M + z * zw, y: BODY_Y, w: zw, h: bodyH };
+        return { id: tp.id, kind: 'zone', heading: String(tp.title).trim() || tp.id, frame, headingRect: { x: frame.x + 8, y: BODY_Y + 4, w: zw - 16, h: 18 } };
+      }) : [];
+      const dividers = k > 1 && topics.length ? Array.from({ length: k - 1 }, (_, i) => ({ x1: M + (i + 1) * zw, y1: BODY_Y, x2: M + (i + 1) * zw, y2: BODY_Y + bodyH })) : [];
+      return { canvas: { w: W, h: BODY_Y + bodyH + M }, title, body: { x: M, y: BODY_Y, w: W - M * 2, h: bodyH }, units, arrows: [], orderMark: 'number', groups, dividers, centered: false, titleLines: titleLines(info) };
+    }
+
+    // ---- FR-035 比喩テンプレート型: 比喩（道・山・橋・太陽 / 4 象限）が先に描かれ、その上に区分と内容が載る。外部の画像は使わない ----
+    const GOAL_RE = /ビジョン|ゴール|目標|道のり|ロードマップ|\bvision\b|\bgoal\b|\broadmap\b|\bjourney\b/i;
+    function pointKinds(s) { return (s.points ?? []).map((p) => classifyPoint(p.text)); }
+// トピックごとの囲み（そのトピックの単位をすべて含む外接矩形）。小見出し・テキスト一覧はこの囲みの題名を使う（型を替えても一覧が変わらない）
+function topicGroups(input, units) {
+  const tOf = topicOfScene(input.topics);
+  const out = [];
+  for (const tp of input.topics) {
+    const mine = units.filter((u) => (u.kind === 'topic' ? u.id === tp.id : tOf.get(u.id)?.id === tp.id));
+    if (!mine.length) continue;
+    const x0 = Math.min(...mine.map((u) => u.x)) - 4; const y0 = Math.min(...mine.map((u) => u.y)) - 4;
+    const x1 = Math.max(...mine.map((u) => u.x + u.w)) + 4; const y1 = Math.max(...mine.map((u) => u.y + u.h)) + 4;
+    out.push({ id: tp.id, kind: 'enclosure', heading: String(tp.title).trim() || tp.id, frame: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, headingRect: { x: x0 + 4, y: y0 - 16, w: Math.max(40, x1 - x0 - 8), h: 14 } });
+  }
+  return out;
 }
+
+    export function metaphorLayout(input) {
+      const info = input.titleInfo ?? {};
+      const visible = titleLines(info).length > 0;
+      const title = { x: M, y: M, w: W - M * 2, h: TITLE_H, visible };
+      const src = unitSources(input);
+      const sceneById = new Map(input.scenes.map((s) => [s.id, s]));
+      const kindOfSrc = (s) => s.sceneIds.flatMap((id) => pointKinds(sceneById.get(id) ?? {}));
+      const journey = GOAL_RE.test(input.scenes.flatMap((s) => [s.heading, ...s.points.map((p) => p.text)]).join('\n'));
+      const UH = UW_H(input); const UG = 12; const HEAD = 26;
+      const units = []; const groups = []; const elements = [];
+      let canvasH; let bodyH; let axes = null;
+      if (journey) {
+        const SUN_W = 170; const zw = (W - M * 2 - SUN_W) / 3;
+        const names = [SZ(input, '課題', 'Issues'), SZ(input, '解決策', 'Solutions'), SZ(input, '成果', 'Outcomes')];
+        const stageOf = (i) => Math.min(2, Math.floor((i * 3) / Math.max(1, src.length)));
+        const cols = [[], [], []]; src.forEach((s, i) => cols[stageOf(i)].push({ s, i }));
+        cols.forEach((col, z) => col.forEach(({ s, i }, r) => units.push({ id: s.id, kind: s.kind, order: i, x: M + z * zw + 8, y: BODY_Y + HEAD + r * (UH + UG), w: zw - 16, h: UH, text: s.text, emphasis: null, badge: null, relations: [] })));
+        units.sort((a, b) => a.order - b.order);
+        const rows = Math.max(1, ...cols.map((c) => c.length));
+        bodyH = HEAD + rows * (UH + UG) + 4;
+        names.forEach((n, z) => {
+          const frame = { x: M + z * zw, y: BODY_Y, w: zw, h: bodyH };
+          groups.push({ id: `stage-${z + 1}`, kind: 'zone', heading: n, frame, headingRect: { x: frame.x + 8, y: BODY_Y + 4, w: zw - 16, h: 18 } });
+        });
+        const roadY = BODY_Y + bodyH + 8;
+        elements.push({ type: 'mountain', label: SZ(input, '山（課題）', 'Mountain (issues)'), x: M, y: BODY_Y, w: zw, h: bodyH });
+        elements.push({ type: 'bridge', label: SZ(input, '橋（解決策）', 'Bridge (solutions)'), x: M + zw, y: BODY_Y, w: zw, h: bodyH });
+        elements.push({ type: 'road', label: SZ(input, '道のり', 'Journey'), x: M, y: roadY, w: W - M * 2 - SUN_W, h: 36 });
+        elements.push({ type: 'sun', label: SZ(input, 'ゴール', 'Goal'), x: W - M - SUN_W, y: BODY_Y, w: SUN_W, h: SUN_W });
+        bodyH += 8 + 36;
+        canvasH = BODY_Y + bodyH + M;
+        return { canvas: { w: W, h: canvasH }, title, body: { x: M, y: BODY_Y, w: W - M * 2, h: bodyH }, units, arrows: [], orderMark: 'number', groups: topicGroups(input, units), metaphor: { kind: 'journey', elements, axes: null, sections: groups }, centered: false, titleLines: titleLines(info) };
+      }
+      // 4 象限の振り返り: 縦軸＝良い／悪い、横軸＝いま／これから。課題・良かったこと・アイデア・次の行動に割り当てる
+      const Q = [
+        { id: 'q-good', kind: 'note', name: SZ(input, '良かったこと', 'Went well') },
+        { id: 'q-issue', kind: 'issue', name: SZ(input, '課題', 'Problems') },
+        { id: 'q-idea', kind: 'idea', name: SZ(input, 'アイデア', 'Ideas') },
+        { id: 'q-next', kind: 'conclusion', name: SZ(input, '次の行動', 'Next actions') },
+      ];
+      const qOf = (s) => { const ks = kindOfSrc(s); return ks.includes('issue') ? 1 : ks.includes('idea') ? 2 : ks.includes('conclusion') ? 3 : 0; };
+      const AX = 28; const qw = (W - M * 2 - AX) / 2;
+      const cols = [[], [], [], []]; src.forEach((s, i) => cols[qOf(s)].push({ s, i }));
+      const rows = Math.max(1, ...cols.map((c) => c.length)); const qh = HEAD + rows * (UH + UG) + 4;
+      // 配置: 左上=良かったこと 右上=課題 左下=アイデア 右下=次の行動
+      const pos = [[0, 0], [1, 0], [0, 1], [1, 1]];
+      cols.forEach((col, q) => {
+        const [cx, cy] = pos[q]; const ox = M + AX + cx * qw; const oy = BODY_Y + AX + cy * qh;
+        col.forEach(({ s, i }, r) => units.push({ id: s.id, kind: s.kind, order: i, x: ox + 8, y: oy + HEAD + r * (UH + UG), w: qw - 16, h: UH, text: s.text, emphasis: null, badge: null, relations: [] }));
+        const frame = { x: ox, y: oy, w: qw, h: qh };
+        groups.push({ id: Q[q].id, kind: 'zone', heading: Q[q].name, frame, headingRect: { x: ox + 8, y: oy + 4, w: qw - 16, h: 18 } });
+      });
+      units.sort((a, b) => a.order - b.order);
+      axes = { x: { label: SZ(input, '現在 ⇔ これから', 'Now ⇔ Next'), x1: M + AX, y1: BODY_Y + AX + qh * 2 + 14, x2: W - M }, y: { label: SZ(input, '良い ⇔ 悪い', 'Good ⇔ Bad'), x1: M + 12, y1: BODY_Y + AX, y2: BODY_Y + AX + qh * 2 } };
+      elements.push({ type: 'quadrant', label: SZ(input, '4 象限の振り返り', '4-quadrant retrospective'), x: M + AX, y: BODY_Y + AX, w: qw * 2, h: qh * 2 });
+      bodyH = AX + qh * 2 + 24;
+      return { canvas: { w: W, h: BODY_Y + bodyH + M }, title, body: { x: M, y: BODY_Y, w: W - M * 2, h: bodyH }, units, arrows: [], orderMark: 'number', groups: topicGroups(input, units), metaphor: { kind: 'quadrant', elements, axes, sections: groups }, centered: false, titleLines: titleLines(info) };
+    }
+
+    // アプリ組立の拡張（modules）。settingsModule の後に足す。
+    export function layoutKindsModule(ctx) {
+      ctx.api.registerLayoutType('timeline', { layout: timelineTypeLayout });
+      ctx.api.registerLayoutType('bubble', { layout: bubbleLayout });
+      ctx.api.registerLayoutType('diverge', { layout: divergeLayout });
+      ctx.api.registerLayoutType('zone', { layout: zoneLayout });
+      ctx.api.registerLayoutType('metaphor', { layout: metaphorLayout });
+    }
+
