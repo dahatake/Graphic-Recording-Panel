@@ -86,7 +86,6 @@ export function inputModule(ctx) {
   ctx.api.importTextFile = async (file) => {
     // AC-121: 取込の最中に重ねて実行しても、同じ発話を重複して追加しない
     if (running) { ctx.change(() => ctx.setMessage('msg.importBusy')); return { ok: false, reason: 'busy' }; }
-    if (ctx.state.session !== 'recording') return fail('not_recording');
     const reason = validateTextFile(file ?? {});
     if (reason) return fail(reason);
     const isVtt = /\.vtt$/i.test(String(file.name));
@@ -109,14 +108,14 @@ export function inputModule(ctx) {
       let added = 0;
       for (let from = 0; from < lines.length; from += CHUNK) {
         const part = lines.slice(from, from + CHUNK);
-        const n = ctx.addUtterances(part, cues ? { ats: ats.slice(from, from + CHUNK) } : { at: base, noGapSplit: true });
+        const n = ctx.addUtterances(part, cues ? { ats: ats.slice(from, from + CHUNK), anyState: true } : { at: base, noGapSplit: true, anyState: true });
         ctx.transcript?.addFinals(part.slice(0, n));
         added += n;
         if (n < part.length) break; // 途中で記録中でなくなった
         setImp({ processed: from + part.length });
         if (from + CHUNK < lines.length) await yieldFn();
       }
-      if (!added) return fail('not_recording');
+      if (!added) return fail('empty');
       setImp({ state: 'done', added, reason: null, inputReset: true });
       ctx.change(() => ctx.setMessage('msg.imported'));
       return { ok: true, added };
