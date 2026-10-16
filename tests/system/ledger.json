@@ -839,20 +839,32 @@
       "ac_ids": [
         "AC-054"
       ],
-      "title": "手入力・ファイル取込の確定結果が 3 秒以内に図へ反映",
+      "title": "手入力・ファイル取込の確定結果が 3 秒以内に図へ反映（異常系: 受け付けられない手入力・不正取込は図を変えない）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-054\" tests/system/rightpanel.test.js",
       "canary": false,
-      "status": "pass",
-      "last_commit": "f7e56a6",
-      "last_run_at": "2026-10-16T06:22:42+09:00",
-      "evidence": "work/runs/202610160617/logs/system-test/E2E-029-202610160622.log",
+      "status": "not_run",
+      "last_commit": "f792e33",
+      "last_run_at": "2026-10-17T00:01:01+09:00",
+      "evidence": "work/runs/202610162327/logs/system-test/E2E-029-202610170001.log",
       "history": [
         {
           "at": "2026-10-14T04:54:50+09:00",
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-17T00:01:12+09:00",
+          "by": "test-designer",
+          "change": "title: '手入力・ファイル取込の確定結果が 3 秒以内に図へ反映' -> 'FR-014 AC-054 異常系: 受け付けられない手入力・不正取込は図を変えない（準備中の取込は反映）'",
+          "reason": "FR-039 AC-180/181 に合わせ期待値修正"
+        },
+        {
+          "at": "2026-10-17T00:01:36+09:00",
+          "by": "test-designer",
+          "change": "title: 'FR-014 AC-054 異常系: 受け付けられない手入力・不正取込は図を変えない（準備中の取込は反映）' -> '手入力・ファイル取込の確定結果が 3 秒以内に図へ反映（異常系: 受け付けられない手入力・不正取込は図を変えない）'",
+          "reason": "FR-039 に合わせ異常系の期待値修正"
         }
       ]
     },

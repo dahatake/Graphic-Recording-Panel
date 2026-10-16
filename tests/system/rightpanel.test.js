@@ -164,13 +164,21 @@ test('FR-014 AC-054: ファイル取込の確定結果（100 行）が、取込�
   for (const l of lines) assert.ok(svg.includes(l), `${l} が図にある`);
 });
 
-test('FR-014 AC-054 異常系: 受け付けられなかった取込・手入力は図を変えない', async () => {
+// FR-014 AC-054 / FR-039 AC-180 AC-181: 取込は状態によらず図に反映。受け付けられない手入力（準備中）・不正取込だけが図を変えない
+test('FR-014 AC-054 異常系: 受け付けられなかった手入力・不正な取込は図を変えない（準備中の取込は反映される）', async () => {
   const { app, env } = await newApp();
   app.setDraft('準備中の入力');
   assert.equal(app.submitDraft().ok, false);
-  await app.importTextFile({ name: 'x.txt', type: 'text/plain', size: 5, text: '準備中の取込' });
   env.scheduler.advance(REFLECT_MS * 2);
-  const svg = app.renderSvg();
-  assert.ok(!svg.includes('準備中の入力') && !svg.includes('準備中の取込'));
+  assert.ok(!app.renderSvg().includes('準備中の入力'));
   assert.equal(app.getState().scenes.length, 0);
+  const bad = await app.importTextFile({ name: 'x.bin', type: 'application/octet-stream', size: 5, text: '不正な取込' });
+  assert.equal(bad.ok, false);
+  env.scheduler.advance(REFLECT_MS * 2);
+  assert.ok(!app.renderSvg().includes('不正な取込'));
+  assert.equal(app.getState().scenes.length, 0);
+  const ok = await app.importTextFile({ name: 'x.txt', type: 'text/plain', size: 5, text: '準備中の取込' });
+  assert.equal(ok.ok, true);
+  env.scheduler.advance(REFLECT_MS);
+  assert.ok(app.renderSvg().includes('準備中の取込'));
 });
