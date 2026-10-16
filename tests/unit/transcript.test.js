@@ -33,10 +33,11 @@ test('FR-013 AC-050 AC-051: 取込の各行と音声の確定結果が受付順�
   assert.match(app.renderTranscript(), /role="log"/);
 });
 
+// FR-039 AC-182: 受け付けられない取込（空）は状態によらず一覧を変えない
 test('FR-013 AC-050: 受け付けられない取込は一覧を変えない', async () => {
   const { app } = await mk();
   app.commands['session.pause']();
-  const r = await app.importTextFile({ name: 'a.txt', type: 'text/plain', size: 10, text: 'A' });
+  const r = await app.importTextFile({ name: 'a.txt', type: 'text/plain', size: 1, text: '\n' });
   assert.equal(r.ok, false);
   assert.deepEqual(app.getTranscript().finals, []);
 });
