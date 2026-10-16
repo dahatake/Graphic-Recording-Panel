@@ -92,9 +92,14 @@ test('FR-002 AC-005 異常系: 空ファイルとテキストでないファイ�
   assert.equal(app.getState().utterances.length, 0);
 });
 
-test('FR-002 AC-005 異常系: 記録中でないと取り込まれない', async () => {
+// FR-039 により変更: セッションの状態によらず取り込める（旧: 記録中でないと取り込まれない）
+test('FR-002 AC-005 FR-039 AC-042: 準備中でも .txt は取り込まれるが、手入力の送信は受け付けられない', async () => {
   const { app } = await newApp();
   const r = await app.importTextFile({ name: 'm.txt', type: 'text/plain', size: 3, text: 'a\nb' });
-  assert.equal(r.ok, false);
-  assert.equal(app.getState().utterances.length, 0);
+  assert.equal(r.ok, true);
+  assert.deepEqual(texts(app), ['a', 'b']);
+  assert.equal(app.getState().session, 'preparing');
+  app.setDraft('手入力');
+  assert.equal(app.submitDraft().ok, false);
+  assert.deepEqual(texts(app), ['a', 'b']);
 });

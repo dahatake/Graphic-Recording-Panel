@@ -47,15 +47,27 @@ test('FR-022 AC-113 AC-117: 記録中の取込は本文だけが順に追加さ�
   assert.ok(!dump.includes('山田太郎') && !dump.includes('佐藤花子') && !dump.includes('00:00:01'));
 });
 
-// FR-022 AC-115
-test('FR-022 AC-115: 記録中でないと取り込まれず案内が出る', async () => {
-  const { app } = await mk();
-  for (const prep of [() => {}, () => { app.commands['session.start'](); app.commands['session.pause'](); }]) {
+// FR-039 AC-180 AC-181 AC-182（FR-022 AC-115 は FR-039 で置き換え）: 準備中・一時停止・停止でも取り込め、状態は変わらず、手入力は拒否のまま
+test('FR-039 AC-180/181/182: どの状態でも取り込め、状態は変わらず、拒否表示は出ない', async () => {
+  const preps = [
+    ['preparing', () => {}],
+    ['paused', () => { app.commands['session.start'](); app.commands['session.pause'](); }],
+    ['stopped', () => { app.commands['session.start'](); app.commands['session.stop'](); }],
+    ['recording', () => { app.commands['session.start'](); }],
+  ];
+  let app;
+  for (const [st, prep] of preps) {
+    ({ app } = await mk());
     prep();
     const r = await app.importTextFile(f('a.vtt', sample));
-    assert.equal(r.reason, 'not_recording');
-    assert.equal(app.getState().message.text, '記録を開始・再開してください');
-    assert.equal(app.getState().utterances.length, 0);
+    assert.equal(r.ok, true, st);
+    assert.ok(app.getState().utterances.length > 0, st);
+    assert.equal(app.getState().session, st);
+    assert.notEqual(app.getState().message?.text, '記録を開始・再開してください');
+    if (st !== 'recording') {
+      app.setDraft('手入力');
+      assert.equal(app.submitDraft().reason, 'not_recording');
+    }
   }
 });
 

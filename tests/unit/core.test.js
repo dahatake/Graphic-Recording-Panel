@@ -61,18 +61,21 @@ test('FR-003 AC-044: ファイル取込の各行は同一の受付時刻で、�
 });
 
 // FR-002 AC-042
-test('FR-002 AC-042: 記録中でないとき手入力もファイル取込も受け付けず、案内を表示し入力欄は保たれる', async () => {
+// FR-039 AC-182: ファイル取込は状態によらず可能（手入力のみ拒否）
+test('FR-002 AC-042 FR-039 AC-182: 記録中でないとき手入力は受け付けず、案内を表示し入力欄は保たれる（取込は可能）', async () => {
   const { app } = await mk();
   for (const prep of [() => {}, () => { app.commands['session.start'](); app.commands['session.pause'](); }]) {
     prep();
     app.setDraft('保たれる文');
     assert.equal(app.submitDraft().ok, false);
     assert.equal(app.getState().message.text, '記録を開始・再開してください');
-    const r = await app.importTextFile({ name: 'a.txt', type: 'text/plain', size: 3, text: 'a\nb' });
-    assert.equal(r.reason, 'not_recording');
-    assert.equal(app.getState().utterances.length, 0);
     assert.equal(app.getState().input.draft, '保たれる文');
+    const n = app.getState().utterances.length;
+    const r = await app.importTextFile({ name: 'a.txt', type: 'text/plain', size: 3, text: 'a\nb' });
+    assert.equal(r.ok, true);
+    assert.equal(app.getState().utterances.length, n + 2);
   }
+  app.setDraft('x'); app.submitDraft();
   app.setLang('en');
   assert.equal(app.getState().message.text, app.t('msg.notRecording'));
 });
