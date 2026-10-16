@@ -53,6 +53,7 @@
 | FR-034 | 区画型の描画 | 承認済み | web/src/layoutkinds.js, web/src/diagram.js, web/styles/app.css | tests/unit/layoutzone.test.js | アプリ組立, レイアウト型レジストリ, 型ごとの配置 |
 | FR-035 | 比喩テンプレート型の描画 | 承認済み | web/src/layoutkinds.js, web/src/diagram.js | tests/unit/layoutzone.test.js | アプリ組立, レイアウト型レジストリ, 型ごとの配置 |
 | FR-036 | 共通配置（タイトル・登壇者・本編・小見出しと外枠） | 承認済み | web/src/layouttypes.js, web/src/settings.js, web/src/diagram.js, web/src/app.js, web/src/i18n.js | tests/unit/autolayout.test.js, tests/system/layouttype.test.js | アプリ組立, i18n, レイアウト型レジストリ |
+| FR-039 | ファイル取込はセッションの状態によらずいつでも可能 | 承認済み | 未実装 | 未実装 | - |
 
 ## API・イベント
 
