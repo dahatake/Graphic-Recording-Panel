@@ -110,11 +110,14 @@ test('FR-022 AC-113: 取込んだ発話は右パネル（認識文字列の一�
   assert.deepEqual(app.getTranscript().finals.map((f) => f.text), texts(app));
 });
 
-test('FR-022 AC-113 異常系: 記録中でないと .vtt は取り込まれず発話は追加されない', async () => {
+// FR-039 により変更（AC-113・AC-115）: 記録中でなくても .vtt は取り込まれ、状態は変わらない
+test('FR-022 AC-113 AC-115 FR-039: 記録中でない（準備中）でも .vtt は取り込まれ、発話が追加されて状態は準備中のまま', async () => {
   const { app } = await newApp();
   const r = await app.importTextFile(file('meeting.vtt', teamsVtt));
-  assert.equal(r.ok, false);
-  assert.equal(app.getState().utterances.length, 0);
+  assert.equal(r.ok, true);
+  assert.ok(app.getState().utterances.length >= 3);
+  assert.equal(app.getState().session, 'preparing');
+  assert.doesNotMatch(app.getState().message?.text ?? '', /記録を開始・再開してください/);
 });
 
 test('FR-022 AC-113 異常系: 上限（1 MB）を超える .vtt・WEBVTT ではないファイル・発話になる cue がないファイルは取り込まれず既存の発話は不変', async () => {

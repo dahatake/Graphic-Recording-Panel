@@ -61,9 +61,9 @@ test('FR-023 AC-118: 取込を始めた時点で処理中表示が出て（1 秒
   assert.equal(done.state, 'done');
 });
 
-test('FR-023 AC-118 異常系: 失敗（記録中でない）でも処理中の表示は消える', async () => {
+test('FR-023 AC-118 異常系: 失敗（WEBVTT ではない。記録中かどうかは無関係）でも処理中の表示は消える', async () => {
   const { app } = await newApp();
-  const p = app.importTextFile(file('m.vtt', vttOf(3)));
+  const p = app.importTextFile(file('m.vtt', '一行目\n二行目\n'));
   const r = await p;
   assert.equal(r.ok, false);
   assert.notEqual(app.getImportStatus().state, 'processing');
@@ -84,18 +84,24 @@ test('FR-023 AC-119: 完了で追加件数が文字で表示され、状態名�
   assert.ok(['polite', 'assertive'].includes(s.live));
 });
 
-test('FR-023 AC-119 異常系: 記録中でない・上限超過・WEBVTT でない・空・テキストでない、のどれでも原因と次の操作が出て既存の発話は不変', async () => {
+test('FR-023 AC-119 異常系: 上限超過・WEBVTT でない・空・テキストでない、のどれでも原因と次の操作が出て既存の発話は不変（記録中でないことは理由にならない。FR-039）', async () => {
   const { app } = await newApp();
   const v = vttOf(3);
-  const stop = await app.importTextFile(file('m.vtt', v));
-  assert.equal(stop.ok, false);
-  let s = app.getImportStatus();
-  assert.equal(s.state, 'failed');
-  assert.ok(s.text.includes('記録を開始') || s.text.includes('再開'), '記録を開始・再開する旨が出る');
-  assert.ok(s.nextAction && s.nextAction.length > 0);
+  const prep = await app.importTextFile(file('m.vtt', v));
+  assert.equal(prep.ok, true, '準備中でも取り込める');
+  assert.equal(app.getImportStatus().state, 'done');
+  assert.ok(!app.getImportStatus().text.includes('記録を開始'));
+  for (const setup of [[], ['session.start'], ['session.start', 'session.pause'], ['session.start', 'session.stop']]) {
+    const { app: app2 } = await newApp();
+    await failCases(app2, v, setup);
+  }
+});
 
-  app.commands['session.start']();
-  app.setDraft('既存'); app.submitDraft();
+async function failCases(app, v, setup) {
+  let s;
+  const r0 = await app.importTextFile(file('ok.txt', '既存', { type: 'text/plain' }));
+  assert.equal(r0.ok, true);
+  for (const c of setup) app.commands[c]();
   const cases = [
     file('big.vtt', v, { size: 2_000_000 }),
     file('fake.vtt', '一行目\n二行目\n'),
@@ -113,19 +119,23 @@ test('FR-023 AC-119 異常系: 記録中でない・上限超過・WEBVTT でな
     assert.ok(['status', 'alert'].includes(s.role));
     assert.deepEqual(app.getState().utterances.map((u) => u.text), ['既存'], `${c.name}: 既存の発話は不変`);
   }
-});
+}
 
-test('FR-023 AC-120: 記録中でないため受け付けられなかったあと、記録を開始して同じファイルを再び選ぶと取り込まれる', async () => {
-  const { app } = await newApp();
-  const f = file('same.vtt', vttOf(3));
-  const first = await app.importTextFile(f);
-  assert.equal(first.ok, false);
-  assert.equal(app.getImportStatus().inputReset, true, '同じファイルを再選択できるよう選択値が戻る');
-  app.commands['session.start']();
-  const again = await app.importTextFile(f);
-  assert.equal(again.ok, true);
-  assert.deepEqual(app.getState().utterances.map((u) => u.text), ['発話0', '発話1', '発話2']);
-  assert.equal(app.getImportStatus().state, 'done');
+test('FR-023 AC-120 FR-039: 準備中・一時停止・停止でも、記録を開始・再開せずに取り込め、同じファイルの再取込もできる', async () => {
+  for (const setup of [[], ['session.start', 'session.pause'], ['session.start', 'session.stop']]) {
+    const { app } = await newApp();
+    for (const c of setup) app.commands[c]();
+    const before = app.getState().session;
+    const f = file('same.vtt', vttOf(3));
+    const first = await app.importTextFile(f);
+    assert.equal(first.ok, true, `${before}: 取込できる`);
+    assert.equal(app.getImportStatus().inputReset, true, '同じファイルを再選択できるよう選択値が戻る');
+    assert.equal(app.getState().session, before, '状態は変わらない');
+    const again = await app.importTextFile(f);
+    assert.equal(again.ok, true);
+    assert.equal(app.getState().utterances.length, 6);
+    assert.equal(app.getImportStatus().state, 'done');
+  }
 });
 
 test('FR-023 AC-120 異常系: 取込に失敗したあとも同じ名前のファイルを選び直して実行でき、失敗が再選択を妨げない', async () => {
