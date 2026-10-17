@@ -59,6 +59,10 @@
 | FR-049 | RPGのBGMと効果音（SE） | 承認済み | web/src/rpgaudio.js, web/src/app.js, web/sw.js | tests/unit/rpgaudio.test.js, tests/system/rpg.test.js | アプリ組立, RPG音響 |
 | FR-050 | ファミコン風の操作と仮想パッド | 承認済み | web/src/rpg.js, web/src/ui.js, web/styles/app.css | tests/unit/rpginput.test.js, tests/system/rpginput.test.js | アプリ組立, デザイン基盤, RPG風の地図とスプライト, RPG音響 |
 | FR-051 | RPG風のアクセシビリティ・保存・設定 | 承認済み | web/src/ui.js, web/src/rpgaudio.js, web/src/settings.js, web/styles/app.css | tests/unit/rpginput.test.js, tests/system/rpg.test.js | アプリ組立, デザイン基盤, RPG音響, 描画スタイルの登録 |
+| FR-052 | 提案・未決定・合意済み決定の区別と意味に一致した強調 | 承認済み | web/src/diagram.js, web/src/outline.js, web/src/app.js, web/src/axes3d.js | tests/unit/emphasis.test.js, tests/system/emphasis.test.js | なし |
+| FR-053 | 関係の種類・方向・原文上の根拠の区別と推測候補の明示 | 承認済み | web/src/layoutkinds.js, web/src/diagram.js, web/src/outline.js | tests/unit/emphasis.test.js, tests/system/emphasis.test.js | なし |
+| FR-054 | 図の関係情報とテキスト一覧の一致 | 承認済み | web/src/outline.js, web/src/layoutkinds.js, web/src/app.js | tests/unit/emphasis.test.js, tests/system/emphasis.test.js | なし |
+| FR-055 | 時間表現などの非因果を原因→結果から除外する意味的判定 | 承認済み | web/src/layoutkinds.js | tests/unit/emphasis.test.js, tests/system/emphasis.test.js | なし |
 
 ## API・イベント
 
