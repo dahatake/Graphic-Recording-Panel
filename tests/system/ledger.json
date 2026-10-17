@@ -128,7 +128,7 @@
     "AC-350": "sha256:c6b4d7c80d17e347",
     "AC-351": "sha256:f7c71893f7c2cf61",
     "AC-352": "sha256:665aa947e7b7bf54",
-    "AC-363": "sha256:071d53bc3af88c8a",
+    "AC-363": "sha256:fc56766f4c55fac5",
     "AC-364": "sha256:7afa5fbd86529df1"
   },
   "cases": [
@@ -3943,6 +3943,18 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "AC-363 が BLOCKED（Q-019）"
+        },
+        {
+          "at": "2026-10-17T20:58:46+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "Q-019 回答済み（BLOCKED 解除）"
+        },
+        {
+          "at": "2026-10-17T20:59:14+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-363 の検証レベルが integration で System Test 対象外（CHK-10）。Q-019 は回答済み。conductor の判断待ち（level 変更 or implementer の統合テストへ移管）"
         }
       ]
     },
@@ -3974,6 +3986,18 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "AC-364 が BLOCKED（Q-019）"
+        },
+        {
+          "at": "2026-10-17T20:58:47+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "Q-019 回答済み（BLOCKED 解除）"
+        },
+        {
+          "at": "2026-10-17T20:59:16+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-364 の検証レベルが integration で System Test 対象外（CHK-10）。Q-019 は回答済み。conductor の判断待ち"
         }
       ]
     }

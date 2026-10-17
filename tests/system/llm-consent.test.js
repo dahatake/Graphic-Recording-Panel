@@ -1,6 +1,6 @@
 // FR-062 AC-309 AC-310 AC-313 AC-314 AC-315 AC-316 / FR-068 AC-353 AC-355 AC-356（System Test。契約: tests/system/CONTRACT-LLM-FR062.md）
 // 期待値は受入基準だけから決める。実 Foundry は呼ばず、同一オリジンの中継サーバーをモックで差し込む（決定的）。
-// AC-312・AC-360 は BLOCKED（Q-016・Q-017）のためここでは扱わない。
+// AC-312・AC-360（Q-016・Q-017 回答済み）ほかは llm-consent-persist.test.js で扱う。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp, seedThreeScenes } from './helpers.js';

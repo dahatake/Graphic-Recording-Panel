@@ -261,7 +261,7 @@ test('FR-067 AC-352 config/llm.local.json は .gitignore に載り、リポジ�
   assert.equal(git('ls-files', 'config/llm.local.json').trim(), '');
 });
 
-// FR-067 AC-363（BLOCKED: Q-019。仮定: https の公開ホストだけ受け付ける）
+// FR-067 AC-363（Q-019 A: https の公開ホストだけ受け付ける）
 test('FR-067 AC-363 エンドポイントは https の公開ホストだけ。http・localhost・ループバック・プライベート・リンクローカルは拒否される', async () => {
   const bad = ['http://example.com/openai/v1', 'https://localhost/openai/v1', 'https://127.0.0.1/openai/v1', 'https://10.0.0.5/openai/v1',
     'https://192.168.1.10/openai/v1', 'https://172.16.0.1/openai/v1', 'https://169.254.169.254/openai/v1', 'https://[::1]/openai/v1'];
@@ -273,7 +273,7 @@ test('FR-067 AC-363 エンドポイントは https の公開ホストだけ。ht
   try { assert.equal((await status(good)).json?.state, 'ready'); } finally { await good.stop(); }
 });
 
-// FR-067 AC-364（BLOCKED: Q-019）
+// FR-067 AC-364（Q-019 A）
 test('FR-067 AC-364 ループバック許可フラグがオンのときだけループバックの上流が受け付けられる（既定オフ・設定画面から変更不可）', async () => {
   const up = await startUpstream();
   const off = await startRelay({ LLM_ENDPOINT: up.baseUrl, LLM_DEPLOYMENT: 'd', LLM_AUTH_METHOD: 'apiKey', LLM_API_KEY: dummyKey() });
