@@ -86,13 +86,21 @@
     "AC-139": "sha256:d92ff20bcefcf0b3",
     "AC-140": "sha256:2ad6897fb30004c4",
     "AC-145": "sha256:e5246af6ca8a6d0a",
-    "AC-146": "sha256:dcd46afdb86af1d8",
+    "AC-146": "sha256:28ea5257b34f4973",
     "AC-149": "sha256:acc977c6eece5518",
     "AC-151": "sha256:741308863c433689",
     "AC-152": "sha256:7764f7ef5b30410f",
     "AC-167": "sha256:0109dd95315fdf3a",
     "AC-180": "sha256:e5ae613bb10deb0f",
-    "AC-181": "sha256:27101640bb7fa5cf"
+    "AC-181": "sha256:27101640bb7fa5cf",
+    "AC-214": "sha256:baa1feff9fe15926",
+    "AC-217": "sha256:2cbe707a3d9e3ba5",
+    "AC-219": "sha256:e56ef9a818fc6958",
+    "AC-221": "sha256:5e3dd3a843d2bff9",
+    "AC-223": "sha256:0af3a9702cfafbf9",
+    "AC-224": "sha256:985a4c110815c649",
+    "AC-225": "sha256:d5ce3521b0e4ca34",
+    "AC-226": "sha256:f3469f21aec164eb"
   },
   "cases": [
     {
@@ -2646,11 +2654,11 @@
       "ac_ids": [
         "AC-146"
       ],
-      "title": "描画スタイルの切替・内容保持・色以外の識別（異常系含む）",
+      "title": "描画スタイルの切替（RPG風を加えた 4 つ）・内容保持・色以外の識別（異常系含む）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-146\" tests/system/drawstyle.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "27d57ab",
       "last_run_at": "2026-10-17T00:06:11+09:00",
       "evidence": "work/runs/202610162327/logs/system-test/E2E-090-202610170006.log",
@@ -2660,6 +2668,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-17T15:06:01+09:00",
+          "by": "test-designer",
+          "change": "title: '描画スタイルの切替・内容保持・色以外の識別（異常系含む）' -> '描画スタイルの切替（RPG風を加えた 4 つ）・内容保持・色以外の識別（異常系含む）'",
+          "reason": "AC-146 の文面変更（FR-047 の追加後は RPG風を加えた 4 つ）に合わせ、drawstyle.test.js を 4 スタイルに更新"
         }
       ]
     },
@@ -2807,6 +2821,206 @@
       "history": [
         {
           "at": "2026-10-16T23:46:06+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-097",
+      "requirement_ids": [
+        "FR-047"
+      ],
+      "ac_ids": [
+        "AC-214"
+      ],
+      "title": "RPG風の選択・ドット絵の地図（16ドット格子・16色以下）・内容保持・既存スタイル不変（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-214\" tests/system/rpg.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T15:05:18+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-099",
+      "requirement_ids": [
+        "FR-048"
+      ],
+      "ac_ids": [
+        "AC-217"
+      ],
+      "title": "RPG風の勇者・住人の配置と向き・歩行の絵の切替",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-217\" tests/system/rpg.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T15:05:25+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-101",
+      "requirement_ids": [
+        "FR-049"
+      ],
+      "ac_ids": [
+        "AC-219"
+      ],
+      "title": "RPG風の BGM: 操作前は無音・場所に応じた切替（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-219\" tests/system/rpg.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T15:05:31+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-103",
+      "requirement_ids": [
+        "FR-049"
+      ],
+      "ac_ids": [
+        "AC-221"
+      ],
+      "title": "RPG風のミュート・音量・初期値 50%（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-221\" tests/system/rpg.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T15:05:36+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-105",
+      "requirement_ids": [
+        "FR-050"
+      ],
+      "ac_ids": [
+        "AC-223"
+      ],
+      "title": "RPG風のキー操作（矢印・WASD・Z/Enter・X/Esc）・通れないマス・入力欄/ダイアログ優先（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-223\" tests/system/rpginput.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T15:05:41+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-107",
+      "requirement_ids": [
+        "FR-050"
+      ],
+      "ac_ids": [
+        "AC-224"
+      ],
+      "title": "RPG風の仮想十字キー・A/B ボタン（44px 以上）とキーと同じ操作（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-224\" tests/system/rpginput.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T15:05:47+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-109",
+      "requirement_ids": [
+        "FR-050"
+      ],
+      "ac_ids": [
+        "AC-225"
+      ],
+      "title": "RPG風のコマンドウィンドウ・1文字50ms の文字送り・会話送り・閉じる（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-225\" tests/system/rpginput.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T15:05:52+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-111",
+      "requirement_ids": [
+        "FR-051"
+      ],
+      "ac_ids": [
+        "AC-226"
+      ],
+      "title": "RPG風でもテキスト一覧が同じ内容・キーボードだけで確認・色だけに頼らない",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-226\" tests/system/rpg.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T15:05:58+09:00",
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
