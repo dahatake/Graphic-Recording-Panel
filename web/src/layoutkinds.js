@@ -1,7 +1,7 @@
 // FR-031 タイムライン型 / FR-032 吹き出し型 / FR-033 発散型 / FR-034 区画型 / FR-035 比喩テンプレート型の配置（共通部品「レイアウト型レジストリ」へ registerLayoutType で登録する）。
 // DOM・外部通信に依存しない決定的な純粋関数。話者の識別は対象外（Q-006。AC-157 は BLOCKED）のため吹き出しは話者で分けない。
 import { timelineLayout } from './layouttypes.js';
-import { classifyPoint } from './diagram.js';
+import { classifyPoint, kindLabelOf, baseKind } from './diagram.js';
 import { detectEmotions } from './emotion.js';
 import { tokenize } from './topics.js';
 
@@ -9,7 +9,49 @@ export const MIN_ECHO = 2; // PARAM-019: 共感が集まった意見とみなす
 
 const W = 1280; const M = 24; const GAP = 32; const TITLE_H = 48;
 const BODY_Y = M + TITLE_H + GAP / 2;
-const CAUSE_RE = /から|ため|なので|だから|ゆえ|\bbecause\b|\bso\b/i;
+export const EVIDENCE_MAX = 40; // PARAM-033: 関係の根拠の語の最大文字数
+// FR-055: 因果の語。「から」は理由（用言の後）のときだけ因果で、時間・起点（「来月から」「3時から」）や用法が判定できないものは因果にしない。英語の起点 from は対象外。
+const CAUSE_WORD_RE = /だから|なので|ゆえ|ため|\bbecause\b|\bso\b/i;
+const TIME_BEFORE_KARA = /(\d+\s*[時分日月年秒]|[時分日月年週秒]|来月|今月|先月|来週|今週|先週|明日|今日|昨日|午前|午後|朝|昼|夜|曜日|最初|初め|はじめ|以降|今|ここ|そこ|これ|それ)$/;
+const PREDICATE_END = /(い|る|た|だ|す|ん|う|く|つ|ぬ|む|ぶ|ぐ|ず)$/;
+export function causalEvidence(text) {
+  const s = String(text ?? '');
+  const m = CAUSE_WORD_RE.exec(s);
+  if (m) return m[0];
+  let i = s.indexOf('から');
+  while (i >= 0) {
+    const before = s.slice(0, i).replace(/[、,\s]+$/, '');
+    if (before && !TIME_BEFORE_KARA.test(before) && PREDICATE_END.test(before)) return 'から';
+    i = s.indexOf('から', i + 1);
+  }
+  return null;
+}
+// FR-053: 要点の並び（話順）の隣り合う 2 つから関係を決定的に導く。向きは原因・課題が始点、結果・提案が終点。
+// 明示: 後ろの発話に因果の語（evidence=word）／課題の次にアイデア・提案（evidence=kinds）。推測: 課題の次に結論が続くだけで根拠の語がない（evidence=null）。
+export function deriveRelations(points) {
+  const out = [];
+  const kinds = points.map((p) => classifyPoint(p.text));
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]; const b = points[i];
+    const word = causalEvidence(b.text);
+    if (word) { out.push({ kind: 'cause-effect', from: a.id, to: b.id, basis: 'explicit', evidence: { type: 'word', text: [...word].slice(0, EVIDENCE_MAX).join('') } }); continue; }
+    if (kinds[i - 1] === 'issue' && (kinds[i] === 'idea' || kinds[i] === 'proposal')) out.push({ kind: 'problem-proposal', from: a.id, to: b.id, basis: 'explicit', evidence: { type: 'kinds', text: `${kinds[i - 1]}→${kinds[i]}` } });
+    else if (kinds[i - 1] === 'issue' && kinds[i] === 'conclusion') out.push({ kind: 'problem-proposal', from: a.id, to: b.id, basis: 'inferred', evidence: null });
+    else if (causalEvidence(a.text)) out.push({ kind: 'cause-effect', from: a.id, to: b.id, basis: 'inferred', evidence: null }); // 理由を述べた発話の直後の発話は、話順だけから結果の候補とする（推測）
+  }
+  return out;
+}
+const REL_LABELS = {
+  ja: { 'cause-effect': '原因→結果', 'problem-proposal': '課題→提案', explicit: '明示', inferred: '推測' },
+  en: { 'cause-effect': 'Cause→Effect', 'problem-proposal': 'Issue→Proposal', explicit: 'Explicit', inferred: 'Inferred' },
+};
+export function labelRelations(rels, lang) {
+  const L = REL_LABELS[lang === 'en' ? 'en' : 'ja'];
+  return rels.map((r) => ({
+    ...r, kindLabel: L[r.kind], basisLabel: L[r.basis],
+    evidence: r.evidence && r.evidence.type === 'kinds' ? { type: 'kinds', text: r.evidence.text.split('→').map((k) => kindLabelOf(k, lang)).join('→') } : r.evidence,
+  }));
+}
 const QUESTION_RE = /[?？]/;
 const LABELS = {
   cause: { ja: '原因→結果', en: 'Cause→Effect' },
@@ -38,13 +80,14 @@ export function timelineTypeLayout(input) {
   if (detail) {
     // 要点の並び（話順）の隣り合う 2 つ: 原因→結果（後ろの発話に因果の語）、課題→提案（課題の次にアイデア）
     const flat = [];
-    L.units.forEach((u, ui) => { for (const p of sceneById.get(u.id)?.points ?? []) flat.push({ ui, p, kind: classifyPoint(p.text) }); });
-    for (let i = 1; i < flat.length; i++) {
-      const a = flat[i - 1]; const b = flat[i];
-      const key = CAUSE_RE.test(b.p.text) ? 'cause' : (a.kind === 'issue' && b.kind === 'idea' ? 'proposal' : null);
-      if (!key) continue;
-      if (a.ui !== b.ui) { const ar = L.arrows.find((x) => x.from === L.units[a.ui].id && x.to === L.units[b.ui].id); if (ar && !ar.label) ar.label = lab(input, key); }
-      else L.units[b.ui].relations.push({ from: a.p.id, to: b.p.id, label: lab(input, key) });
+    L.units.forEach((u, ui) => { for (const p of sceneById.get(u.id)?.points ?? []) flat.push({ ui, p }); });
+    const byId = new Map(flat.map((f) => [f.p.id, f]));
+    // FR-053/FR-055: deriveRelations（時間用法の「から」は因果にしない）。推測の関係は「（推測）」を添える
+    for (const r of labelRelations(deriveRelations(flat.map((f) => f.p)), input.lang)) {
+      const a = byId.get(r.from); const b = byId.get(r.to);
+      const label = r.basis === 'inferred' ? `${r.kindLabel}（${r.basisLabel}）` : r.kindLabel;
+      if (a.ui !== b.ui) { const ar = L.arrows.find((x) => x.from === L.units[a.ui].id && x.to === L.units[b.ui].id); if (ar && !ar.label) ar.label = label; }
+      else L.units[b.ui].relations.push({ from: a.p.id, to: b.p.id, label });
     }
   }
   return L;
@@ -244,7 +287,7 @@ function topicGroups(input, units) {
         { id: 'q-idea', kind: 'idea', name: SZ(input, 'アイデア', 'Ideas') },
         { id: 'q-next', kind: 'conclusion', name: SZ(input, '次の行動', 'Next actions') },
       ];
-      const qOf = (s) => { const ks = kindOfSrc(s); return ks.includes('issue') ? 1 : ks.includes('idea') ? 2 : ks.includes('conclusion') ? 3 : 0; };
+      const qOf = (s) => { const ks = kindOfSrc(s).map(baseKind); return ks.includes('issue') ? 1 : ks.includes('idea') ? 2 : ks.includes('conclusion') ? 3 : 0; };
       const AX = 28; const qw = (W - M * 2 - AX) / 2;
       const cols = [[], [], [], []]; src.forEach((s, i) => cols[qOf(s)].push({ s, i }));
       const rows = Math.max(1, ...cols.map((c) => c.length)); const qh = HEAD + rows * (UH + UG) + 4;
@@ -270,5 +313,12 @@ function topicGroups(input, units) {
       ctx.api.registerLayoutType('diverge', { layout: divergeLayout });
       ctx.api.registerLayoutType('zone', { layout: zoneLayout });
       ctx.api.registerLayoutType('metaphor', { layout: metaphorLayout });
+      // FR-053: 図に描く要点どうしの関係線（詳細度が「詳細」のときだけ）と、一覧の関係情報（同じもの）
+      const rels = () => {
+        if ((ctx.api.getDetailLevel?.() ?? 'detail') !== 'detail') return [];
+        return labelRelations(deriveRelations(ctx.state.scenes.flatMap((s) => s.points)), ctx.state.lang);
+      };
+      ctx.api.getDiagramRelations = rels;
+      ctx.api.getOutlineRelations = rels;
     }
 

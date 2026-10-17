@@ -21,19 +21,36 @@ export const KINDS = {
   issue: { color: '#9b1c1c', shape: 'octagon', icon: 'alert' },
   idea: { color: '#8a3c00', shape: 'hexagon', icon: 'bulb' },
   note: { color: '#1346a8', shape: 'rect', icon: 'note' },
+  // FR-052: 提案・未決定は結論と別の種類（色・形・絵記号が異なる）
+  proposal: { color: '#6b2a8f', shape: 'tab', icon: 'bolt' },
+  undecided: { color: '#0b6070', shape: 'slant', icon: 'cloud' },
 };
+// FR-015 の 4 種類（3D の評価軸などの従来の集計用）。提案はアイデア、未決定は補足に含める。
+export const BASE_KIND_IDS = ['conclusion', 'issue', 'idea', 'note'];
+export const baseKind = (k) => (k === 'proposal' ? 'idea' : k === 'undecided' ? 'note' : k);
+// FR-052 AC-231: 種類の文字のラベル（図と一覧で同じ語）
+export const KIND_LABELS = {
+  ja: { conclusion: '結論', issue: '課題', idea: 'アイデア', note: '補足', proposal: '提案', undecided: '未決定' },
+  en: { conclusion: 'Conclusion', issue: 'Issue', idea: 'Idea', note: 'Note', proposal: 'Proposal', undecided: 'Undecided' },
+};
+export const kindLabelOf = (kind, lang) => KIND_LABELS[lang === 'en' ? 'en' : 'ja'][kind] ?? kind;
 // ASSUMPTION: 種類は語のパターンで決める（決定的・外部通信なし）。上から順に最初に合うもの、どれにも合わなければ補足。
+// FR-052: 合意済みの決定を述べる発言だけを結論とする。決定の否定・保留は未決定、提案する発言は提案。
 const KIND_RULES = [
+  ['undecided', /未定|未決|決まっていない|決まらない|決めていない|決定していない|決まって(い)?ません|決めかね|保留|(not|n't)\s+(yet\s+)?(been\s+)?(decided|agreed|concluded|resolved|settled)|\bundecided\b|\bto be decided\b|\btbd\b|yet to (decide|agree)/i],
   ['issue', /困|課題|問題|不安|心配|遅れ|高い|高く|できない|足りな|不足|障害|エラー|trouble|problem|issue|risk|bug|stuck|blocked|difficult/i],
+  ['proposal', /提案|propos|suggest|recommend/i],
+  // AC-231: 「〜と決まりました」など合意済みの決定は、アイデア・案の語を含んでいても結論
+  ['conclusion', /決ま(りまし|った)|決定しまし|決めまし|合意しまし|採用(が)?決定/],
+  ['idea', /アイデア|ひらめ|\bidea\b/i],
   ['conclusion', /決め|決定|決ま|結論|合意|方針|採用|にする|します|decid|conclu|agree|resolv|chose/i],
-  ['idea', /アイデア|案|しよう|してみ|ひらめ|提案|かも|どう|idea|propos|how about|what if|maybe|[?？]/i],
+  ['idea', /案|しよう|してみ|かも|どう|how about|what if|maybe|[?？]/i],
 ];
 export function classifyPoint(text) {
   const s = String(text ?? '');
   for (const [k, re] of KIND_RULES) if (re.test(s)) return k;
   return 'note';
 }
-
 // FR-029: 描画スタイル（drawstyles.js の定義）。描画の間だけ有効（同期処理）。既定は手書き調＝従来の見た目。
 const HAND = { line: { width: 1, jitter: 1 }, fill: { mode: 'paper' }, text: { decor: 'standard', icons: true } };
 let ST = HAND;
@@ -78,6 +95,8 @@ function outline(shape, x, y, w, h) {
     case 'banner': return [[x, y], [x + w - 14, y], [x + w, y + h / 2], [x + w - 14, y + h], [x, y + h]];
     case 'octagon': return [[x + 10, y], [x + w - 10, y], [x + w, y + 10], [x + w, y + h - 10], [x + w - 10, y + h], [x + 10, y + h], [x, y + h - 10], [x, y + 10]];
     case 'hexagon': return [[x + 14, y], [x + w - 14, y], [x + w, y + h / 2], [x + w - 14, y + h], [x + 14, y + h], [x, y + h / 2]];
+    case 'tab': return [[x, y], [x + w - 22, y], [x + w, y + 12], [x + w, y + h], [x, y + h]];
+    case 'slant': return [[x + 14, y], [x + w, y], [x + w - 14, y + h], [x, y + h]];
     default: return [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
   }
 }
@@ -118,12 +137,12 @@ export function renderDiagramSvg(scenes, opts = {}) {
   const sel = opts.selectedSceneId ?? null;
   const hlId = opts.highlightPointId ?? null;
   const parts = []; let x = MARGIN; let maxH = 0;
-  const heads = [];
+  const heads = []; const rects = new Map();
   scenes.forEach((s, i) => {
     const color = PALETTE[i % PALETTE.length];
     const emos = sceneEmotions(s);
     const emoW = Math.max(0, ...emos.map((e) => 34 + textWidth(e.word, FS)));
-    const w = Math.ceil(Math.max(240, textWidth(s.heading, FS_HEAD) + 70, ...s.points.map((p) => textWidth(p.text, FS) + 32 + ICON_W), emoW + 32));
+    const w = Math.ceil(Math.max(240, textWidth(s.heading, FS_HEAD) + 70, ...s.points.map((p) => textWidth(p.text, FS) + 32 + ICON_W + textWidth(kindLabelOf(classifyPoint(p.text), opts.lang), 11) + 12), emoW + 32));
     const isSel = s.id === sel;
     const body = [];
     const cx = x + w / 2;
@@ -136,12 +155,12 @@ export function renderDiagramSvg(scenes, opts = {}) {
     const top = new Map(); let y = MARGIN + HEAD_H + GAP;
     const dash = s.status === 'in_progress' ? ' stroke-dasharray="6 4"' : '';
     s.points.forEach((p) => {
-      top.set(p.id, y);
+      top.set(p.id, y); rects.set(p.id, { x, y, w, sceneId: s.id });
       const k = KINDS[classifyPoint(p.text)];
       const kind = classifyPoint(p.text);
       const hl = p.id === hlId;
       const stroke = hl ? HL_COLOR : k.color;
-      const sWidth = sw(hl ? 5 : 2.5);
+      const concl = kind === 'conclusion'; const sWidth = sw(hl ? 5 : concl ? 4.5 : 2.5);
       const frame = hl ? `<path d="${wobblyD(outline(k.shape, x - 6, y - 6, w + 12, BUBBLE_H + 12), `${p.id}:f`, true, 1.2)}" fill="none" stroke="${HL_COLOR}" stroke-width="2" stroke-dasharray="3 3" data-role="highlight-frame"/>` : '';
       const star = hl ? `<g data-role="highlight-icon">${iconShape('star', x + w - 20, y - 16, HL_COLOR)}</g>` : '';
       const paper = paperFor(k.color);
@@ -149,7 +168,8 @@ export function renderDiagramSvg(scenes, opts = {}) {
         + `<path d="${wobblyD(outline(k.shape, x, y, w, BUBBLE_H), p.id, true)}" fill="${paper}" stroke="${stroke}" stroke-width="${sWidth}" stroke-linejoin="round"${dash}/>`
         + `<path d="${wobblyD([[x + 18, y + BUBBLE_H], [x + 12, y + BUBBLE_H + 8], [x + 26, y + BUBBLE_H]], `${p.id}:t`, false, 0.4)}"         fill="${paper}" stroke="${stroke}" stroke-width="${sw(2.5)}" stroke-linejoin="round"/>`
         + decoIcon(k.icon, x + 8, y + 7, stroke)
-        + `<text x="${x + 8 + ICON_W}" y="${y + 24}" font-size="${FS}" fill="${INK}">${esc(p.text)}</text>${star}</g>`);
+        + `<text x="${x + 8 + ICON_W}" y="${y + 24}" font-size="${FS}"${concl ? ' ' + 'font-weight="800"' : ''} fill="${INK}">${esc(p.text)}</text>`
+        + `<text data-role="kind-label" x="${x + w - 8}" y="${y + 12}" font-size="11" font-weight="700" text-anchor="end" fill="${INK}">${esc(kindLabelOf(kind, opts.lang))}</text>${star}</g>`);
       y += BUBBLE_H + GAP;
     });
     // 関係線（手描き風の矢印）
@@ -180,6 +200,25 @@ export function renderDiagramSvg(scenes, opts = {}) {
     maxH = Math.max(maxH, y + MARGIN);
     x += w + SCENE_GAP;
   });
+  // FR-053: 要点どうしの関係線（種類のラベル・向き=始点→終点の矢印・明示/推測）。推測は破線＋文字「推測」で、明示と見分ける。
+  const relSvg = (opts.relations ?? []).map((r, ri) => {
+    const a = rects.get(r.from); const b = rects.get(r.to);
+    if (!a || !b) return '';
+    const inferred = r.basis === 'inferred';
+    const dashA = inferred ? ' stroke-dasharray="5 4"' : '';
+    const label = `${r.kindLabel}（${r.basisLabel}）`;
+    const ya = a.y + BUBBLE_H / 2; const yb = b.y + BUBBLE_H / 2;
+    let d; let lx; let ly;
+    if (a.sceneId === b.sceneId) {
+      const ex = a.x + a.w; const off = 22 + (ri % 3) * 8;
+      d = `M${r1(ex)} ${r1(ya)} C${r1(ex + off)} ${r1(ya)} ${r1(ex + off)} ${r1(yb)} ${r1(ex + 3)} ${r1(yb)}`; lx = ex + off + 4; ly = (ya + yb) / 2;
+    } else {
+      const fwd = b.x >= a.x; const x1 = fwd ? a.x + a.w : a.x; const x2 = fwd ? b.x - 3 : b.x + b.w + 3;
+      d = `M${r1(x1)} ${r1(ya)} L${r1(x2)} ${r1(yb)}`; lx = (x1 + x2) / 2; ly = (ya + yb) / 2 - 4;
+    }
+    return `<g data-role="point-relation"><path data-relation-kind="${attr(r.kind)}" data-relation-from="${attr(r.from)}" data-relation-to="${attr(r.to)}" data-relation-basis="${attr(r.basis)}" d="${d}" fill="none" stroke="${INK}" stroke-width="2"${dashA} marker-end="url(#arrow-flow)"/>`
+      + `<text data-relation-label x="${r1(lx)}" y="${r1(ly)}" font-size="11" font-weight="700" fill="${INK}">${esc(label)}</text></g>`;
+  }).join('');
   // シーン間の矢印（時系列）
   const flows = heads.slice(0, -1).map((h, i) => {
     const y = MARGIN + HEAD_H / 2; const nx = heads[i + 1].x;
@@ -194,7 +233,7 @@ export function renderDiagramSvg(scenes, opts = {}) {
   const title = esc(opts.title ?? '');
   const empty = scenes.length ? '' : `<text x="${MARGIN}" y="${MARGIN + 24}" font-size="${FS}" fill="${INK}">${esc(t('diagram.empty'))}</text>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" font-family="system-ui, 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif" role="img" aria-label="${attr(opts.title ?? '')}">`
-    + `<title>${title}</title><defs>${markers}</defs><rect width="100%" height="100%" fill="${PAPER}"/>${parts.join('')}${flows.join('')}${empty}</svg>`;
+    + `<title>${title}</title><defs>${markers}</defs><rect width="100%" height="100%" fill="${PAPER}"/>${parts.join('')}${flows.join('')}${relSvg}${empty}</svg>`;
 }
 
 // FR-025/FR-026: 2D の時系列で詳細度が「大項目」「中項目」のときの図。トピックを大項目の箱（題名）、中項目ではその下にシーンの見出しを描く。
@@ -521,7 +560,7 @@ export function diagramModule(ctx) {
     return map ? renderRpgSvg(base, map) : base;
   };
   ctx.api.renderBaseSvg = () => {
-    const o = { selectedSceneId: ctx.state.selectedSceneId, highlightPointId: currentHighlight()?.pointId ?? null, t: ctx.t, title: ctx.t('app.title'), style: ctx.api.getDrawStyleSpec?.() };
+    const o = { lang: ctx.state.lang, relations: ctx.api.getDiagramRelations?.() ?? [], selectedSceneId: ctx.state.selectedSceneId, highlightPointId: currentHighlight()?.pointId ?? null, t: ctx.t, title: ctx.t('app.title'), style: ctx.api.getDrawStyleSpec?.() };
     const level = ctx.api.getDetailLevel?.() ?? 'detail';
     const units = level !== 'detail' && ctx.state.scenes.length ? { topics: ctx.api.getTopics(), relations: ctx.api.getTopicRelations(), level } : null;
     // FR-029 AC-146: 現在の描画スタイル、FR-027 AC-140: 時系列の 2D の図に適用している型を、ルートの属性で示す（整理の表示に型は適用されない）
@@ -544,7 +583,7 @@ export function diagramModule(ctx) {
     scenes: ctx.state.scenes.map((s) => ({
       id: s.id,
       heading: { fontSize: FS_HEAD, fontWeight: 800, framed: true },
-      points: s.points.map((p) => { const kind = classifyPoint(p.text); const k = KINDS[kind]; const icons = ctx.api.getDrawStyleSpec?.()?.text.icons !== false; return { id: p.id, kind, color: k.color, shape: k.shape, icon: icons ? k.icon : 'none', fontSize: FS, fontWeight: 400 }; }),
+      points: s.points.map((p) => { const kind = classifyPoint(p.text); const k = KINDS[kind]; const icons = ctx.api.getDrawStyleSpec?.()?.text.icons !== false; return { id: p.id, kind, kindLabel: kindLabelOf(kind, ctx.state.lang), emphasized: kind === 'conclusion', color: k.color, shape: k.shape, icon: icons ? k.icon : 'none', fontSize: FS, fontWeight: kind === 'conclusion' ? 800 : 400 }; }),
     })),
   });
 

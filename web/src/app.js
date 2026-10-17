@@ -16,7 +16,7 @@ import { KEYMAP, matchKey } from './keymap.js';
 import { renderOutline, escapeHtml } from './outline.js';
 import { newScene, appendPoints, extractPoints } from './scenes.js';
 import * as P from './persist.js';
-import { diagramModule } from './diagram.js';
+import { diagramModule, classifyPoint, kindLabelOf } from './diagram.js';
 import { inputModule } from './input.js';
 import { editModule } from './edit.js';
 import { exportModule } from './export.js';
@@ -182,7 +182,7 @@ export async function createApp(options = {}) {
     return true;
   };
   app.renderOutline = () => {
-    const html = renderOutline(state.scenes, state.selectedSceneId, i18n.t, app.getOutlineAnnotation?.() ?? null, app.getTopicOutline?.() ?? null);
+    const html = renderOutline(state.scenes, state.selectedSceneId, i18n.t, app.getOutlineAnnotation?.() ?? null, app.getTopicOutline?.() ?? null, { label: (text) => kindLabelOf(classifyPoint(text), state.lang), relations: app.getOutlineRelations?.() ?? [] });
     // FR-036 AC-167: 各まとまり（トピック・区画・囲み）の小見出しを文字でも示す（時系列の表示のとき）
     const applied = app.getLayoutInfo?.().applied;
     const groups = applied && state.scenes.length ? (app.getDiagramLayout?.().groups ?? []) : [];

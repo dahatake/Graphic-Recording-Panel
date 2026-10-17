@@ -93,6 +93,16 @@
     "AC-167": "sha256:0109dd95315fdf3a",
     "AC-180": "sha256:e5ae613bb10deb0f",
     "AC-181": "sha256:27101640bb7fa5cf",
+    "AC-229": "sha256:1d3c837de4e9fe90",
+    "AC-230": "sha256:b333cbdc5d68e4e6",
+    "AC-231": "sha256:ddbeb20a6435fd3c",
+    "AC-237": "sha256:6d0d13a12b377eb0",
+    "AC-238": "sha256:3d0ac3fcb45f1a8f",
+    "AC-232": "sha256:a74cba5f1817a645",
+    "AC-233": "sha256:b9d2711eadcd1beb",
+    "AC-234": "sha256:bbd9adc53f6f99d7",
+    "AC-235": "sha256:d64c78bb50977fdb",
+    "AC-236": "sha256:e5c97586cd5b659b",
     "AC-214": "sha256:baa1feff9fe15926",
     "AC-217": "sha256:2cbe707a3d9e3ba5",
     "AC-219": "sha256:e56ef9a818fc6958",
@@ -4236,6 +4246,310 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-163",
+      "requirement_ids": [
+        "FR-052"
+      ],
+      "ac_ids": [
+        "AC-229"
+      ],
+      "title": "提案の発言は「提案」で結論の強調が付かない",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-229\" tests/system/emphasis.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T17:53:50+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610171425）"
+        },
+        {
+          "at": "2026-10-17T17:54:46+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが unit/integration で System Test の対象外（単体・結合テストで被覆。このケースの試験は emphasis.test.js に補助として残す）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-164",
+      "requirement_ids": [
+        "FR-052"
+      ],
+      "ac_ids": [
+        "AC-230"
+      ],
+      "title": "決定の否定・保留は「未決定」で結論の強調が付かない",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-230\" tests/system/emphasis.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T17:53:53+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610171425）"
+        },
+        {
+          "at": "2026-10-17T17:54:47+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが unit/integration で System Test の対象外（単体・結合テストで被覆。このケースの試験は emphasis.test.js に補助として残す）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-165",
+      "requirement_ids": [
+        "FR-052"
+      ],
+      "ac_ids": [
+        "AC-231"
+      ],
+      "title": "合意済みの決定だけが結論として強調され、種類は文字ラベルで図と一覧に同じ語で示される（異常系: 英語表示）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-231\" tests/system/emphasis.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T17:53:56+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610171425）"
+        },
+        {
+          "at": "2026-10-17T17:54:48+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが unit/integration で System Test の対象外（単体・結合テストで被覆。このケースの試験は emphasis.test.js に補助として残す）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-166",
+      "requirement_ids": [
+        "FR-055"
+      ],
+      "ac_ids": [
+        "AC-237"
+      ],
+      "title": "時間・起点の「から」「from」を含むだけの発話の間に原因→結果が付かない（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-237\" tests/system/emphasis.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T17:53:59+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610171425）"
+        },
+        {
+          "at": "2026-10-17T17:54:48+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが unit/integration で System Test の対象外（単体・結合テストで被覆。このケースの試験は emphasis.test.js に補助として残す）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-167",
+      "requirement_ids": [
+        "FR-055"
+      ],
+      "ac_ids": [
+        "AC-238"
+      ],
+      "title": "理由を述べる発話は原因→結果（明示）が付き、因果不明の語は明示にならない",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-238\" tests/system/emphasis.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T17:54:02+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610171425）"
+        },
+        {
+          "at": "2026-10-17T17:54:51+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが unit/integration で System Test の対象外（単体・結合テストで被覆。このケースの試験は emphasis.test.js に補助として残す）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-168",
+      "requirement_ids": [
+        "FR-053"
+      ],
+      "ac_ids": [
+        "AC-232"
+      ],
+      "title": "関係線は種類ラベル・向き・根拠を持ち、根拠のない線は明示にならない",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-232\" tests/system/emphasis.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T17:54:05+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610171425）"
+        },
+        {
+          "at": "2026-10-17T17:54:55+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが unit/integration で System Test の対象外（単体・結合テストで被覆。このケースの試験は emphasis.test.js に補助として残す）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-169",
+      "requirement_ids": [
+        "FR-053"
+      ],
+      "ac_ids": [
+        "AC-233"
+      ],
+      "title": "根拠のない候補は「推測」の文字ラベルで明示と見分けられる",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-233\" tests/system/emphasis.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T17:54:08+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610171425）"
+        },
+        {
+          "at": "2026-10-17T17:54:56+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが unit/integration で System Test の対象外（単体・結合テストで被覆。このケースの試験は emphasis.test.js に補助として残す）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-170",
+      "requirement_ids": [
+        "FR-053"
+      ],
+      "ac_ids": [
+        "AC-234"
+      ],
+      "title": "同じ発話列から毎回同じ関係線で、向きは原因・課題が始点",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-234\" tests/system/emphasis.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T17:54:12+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610171425）"
+        },
+        {
+          "at": "2026-10-17T17:54:57+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが unit/integration で System Test の対象外（単体・結合テストで被覆。このケースの試験は emphasis.test.js に補助として残す）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-171",
+      "requirement_ids": [
+        "FR-054"
+      ],
+      "ac_ids": [
+        "AC-235"
+      ],
+      "title": "一覧に関係ごとの種類・始点・終点・明示/推測が文字で出て根拠の語は上限以内",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-235\" tests/system/emphasis.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T17:54:15+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610171425）"
+        },
+        {
+          "at": "2026-10-17T17:54:58+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが unit/integration で System Test の対象外（単体・結合テストで被覆。このケースの試験は emphasis.test.js に補助として残す）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-172",
+      "requirement_ids": [
+        "FR-054"
+      ],
+      "ac_ids": [
+        "AC-236"
+      ],
+      "title": "図の関係線の集合と一覧の関係情報の集合が一致する（関係線なし・詳細度変更の異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-236\" tests/system/emphasis.test.js",
+      "canary": false,
+      "status": "pass",
+      "last_commit": "429aafb",
+      "last_run_at": "2026-10-17T20:38:55+09:00",
+      "evidence": "work/runs/adhoc-202610172037/logs/system-test/E2E-172-202610172038.log",
+      "history": [
+        {
+          "at": "2026-10-17T17:54:18+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610171425）"
         }
       ]
     }

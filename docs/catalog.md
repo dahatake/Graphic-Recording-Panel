@@ -59,6 +59,10 @@
 | FR-049 | RPGのBGMと効果音（SE） | 承認済み | web/src/rpgaudio.js, web/src/app.js, web/sw.js | tests/unit/rpgaudio.test.js, tests/system/rpg.test.js | アプリ組立, RPG音響 |
 | FR-050 | ファミコン風の操作と仮想パッド | 承認済み | web/src/rpg.js, web/src/ui.js, web/styles/app.css | tests/unit/rpginput.test.js, tests/system/rpginput.test.js | アプリ組立, デザイン基盤, RPG風の地図とスプライト, RPG音響 |
 | FR-051 | RPG風のアクセシビリティ・保存・設定 | 承認済み | web/src/ui.js, web/src/rpgaudio.js, web/src/settings.js, web/styles/app.css | tests/unit/rpginput.test.js, tests/system/rpg.test.js | アプリ組立, デザイン基盤, RPG音響, 描画スタイルの登録 |
+| FR-052 | 提案・未決定・合意済み決定の区別と意味に一致した強調 | 承認済み | web/src/diagram.js, web/src/outline.js, web/src/app.js, web/src/axes3d.js | tests/unit/emphasis.test.js, tests/system/emphasis.test.js | なし |
+| FR-053 | 関係の種類・方向・原文上の根拠の区別と推測候補の明示 | 承認済み | web/src/layoutkinds.js, web/src/diagram.js, web/src/outline.js | tests/unit/emphasis.test.js, tests/system/emphasis.test.js | なし |
+| FR-054 | 図の関係情報とテキスト一覧の一致 | 承認済み | web/src/outline.js, web/src/layoutkinds.js, web/src/app.js | tests/unit/emphasis.test.js, tests/system/emphasis.test.js | なし |
+| FR-055 | 時間表現などの非因果を原因→結果から除外する意味的判定 | 承認済み | web/src/layoutkinds.js | tests/unit/emphasis.test.js, tests/system/emphasis.test.js | なし |
 | FR-062 | LLM 連携の既定オフ・明示同意・自動復帰（G-002 の例外条件） | 承認済み | web/src/llm.js, web/src/relayclient.js, web/src/main.js, web/src/ui.js, web/sw.js | tests/unit/llmconsent.test.js, tests/system/llm-consent.test.js, tests/system/llm-consent-persist.test.js | アプリ組立, i18n, LLM 連携の制御 |
 | FR-063 | 方式1: LLM による描くべき物の抽出と同梱部品への対応づけ | 承認済み | web/src/llmdraw.js, web/src/session.js, server/relay.py | tests/unit/llmdraw.test.js, tests/system/llm-draw.test.js, tests/system/llm-consent-persist.test.js | LLM 連携の制御, 同梱部品, 中継サーバー |
 | FR-064 | 同梱部品の拡充と汎用キャラのビルダー | 承認済み | web/src/parts.js, web/src/diagram.js, web/sw.js | tests/unit/parts.test.js | 同梱部品, 感情語辞書 |
