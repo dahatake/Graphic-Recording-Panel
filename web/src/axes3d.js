@@ -1,11 +1,11 @@
 // FR-020 3D 表現の評価軸（契約: tests/system/CONTRACT.md「3D の評価軸」）。DOM に依存しない純関数。
 // 議論のデータ（シーン・要点・感情・整理の割り当て）から、評価軸の候補と各シーンの値・位置を算出する。
-import { classifyPoint, KINDS } from './diagram.js';
+import { classifyPoint, baseKind, BASE_KIND_IDS } from './diagram.js';
 import { sceneEmotions } from './emotion.js';
 
 export const DEFAULT_AXES = Object.freeze({ x: 'pointCount', y: 'emotion', z: 'time' });
 export const SLOTS = ['x', 'y', 'z'];
-export const KIND_IDS = Object.keys(KINDS); // conclusion, issue, idea, note（FR-015）
+export const KIND_IDS = BASE_KIND_IDS; // conclusion, issue, idea, note（FR-015）
 export const kindCountId = (k) => `kindCount.${k}`;
 
 const RANGE = { x: 560, y: 280 };
@@ -28,7 +28,7 @@ export function buildCandidates(scenes, arr, t) {
     num('emotion', t('axes3d.axis.emotion'), scenes.map((s) => sceneEmotions(s).length)),
   ];
   for (const k of KIND_IDS) {
-    list.push(num(kindCountId(k), `${t('axes3d.axis.kindCount')}: ${t(`axes3d.kind.${k}`)}`, scenes.map((s) => s.points.filter((p) => classifyPoint(p.text) === k).length)));
+    list.push(num(kindCountId(k), `${t('axes3d.axis.kindCount')}: ${t(`axes3d.kind.${k}`)}`, scenes.map((s) => s.points.filter((p) => baseKind(classifyPoint(p.text)) === k).length)));
   }
   for (const [id, key, axisKey] of [['arrangeV', 'vertical', 'v'], ['arrangeH', 'horizontal', 'h']]) {
     const A = arr?.axes?.[key];
