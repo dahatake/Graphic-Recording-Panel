@@ -62,13 +62,13 @@
 | FR-062 | LLM 連携の既定オフ・明示同意・自動復帰（G-002 の例外条件） | 承認済み | web/src/llm.js, web/src/relayclient.js, web/src/main.js, web/src/ui.js, web/sw.js | tests/unit/llmconsent.test.js, tests/system/llm-consent.test.js | アプリ組立, i18n, LLM 連携の制御 |
 | FR-063 | 方式1: LLM による描くべき物の抽出と同梱部品への対応づけ | 承認済み | 未実装 | 未実装 | - |
 | FR-064 | 同梱部品の拡充と汎用キャラのビルダー | 承認済み | web/src/parts.js, web/src/diagram.js, web/sw.js | tests/unit/parts.test.js | 同梱部品, 感情語辞書 |
-| FR-065 | 方式2（任意・既定オフ）: LLM による SVG の生成と挿入 | 承認済み | 未実装 | 未実装 | - |
+| FR-065 | 方式2（任意・既定オフ）: LLM による SVG の生成と挿入 | 承認済み | web/src/llmdraw.js, web/src/session.js, server/relay.py | tests/unit/svgsanitize.test.js, tests/system/llm-draw.test.js | SVG サニタイズ, 中継サーバー |
 | FR-066 | ローカル中継サーバー | 承認済み | server/relay.py, server/relay_config.py, server/relay_security.py, server/relay_upstream.py, start.ps1, start.sh | tests/relay/test_relay_units.py, tests/system/llmrelay.test.js | 中継サーバー |
 | FR-067 | LLM 連携の設定（エンドポイント・デプロイ名・認証方式） | 承認済み | server/relay_config.py, config/llm.example.json, .gitignore | tests/relay/test_llm_config_files.py, tests/system/llmrelay.test.js | 中継サーバー |
 | FR-068 | 設定画面での有効/無効と接続テスト | 承認済み | web/src/llm.js, web/src/ui.js, web/styles/app.css | tests/unit/llmconsent.test.js, tests/system/llm-consent.test.js | アプリ組立, デザイン基盤, i18n, LLM 連携の制御 |
 | FR-069 | LLM 連携の使い方ガイド | 承認済み | users-guide/08-llm.md, users-guide/README.md | tests/unit/docs.test.js, tests/unit/llmguide.test.js | - |
 | NFR-SEC-003 | API キー・トークンの非露出 | 承認済み | server/relay.py, server/relay_security.py, server/relay_upstream.py, server/relay_config.py | tests/relay/test_relay_units.py, tests/system/llmrelay.test.js | 中継サーバー |
-| NFR-SEC-004 | SVG の許可リストによる厳格なサニタイズ | 承認済み | 未実装 | 未実装 | - |
+| NFR-SEC-004 | SVG の許可リストによる厳格なサニタイズ | 承認済み | web/src/svgsanitize.js, server/relay_security.py, web/src/session.js, web/src/parts.js | tests/unit/svgsanitize.test.js, tests/relay/test_relay_units.py | SVG サニタイズ, 同梱部品 |
 | NFR-PRIV-003 | LLM への送信の最小化 | 承認済み | 未実装 | 未実装 | - |
 
 ## API・イベント
@@ -77,6 +77,7 @@
 |---|---|---|
 | GET /api/llm/status | server/relay.py | FR-066, NFR-SEC-003 |
 | POST /api/llm/responses | server/relay.py | FR-066, NFR-SEC-003 |
+| POST /api/llm/svg | server/relay.py | FR-065, NFR-SEC-004 |
 
 ## テーブル
 
@@ -87,7 +88,7 @@
 
 | 部品名 | ファイル | 用途 | 使っている要求 ID |
 |---|---|---|---|
-| 中継サーバー | server/relay.py, server/relay_config.py, server/relay_security.py, server/relay_upstream.py | 127.0.0.1 だけの静的配信＋LLM 中継。設定は relay_config（環境変数>設定ファイル）、Host/Origin 検証と SVG サニタイズ・秘密の除去は relay_security、上流呼び出しと Entra トークンは relay_upstream。後続の設定・Entra の項目はここを拡張する | FR-066, FR-067, NFR-SEC-003 |
+| 中継サーバー | server/relay.py, server/relay_config.py, server/relay_security.py, server/relay_upstream.py | 127.0.0.1 だけの静的配信＋LLM 中継。設定は relay_config（環境変数>設定ファイル）、Host/Origin 検証と SVG サニタイズ・秘密の除去は relay_security、上流呼び出しと Entra トークンは relay_upstream。後続の設定・Entra の項目はここを拡張する | FR-065, FR-066, FR-067, NFR-SEC-003 |
 | LLM 連携の制御 | web/src/llm.js, web/src/relayclient.js | 既定オフ・同意の表示と同意後だけ有効（保存しない）・失敗時のルールベース復帰と短い通知・接続テスト・設定画面の項目（getLlmState / requestLlmEnable / getLlmConsent / answerLlmConsent / disableLlm / flushLlm / llmCall / testLlmConnection / getLlmLastSent）。FR-063・FR-065 は api.llmCall と 'llm:result' を使う | FR-062, FR-068 |
 | アプリ組立 | web/src/app.js | 状態・コマンド・キー割り当て・パネル描画の拡張点（modules / registerCommand / registerPanelRenderer / addUtterance / addUtterances）。後続の機能はここへ足す | FR-001、FR-002、FR-003、FR-004、FR-005、FR-006、FR-007、FR-008、FR-009、FR-010、FR-011、FR-012、FR-013、FR-014、FR-015、FR-016、FR-017、FR-018、FR-019、FR-020、FR-021、FR-022、FR-023、FR-024、FR-025、FR-026、NFR-A11Y-001、NFR-BG-001、NFR-PERF-001、NFR-UX-001、NFR-UX-003、FR-027、FR-028、FR-029、FR-030、FR-031、FR-032、FR-033、FR-034、FR-035、FR-036、FR-039、FR-047、FR-048、FR-049、FR-050、FR-051、FR-062、FR-068 |
 | i18n | web/src/i18n.js | ja/en の UI 文言（addStrings で後続が追加） | FR-006, FR-008, FR-015, FR-016, FR-017, FR-020, FR-021, NFR-UX-002, FR-018, FR-019, NFR-UX-003, FR-025, FR-026, FR-027, FR-030, FR-036, FR-062, FR-068 |
@@ -96,7 +97,8 @@
 | 認識文字列 | web/src/transcript.js | 右パネル（パネル ID input）の確定結果一覧・暫定結果の区別表示（getTranscript / renderTranscript） | FR-013, FR-014 |
 | キーマップ | web/src/keymap.js | 全操作の Alt+Shift+キー割り当て | NFR-A11Y-001, FR-015, FR-017, FR-021, FR-018, FR-019, FR-025, FR-026, FR-027, FR-030 |
 | 感情語辞書 | web/src/emotion.js | 日英の感情・様子の語 → 絵記号の対応（決定的） | FR-004, FR-015, FR-032, FR-064 |
-| 同梱部品 | web/src/parts.js | 同梱の汎用物体の SVG 部品 134 点（部品キーで引く: getPartKeys・getPartInfo・getPartSvg・getPartGroup・isPartKey）、語の辞書 → 部品（matchParts）、許可リスト検査（isAllowedPartSvg）、実在人物を特定しない汎用キャラのビルダー（buildCharacter・expressionForText。候補は CHARACTER_OPTIONS）。後続の LLM 抽出はキーを isPartKey で検証して対応づける | FR-064 |
+| SVG サニタイズ | web/src/svgsanitize.js, server/relay_security.py | 許可リスト（parts.js の OK_TAGS・OK_ATTRS と同一）で SVG を無害化。アプリ側は sanitizeSvg・acceptGeneratedSvg（上限 PARAM-072）、中継サーバー側は sanitize_svg・extract_svg。同じ規則を両方で二重に行い、セッション読込時にも再サニタイズする | FR-065, NFR-SEC-004 |
+| 同梱部品 | web/src/parts.js | 同梱の汎用物体の SVG 部品 134 点（部品キーで引く: getPartKeys・getPartInfo・getPartSvg・getPartGroup・isPartKey）、語の辞書 → 部品（matchParts）、許可リスト検査（isAllowedPartSvg）、実在人物を特定しない汎用キャラのビルダー（buildCharacter・expressionForText。候補は CHARACTER_OPTIONS）。後続の LLM 抽出はキーを isPartKey で検証して対応づける | FR-064, NFR-SEC-004 |
 | 3D ビュー | web/src/view3d.js, web/src/axes3d.js | CSS 3D transforms による 3D 配置（get3D）、評価軸の候補・位置（getAxes3D / setAxis3D）、視点操作と操作説明（viewControl / getViewControls / getViewpoint、view.<op> のキー）、プレゼンのカメラ・タイマー（presentation.*）、WebGL なしの 2D 代替 | FR-009, FR-010, FR-020, FR-021 |
 | セッション | web/src/session.js | データの初期化（data.reset・getDialog・dialogAction）、セッションファイルの保存・読込（file.save・file.load・loadSessionFile。版・上限 PARAM-010 の検証）、手修正の一覧（getManualEdits）。手動の型・描画スタイルの現在値の保存・復元（FR-027・FR-029） | FR-018, FR-019, FR-027, FR-029 |
 | レイアウト型レジストリ | web/src/layouttypes.js, web/src/settings.js | 5 つの型（timeline・bubble・diverge・zone・metaphor）の登録簿。型ごとの配置（layout）・併用の重ね（overlay）を registerLayoutType で差し替える。未実装の型は暫定でタイムライン相当（timelineLayout）。型の決まり方は 手動＞設定の既定（getLayoutInfo・getDiagramLayout・setAutoLayoutSelector）。自動選択は web/src/autolayout.js が登録（FR-028）。timelineLayout はトピックごとのまとまり・小見出し・外枠を持つ（FR-036） | FR-027, FR-028, FR-030, FR-031, FR-032, FR-033, FR-034, FR-035, FR-036 |

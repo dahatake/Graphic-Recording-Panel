@@ -4,9 +4,12 @@
 // 絵の対応づけはメモリだけに持ち、セッションファイル・ブラウザ内の保存・エクスポートには含めない（NFR-PRIV-003 AC-362）。
 import { isPartKey, getPartKeys, getPartInfo, getPartGroup, getPartSvg, buildCharacter, CHARACTER_OPTIONS, EXPRESSION_LABELS } from './parts.js';
 import { escapeHtml } from './outline.js';
+import { acceptGeneratedSvg } from './svgsanitize.js';
 
 export const EXTRACT_PATH = '/api/llm/extract'; // 中継サーバーが /api/llm/responses と同じ中継をする
+export const SVG_PATH = '/api/llm/svg'; // FR-065 方式2
 export const MAX_SEND_CHARS = 2000; // PARAM-070
+const MAX_GENERATED = 4; // 1 回の抽出で生成を求める物の上限
 const LIMITS = { objects: 8, metaphors: 4, people: 3, emotions: 4 };
 const MASK = '●●●';
 const CELL_W = 64; const CELL_H = 84;
@@ -62,16 +65,42 @@ export function parseExtraction(body) {
   return { objects: partKeys(b.objects, LIMITS.objects), metaphors: partKeys(b.metaphors, LIMITS.metaphors), people, emotions };
 }
 
+// FR-065 AC-331: 同梱部品にない物体（key が部品キーでなく label がある）の名前。重複なし・上限つき。
+export function parseUnbundled(body) {
+  const b = unwrap(body);
+  if (!b || !isArr(b.objects)) return [];
+  const out = [];
+  for (const it of b.objects) {
+    if (!isObj(it) || isPartKey(it.key) || typeof it.label !== 'string') continue;
+    const label = [...it.label.replace(/[<>&"'\u0000-\u001f]/g, ' ').trim()].slice(0, 24).join('');
+    if (label && !out.includes(label)) out.push(label);
+    if (out.length >= MAX_GENERATED) break;
+  }
+  return out;
+}
+// 生成の応答から SVG の文字列を取り出す（body.svg か、Responses の出力の文字の中の <svg>…</svg>）。なければ null。
+export function findSvg(body) {
+  if (!isObj(body)) return null;
+  if (typeof body.svg === 'string') return body.svg;
+  const texts = [];
+  if (typeof body.output_text === 'string') texts.push(body.output_text);
+  if (isArr(body.output)) for (const o of body.output) for (const c of (isArr(o?.content) ? o.content : [])) if (typeof c?.text === 'string') texts.push(c.text);
+  for (const t of texts) { const m = /<svg\b[\s\S]*?<\/svg\s*>/i.exec(t); if (m) return m[0]; }
+  return null;
+}
+export const GENERIC_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"><rect x="8" y="8" width="32" height="32" rx="4" fill="none" stroke="#15191f" stroke-width="2"/><text x="24" y="31" font-size="20" text-anchor="middle" fill="#15191f">?</text></svg>';
+const INNER_SIZE = 48;
+
 export function llmDrawModule(ctx) {
   const { api, state } = ctx;
   ctx.i18n.addStrings({
     ja: {
       'llmdraw.mask': '送信前の簡易マスキング', 'llmdraw.maskNote': '利用者が登録した語・敬称付きの人名らしい語・メールアドレス・電話番号を伏せ字にします。検出は簡易で、完全な個人情報の除去は保証しません。',
-      'llmdraw.truncated': '送る文字数の上限を超えたため、超過分は送っていません', 'llmdraw.heading': 'LLM が抽出した描画', 'llmdraw.person': '人物（汎用キャラ）', 'llmdraw.emotion': '感情',
+      'llmdraw.truncated': '送る文字数の上限を超えたため、超過分は送っていません', 'llmdraw.heading': 'LLM が抽出した描画', 'llmdraw.person': '人物（汎用キャラ）', 'llmdraw.emotion': '感情', 'llmdraw.svgFailed': 'SVG の生成結果を使えなかったため、汎用のアイコンにしました',
     },
     en: {
       'llmdraw.mask': 'Simple masking before sending', 'llmdraw.maskNote': 'Registered words, name-like words with honorifics, email addresses and phone numbers are replaced with a mask. Detection is simple and does not guarantee complete removal of personal information.',
-      'llmdraw.truncated': 'The text exceeded the send limit, so the excess was not sent', 'llmdraw.heading': 'Drawn from LLM extraction', 'llmdraw.person': 'Person (generic character)', 'llmdraw.emotion': 'Emotion',
+      'llmdraw.truncated': 'The text exceeded the send limit, so the excess was not sent', 'llmdraw.heading': 'Drawn from LLM extraction', 'llmdraw.person': 'Person (generic character)', 'llmdraw.emotion': 'Emotion', 'llmdraw.svgFailed': 'The generated SVG could not be used, so a generic icon is shown',
     },
   });
 
@@ -92,11 +121,43 @@ export function llmDrawModule(ctx) {
   let seq = 0;
   const active = () => api.getLlmState?.().enabled === true;
 
+  // ---- FR-065 方式2（任意・既定オフ・保存しない設定）。生成 SVG はサニタイズ後だけ持つ（NFR-SEC-004） ----
+  let svgGeneration = false;
+  const baseState = api.getLlmState;
+  api.getLlmState = () => ({ ...baseState(), svgGeneration });
+  api.setLlmSvgGeneration = (v) => { svgGeneration = v === true; ctx.emit('change', api); return svgGeneration; };
+  const generated = new Map(); // シーン ID → [{ label, svg: サニタイズ済み | null（汎用アイコン） }]
+  const norm = (svg) => acceptGeneratedSvg(svg, { width: INNER_SIZE, height: INNER_SIZE });
+  async function generate(sceneId, labels, n) {
+    for (const label of labels) {
+      if ((generated.get(sceneId) ?? []).some((g) => g.label === label)) continue;
+      const res = await api.llmCall(SVG_PATH, { key: 'generated', label, input: label, instructions: `Draw "${label}" as one simple flat icon SVG (viewBox 0 0 48 48). Use only svg, g, path, circle, ellipse, rect, line, polyline, polygon, text. No script, no external references. Reply with the <svg> only.` });
+      if (!res?.ok || latest.get(sceneId) !== n || !svgGeneration || !active()) continue;
+      const svg = norm(findSvg(res.body));
+      generated.set(sceneId, [...(generated.get(sceneId) ?? []), { label, svg }]);
+      ctx.change(() => { if (!svg) ctx.setMessage('llmdraw.svgFailed'); });
+      ctx.emit('change', api);
+    }
+  }
+  // セッションファイル（FR-019）: 保存はサニタイズ済みの SVG だけ。読込は必ず再サニタイズ（AC-365）。
+  api.exportGeneratedSvgs = () => [...generated].flatMap(([sceneId, list]) => list.filter((g) => g.svg).map((g) => ({ sceneId, label: g.label, svg: g.svg })));
+  api.importGeneratedSvgs = (list) => {
+    generated.clear();
+    for (const it of (Array.isArray(list) ? list : [])) {
+      if (!isObj(it) || typeof it.sceneId !== 'string' || typeof it.label !== 'string') continue;
+      const svg = norm(it.svg);
+      if (!svg) continue;
+      generated.set(it.sceneId, [...(generated.get(it.sceneId) ?? []), { label: [...it.label].slice(0, 24).join(''), svg }]);
+    }
+    ctx.emit('change', api);
+  };
+
   const catalogText = () => getPartKeys().map((k) => `${k}=${getPartInfo(k, 'en').label}`).join(', ');
   const instructions = () => `You extract what to draw from key points of a conversation. Reply with one JSON object only: {"objects":[{"key"}],"people":[{"hair","hairColor","outfit","expression"}],"emotions":[{"key"}],"metaphors":[{"key"}]}. `
     + `"key" of objects and metaphors must be one of these part keys: ${catalogText()}. `
     + `people use only: hair ${CHARACTER_OPTIONS.hair.join('|')}; hairColor ${CHARACTER_OPTIONS.hairColor.join('|')}; outfit ${CHARACTER_OPTIONS.outfit.join('|')}; expression ${CHARACTER_OPTIONS.expression.join('|')}. `
-    + `emotions keys: ${CHARACTER_OPTIONS.expression.filter((e) => e !== 'neutral').join('|')}. Never include names of real people.`;
+    + `emotions keys: ${CHARACTER_OPTIONS.expression.filter((e) => e !== 'neutral').join('|')}. Never include names of real people.`
+    + (svgGeneration ? ' For an object that has no suitable part, use key "other" and give a short "label" naming it.' : '');
 
   function requestFor(scene) {
     const raw = [scene.heading, ...scene.points.map((p) => p.text)].join('\n');
@@ -108,13 +169,14 @@ export function llmDrawModule(ctx) {
     if (!scene) return;
     const { text, truncated } = requestFor(scene);
     const n = ++seq; latest.set(scene.id, n);
-    const pending = api.llmCall(EXTRACT_PATH, { instructions: instructions(), input: text, text: { format: { type: 'json_object' } } });
+    const pending = api.llmCall(EXTRACT_PATH, { instructions: instructions(), input: text, text: { format: { type: 'json_object' } }, ...(svgGeneration ? { allowSvg: true } : {}) });
     if (truncated) { await Promise.resolve(); ctx.change(() => ctx.setMessage('llmdraw.truncated')); } // 呼び出し元の状態更新の後に通知する
     const res = await pending;
     if (!res?.ok || latest.get(scene.id) !== n || !active()) return;
     const parsed = parseExtraction(res.body);
     if (!parsed) return; // 形式に合わない応答は全体を無視（ルールベースのまま）
     drawn.set(scene.id, parsed);
+    if (svgGeneration) { const labels = parseUnbundled(res.body); if (labels.length) { ctx.emit('change', api); await generate(scene.id, labels, n); return; } }
     ctx.emit('change', api);
   }
   ctx.on('utterance', () => { if (active()) void extract(); });
@@ -122,21 +184,24 @@ export function llmDrawModule(ctx) {
   // ---- 描かれる内容（存在するシーンの分だけ。無効のときは空） ----
   const sceneIds = () => new Set(state.scenes.map((s) => s.id));
   function entries() {
-    if (!active()) return [];
     const ids = sceneIds(); const out = [];
     for (const s of state.scenes) {
-      const d = drawn.get(s.id);
-      if (!d || !ids.has(s.id)) continue;
-      for (const key of d.objects) out.push({ kind: 'object', key });
-      for (const key of d.metaphors) out.push({ kind: 'metaphor', key });
-      for (const p of d.people) out.push({ kind: 'person', attrs: p });
-      for (const key of d.emotions) out.push({ kind: 'emotion', key });
+      const d = active() ? drawn.get(s.id) : null;
+      if (d && ids.has(s.id)) {
+        for (const key of d.objects) out.push({ kind: 'object', key });
+        for (const key of d.metaphors) out.push({ kind: 'metaphor', key });
+        for (const p of d.people) out.push({ kind: 'person', attrs: p });
+        for (const key of d.emotions) out.push({ kind: 'emotion', key });
+      }
+      // 生成 SVG は保存・読込の後は LLM 連携なしでも描く（AC-334）
+      for (const g of generated.get(s.id) ?? []) out.push({ kind: 'generated', label: g.label, svg: g.svg ?? GENERIC_ICON });
     }
     return out;
   }
   const lang = () => (state.lang === 'en' ? 'en' : 'ja');
   const labelOf = (e) => {
     if (e.kind === 'object' || e.kind === 'metaphor') return getPartInfo(e.key, lang()).label;
+    if (e.kind === 'generated') return e.label;
     if (e.kind === 'person') return `${ctx.t('llmdraw.person')}: ${EXPRESSION_LABELS[e.attrs.expression][lang()]}`;
     return `${ctx.t('llmdraw.emotion')}: ${EXPRESSION_LABELS[e.key][lang()]}`;
   };
@@ -144,7 +209,7 @@ export function llmDrawModule(ctx) {
   // PNG・PDF に含める絵（物・比喩・汎用キャラ）。感情は文字だけ。
   api.getLlmDrawItems = () => {
     const items = entries().filter((e) => e.kind !== 'emotion').map((e) => ({
-      label: clip(labelOf(e)), svg: e.kind === 'person' ? buildCharacter(e.attrs, { lang: lang() }) : getPartSvg(e.key),
+      label: clip(labelOf(e)), svg: e.kind === 'person' ? buildCharacter(e.attrs, { lang: lang() }) : e.kind === 'generated' ? e.svg : getPartSvg(e.key),
     }));
     return items.length ? items : null;
   };
@@ -165,6 +230,7 @@ export function llmDrawModule(ctx) {
       const x = 12 + (i % per) * CELL_W; const y = height + 28 + Math.floor(i / per) * CELL_H;
       const label = `<text x="${x}" y="${y + 62}" font-size="11" fill="#15191f">${escapeHtml(clip(labelOf(e)))}</text>`;
       if (e.kind === 'object' || e.kind === 'metaphor') return `<g data-part-key="${e.key}" data-llm-kind="${e.kind}" transform="translate(${x} ${y})">${getPartGroup(e.key)}</g>${label}`;
+      if (e.kind === 'generated') return `<g data-llm-kind="generated" transform="translate(${x} ${y})">${e.svg}</g>${label}`;
       if (e.kind === 'person') return `<g data-llm-kind="person" transform="translate(${x} ${y}) scale(0.8)">${buildCharacter(e.attrs, { lang: lang() }).replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '')}</g>`;
       return `<g data-llm-kind="emotion" data-emotion-key="${e.key}"><text x="${x}" y="${y + 24}" font-size="12" font-weight="700" fill="#15191f">${escapeHtml(clip(labelOf(e)))}</text></g>`;
     }).join('');
