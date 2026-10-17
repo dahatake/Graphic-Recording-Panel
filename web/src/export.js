@@ -1,3 +1,4 @@
+import { paintRpgCanvas } from './rpgmap.js';
 // FR-006（PNG・SVG 保存）/ FR-007（PDF 保存）。外部通信なし・依存なし（PDF は自前で生成する）。
 // 保存は「表示中のビュー」ではなく常に 2D の図の内容（全シーンの見出しと要点）を出力する。3D 表示中はその旨を表示する（AC-014）。
 // シーンが 0 件のときは保存できず、理由を表示する（AC-046）。
@@ -228,6 +229,6 @@ export function exportModule(ctx) {
   ctx.registerCommand('save.png', () => run('png', 'image/png', async () => {
     const factory = ctx.options.canvasFactory ?? browserCanvasFactory();
     if (!factory) throw new Error('no canvas');
-    return renderPng(scenes(), factory, { arrange: arranged() });
+    return renderPng(scenes(), factory, { arrange: arranged(), rpg: ctx.api.getRpgMap?.() ?? null });
   }));
 }

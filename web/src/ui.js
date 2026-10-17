@@ -321,6 +321,13 @@ export function mountUI(app, doc = document) {
       for (const s of o.styles) { const op = doc.createElement('option'); op.value = s.value; op.textContent = s.label; style.append(op); }
       style.addEventListener('change', () => app.setSettings({ drawStyle: style.value }));
       row('drawStyle', d.fields[2].label, style);
+      // FR-051 AC-228: RPG風の音（端末ごとに保存。ミュート・音量）
+      const mute = doc.createElement('input'); mute.type = 'checkbox';
+      mute.addEventListener('change', () => app.setRpgMuted(mute.checked));
+      row('rpg.mute', app.t('rpg.audio.mute'), mute);
+      const vol = doc.createElement('input'); vol.type = 'range'; vol.min = '0'; vol.max = '100'; vol.step = '1';
+      vol.addEventListener('input', () => app.setRpgVolume(Number(vol.value)));
+      row('rpg.volume', app.t('rpg.audio.volume'), vol);
       const close = doc.createElement('button'); close.type = 'button'; close.className = 'btn btn-primary'; close.textContent = o.closeLabel; close.dataset.action = 'settings-close';
       close.addEventListener('click', () => app.commands['settings.close']());
       setEl.append(h, form, close);
@@ -328,15 +335,60 @@ export function mountUI(app, doc = document) {
     const vals = Object.fromEntries(d.fields.map((f) => [f.id, f.value]));
     setEl.querySelector('select#settings-layout\\.mode').value = vals['layout.mode'];
     setEl.querySelector('select#settings-drawStyle').value = vals.drawStyle;
+    const au = app.getRpgAudio();
+    setEl.querySelector('#settings-rpg\\.mute').checked = au.muted;
+    setEl.querySelector('#settings-rpg\\.volume').value = String(au.volume);
     for (const cb of setEl.querySelectorAll('input[type=checkbox]')) cb.checked = vals['layout.types'].includes(cb.value);
     const wasHidden = setEl.hidden; setEl.hidden = false;
     if (wasHidden) setEl.querySelector('select')?.focus();
   }
   app.on('change', syncSettings);
 
+  // FR-050: RPG風の仮想パッド（十字キー・A・B）とコマンドウィンドウ。状態は app が持ち、ここは描くだけ。
+  const rpgEl = doc.createElement('div'); rpgEl.id = 'rpg-ui'; rpgEl.hidden = true;
+  const padEl = doc.createElement('div'); padEl.className = 'rpg-pad'; padEl.setAttribute('role', 'group');
+  const winEl = doc.createElement('div'); winEl.className = 'rpg-window'; winEl.hidden = true; winEl.setAttribute('role', 'dialog');
+  const winText = doc.createElement('p'); winText.className = 'rpg-window-text'; winText.setAttribute('aria-hidden', 'true');
+  const winFull = doc.createElement('p'); winFull.className = 'sr-only'; winFull.setAttribute('aria-live', 'polite');
+  const winHint = doc.createElement('p'); winHint.className = 'rpg-window-hint';
+  winEl.append(winText, winFull, winHint);
+  rpgEl.append(winEl, padEl); doc.body.append(rpgEl);
+  let padLang = null;
+  function syncRpg() {
+    const on = !!app.getRpgMap?.();
+    rpgEl.hidden = !on;
+    if (!on) return;
+    const lang = app.getState().lang;
+    if (padLang !== lang) {
+      padLang = lang; padEl.textContent = '';
+      padEl.setAttribute('aria-label', app.t('rpg.pad.label'));
+      for (const b of app.getRpgPad().buttons) {
+        const el = doc.createElement('button'); el.type = 'button'; el.className = `rpg-btn rpg-btn-${b.id}`; el.dataset.rpgButton = b.id;
+        el.textContent = { up: '▲', down: '▼', left: '◀', right: '▶' }[b.id] ?? b.label; // 矢印の記号＋名前（色だけに頼らない）
+        el.setAttribute('aria-label', b.label); el.title = b.label;
+        el.style.width = `${b.width}px`; el.style.height = `${b.height}px`;
+        el.addEventListener('click', () => { app.setRpgFocus(true); app.rpgPress(b.id); });
+        padEl.append(el);
+      }
+    }
+    const d = app.getRpgDialog();
+    winEl.hidden = !d;
+    if (d) {
+      winEl.style.background = d.theme.bg; winEl.style.borderColor = d.theme.frame;
+      winEl.setAttribute('aria-label', app.t('rpg.dialog.label'));
+      winText.textContent = d.shown; winFull.textContent = d.sentences[d.index]; winHint.textContent = app.t('rpg.dialog.hint');
+    }
+  }
+  app.on('change', syncRpg);
+  // 地図にフォーカスがあるときだけ RPG のキーが効く（図・仮想パッドに入ると真、それ以外へ移ると偽）
+  doc.addEventListener('focusin', (e) => { app.setRpgFocus?.(!!e.target.closest?.('#diagram, #rpg-ui')); });
+  doc.addEventListener('pointerdown', (e) => { app.setRpgFocus?.(!!e.target.closest?.('#diagram, #rpg-ui')); });
+
   app.on('ui:focusInput', () => draft.focus());
   doc.addEventListener('keydown', (e) => {
-    const cmd = app.handleKey({ key: e.key, ctrlKey: e.ctrlKey, altKey: e.altKey, shiftKey: e.shiftKey });
+    const t = e.target; const tag = String(t?.tagName ?? '').toUpperCase();
+    const inTextInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t?.isContentEditable === true;
+    const cmd = app.handleKey({ key: e.key, ctrlKey: e.ctrlKey, altKey: e.altKey, shiftKey: e.shiftKey, inTextInput });
     if (cmd) e.preventDefault();
   });
   // FR-024: オブジェクト選択のポップアップ（図の上。role=dialog・名前つき。Esc・外側の操作で閉じる）
