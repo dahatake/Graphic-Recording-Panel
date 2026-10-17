@@ -39,11 +39,17 @@ test('FR-062 AC-312: 同意は保存されず、同じ保存領域で作り直�
   const a = await mk();
   await a.app.requestLlmEnable(); await a.app.answerLlmConsent(true);
   assert.equal(a.app.getLlmState().enabled, true);
-  assert.ok(!JSON.stringify(a.env.storage.dump()).toLowerCase().includes('llm'), '保存領域に LLM の同意・状態を書かない');
+  // FR-062 AC-312・AC-366（Q-016 B）: 保存するのは同意の事実・版・日時だけ。再読込で有効のまま、無効化で撤回
+  const rec = JSON.parse(a.env.storage.getItem('grp.llm.consent'));
+  assert.deepEqual(Object.keys(rec).sort(), ['at', 'version']);
   const b = await a.createApp({ ...a.env.options, relay: a.relay.fn });
-  assert.equal(b.getLlmState().enabled, false);
-  const r = await b.requestLlmEnable();
-  assert.equal(r.pending, 'consent');
+  assert.equal(b.getLlmState().enabled, true);
+  assert.equal(b.getLlmConsent(), null);
+  await b.disableLlm();
+  assert.equal(a.env.storage.getItem('grp.llm.consent'), null);
+  const c = await a.createApp({ ...a.env.options, relay: a.relay.fn });
+  assert.equal(c.getLlmState().enabled, false);
+  assert.equal((await c.requestLlmEnable()).pending, 'consent');
 });
 
 // FR-068 AC-354: 接続テストは最小の要求を中継経由で送り、成功/失敗（原因の分類）を示す。有効化の状態は変えない

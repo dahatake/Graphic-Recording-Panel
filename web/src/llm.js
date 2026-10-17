@@ -18,7 +18,11 @@ export const maskSecrets = (text) => String(text ?? '')
   .replace(/\bsk-[A-Za-z0-9_-]{8,}/g, '[masked]')
   .replace(/[A-Za-z0-9_+/=-]{32,}/g, '[masked]');
 
-export function llmModule(ctx) {
+// FR-062 AC-312・AC-367: 同意の記録（ブラウザのローカル設定だけ）。送信内容（種類・項目）を変えたら版を上げて再同意を求める。
+export const CONSENT_KEY = 'grp.llm.consent';
+export const CONSENT_VERSION = 'send-v2:points+scene+drawStyle+partKeys';
+
+export async function llmModule(ctx) {
   const { api, state } = ctx;
   const t = ctx.t;
 
@@ -33,7 +37,7 @@ export function llmModule(ctx) {
       'llm.consent.title': 'LLM 連携の送信内容の確認', 'llm.consent.accept': '同意して有効にする', 'llm.consent.decline': '同意しない',
       'llm.consent.kind.points': '会話の要点の文字（マスキング後）', 'llm.consent.sent': '送る内容:', 'llm.consent.to': '送信先', 'llm.consent.notSentLabel': '送らないもの:',
       'llm.consent.notSent.audio': '音声', 'llm.consent.notSent.secret': 'API キー・トークン', 'llm.consent.notSent.other': '要点の文字以外の内容',
-      'llm.consent.hostUnknown': '中継サーバーに設定された Foundry のエンドポイント', 'llm.consent.note': 'この同意はブラウザのタブを開いている間だけ有効です。',
+      'llm.consent.hostUnknown': '中継サーバーに設定された Foundry のエンドポイント', 'llm.consent.note': 'この同意はこのブラウザに保存されます（同意の事実・送信内容の版・同意日時だけ）。無効にすると取り消されます。',
       'llm.test.ok': '接続テスト: 成功', 'llm.test.running': '接続テスト中', 'llm.test.fail.unconfigured': '接続テスト: 失敗（未設定）', 'llm.test.fail.consent': '先に同意が必要です（LLM 連携を有効にして同意してください）',
       'llm.test.fail.auth': '接続テスト: 失敗（認証）', 'llm.test.fail.connection': '接続テスト: 失敗（接続）', 'llm.test.fail.timeout': '接続テスト: 失敗（タイムアウト）',
       'llm.lastSent': '直近に送った内容',
@@ -48,7 +52,7 @@ export function llmModule(ctx) {
       'llm.consent.title': 'Confirm what LLM integration sends', 'llm.consent.accept': 'Agree and enable', 'llm.consent.decline': 'Do not agree',
       'llm.consent.kind.points': 'Key-point text of the conversation (after masking)', 'llm.consent.sent': 'What is sent:', 'llm.consent.to': 'Destination', 'llm.consent.notSentLabel': 'What is not sent:',
       'llm.consent.notSent.audio': 'Audio', 'llm.consent.notSent.secret': 'API keys and tokens', 'llm.consent.notSent.other': 'Anything other than the key-point text',
-      'llm.consent.hostUnknown': 'The Foundry endpoint configured on the relay server', 'llm.consent.note': 'This consent lasts only while this browser tab stays open.',
+      'llm.consent.hostUnknown': 'The Foundry endpoint configured on the relay server', 'llm.consent.note': 'This consent is saved in this browser (only the fact of consent, the version of what is sent, and the date). Disabling revokes it.',
       'llm.test.ok': 'Connection test: succeeded', 'llm.test.running': 'Testing the connection', 'llm.test.fail.unconfigured': 'Connection test: failed (not configured)', 'llm.test.fail.consent': 'Consent is required first (enable LLM integration and agree)',
       'llm.test.fail.auth': 'Connection test: failed (authentication)', 'llm.test.fail.connection': 'Connection test: failed (connection)', 'llm.test.fail.timeout': 'Connection test: failed (timeout)',
       'llm.lastSent': 'Last content sent',
@@ -98,6 +102,16 @@ export function llmModule(ctx) {
     return { missing, host: typeof b.endpointHost === 'string' ? b.endpointHost : '', reason: b.state === 'error' ? 'error' : null };
   }
 
+  // ---- 同意の保存（事実・版・日時だけ。AC-312・366・367） ----
+  const writeConsent = () => { try { ctx.storage.setItem(CONSENT_KEY, JSON.stringify({ version: CONSENT_VERSION, at: ctx.now() })); } catch { /* 保存できなくても動作は続ける */ } };
+  const clearConsent = () => { try { ctx.storage.removeItem(CONSENT_KEY); } catch { /* 同上 */ } };
+  const consentValid = () => {
+    try {
+      const r = JSON.parse(ctx.storage.getItem(CONSENT_KEY));
+      return !!r && typeof r === 'object' && typeof r.version === 'string' && r.version.length > 0 && r.version === CONSENT_VERSION;
+    } catch { return false; }
+  };
+
   // ---- 有効化・同意・無効化 ----
   api.getLlmState = () => ({ status: statusId(), enabled, missing: enabled ? [] : [...(unconfigured ?? [])] });
   api.requestLlmEnable = () => track((async () => {
@@ -126,7 +140,7 @@ export function llmModule(ctx) {
     if (!consent) return { ok: false };
     consent = null;
     if (accept === true) {
-      enabled = true; failed = false; unconfigured = null; generation++;
+      enabled = true; failed = false; unconfigured = null; generation++; writeConsent();
       say('llm.enabledMsg');
     }
     notify();
@@ -135,7 +149,7 @@ export function llmModule(ctx) {
   api.disableLlm = async () => {
     generation++; // 処理中の要求の結果は反映しない（AC-315）
     const was = enabled;
-    enabled = false; failed = false; unconfigured = null; consent = null;
+    enabled = false; failed = false; unconfigured = null; consent = null; lastSent = null; clearConsent();
     if (was) say('llm.disabledMsg'); else notify();
     return { ok: true };
   };
@@ -227,4 +241,10 @@ export function llmModule(ctx) {
   // 設定画面を開いたときに、認証情報の「設定済み／未設定」を中継サーバーから読む（LLM 向けの要求には数えない）
   const baseOpen = ctx.api.commands['settings.open'];
   ctx.registerCommand('settings.open', () => { baseOpen(); if (credentialSet == null && relay) track(readStatus().then(notify)); });
+
+  // 起動時: 保存された同意が現在の版と一致し、設定（AC-313）が揃っているときだけ有効に復帰する。それ以外は無効（再同意が必要）。
+  if (relay && consentValid()) {
+    const st = await readStatus();
+    if (!st.missing.length && !st.reason) { enabled = true; }
+  }
 }
