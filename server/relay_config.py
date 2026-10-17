@@ -7,6 +7,7 @@
 import ipaddress
 import json
 import os
+import re
 import socket
 from urllib.parse import urlsplit
 
@@ -112,12 +113,24 @@ def validate_endpoint(endpoint, allow_loopback):
         return None  # AC-364: テスト用のループバックの上流だけ
     if parts.scheme != "https":
         return "エンドポイントは https にしてください。"
-    if host.lower() == "localhost" or host.lower().endswith(".localhost"):
+    low = host.lower().rstrip(".")
+    if low == "localhost" or low.endswith(".localhost"):
         return "エンドポイントに localhost は使えません。"
     try:
         ip = ipaddress.ip_address(host)
     except ValueError:
+        # 10進・16進・8進・省略形の IPv4 表記（例: 2130706433、0x7f.1）は内部アドレスを隠せるので拒否する
+        try:
+            socket.inet_aton(host)
+            return "エンドポイントに内部のアドレスは使えません。"
+        except OSError:
+            pass
+        if re.fullmatch(r"(0x[0-9a-f]+|\d+)(\.(0x[0-9a-f]+|\d+))*", low):
+            return "エンドポイントに内部のアドレスは使えません。"
         return None
+    mapped = getattr(ip, "ipv4_mapped", None)
+    if mapped is not None:
+        ip = mapped
     if not ip.is_global:
         return "エンドポイントに内部のアドレスは使えません。"
     return None
