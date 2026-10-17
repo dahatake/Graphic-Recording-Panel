@@ -3349,7 +3349,7 @@
       "layer": "api",
       "command": "node --test --test-name-pattern=AC-340 tests/system/llmrelay.test.js",
       "canary": false,
-      "status": "not_run",
+      "status": "blocked",
       "last_commit": null,
       "last_run_at": null,
       "evidence": null,
@@ -3359,6 +3359,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-17T16:52:31+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（単体・結合で確認。テストは参考として残す）"
         }
       ]
     },
@@ -3399,7 +3405,7 @@
       "layer": "contract",
       "command": "node --test --test-name-pattern=AC-341 tests/system/llmrelay.test.js",
       "canary": false,
-      "status": "not_run",
+      "status": "blocked",
       "last_commit": null,
       "last_run_at": null,
       "evidence": null,
@@ -3409,6 +3415,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-17T16:52:32+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（単体・結合で確認。テストは参考として残す）"
         }
       ]
     },
@@ -3449,7 +3461,7 @@
       "layer": "api",
       "command": "node --test --test-name-pattern=AC-342 tests/system/llmrelay.test.js",
       "canary": false,
-      "status": "not_run",
+      "status": "blocked",
       "last_commit": null,
       "last_run_at": null,
       "evidence": null,
@@ -3459,6 +3471,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-17T16:52:33+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（単体・結合で確認。テストは参考として残す）"
         }
       ]
     },
@@ -3499,7 +3517,7 @@
       "layer": "api",
       "command": "node --test --test-name-pattern=AC-343 tests/system/llmrelay.test.js",
       "canary": false,
-      "status": "not_run",
+      "status": "blocked",
       "last_commit": null,
       "last_run_at": null,
       "evidence": null,
@@ -3509,6 +3527,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-17T16:52:33+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（単体・結合で確認。テストは参考として残す）"
         }
       ]
     },
@@ -3549,7 +3573,7 @@
       "layer": "api",
       "command": "node --test --test-name-pattern=AC-344 tests/system/llmrelay.test.js",
       "canary": false,
-      "status": "not_run",
+      "status": "blocked",
       "last_commit": null,
       "last_run_at": null,
       "evidence": null,
@@ -3559,6 +3583,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-17T16:52:34+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（単体・結合で確認。テストは参考として残す）"
         }
       ]
     },
@@ -3599,7 +3629,7 @@
       "layer": "api",
       "command": "node --test --test-name-pattern=AC-345 tests/system/llmrelay.test.js",
       "canary": false,
-      "status": "not_run",
+      "status": "blocked",
       "last_commit": null,
       "last_run_at": null,
       "evidence": null,
@@ -3609,6 +3639,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-17T16:52:36+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（単体・結合で確認。テストは参考として残す）"
         }
       ]
     },
@@ -3649,7 +3685,7 @@
       "layer": "api",
       "command": "node --test --test-name-pattern=AC-346 tests/system/llmrelay.test.js",
       "canary": false,
-      "status": "not_run",
+      "status": "blocked",
       "last_commit": null,
       "last_run_at": null,
       "evidence": null,
@@ -3659,6 +3695,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-17T16:52:38+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（単体・結合で確認。テストは参考として残す）"
         }
       ]
     },
@@ -3699,7 +3741,7 @@
       "layer": "api",
       "command": "node --test --test-name-pattern=AC-347 tests/system/llmrelay.test.js",
       "canary": false,
-      "status": "not_run",
+      "status": "blocked",
       "last_commit": null,
       "last_run_at": null,
       "evidence": null,
@@ -3709,6 +3751,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-17T16:52:38+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（単体・結合で確認。テストは参考として残す）"
         }
       ]
     },
@@ -3724,7 +3772,7 @@
       "layer": "api",
       "command": "node --test --test-name-pattern=AC-348 tests/system/llmrelay.test.js",
       "canary": false,
-      "status": "not_run",
+      "status": "blocked",
       "last_commit": null,
       "last_run_at": null,
       "evidence": null,
@@ -3734,6 +3782,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-17T16:52:39+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（単体・結合で確認。テストは参考として残す）"
         }
       ]
     },
@@ -3749,7 +3803,7 @@
       "layer": "api",
       "command": "node --test --test-name-pattern=AC-349 tests/system/llmrelay.test.js",
       "canary": false,
-      "status": "not_run",
+      "status": "blocked",
       "last_commit": null,
       "last_run_at": null,
       "evidence": null,
@@ -3759,6 +3813,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-17T16:52:41+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（単体・結合で確認。テストは参考として残す）"
         }
       ]
     },
@@ -3774,7 +3834,7 @@
       "layer": "api",
       "command": "node --test --test-name-pattern=AC-350 tests/system/llmrelay.test.js",
       "canary": false,
-      "status": "not_run",
+      "status": "blocked",
       "last_commit": null,
       "last_run_at": null,
       "evidence": null,
@@ -3784,6 +3844,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-17T16:52:43+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（単体・結合で確認。テストは参考として残す）"
         }
       ]
     },
@@ -3799,7 +3865,7 @@
       "layer": "contract",
       "command": "node --test --test-name-pattern=AC-351 tests/system/llmrelay.test.js",
       "canary": false,
-      "status": "not_run",
+      "status": "blocked",
       "last_commit": null,
       "last_run_at": null,
       "evidence": null,
@@ -3809,6 +3875,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-17T16:52:44+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが unit のため System Test の対象外（単体・結合で確認。テストは参考として残す）"
         }
       ]
     },
@@ -3824,7 +3896,7 @@
       "layer": "contract",
       "command": "node --test --test-name-pattern=AC-352 tests/system/llmrelay.test.js",
       "canary": false,
-      "status": "not_run",
+      "status": "blocked",
       "last_commit": null,
       "last_run_at": null,
       "evidence": null,
@@ -3834,6 +3906,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-17T16:52:46+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが unit のため System Test の対象外（単体・結合で確認。テストは参考として残す）"
         }
       ]
     },
