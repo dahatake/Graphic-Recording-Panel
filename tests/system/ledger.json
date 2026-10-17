@@ -129,7 +129,15 @@
     "AC-351": "sha256:f7c71893f7c2cf61",
     "AC-352": "sha256:665aa947e7b7bf54",
     "AC-363": "sha256:fc56766f4c55fac5",
-    "AC-364": "sha256:7afa5fbd86529df1"
+    "AC-364": "sha256:7afa5fbd86529df1",
+    "AC-311": "sha256:282ba030d75fd483",
+    "AC-312": "sha256:c1c0b4d8b1af9fb2",
+    "AC-334": "sha256:b9d97452a5ca917d",
+    "AC-358": "sha256:265da68e5120a5a4",
+    "AC-359": "sha256:be22be9a12c869c3",
+    "AC-360": "sha256:53839b89932f7c68",
+    "AC-366": "sha256:4c4ba8a297894acc",
+    "AC-367": "sha256:c517d020b9e88f71"
   },
   "cases": [
     {
@@ -3955,6 +3963,18 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "AC-363 の検証レベルが integration で System Test 対象外（CHK-10）。Q-019 は回答済み。conductor の判断待ち（level 変更 or implementer の統合テストへ移管）"
+        },
+        {
+          "at": "2026-10-17T21:05:43+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "Q-019 answered"
+        },
+        {
+          "at": "2026-10-17T21:06:17+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration（System Test の対象外）。要求定義書側の検証レベルを確認"
         }
       ]
     },
@@ -3998,6 +4018,224 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "AC-364 の検証レベルが integration で System Test 対象外（CHK-10）。Q-019 は回答済み。conductor の判断待ち"
+        },
+        {
+          "at": "2026-10-17T21:05:44+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "Q-019 answered"
+        },
+        {
+          "at": "2026-10-17T21:06:17+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration（System Test の対象外）。要求定義書側の検証レベルを確認"
+        }
+      ]
+    },
+    {
+      "id": "E2E-173",
+      "requirement_ids": [
+        "FR-062"
+      ],
+      "ac_ids": [
+        "AC-311"
+      ],
+      "title": "直近1回分の送信内容の確認（保存されない）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=AC-311 tests/system/llm-consent-persist.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T21:05:09+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-174",
+      "requirement_ids": [
+        "FR-062"
+      ],
+      "ac_ids": [
+        "AC-312"
+      ],
+      "title": "同意の保存と再読込後の維持（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=AC-312 tests/system/llm-consent-persist.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T21:05:14+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-175",
+      "requirement_ids": [
+        "FR-065"
+      ],
+      "ac_ids": [
+        "AC-334"
+      ],
+      "title": "サニタイズ済み SVG の保存と再描画（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=AC-334 tests/system/llm-consent-persist.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T21:05:19+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-176",
+      "requirement_ids": [
+        "NFR-PRIV-003"
+      ],
+      "ac_ids": [
+        "AC-358"
+      ],
+      "title": "送信内容は要点・候補一覧だけ",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=AC-358 tests/system/llm-consent-persist.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T21:05:25+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-177",
+      "requirement_ids": [
+        "NFR-PRIV-003"
+      ],
+      "ac_ids": [
+        "AC-359"
+      ],
+      "title": "簡易マスキング（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=AC-359 tests/system/llm-consent-persist.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T21:05:30+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-17T21:06:19+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration（System Test の対象外）。要求定義書側の検証レベルを確認"
+        }
+      ]
+    },
+    {
+      "id": "E2E-178",
+      "requirement_ids": [
+        "NFR-PRIV-003"
+      ],
+      "ac_ids": [
+        "AC-360"
+      ],
+      "title": "マスキングの既定有効と無効化（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=AC-360 tests/system/llm-consent-persist.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T21:05:35+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-179",
+      "requirement_ids": [
+        "FR-062"
+      ],
+      "ac_ids": [
+        "AC-366"
+      ],
+      "title": "無効化で同意取消（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=AC-366 tests/system/llm-consent-persist.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T21:05:38+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-180",
+      "requirement_ids": [
+        "FR-062"
+      ],
+      "ac_ids": [
+        "AC-367"
+      ],
+      "title": "同意の版不一致で無効（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=AC-367 tests/system/llm-consent-persist.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T21:05:42+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
         }
       ]
     }
