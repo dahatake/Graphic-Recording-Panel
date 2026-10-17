@@ -38,6 +38,8 @@ const KIND_RULES = [
   ['undecided', /未定|未決|決まっていない|決まらない|決めていない|決定していない|決まって(い)?ません|決めかね|保留|(not|n't)\s+(yet\s+)?(been\s+)?(decided|agreed|concluded|resolved|settled)|\bundecided\b|\bto be decided\b|\btbd\b|yet to (decide|agree)/i],
   ['issue', /困|課題|問題|不安|心配|遅れ|高い|高く|できない|足りな|不足|障害|エラー|trouble|problem|issue|risk|bug|stuck|blocked|difficult/i],
   ['proposal', /提案|propos|suggest|recommend/i],
+  // AC-231: 「〜と決まりました」など合意済みの決定は、アイデア・案の語を含んでいても結論
+  ['conclusion', /決ま(りまし|った)|決定しまし|決めまし|合意しまし|採用(が)?決定/],
   ['idea', /アイデア|ひらめ|\bidea\b/i],
   ['conclusion', /決め|決定|決ま|結論|合意|方針|採用|にする|します|decid|conclu|agree|resolv|chose/i],
   ['idea', /案|しよう|してみ|かも|どう|how about|what if|maybe|[?？]/i],

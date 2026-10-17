@@ -81,3 +81,12 @@ test('FR-035 AC-164 AC-165: 比喩は先に描かれ、外部への参照を含�
   assert.doesNotMatch(svg.replace(/xmlns="[^"]*"/, ''), /https?:|<image|href=/);
   assert.match(svg, /data-role="metaphor-label"/);
 });
+
+// FR-052 AC-231 / FR-035 AC-165: 提案はアイデアの区画、合意済みの決定は結論
+test('FR-052 AC-231 FR-035 AC-165: 提案はアイデアの象限に入る', () => {
+  const scenes = [sc('a', '良い反応だった'), sc('b', '遅れが課題'), sc('c', '案を出そう'), sc('d', '新しい進め方を提案します')];
+  const L = metaphorLayout(input(scenes, [tp('t', 'a', 'b', 'c', 'd')]));
+  const at = (i) => L.units.find((u) => u.order === i);
+  assert.equal(at(3).x, at(2).x);
+  assert.equal(at(3).y > at(1).y, true);
+});

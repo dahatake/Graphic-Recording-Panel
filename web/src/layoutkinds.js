@@ -1,7 +1,7 @@
 // FR-031 タイムライン型 / FR-032 吹き出し型 / FR-033 発散型 / FR-034 区画型 / FR-035 比喩テンプレート型の配置（共通部品「レイアウト型レジストリ」へ registerLayoutType で登録する）。
 // DOM・外部通信に依存しない決定的な純粋関数。話者の識別は対象外（Q-006。AC-157 は BLOCKED）のため吹き出しは話者で分けない。
 import { timelineLayout } from './layouttypes.js';
-import { classifyPoint, kindLabelOf } from './diagram.js';
+import { classifyPoint, kindLabelOf, baseKind } from './diagram.js';
 import { detectEmotions } from './emotion.js';
 import { tokenize } from './topics.js';
 
@@ -287,7 +287,7 @@ function topicGroups(input, units) {
         { id: 'q-idea', kind: 'idea', name: SZ(input, 'アイデア', 'Ideas') },
         { id: 'q-next', kind: 'conclusion', name: SZ(input, '次の行動', 'Next actions') },
       ];
-      const qOf = (s) => { const ks = kindOfSrc(s); return ks.includes('issue') ? 1 : ks.includes('idea') ? 2 : ks.includes('conclusion') ? 3 : 0; };
+      const qOf = (s) => { const ks = kindOfSrc(s).map(baseKind); return ks.includes('issue') ? 1 : ks.includes('idea') ? 2 : ks.includes('conclusion') ? 3 : 0; };
       const AX = 28; const qw = (W - M * 2 - AX) / 2;
       const cols = [[], [], [], []]; src.forEach((s, i) => cols[qOf(s)].push({ s, i }));
       const rows = Math.max(1, ...cols.map((c) => c.length)); const qh = HEAD + rows * (UH + UG) + 4;

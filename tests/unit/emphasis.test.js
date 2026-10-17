@@ -53,3 +53,9 @@ test('FR-053 AC-233 AC-234: 話順だけの候補は推測（根拠なし）で�
   const l = labelRelations(a, 'ja');
   assert.equal(l[0].kindLabel, '課題→提案'); assert.equal(l[1].basisLabel, '推測'); assert.equal(l[0].basisLabel, '明示');
 });
+
+// FR-052 AC-231: 合意済みの決定はアイデアの語を含んでも結論
+test('FR-052 AC-231: 「アイデアXを採用すると決まりました」は結論', () => {
+  assert.equal(classifyPoint('アイデアXを採用すると決まりました'), 'conclusion');
+  assert.equal(classifyPoint('アイデアを出しましょう'), 'idea');
+});
