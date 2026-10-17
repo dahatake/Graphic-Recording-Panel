@@ -39,6 +39,7 @@
   --duration-fast: 100ms; --duration-normal: 200ms;
   --easing-standard: cubic-bezier(0.33, 0, 0.67, 1);
   --easing-decelerate: cubic-bezier(0.1, 0.9, 0.2, 1);
+  --rpg-bg: #000000; --rpg-fg: #ffffff; /* FR-050: コマンドウィンドウ・仮想パッド（黒地に白枠。ライト/ダークで変えない） */
   --target-size: 32px;              /* 操作部品の最小の大きさ（WCAG 2.2 の 2.5.8 は 24px 以上） */
 }
 :root[data-theme="dark"] {
