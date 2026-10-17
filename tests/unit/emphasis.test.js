@@ -2,6 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { classifyPoint, kindLabelOf, KINDS } from '../../web/src/diagram.js';
+import { renderOutline } from '../../web/src/outline.js';
 import { deriveRelations, labelRelations, causalEvidence } from '../../web/src/layoutkinds.js';
 
 const pts = (...texts) => texts.map((text, i) => ({ id: `p${i}`, text }));
@@ -59,3 +60,15 @@ test('FR-052 AC-231: 「アイデアXを採用すると決まりました」は�
   assert.equal(classifyPoint('アイデアXを採用すると決まりました'), 'conclusion');
   assert.equal(classifyPoint('アイデアを出しましょう'), 'idea');
 });
+
+// FR-054 AC-235 AC-236
+test('FR-054 AC-235: 一覧の関係は種類・始点・終点・明示/推測を文字で出し、根拠は 40 文字以内。関係なしでは出ない', () => {
+  const sc = [{ id: 's1', heading: 'h', points: [{ id: 'a', text: 'AAA' }, { id: 'b', text: 'BBB' }] }];
+  const rel = { kind: 'cause-effect', from: 'a', to: 'b', basis: 'explicit', kindLabel: '原因→結果', basisLabel: '明示', evidence: { type: 'word', text: 'x'.repeat(60) } };
+  const html = renderOutline(sc, 's1', (k) => k, null, null, { label: () => '', relations: [rel] });
+  assert.ok(html.includes('原因→結果: AAA → BBB'));
+  assert.ok(html.includes('明示: ' + 'x'.repeat(40) + '）'));
+  assert.ok(!html.includes('x'.repeat(41)));
+  assert.ok(!renderOutline(sc, 's1', (k) => k, null, null, { label: () => '', relations: [] }).includes('data-relation-from'));
+});
+
