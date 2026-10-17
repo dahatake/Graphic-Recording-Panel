@@ -130,7 +130,7 @@ class RelayHandler(SimpleHTTPRequestHandler):
         if not self._guard(is_llm):
             return
         # extract は FR-063 の抽出要求。responses と同じ中継（Responses 形式の本文）をする
-        if self.command == "POST" and self.path.split("?", 1)[0] in (LLM_PREFIX + "responses", LLM_PREFIX + "extract"):
+        if self.command == "POST" and self.path.split("?", 1)[0] in (LLM_PREFIX + "responses", LLM_PREFIX + "extract", LLM_PREFIX + "svg"):
             return self._relay()
         status = 405 if is_llm and self.path.startswith(LLM_PREFIX + "config") else 404
         self._send_json(status if is_llm else 405, sec.error_body("not_allowed", "この操作はできません。"))
@@ -180,6 +180,9 @@ class RelayHandler(SimpleHTTPRequestHandler):
             return self._send_json(400, sec.error_body("bad_request", "要求は JSON のオブジェクトにしてください。"))
         payload["model"] = settings.deployment
         payload.pop("stream", None)
+        for extra in ("allowSvg", "key", "label"):  # アプリ内部の項目は上流へ送らない
+            payload.pop(extra, None)
+        is_svg = self.path.split("?", 1)[0] == LLM_PREFIX + "svg"
         try:
             status, body = up.post_responses(settings, json.dumps(payload).encode("utf-8"))
         except up.UpstreamError as e:
@@ -192,7 +195,10 @@ class RelayHandler(SimpleHTTPRequestHandler):
         except ValueError:
             return self._send_json(502, sec.error_body("upstream_invalid", "上流の応答を解釈できません。"))
         # 応答の SVG をサニタイズしてから返す。整形後にもう一度、秘密を除く
-        out = sec.redact(json.dumps(sec.sanitize_json(data), ensure_ascii=False), secrets)
+        clean = sec.sanitize_json(data)
+        if is_svg and isinstance(clean, dict):  # 方式2: 応答から SVG を取り出し、サニタイズ済みのものを svg に置く（なければ空文字）
+            clean["svg"] = sec.extract_svg(clean.get("svg") if isinstance(clean.get("svg"), str) and clean["svg"] else clean)
+        out = sec.redact(json.dumps(clean, ensure_ascii=False), secrets)
         self._send_json(200, out.encode("utf-8"))
 
 

@@ -54,6 +54,51 @@ def test_sanitize_svg_rejects_entities():
     assert sec.sanitize_svg('<!DOCTYPE svg [<!ENTITY x "y">]><svg xmlns="http://www.w3.org/2000/svg"/>') == ""
 
 
+NS = 'xmlns="http://www.w3.org/2000/svg"'
+EVIL = [
+    '<svg %s><script>alert(1)</script><circle r="1"/></svg>' % NS,
+    '<svg %s><SCRIPT>alert(1)</SCRIPT><circle r="1"/></svg>' % NS,
+    '<svg %s><foreignObject><div onclick="x()"/></foreignObject></svg>' % NS,
+    '<svg %s onload="x()"><circle r="1" onclick="y()" ONMOUSEOVER="z()"/></svg>' % NS,
+    '<svg %s><a href="javascript:alert(1)"><circle r="1"/></a></svg>' % NS,
+    '<svg %s><image href="http://e.example/x.png"/><image href="//e.example/x.png"/></svg>' % NS,
+    '<svg %s><rect width="1" fill="url(http://e.example/x)" style="fill:url(//e.example)"/></svg>' % NS,
+    '<svg %s><style>@import url(http://e.example/a.css);</style><circle r="1"/></svg>' % NS,
+    '<svg %s><circle r="1" fill="&#106;avascript:alert(1)"/></svg>' % NS,
+    '<svg %s><scr<script>ipt>alert(1)</scr</script>ipt><circle r="1"/></svg>' % NS,
+    '<svg %s><use href="http://e.example/s.svg#a"/></svg>' % NS,
+]
+
+
+# NFR-SEC-004 AC-335 AC-336 許可リスト方式: 禁止項目が 0 件、解析できない入力は拒否
+def test_sanitize_svg_allowlist_leaves_no_forbidden_items():
+    import re
+    forbidden = re.compile(r"<script|foreignobject|\son\w+\s*=|javascript:|https?:|//|url\(|@import|<image|<style|<use|<a[\s>]", re.I)
+    for dirty in EVIL:
+        out = sec.sanitize_svg(dirty).replace(NS, "")
+        assert not forbidden.search(out), (dirty, out)
+    for bad in ["", "abc", "<svg", "<svg %s><circle></svg>" % NS, "<?xml version='1.0'?><svg %s/>" % NS, "<div/>"]:
+        assert sec.sanitize_svg(bad) == ""
+
+
+# NFR-SEC-004 AC-338 正当な SVG はそのまま（意味を変えず）、2 回かけても変わらない
+def test_sanitize_svg_is_idempotent_and_keeps_valid_svg():
+    ok = '<svg %s viewBox="0 0 48 48" width="48" height="48"><g data-part-key="k"><title>t</title><circle cx="5" cy="5" r="4" fill="#c00"/></g></svg>' % NS
+    once = sec.sanitize_svg(ok)
+    assert once == ok
+    assert sec.sanitize_svg(once) == once
+    dirty_once = sec.sanitize_svg(EVIL[3])
+    assert sec.sanitize_svg(dirty_once) == dirty_once
+
+
+# FR-065 AC-332 NFR-SEC-004 AC-337 応答から SVG を取り出し、サニタイズして返す
+def test_extract_svg_finds_and_sanitizes():
+    body = {"output": [{"content": [{"text": '前 <svg %s onload="x()"><script/><circle r="1"/></svg> 後' % NS}]}]}
+    svg = sec.extract_svg(sec.sanitize_json(body))
+    assert svg.startswith("<svg") and "onload" not in svg and "script" not in svg
+    assert sec.extract_svg({"a": "no svg"}) == ""
+
+
 # NFR-SEC-003 AC-342
 def test_redact_removes_secret_values():
     assert "SECRETVALUE" not in sec.redact('{"echo":"SECRETVALUE"}', ["SECRETVALUE"])

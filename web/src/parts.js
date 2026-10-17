@@ -222,8 +222,8 @@ export const getPartSvg = (key) => PARTS.get(key)?.svg ?? null;
 export const getPartGroup = (key) => PARTS.get(key)?.inner ?? null;
 
 // ---- SVG の許可リスト検査（NFR-SEC-004 と同じ規則。要素・属性は列挙したものだけ、外部への参照・スクリプトなし）----
-const OK_TAGS = new Set(['svg', 'g', 'title', 'path', 'circle', 'ellipse', 'rect', 'line', 'polyline', 'polygon', 'text', 'tspan']);
-const OK_ATTRS = new Set(['xmlns', 'viewBox', 'width', 'height', 'x', 'y', 'cx', 'cy', 'r', 'rx', 'ry', 'x1', 'y1', 'x2', 'y2', 'd', 'points', 'transform', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'stroke-opacity', 'fill-opacity', 'stroke-dasharray', 'opacity', 'data-part-key', 'data-expression', 'data-character', 'role', 'aria-label', 'aria-hidden', 'font-size', 'font-weight', 'text-anchor', 'font-family']);
+export const OK_TAGS = new Set(['svg', 'g', 'title', 'path', 'circle', 'ellipse', 'rect', 'line', 'polyline', 'polygon', 'text', 'tspan']);
+export const OK_ATTRS = new Set(['xmlns', 'viewBox', 'width', 'height', 'x', 'y', 'cx', 'cy', 'r', 'rx', 'ry', 'x1', 'y1', 'x2', 'y2', 'd', 'points', 'transform', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'stroke-opacity', 'fill-opacity', 'stroke-dasharray', 'opacity', 'data-part-key', 'data-expression', 'data-character', 'role', 'aria-label', 'aria-hidden', 'font-size', 'font-weight', 'text-anchor', 'font-family']);
 export function isAllowedPartSvg(svg) {
   const s = String(svg ?? '');
   if (!/^\s*<svg[\s>]/.test(s) || /<!|<\?/.test(s)) return false;
