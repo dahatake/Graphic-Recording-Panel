@@ -121,7 +121,15 @@
     "AC-344": "sha256:151826f8e900011e",
     "AC-345": "sha256:ad4e314f2ba254d4",
     "AC-330": "sha256:a46dccb8ff7599ad",
-    "AC-346": "sha256:b102e2cc33e8edc6"
+    "AC-346": "sha256:b102e2cc33e8edc6",
+    "AC-347": "sha256:1c02624bc17e8540",
+    "AC-348": "sha256:023db2b5771313e3",
+    "AC-349": "sha256:8e8a1fefe1f5c2e1",
+    "AC-350": "sha256:c6b4d7c80d17e347",
+    "AC-351": "sha256:f7c71893f7c2cf61",
+    "AC-352": "sha256:665aa947e7b7bf54",
+    "AC-363": "sha256:071d53bc3af88c8a",
+    "AC-364": "sha256:7afa5fbd86529df1"
   },
   "cases": [
     {
@@ -3676,6 +3684,218 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "IT-009",
+      "requirement_ids": [
+        "FR-066"
+      ],
+      "ac_ids": [
+        "AC-347"
+      ],
+      "title": "上流の /responses へ model=デプロイ名・認証は上流への要求にだけ付く（キー・Entra・未設定の異常系）",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=AC-347 tests/system/llmrelay.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:51:39+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "IT-010",
+      "requirement_ids": [
+        "FR-066"
+      ],
+      "ac_ids": [
+        "AC-348"
+      ],
+      "title": "上流モックだけで決定的に実行でき、実エンドポイントへ通信しない",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=AC-348 tests/system/llmrelay.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:51:45+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "IT-011",
+      "requirement_ids": [
+        "FR-067"
+      ],
+      "ac_ids": [
+        "AC-349"
+      ],
+      "title": "環境変数と config/llm.local.json の両方で設定でき、環境変数が優先",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=AC-349 tests/system/llmrelay.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:51:49+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "IT-012",
+      "requirement_ids": [
+        "FR-067"
+      ],
+      "ac_ids": [
+        "AC-350"
+      ],
+      "title": "Entra ID は az をスコープ指定で実行。az なし・未ログインは理由を示し有効にならない",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=AC-350 tests/system/llmrelay.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:51:53+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "IT-013",
+      "requirement_ids": [
+        "FR-067"
+      ],
+      "ac_ids": [
+        "AC-351"
+      ],
+      "title": "config/llm.example.json が全項目の例を持ち実値を含まない",
+      "layer": "contract",
+      "command": "node --test --test-name-pattern=AC-351 tests/system/llmrelay.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:51:57+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "IT-014",
+      "requirement_ids": [
+        "FR-067"
+      ],
+      "ac_ids": [
+        "AC-352"
+      ],
+      "title": "config/llm.local.json は .gitignore に載り実ファイルがない",
+      "layer": "contract",
+      "command": "node --test --test-name-pattern=AC-352 tests/system/llmrelay.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:52:00+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "IT-015",
+      "requirement_ids": [
+        "FR-067"
+      ],
+      "ac_ids": [
+        "AC-363"
+      ],
+      "title": "エンドポイントは https の公開ホストだけ（内部アドレスは拒否）",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=AC-363 tests/system/llmrelay.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:52:04+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-17T16:52:16+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-363 が BLOCKED（Q-019）"
+        }
+      ]
+    },
+    {
+      "id": "IT-016",
+      "requirement_ids": [
+        "FR-067"
+      ],
+      "ac_ids": [
+        "AC-364"
+      ],
+      "title": "ループバック許可フラグ（テスト専用）がオンのときだけモック上流を受け付ける",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=AC-364 tests/system/llmrelay.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:52:06+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-17T16:52:17+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-364 が BLOCKED（Q-019）"
         }
       ]
     }
