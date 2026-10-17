@@ -155,6 +155,7 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .settings-form { display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-4); }
 .settings-row { display: flex; flex-direction: column; gap: var(--space-1); }
 .settings-check { display: inline-flex; align-items: center; gap: var(--space-1); margin-right: var(--space-3); }
+.settings-status { margin: 0; font-size: var(--font-size-300, 0.875rem); }
 .btn[data-selected-mark] { outline: 2px solid currentColor; outline-offset: -3px; }
 .btn[data-selected-mark="frame"] { outline-width: 3px; }
 .sel-mark { margin-left: 2px; font-weight: 700; }
