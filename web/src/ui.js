@@ -328,6 +328,17 @@ export function mountUI(app, doc = document) {
       const vol = doc.createElement('input'); vol.type = 'range'; vol.min = '0'; vol.max = '100'; vol.step = '1';
       vol.addEventListener('input', () => app.setRpgVolume(Number(vol.value)));
       row('rpg.volume', app.t('rpg.audio.volume'), vol);
+      // FR-068: LLM 連携の切替・状態・認証情報の有無（入力欄なし）・接続テスト。状態は色だけでなく文字とアイコンで示す
+      const llmSw = doc.createElement('input'); llmSw.type = 'checkbox'; llmSw.setAttribute('role', 'switch');
+      llmSw.addEventListener('click', (e) => { e.preventDefault(); void app.toggleLlm(); });
+      row('llm.enabled', d.fields.find((f) => f.id === 'llm.enabled').label, llmSw);
+      const llmSt = doc.createElement('p'); llmSt.id = 'settings-llm-status'; llmSt.setAttribute('role', 'status'); llmSt.className = 'settings-status';
+      const llmCred = doc.createElement('p'); llmCred.id = 'settings-llm-credential'; llmCred.className = 'settings-status';
+      const llmTest = doc.createElement('button'); llmTest.type = 'button'; llmTest.className = 'btn';
+      llmTest.addEventListener('click', () => { void app.testLlmConnection(); });
+      const llmTestRes = doc.createElement('p'); llmTestRes.id = 'settings-llm-test-result'; llmTestRes.setAttribute('role', 'status'); llmTestRes.className = 'settings-status';
+      row('llm.test', d.fields.find((f) => f.id === 'llm.test').label, llmTest);
+      form.append(llmSt, llmCred, llmTestRes);
       const close = doc.createElement('button'); close.type = 'button'; close.className = 'btn btn-primary'; close.textContent = o.closeLabel; close.dataset.action = 'settings-close';
       close.addEventListener('click', () => app.commands['settings.close']());
       setEl.append(h, form, close);
@@ -338,11 +349,42 @@ export function mountUI(app, doc = document) {
     const au = app.getRpgAudio();
     setEl.querySelector('#settings-rpg\\.mute').checked = au.muted;
     setEl.querySelector('#settings-rpg\\.volume').value = String(au.volume);
-    for (const cb of setEl.querySelectorAll('input[type=checkbox]')) cb.checked = vals['layout.types'].includes(cb.value);
+    for (const cb of setEl.querySelectorAll('input[type=checkbox]:not([role=switch])')) cb.checked = vals['layout.types'].includes(cb.value);
+    { // FR-068
+      const f = Object.fromEntries(d.fields.map((x) => [x.id, x]));
+      const sw = setEl.querySelector('#settings-llm\\.enabled'); sw.checked = !!f['llm.enabled'].value;
+      setEl.querySelector('#settings-llm-status').textContent = `${f['llm.enabled'].status.icon} ${f['llm.enabled'].label}: ${f['llm.enabled'].status.text}`;
+      setEl.querySelector('#settings-llm-credential').textContent = `${f['llm.credential'].status.icon} ${f['llm.credential'].label}: ${f['llm.credential'].status.text}`;
+      const tb = setEl.querySelector('#settings-llm\\.test'); tb.textContent = f['llm.test'].label;
+      const tr = f['llm.test'].status; setEl.querySelector('#settings-llm-test-result').textContent = tr.text ? `${tr.icon} ${tr.text}` : '';
+    }
     const wasHidden = setEl.hidden; setEl.hidden = false;
     if (wasHidden) setEl.querySelector('select')?.focus();
   }
   app.on('change', syncSettings);
+
+  // FR-062: LLM 連携の同意の表示（送る項目の種類・送信先ホスト名・送らないもの）。同意するまで有効にならない
+  let consentEl = null;
+  function syncConsent() {
+    const c = app.getLlmConsent();
+    if (!c) { if (consentEl) { consentEl.remove(); consentEl = null; } return; }
+    if (consentEl) return;
+    consentEl = doc.createElement('div'); consentEl.className = 'dialog-backdrop';
+    const box = doc.createElement('div'); box.className = 'dialog'; box.setAttribute('role', c.role); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-label', c.label);
+    const h = doc.createElement('h2'); h.textContent = c.label;
+    const list = (items) => { const ul = doc.createElement('ul'); for (const x of items) { const li = doc.createElement('li'); li.textContent = x; ul.append(li); } return ul; };
+    const p1 = doc.createElement('p'); p1.textContent = app.t('llm.consent.sent'); const p2 = doc.createElement('p'); p2.textContent = `${app.t('llm.consent.to')}: ${c.host}`;
+    const p3 = doc.createElement('p'); p3.textContent = app.t('llm.consent.notSentLabel'); const p4 = doc.createElement('p'); p4.textContent = c.note;
+    const row = doc.createElement('div'); row.className = 'dialog-actions';
+    for (const a of c.actions) {
+      const el = doc.createElement('button'); el.type = 'button'; el.dataset.action = a.id; el.textContent = a.label; el.className = a.id === 'accept' ? 'btn btn-primary' : 'btn';
+      el.addEventListener('click', () => { void app.answerLlmConsent(a.id === 'accept'); });
+      row.append(el);
+    }
+    box.append(h, p1, list(c.kinds), p2, p3, list(c.notSent), p4, row); consentEl.append(box); doc.body.append(consentEl);
+    row.querySelector('[data-action="decline"]')?.focus();
+  }
+  app.on('change', syncConsent);
 
   // FR-050: RPG風の仮想パッド（十字キー・A・B）とコマンドウィンドウ。状態は app が持ち、ここは描くだけ。
   const rpgEl = doc.createElement('div'); rpgEl.id = 'rpg-ui'; rpgEl.hidden = true;

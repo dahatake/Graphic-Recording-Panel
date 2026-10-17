@@ -18,7 +18,9 @@ test('FR-030 AC-149: 初めて起動したとき［設定］画面は初期値�
   app.commands['settings.open']();
   const d = app.getSettingsDialog();
   assert.ok(d && d.open === true);
-  assert.deepEqual(d.fields.map((f) => f.id).sort(), ['drawStyle', 'layout.mode', 'layout.types']);
+  // FR-068 で正当に追加された LLM 連携の項目（AC-353〜356）は FR-030 の 3 項目に加えて存在してよい
+  const LLM_IDS = ['llm.credential', 'llm.enabled', 'llm.mask', 'llm.test'];
+  assert.deepEqual(d.fields.map((f) => f.id).filter((id) => !LLM_IDS.includes(id)).sort(), ['drawStyle', 'layout.mode', 'layout.types']);
   assert.equal(field(app, 'layout.mode').value, 'fixed');
   assert.deepEqual(field(app, 'layout.types').value, ['timeline']);
   assert.equal(field(app, 'drawStyle').value, 'handwritten');
@@ -88,7 +90,7 @@ test('FR-030 AC-151: 各項目のラベルは PARAM-011（6 文字）以内で�
   app.commands['settings.open']();
   for (const lang of ['ja', 'en']) {
     app.setLang(lang);
-    for (const f of app.getSettingsDialog().fields) assert.ok(f.label.trim() && weight(f.label) <= 6, `${lang}: ${f.id}「${f.label}」`);
+    for (const f of app.getSettingsDialog().fields.filter((x) => !x.id.startsWith('llm.'))) assert.ok(f.label.trim() && weight(f.label) <= 6, `${lang}: ${f.id}「${f.label}」`);
   }
 });
 
@@ -112,7 +114,7 @@ test('FR-030 AC-151: 画面が狭くても（NFR-UX-001）すべての項目が�
     assert.deepEqual(v.fields.map((f) => f.id), wide.fields.map((f) => f.id), `${w}px: 項目が欠けない`);
     assert.ok(v.fields.every((f) => f.visible === true), `${w}px: すべて表示`);
   }
-  assert.equal(wide.fields.length, 3);
+  assert.equal(wide.fields.filter((f) => !f.id.startsWith('llm.')).length, 3); // llm.* は FR-068
 });
 
 test('FR-030 AC-151: 静的な画面に設定画面（id="settings-dialog"）があり、文言キーは ja と en で同一集合', async () => {

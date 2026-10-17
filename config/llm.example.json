@@ -1,0 +1,6 @@
+{
+  "endpoint": "https://<your-resource>.services.ai.azure.com/openai/v1",
+  "deployment": "<your-deployment-name>",
+  "authMethod": "apiKey",
+  "apiKey": "<your-api-key>"
+}

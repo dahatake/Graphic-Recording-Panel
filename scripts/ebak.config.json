@@ -22,6 +22,10 @@
         "run": "python -m pytest -q tests/toolkit/test_clean_work.py"
       },
       {
+        "name": "relay-unit",
+        "run": "python -m pytest -q tests/relay"
+      },
+      {
         "name": "web-unit",
         "run": "node --test tests/unit/*.test.js"
       }

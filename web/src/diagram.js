@@ -1,6 +1,7 @@
 // FR-004: 2D のグラフィック・ファシリテーション表示。シーンごとに「見出し・吹き出し（要点）・矢印（関係線）・絵記号」を SVG で描く。
 // 純粋関数 renderDiagramSvg（単体で SVG ファイルとしても自立する。色は属性で持つ）と、パネル描画（拡大・縮小・移動）。
 import { sceneEmotions } from './emotion.js';
+import { matchParts, getPartGroup } from './parts.js';
 import { renderRpgSvg, RPG_STYLE_ID } from './rpgmap.js';
 
 export const STATUS_MARK = { in_progress: '○', confirmed: '●' };
@@ -184,6 +185,14 @@ export function renderDiagramSvg(scenes, opts = {}) {
       body.push(`<g data-emotion="${attr(e.id)}">${decoIcon(e.shape, x + 14, y - 8, color)}<text x="${x + 44}" y="${y + 10}" font-size="${FS}" font-weight="700" fill="${INK}">${esc(e.word)}</text></g>`);
       y += 34;
     });
+    // FR-064: 同梱部品（語の辞書で対応づけた汎用の物体。LLM 連携なしで描く）
+    const objs = matchParts([s.heading, ...s.points.map((p) => p.text)].join('\n'), 4);
+    if (objs.length) {
+      objs.forEach((o, n) => {
+        body.push(`<g data-part-key="${attr(o.key)}" transform="translate(${x + 14 + n * 56} ${y - 8})">${getPartGroup(o.key)}</g>`);
+      });
+      y += 48;
+    }
     // シーンの囲み（背面）
     body.unshift(`<path d="${wobblyD(outline('rect', x - 10, MARGIN - 10, w + 20, y - MARGIN + 6), `${s.id}:e`, true, 1.6)}" fill="none" stroke="${color}" stroke-width="1.5" stroke-opacity="0.45" stroke-dasharray="2 5" data-role="scene-frame"/>`);
     parts.push(`<g data-scene-id="${attr(s.id)}" data-status="${attr(s.status)}"${isSel ? ' aria-current="true"' : ''}>${body.join('')}</g>`);

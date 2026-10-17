@@ -41,8 +41,12 @@ test('NFR-OFFLINE-001 AC-031: web/ に外部 URL・CDN 参照・外部宛の通�
     assert.doesNotMatch(text, /(https?:)?\/\/[a-z0-9-]+\.[a-z]{2,}/i, `外部 URL: ${f}`);
     assert.doesNotMatch(text, /@import|<link[^>]+href="(https?:)?\/\//i, `外部資産: ${f}`);
     assert.doesNotMatch(text, /\b(XMLHttpRequest|WebSocket|EventSource|sendBeacon|importScripts)\b/, `外部通信 API: ${f}`);
-    if (f !== 'sw.js') assert.doesNotMatch(text, /\bfetch\s*\(/, `fetch: ${f}`);
+    // FR-062（G-002 の例外条件 (3)）: 同一オリジンの中継サーバーへの要求は relayclient.js だけに置く。それ以外では fetch を使わない
+    if (f !== 'sw.js' && f !== 'src/relayclient.js') assert.doesNotMatch(text, /\bfetch\s*\(/, `fetch: ${f}`);
   }
+  const rc = read('src/relayclient.js');
+  assert.equal([...rc.matchAll(/\bfetch\s*\(/g)].length, 1);
+  assert.match(rc, /startsWith\('\/api\/llm\/'\)/, '同一オリジンの /api/llm/ 以外へは要求しない');
   assert.doesNotMatch(read('sw.js'), /\bfetch\s*\((?!e)/);
 });
 

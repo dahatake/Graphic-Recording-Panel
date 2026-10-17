@@ -6,6 +6,7 @@ import { parseEdits, emptyEdits } from './topics.js';
 import { parseAxes, DEFAULT_AXES } from './axes3d.js';
 import { INITIAL_VIEWPOINT } from './view3d.js';
 import { stampName, browserDownload } from './export.js';
+import { acceptGeneratedSvg } from './svgsanitize.js';
 
 export const FORMAT = 'grp-session';
 export const VERSION = 1;
@@ -28,8 +29,21 @@ export function parseSessionFile({ name, type, size, text } = {}) {
       viewMode: raw.viewMode === '3d' ? '3d' : '2d',
       axes3d: parseAxes(raw.axes3d),
       viewSettings: { layoutTypes: raw.layoutTypes, drawStyle: raw.drawStyle }, // FR-027・FR-029: 手動の型・描画スタイルの現在値（検証は settings.js）
+      generatedSvgs: parseGeneratedSvgs(raw.generatedSvgs), // FR-065 AC-334・NFR-SEC-004 AC-365: 読込時に必ず再サニタイズ
     },
   };
+}
+
+// FR-065: セッションファイルの生成 SVG。許可リストでサニタイズし、通らないもの・大きすぎるものは捨てる（表示・描画の前）。
+export function parseGeneratedSvgs(list) {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  for (const it of list.slice(0, 200)) {
+    if (!it || typeof it !== 'object' || typeof it.sceneId !== 'string' || typeof it.label !== 'string') continue;
+    const svg = acceptGeneratedSvg(it.svg, { width: 48, height: 48 });
+    if (svg) out.push({ sceneId: it.sceneId, label: [...it.label].slice(0, 24).join(''), svg });
+  }
+  return out;
 }
 
 export function sessionModule(ctx) {
@@ -103,6 +117,7 @@ export function sessionModule(ctx) {
       s.viewMode = '2d'; s.displayMode = 'timeline'; s.arrange = presetArrange(); s.topicEdits = emptyEdits();
       s.axes3d = { ...DEFAULT_AXES }; s.viewpoint = { ...INITIAL_VIEWPOINT };
       api.importViewSettings?.(null);
+      api.importGeneratedSvgs?.(null);
       s.input.draft = '';
       if (s.speech) s.speech.interim = '';
       ctx.setMessage('msg.resetDone');
@@ -122,6 +137,7 @@ export function sessionModule(ctx) {
       s.displayMode = sess.displayMode;       s.arrange = parseArrange(sess.arrange); s.topicEdits = parseEdits(sess.topicEdits);
       s.viewMode = sess.viewMode; s.axes3d = sess.axes3d; s.viewpoint = { ...INITIAL_VIEWPOINT };
       api.importViewSettings?.(sess.viewSettings);
+      api.importGeneratedSvgs?.(sess.generatedSvgs);
       s.session = 'paused';
       s.input.draft = '';
       ctx.setMessage('msg.fileLoaded');
@@ -160,6 +176,7 @@ export function sessionModule(ctx) {
       utterances: state.utterances, scenes: state.scenes, selectedSceneId: state.selectedSceneId, seq: ctx.getSeq(),
       displayMode: state.displayMode, arrange: state.arrange, topicEdits: state.topicEdits, viewMode: state.viewMode, axes3d: state.axes3d,
             ...(api.exportViewSettings?.() ?? {}),
+            ...(api.exportGeneratedSvgs?.().length ? { generatedSvgs: api.exportGeneratedSvgs() } : {}),
           });
     await (ctx.options.download ?? browserDownload)({ filename: `grp-session-${stampName(ctx.now())}.json`, mime: 'application/json', data });
     say('msg.fileSaved');

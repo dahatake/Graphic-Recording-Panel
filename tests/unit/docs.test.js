@@ -54,7 +54,8 @@ test('NFR-DOC-001 AC-062: 起動コマンドとキー割り当てが実装と一
   }
   for (const f of ['start.ps1', 'start.sh']) {
     assert.ok(fs.existsSync(path.join(ROOT, f)), `起動スクリプト ${f} がない`);
-    assert.match(read(f), /-m http\.server --bind 127\.0\.0\.1 --directory .* 8080/);
+    // FR-066: 起動は中継サーバー（127.0.0.1 だけで待ち受ける。既定ポート 8080）
+    assert.match(read(f), /server[\\/]relay\.py[\s\S]* --port 8080/);
   }
   const keys = read('web/src/keymap.js') + read('web/src/speech.js');
   for (const k of ['r', 'p', 'e', 'x', 'n', 'i', 's', 'w', 'j', 'k', 'd', 'v', 'g', 'h', 'y', 't', 'm']) {

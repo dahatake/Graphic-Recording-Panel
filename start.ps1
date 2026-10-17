@@ -27,5 +27,6 @@ if (-not (Test-Path (Join-Path $web "index.html") -PathType Leaf)) {
 
 Write-Host "Open http://localhost:8080/ in your browser after the server starts."
 Write-Host "Press Ctrl+C in this window to stop the server."
-& $python.Source @pythonArgs -m http.server --bind 127.0.0.1 --directory $web 8080
+$relay = Join-Path $PSScriptRoot "server/relay.py"
+& $python.Source @pythonArgs $relay --web $web --port 8080
 exit $LASTEXITCODE
