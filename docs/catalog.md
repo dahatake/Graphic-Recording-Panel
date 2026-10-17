@@ -64,7 +64,7 @@
 | FR-064 | 同梱部品の拡充と汎用キャラのビルダー | 承認済み | web/src/parts.js, web/src/diagram.js, web/sw.js | tests/unit/parts.test.js | 同梱部品, 感情語辞書 |
 | FR-065 | 方式2（任意・既定オフ）: LLM による SVG の生成と挿入 | 承認済み | web/src/llmdraw.js, web/src/session.js, server/relay.py | tests/unit/svgsanitize.test.js, tests/system/llm-draw.test.js | SVG サニタイズ, 中継サーバー |
 | FR-066 | ローカル中継サーバー | 承認済み | server/relay.py, server/relay_config.py, server/relay_security.py, server/relay_upstream.py, start.ps1, start.sh | tests/relay/test_relay_units.py, tests/system/llmrelay.test.js | 中継サーバー |
-| FR-067 | LLM 連携の設定（エンドポイント・デプロイ名・認証方式） | 承認済み | server/relay_config.py, config/llm.example.json, .gitignore | tests/relay/test_llm_config_files.py, tests/system/llmrelay.test.js | 中継サーバー |
+| FR-067 | LLM 連携の設定（エンドポイント・デプロイ名・認証方式） | 承認済み | server/relay_config.py, config/llm.example.json, .gitignore | tests/relay/test_llm_config_files.py, tests/relay/test_relay_units.py, tests/system/llmrelay.test.js | 中継サーバー |
 | FR-068 | 設定画面での有効/無効と接続テスト | 承認済み | web/src/llm.js, web/src/ui.js, web/styles/app.css | tests/unit/llmconsent.test.js, tests/system/llm-consent.test.js | アプリ組立, デザイン基盤, i18n, LLM 連携の制御 |
 | FR-069 | LLM 連携の使い方ガイド | 承認済み | users-guide/08-llm.md, users-guide/README.md | tests/unit/docs.test.js, tests/unit/llmguide.test.js | - |
 | NFR-SEC-003 | API キー・トークンの非露出 | 承認済み | server/relay.py, server/relay_security.py, server/relay_upstream.py, server/relay_config.py | tests/relay/test_relay_units.py, tests/system/llmrelay.test.js | 中継サーバー |
