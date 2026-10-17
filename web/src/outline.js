@@ -1,6 +1,8 @@
 // NFR-A11Y-001 AC-035 AC-037: 図と同じ順序の、見出し・要点のテキスト一覧（HTML 文字列）。
 // 状態（進行中/確定）と選択中は、色ではなく文字と記号（形）で示す。
 
+const EVIDENCE_MAX = 40; // PARAM-033: 根拠の語の最大文字数（FR-054 AC-235）
+
 export function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -28,6 +30,6 @@ export function renderOutline(scenes, selectedSceneId, t, annot = null, topics =
   const head = annot ? `<p class="outline-arrange-head">${escapeHtml(annot.header)}</p>` : '';
   // FR-052 AC-231 / FR-053: 要点の種類のラベル（kinds.label）と、関係（kinds.relations）を文字で示す
   const texts = new Map(scenes.flatMap((s) => s.points).map((p) => [p.id, p.text]));
-  const relBlock = kinds?.relations?.length ? `<ul class="outline-relations">${kinds.relations.map((r) => `<li data-relation-from="${escapeHtml(r.from)}" data-relation-to="${escapeHtml(r.to)}" data-relation-kind="${escapeHtml(r.kind)}" data-relation-basis="${escapeHtml(r.basis)}">${escapeHtml(r.kindLabel)}: ${escapeHtml(texts.get(r.from) ?? '')} → ${escapeHtml(texts.get(r.to) ?? '')} （${escapeHtml(r.basisLabel)}${r.evidence ? `: ${escapeHtml(r.evidence.text)}` : ''}）</li>`).join('')}</ul>` : '';
+  const relBlock = kinds?.relations?.length ? `<ul class="outline-relations">${kinds.relations.map((r) => `<li data-relation-from="${escapeHtml(r.from)}" data-relation-to="${escapeHtml(r.to)}" data-relation-kind="${escapeHtml(r.kind)}" data-relation-basis="${escapeHtml(r.basis)}">${escapeHtml(r.kindLabel)}: ${escapeHtml(texts.get(r.from) ?? '')} → ${escapeHtml(texts.get(r.to) ?? '')} （${escapeHtml(r.basisLabel)}${r.evidence ? `: ${escapeHtml([...String(r.evidence.text)].slice(0, EVIDENCE_MAX).join(''))}` : ''}）</li>`).join('')}</ul>` : '';
   return `${topicBlock}${head}<ol class="outline">${items.join('')}</ol>${relBlock}`;
 }

@@ -56,7 +56,7 @@
 | FR-039 | ファイル取込はセッションの状態によらずいつでも可能 | 承認済み | web/src/input.js, web/src/app.js | tests/unit/vtt.test.js, tests/unit/core.test.js, tests/unit/transcript.test.js, tests/system/importanystate.test.js | アプリ組立 |
 | FR-052 | 提案・未決定・合意済み決定の区別と意味に一致した強調 | 承認済み | web/src/diagram.js, web/src/outline.js, web/src/app.js, web/src/axes3d.js | tests/unit/emphasis.test.js, tests/system/emphasis.test.js | なし |
 | FR-053 | 関係の種類・方向・原文上の根拠の区別と推測候補の明示 | 承認済み | web/src/layoutkinds.js, web/src/diagram.js, web/src/outline.js | tests/unit/emphasis.test.js, tests/system/emphasis.test.js | なし |
-| FR-054 | 図の関係情報とテキスト一覧の一致 | 承認済み | 未実装 | 未実装 | なし |
+| FR-054 | 図の関係情報とテキスト一覧の一致 | 承認済み | web/src/outline.js, web/src/layoutkinds.js, web/src/app.js | tests/unit/emphasis.test.js, tests/system/emphasis.test.js | なし |
 | FR-055 | 時間表現などの非因果を原因→結果から除外する意味的判定 | 承認済み | web/src/layoutkinds.js | tests/unit/emphasis.test.js, tests/system/emphasis.test.js | なし |
 
 ## API・イベント
