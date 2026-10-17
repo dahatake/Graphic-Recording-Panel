@@ -4,16 +4,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp, seedThreeScenes, toDetail } from './helpers.js';
 
-const STYLES = ['anime', 'handwritten', 'simple'];
+const STYLES = ['anime', 'handwritten', 'simple', 'rpg'];
 const svgTexts = (svg) => [...svg.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((m) => m[1]).sort();
 const snap = (app) => { const s = app.getState(); return JSON.stringify([s.utterances.map((u) => u.text), s.scenes, s.selectedSceneId, s.session, s.input.draft, app.getDetailLevel(), s.viewMode, app.getDisplayMode()]); };
 
 // FR-029 AC-146
-test('FR-029 AC-146: 描画スタイルとしてアニメ調・手書き調・シンプルの 3 つが選べ、初期は手書き調', async () => {
+test('FR-029 AC-146: 描画スタイルとしてアニメ調・手書き調・シンプルの 3 つに RPG風を加えた 4 つが選べ、初期は手書き調', async () => {
   const { app } = await newApp();
   assert.deepEqual(app.getDrawStyles().map((s) => s.id).sort(), [...STYLES].sort());
   assert.ok(app.getDrawStyles().every((s) => s.label.trim()));
-  assert.equal(new Set(app.getDrawStyles().map((s) => s.label)).size, 3);
+  assert.equal(new Set(app.getDrawStyles().map((s) => s.label)).size, 4);
   assert.equal(app.getDrawStyle(), 'handwritten');
 });
 
@@ -25,7 +25,7 @@ test('FR-029 AC-146: 切り替えると図の見た目だけが変わり、文�
   app.setDraft('入力中の文字');
   const base = { svg: app.renderSvg(), layout: JSON.stringify(app.getDiagramLayout()), out: app.renderOutline(), snap: snap(app) };
   const seen = new Set([base.svg]);
-  for (const id of ['anime', 'simple', 'handwritten']) {
+  for (const id of ['anime', 'simple', 'rpg', 'handwritten']) {
     assert.ok(app.setDrawStyle(id).ok, id);
     assert.equal(app.getDrawStyle(), id);
     const svg = app.renderSvg();
@@ -36,7 +36,7 @@ test('FR-029 AC-146: 切り替えると図の見た目だけが変わり、文�
     assert.equal(snap(app), base.snap, `${id}: 内容・選択・記録中の状態は保たれる`);
     seen.add(svg);
   }
-  assert.equal(seen.size, 3, '3 つのスタイルで図の見た目（SVG）が異なる');
+  assert.equal(seen.size, 4, '4 つのスタイルで図の見た目（SVG）が異なる');
   assert.equal(app.renderSvg(), base.svg, '手書き調に戻すと元の図');
 });
 

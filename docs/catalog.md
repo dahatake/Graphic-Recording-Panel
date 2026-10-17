@@ -54,6 +54,11 @@
 | FR-035 | 比喩テンプレート型の描画 | 承認済み | web/src/layoutkinds.js, web/src/diagram.js | tests/unit/layoutzone.test.js | アプリ組立, レイアウト型レジストリ, 型ごとの配置 |
 | FR-036 | 共通配置（タイトル・登壇者・本編・小見出しと外枠） | 承認済み | web/src/layouttypes.js, web/src/settings.js, web/src/diagram.js, web/src/app.js, web/src/i18n.js | tests/unit/autolayout.test.js, tests/system/layouttype.test.js | アプリ組立, i18n, レイアウト型レジストリ |
 | FR-039 | ファイル取込はセッションの状態によらずいつでも可能 | 承認済み | web/src/input.js, web/src/app.js | tests/unit/vtt.test.js, tests/unit/core.test.js, tests/unit/transcript.test.js, tests/system/importanystate.test.js | アプリ組立 |
+| FR-047 | RPG風の描画スタイルとドット絵の地図 | 承認済み | web/src/rpgmap.js, web/src/rpg.js, web/src/drawstyles.js, web/src/diagram.js, web/src/export.js, web/src/settings.js, web/src/app.js, web/sw.js | tests/unit/rpgmap.test.js, tests/system/rpg.test.js | アプリ組立, 描画スタイルの登録, RPG風の地図とスプライト |
+| FR-048 | RPGのキャラクター（ドット絵スプライト） | 承認済み | web/src/rpgsprites.js, web/src/rpgmap.js, web/src/rpg.js | tests/unit/rpgmap.test.js, tests/system/rpg.test.js | アプリ組立, RPG風の地図とスプライト |
+| FR-049 | RPGのBGMと効果音（SE） | 承認済み | web/src/rpgaudio.js, web/src/app.js, web/sw.js | tests/unit/rpgaudio.test.js, tests/system/rpg.test.js | アプリ組立, RPG音響 |
+| FR-050 | ファミコン風の操作と仮想パッド | 承認済み | web/src/rpg.js, web/src/ui.js, web/styles/app.css | tests/unit/rpginput.test.js, tests/system/rpginput.test.js | アプリ組立, デザイン基盤, RPG風の地図とスプライト, RPG音響 |
+| FR-051 | RPG風のアクセシビリティ・保存・設定 | 承認済み | web/src/ui.js, web/src/rpgaudio.js, web/src/settings.js, web/styles/app.css | tests/unit/rpginput.test.js, tests/system/rpg.test.js | アプリ組立, デザイン基盤, RPG音響, 描画スタイルの登録 |
 
 ## API・イベント
 
@@ -69,9 +74,9 @@
 
 | 部品名 | ファイル | 用途 | 使っている要求 ID |
 |---|---|---|---|
-| アプリ組立 | web/src/app.js | 状態・コマンド・キー割り当て・パネル描画の拡張点（modules / registerCommand / registerPanelRenderer / addUtterance / addUtterances）。後続の機能はここへ足す | FR-001、FR-002、FR-003、FR-004、FR-005、FR-006、FR-007、FR-008、FR-009、FR-010、FR-011、FR-012、FR-013、FR-014、FR-015、FR-016、FR-017、FR-018、FR-019、FR-020、FR-021、FR-022、FR-023、FR-024、FR-025、FR-026、NFR-A11Y-001、NFR-BG-001、NFR-PERF-001、NFR-UX-001、NFR-UX-003、FR-027、FR-028、FR-029、FR-030、FR-031、FR-032、FR-033、FR-034、FR-035、FR-036、FR-039 |
+| アプリ組立 | web/src/app.js | 状態・コマンド・キー割り当て・パネル描画の拡張点（modules / registerCommand / registerPanelRenderer / addUtterance / addUtterances）。後続の機能はここへ足す | FR-001、FR-002、FR-003、FR-004、FR-005、FR-006、FR-007、FR-008、FR-009、FR-010、FR-011、FR-012、FR-013、FR-014、FR-015、FR-016、FR-017、FR-018、FR-019、FR-020、FR-021、FR-022、FR-023、FR-024、FR-025、FR-026、NFR-A11Y-001、NFR-BG-001、NFR-PERF-001、NFR-UX-001、NFR-UX-003、FR-027、FR-028、FR-029、FR-030、FR-031、FR-032、FR-033、FR-034、FR-035、FR-036、FR-039、FR-047、FR-048、FR-049、FR-050、FR-051 |
 | i18n | web/src/i18n.js | ja/en の UI 文言（addStrings で後続が追加） | FR-006, FR-008, FR-015, FR-016, FR-017, FR-020, FR-021, NFR-UX-002, FR-018, FR-019, NFR-UX-003, FR-025, FR-026, FR-027, FR-030, FR-036 |
-| デザイン基盤 | web/styles/tokens.css, web/styles/app.css, web/styles/view3d.css | Fluent 2 のトークン（colorNeutral/Brand 系・角丸 4/8・4px 余白・Type ramp・影・モーション）・ライト/ダーク/forced-colors・フォーカス 3px・積み重ね・カード風パネル・ボタン（primary/subtle） | FR-004、FR-011、FR-013、FR-017、FR-018、FR-020、FR-021、FR-024、FR-026、FR-027、FR-029、FR-030、NFR-A11Y-001、NFR-UX-001、NFR-UX-002、NFR-UX-003 |
+| デザイン基盤 | web/styles/tokens.css, web/styles/app.css, web/styles/view3d.css | Fluent 2 のトークン（colorNeutral/Brand 系・角丸 4/8・4px 余白・Type ramp・影・モーション）・ライト/ダーク/forced-colors・フォーカス 3px・積み重ね・カード風パネル・ボタン（primary/subtle） | FR-004、FR-011、FR-013、FR-017、FR-018、FR-020、FR-021、FR-024、FR-026、FR-027、FR-029、FR-030、NFR-A11Y-001、NFR-UX-001、NFR-UX-002、NFR-UX-003、FR-050、FR-051 |
 | コマンドバー | web/src/commandbar.js | コマンドのグループ・インライン SVG アイコン・主要コマンド（getCommandBar / getCommandStatus）。ステータスバーの文言（記録状態・音声認識・言語・表示）。ボタンの簡易説明（showTooltip / hideTooltip / getTooltip、tooltip.<command>） | NFR-UX-001, NFR-UX-002, FR-016, FR-017, FR-018, FR-019, NFR-UX-003, FR-026, FR-027, FR-030 |
 | 認識文字列 | web/src/transcript.js | 右パネル（パネル ID input）の確定結果一覧・暫定結果の区別表示（getTranscript / renderTranscript） | FR-013, FR-014 |
 | キーマップ | web/src/keymap.js | 全操作の Alt+Shift+キー割り当て | NFR-A11Y-001, FR-015, FR-017, FR-021, FR-018, FR-019, FR-025, FR-026, FR-027, FR-030 |
@@ -79,6 +84,9 @@
 | 3D ビュー | web/src/view3d.js, web/src/axes3d.js | CSS 3D transforms による 3D 配置（get3D）、評価軸の候補・位置（getAxes3D / setAxis3D）、視点操作と操作説明（viewControl / getViewControls / getViewpoint、view.<op> のキー）、プレゼンのカメラ・タイマー（presentation.*）、WebGL なしの 2D 代替 | FR-009, FR-010, FR-020, FR-021 |
 | セッション | web/src/session.js | データの初期化（data.reset・getDialog・dialogAction）、セッションファイルの保存・読込（file.save・file.load・loadSessionFile。版・上限 PARAM-010 の検証）、手修正の一覧（getManualEdits）。手動の型・描画スタイルの現在値の保存・復元（FR-027・FR-029） | FR-018, FR-019, FR-027, FR-029 |
 | レイアウト型レジストリ | web/src/layouttypes.js, web/src/settings.js | 5 つの型（timeline・bubble・diverge・zone・metaphor）の登録簿。型ごとの配置（layout）・併用の重ね（overlay）を registerLayoutType で差し替える。未実装の型は暫定でタイムライン相当（timelineLayout）。型の決まり方は 手動＞設定の既定（getLayoutInfo・getDiagramLayout・setAutoLayoutSelector）。自動選択は web/src/autolayout.js が登録（FR-028）。timelineLayout はトピックごとのまとまり・小見出し・外枠を持つ（FR-036） | FR-027, FR-028, FR-030, FR-031, FR-032, FR-033, FR-034, FR-035, FR-036 |
-| 描画スタイルの登録 | web/src/drawstyles.js, web/src/settings.js | 描画スタイル（アニメ調・手書き調・シンプル）の定義（名前・線・塗り・文字の飾り）の登録簿。registerDrawStyle で定義を足すだけで選択肢に現れ、重複・欠けた定義は拒否（getDrawStyles・setDrawStyle・getSettings・setSettings） | FR-029, FR-030 |
+| 描画スタイルの登録 | web/src/drawstyles.js, web/src/settings.js | 描画スタイル（アニメ調・手書き調・シンプル・RPG風）の定義（名前・線・塗り・文字の飾り）の登録簿。registerDrawStyle で定義を足すだけで選択肢に現れ、重複・欠けた定義は拒否（getDrawStyles・setDrawStyle・getSettings・setSettings） | FR-029, FR-030, FR-047, FR-051 |
 | 音声入力源 | web/src/speech.js | SpeechSource 抽象と実ブラウザ実装。選択言語だけで判定（local／downloadable は同意不要、remote は同意後のみ開始）。同意 UI・状態表示を含む。注入で差し替え可能 | FR-001, FR-012, NFR-PRIV-001, NFR-OFFLINE-001, NFR-BG-001, FR-018, FR-019 |
 | 型ごとの配置 | web/src/layoutkinds.js, web/src/diagram.js | タイムライン（Z 字・矢印ラベル・強調）・吹き出し（質問と答えの重なり・感情語は形を変える）・発散（中央のテーマと放射状・共感の強調 PARAM-019）・区画（縦のグレーの区切り線 dividers・2〜4 区画 PARAM-017）・比喩テンプレート（道・山・橋・太陽／4 象限の metaphor 要素）の配置を registerLayoutType で登録（layoutKindsModule）。配置の units・arrows・center は diagram.js の commonPlacementSvg が data-unit-id・data-flow-from で描く | FR-031, FR-032, FR-033, FR-034, FR-035 |
+| RPG風の地図とスプライト | web/src/rpgmap.js, web/src/rpgsprites.js, web/src/rpg.js | ドット絵の俯瞰マップ（buildRpgMap・renderRpgSvg・paintRpgCanvas・stepHero）、16 色のパレットとコード生成のスプライト（勇者・村人・兵士）、getRpgMap・setRpgFocus・rpgPress・registerRpgButton。後続の項目（会話・BGM・操作）はここへ足す。FR-050: 十字キー・A・B のキー割り当て（handleKey）、getRpgPad、getRpgDialog（1 文字 50ms・動きを減らす設定では即時）| FR-047, FR-048, FR-050 |
+| RPG音響 | web/src/rpgaudio.js | WebAudio 合成の BGM（フィールド・街・城）と SE（決定・キャンセル・カーソル・歩行・会話送り）。getRpgAudio・setRpgVolume・setRpgMuted・setRpgBgm・playRpgSe。音量・ミュートは端末ごとに grp.rpgaudio へ保存。後続の会話・操作の項目は playRpgSe を使う | FR-049, FR-050, FR-051 |
+

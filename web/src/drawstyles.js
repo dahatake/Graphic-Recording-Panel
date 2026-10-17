@@ -19,6 +19,8 @@ export const BUILTIN_STYLES = [
   { id: 'anime', label: { ja: 'アニメ調', en: 'Anime' }, line: { width: 1.6, jitter: 0 }, fill: { mode: 'tint' }, text: { decor: 'bold', icons: true } },
   // シンプル: 揺らぎ・装飾の絵記号を抑えた見た目
   { id: 'simple', label: { ja: 'シンプル', en: 'Simple' }, line: { width: 0.8, jitter: 0 }, fill: { mode: 'paper' }, text: { decor: 'plain', icons: false } },
+  // RPG風（FR-047）: 拡張点（register）の定義の追加。描画は rpgmap.js が行う（既存 3 つの定義・処理は変えない）。選択肢の並びは末尾。
+  { id: 'rpg', label: { ja: 'RPG風', en: 'RPG' }, line: { width: 1, jitter: 0 }, fill: { mode: 'paper' }, text: { decor: 'plain', icons: true } },
 ];
 
 // 定義の検証。{ ok:true } か { ok:false, reason }（invalid_id / invalid_label / missing_line / missing_fill / missing_text）。
