@@ -36,7 +36,7 @@ export function wrapLines(text, fs, width) {
   return lines;
 }
 
-export function buildPdf(scenes, { title = '', arrange = null } = {}) {
+export function buildPdf(scenes, { title = '', arrange = null, parts = null } = {}) {
   const FS_H = 15; const FS_P = 11; const LH_H = 22; const LH_P = 16;
   const width = A4.w - A4.margin * 2;
   const pages = [[]];
@@ -74,6 +74,11 @@ export function buildPdf(scenes, { title = '', arrange = null } = {}) {
       for (const p of sc.points) block(p.text, FS_P, LH_P, 16);
     });
   }
+  // FR-063 AC-321: LLM が対応づけた絵（物の名前）を、PDF にも文字で含める
+  if (parts?.length) {
+    y -= 10;
+    block(parts.map((p) => p.label).join(' / '), FS_P, LH_P, 0);
+  }
 
   const objs = []; // 1 起点の番号 → 本文
   const add = (body) => { objs.push(body); return objs.length; };
@@ -99,9 +104,41 @@ export function buildPdf(scenes, { title = '', arrange = null } = {}) {
   return Uint8Array.from(out, (ch) => ch.charCodeAt(0) & 0xff); // 全体が ASCII
 }
 
+// FR-063 AC-321: LLM が抽出し同梱部品へ対応づけた絵（items = [{ svg, label }]）の帯。PNG の末尾に部品ごとに drawImage する。
+const BAND_CELL = 64;
+async function loadPartImage(svg, imageFactory) {
+  if (imageFactory) return imageFactory(svg);
+  const Img = globalThis.Image;
+  if (!Img) return { svg, width: 48, height: 48 };
+  return new Promise((res) => {
+    const im = new Img();
+    im.onload = () => res(im); im.onerror = () => res({ svg, width: 48, height: 48 });
+    im.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  });
+}
+async function partsBand(items, width, imageFactory) {
+  if (!items?.length) return { h: 0, draw: () => {} };
+  const per = Math.max(1, Math.floor((width - MARGIN * 2) / BAND_CELL));
+  const rows = Math.ceil(items.length / per);
+  const imgs = [];
+  for (const it of items) imgs.push(await loadPartImage(it.svg, imageFactory));
+  return {
+    h: rows * BAND_CELL + MARGIN,
+    draw(g, top) {
+      g.textBaseline = 'middle';
+      items.forEach((it, i) => {
+        const x = MARGIN + (i % per) * BAND_CELL; const y = top + Math.floor(i / per) * BAND_CELL;
+        g.drawImage(imgs[i], x, y, 48, 48);
+        g.fillStyle = '#15191f'; g.font = "11px system-ui, 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif";
+        g.fillText(String(it.label).slice(0, 8), x, y + 54);
+      });
+    },
+  };
+}
+
 // ---- PNG（canvasFactory に全シーンの見出しと要点を描く） ----
-export async function renderPng(scenes, canvasFactory, { title = '', arrange = null } = {}) {
-  if (arrange) return renderArrangedPng(scenes, arrange, canvasFactory);
+export async function renderPng(scenes, canvasFactory, { title = '', arrange = null, parts = null, imageFactory = null } = {}) {
+  if (arrange) return renderArrangedPng(scenes, arrange, canvasFactory, parts, imageFactory);
   const FS_H = 18; const FS_P = 15; const ROW_H = 30; const HEAD_H = 40; const GAP = 22;
   const font = (px, bold) => `${bold ? '700 ' : ''}${px}px system-ui, 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif`;
   const probe = canvasFactory(8, 8).getContext('2d');
@@ -111,7 +148,9 @@ export async function renderPng(scenes, canvasFactory, { title = '', arrange = n
     w = Math.max(w, measure(sc.heading, FS_H, true) + 40, ...sc.points.map((p) => measure(p.text, FS_P, false) + 56));
   }
   w = Math.ceil(w + MARGIN * 2);
-  const h = Math.ceil(MARGIN * 2 + scenes.reduce((a, sc) => a + HEAD_H + sc.points.length * ROW_H + GAP, 0));
+  const band = await partsBand(parts, w, imageFactory);
+  const baseH = Math.ceil(MARGIN * 2 + scenes.reduce((a, sc) => a + HEAD_H + sc.points.length * ROW_H + GAP, 0));
+  const h = baseH + band.h;
   const canvas = canvasFactory(w, h);
   const g = canvas.getContext('2d');
   g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h);
@@ -130,17 +169,20 @@ export async function renderPng(scenes, canvasFactory, { title = '', arrange = n
     }
     y += GAP;
   });
+  band.draw(g, baseH - MARGIN);
   void title;
   return canvas.toBytes();
 }
 
 // FR-016 AC-089: 整理の表示の PNG（軸の名前・区分の見出し・未分類の領域・各オブジェクトを、整理の配置どおりに描く）
-async function renderArrangedPng(scenes, model, canvasFactory) {
+async function renderArrangedPng(scenes, model, canvasFactory, parts = null, imageFactory = null) {
   const g = model.geometry;
   const font = (px, bold) => `${bold ? '700 ' : ''}${px}px system-ui, 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif`;
-  const canvas = canvasFactory(g.width, g.height);
+  const band = await partsBand(parts, g.width, imageFactory);
+  const canvas = canvasFactory(g.width, g.height + band.h);
   const c = canvas.getContext('2d');
-  c.fillStyle = '#ffffff'; c.fillRect(0, 0, g.width, g.height);
+  c.fillStyle = '#ffffff'; c.fillRect(0, 0, g.width, g.height + band.h);
+  band.draw(c, g.height);
   c.textBaseline = 'middle';
   const ink = '#15191f';
   for (const r of g.rows) {
@@ -225,10 +267,11 @@ export function exportModule(ctx) {
   // 整理の表示を選んでいるときは、その配置（軸・区分・未分類を含む）で出力する（AC-089）
   const arranged = () => (ctx.state.displayMode === 'arrange' && ctx.api.getArrangement ? ctx.api.getArrangement() : null);
   ctx.registerCommand('save.svg', () => run('svg', 'image/svg+xml', () => ctx.api.renderSvg()));
-  ctx.registerCommand('save.pdf', () => run('pdf', 'application/pdf', () => buildPdf(scenes(), { title: ctx.t('app.title'), arrange: arranged() })));
+  const drawn = () => ctx.api.getLlmDrawItems?.() ?? null; // FR-063
+  ctx.registerCommand('save.pdf', () => run('pdf', 'application/pdf', () => buildPdf(scenes(), { title: ctx.t('app.title'), arrange: arranged(), parts: drawn() })));
   ctx.registerCommand('save.png', () => run('png', 'image/png', async () => {
     const factory = ctx.options.canvasFactory ?? browserCanvasFactory();
     if (!factory) throw new Error('no canvas');
-    return renderPng(scenes(), factory, { arrange: arranged(), rpg: ctx.api.getRpgMap?.() ?? null });
+    return renderPng(scenes(), factory, { arrange: arranged(), rpg: ctx.api.getRpgMap?.() ?? null, parts: drawn(), imageFactory: ctx.options.imageFactory ?? null });
   }));
 }
