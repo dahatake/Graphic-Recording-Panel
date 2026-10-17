@@ -56,17 +56,35 @@ test('FR-068 AC-354: 接続テストの成功・失敗の分類（未設定・�
     ['timeout', { post: 'hang' }, false, 'timeout'],
   ];
   for (const [name, o, ok, cause] of cases) {
-    const { app, env, relay } = await mk(o);
+    const { app, env, relay } = await mk(name === 'unconfigured' ? {} : o);
+    await app.requestLlmEnable(); await app.answerLlmConsent(true);
+    if (name === 'unconfigured') relay.configured = o.configured; // 有効化の後に中継側が未設定になった場合
+    relay.calls.length = 0;
     const p = app.testLlmConnection();
     if (name === 'timeout') { for (let i = 0; i < 50 && !relay.calls.some((c) => c.path === '/api/llm/responses'); i++) await new Promise((res) => setImmediate(res)); env.scheduler.advance(10_000); } // PARAM-074
     const r = await p;
     assert.deepEqual([r.ok, r.cause], [ok, cause], name);
-    assert.equal(app.getLlmState().enabled, false, `${name}: 有効化の状態は変わらない`);
+    assert.equal(app.getLlmState().enabled, true, `${name}: 有効化の状態は変わらない`);
     assert.equal(app.getState().scenes.length, 0, `${name}: 図に影響しない`);
     if (name === 'ok') assert.equal(relay.calls.filter((c) => c.path === '/api/llm/responses').length, 1);
     if (name === 'unconfigured') assert.equal(relay.calls.filter((c) => c.path === '/api/llm/responses').length, 0);
     const f = app.getSettingsDialog?.() ?? null; assert.equal(f, null);
   }
+});
+
+// FR-068 AC-354: 未同意・無効のときは「先に同意が必要」と表示し、中継サーバーへの要求は 0 件
+test('FR-068 AC-354: 無効（未同意）のときの接続テストは「先に同意が必要」を示し、中継への要求が 0 件', async () => {
+  const { app, relay } = await mk();
+  const r = await app.testLlmConnection();
+  assert.deepEqual([r.ok, r.cause], [false, 'consent']);
+  assert.equal(relay.calls.length, 0);
+  assert.ok(app.getState().message.text.includes('先に同意が必要'));
+  assert.equal(app.getLlmState().enabled, false);
+  await app.requestLlmEnable(); // 同意ダイアログ待ち（未同意）
+  relay.calls.length = 0;
+  const r2 = await app.testLlmConnection();
+  assert.equal(r2.cause, 'consent');
+  assert.equal(relay.calls.length, 0);
 });
 
 // FR-068 AC-355: 実際の中継サーバーの形式（missing 配列）でも、キーの値を持たず「設定済み/未設定」だけを示す

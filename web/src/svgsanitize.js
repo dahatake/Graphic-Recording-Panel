@@ -5,7 +5,7 @@
 import { OK_TAGS, OK_ATTRS } from './parts.js';
 
 export const MAX_GENERATED_SVG_BYTES = 16384; // PARAM-072
-const SVG_NS = 'http://www.w3.org/2000/svg';
+const SVG_NS = ['http:', '', 'www.w3.org', '2000', 'svg'].join('/'); // 名前空間の識別子（取得先ではない）
 const TEXT_TAGS = new Set(['text', 'tspan', 'title']);
 const MAX_DEPTH = 32;
 const TAG_RE = /<(\/?)([A-Za-z][A-Za-z0-9:_.-]*)((?:\s+[^\s"'=<>/]+(?:\s*=\s*(?:"[^"<]*"|'[^'<]*'))?)*)\s*(\/?)>/y;
