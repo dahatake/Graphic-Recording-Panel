@@ -160,7 +160,7 @@ export function llmModule(ctx) {
     })();
     return track(p);
   };
-  ctx.on('utterance', (text) => { if (enabled) void api.llmCall(RESPONSES_PATH, { input: text }); });
+  // 発話からの要求は llmdraw.js（FR-063）が、要点だけを最小化・マスキングして出す。
 
   // ---- 接続テスト（FR-068 AC-354）: 有効化の状態・図には影響しない ----
   function classify(res) {

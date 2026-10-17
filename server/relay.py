@@ -129,7 +129,8 @@ class RelayHandler(SimpleHTTPRequestHandler):
         is_llm = self.path.startswith(LLM_PREFIX)
         if not self._guard(is_llm):
             return
-        if self.command == "POST" and self.path.split("?", 1)[0] == LLM_PREFIX + "responses":
+        # extract は FR-063 の抽出要求。responses と同じ中継（Responses 形式の本文）をする
+        if self.command == "POST" and self.path.split("?", 1)[0] in (LLM_PREFIX + "responses", LLM_PREFIX + "extract"):
             return self._relay()
         status = 405 if is_llm and self.path.startswith(LLM_PREFIX + "config") else 404
         self._send_json(status if is_llm else 405, sec.error_body("not_allowed", "この操作はできません。"))
