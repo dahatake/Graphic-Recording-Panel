@@ -1,5 +1,8 @@
 # Enterprise App Build Kit: temporary run files (kept 14 days)
 /work/
 
+# LLM 連携のローカル設定（API キーを含みうるため管理外）
+config/llm.local.json
+
 __pycache__/
 *.pyc
