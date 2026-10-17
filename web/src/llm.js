@@ -34,7 +34,7 @@ export function llmModule(ctx) {
       'llm.consent.kind.points': '会話の要点の文字（マスキング後）', 'llm.consent.sent': '送る内容:', 'llm.consent.to': '送信先', 'llm.consent.notSentLabel': '送らないもの:',
       'llm.consent.notSent.audio': '音声', 'llm.consent.notSent.secret': 'API キー・トークン', 'llm.consent.notSent.other': '要点の文字以外の内容',
       'llm.consent.hostUnknown': '中継サーバーに設定された Foundry のエンドポイント', 'llm.consent.note': 'この同意はブラウザのタブを開いている間だけ有効です。',
-      'llm.test.ok': '接続テスト: 成功', 'llm.test.running': '接続テスト中', 'llm.test.fail.unconfigured': '接続テスト: 失敗（未設定）',
+      'llm.test.ok': '接続テスト: 成功', 'llm.test.running': '接続テスト中', 'llm.test.fail.unconfigured': '接続テスト: 失敗（未設定）', 'llm.test.fail.consent': '先に同意が必要です（LLM 連携を有効にして同意してください）',
       'llm.test.fail.auth': '接続テスト: 失敗（認証）', 'llm.test.fail.connection': '接続テスト: 失敗（接続）', 'llm.test.fail.timeout': '接続テスト: 失敗（タイムアウト）',
       'llm.lastSent': '直近に送った内容',
     },
@@ -49,7 +49,7 @@ export function llmModule(ctx) {
       'llm.consent.kind.points': 'Key-point text of the conversation (after masking)', 'llm.consent.sent': 'What is sent:', 'llm.consent.to': 'Destination', 'llm.consent.notSentLabel': 'What is not sent:',
       'llm.consent.notSent.audio': 'Audio', 'llm.consent.notSent.secret': 'API keys and tokens', 'llm.consent.notSent.other': 'Anything other than the key-point text',
       'llm.consent.hostUnknown': 'The Foundry endpoint configured on the relay server', 'llm.consent.note': 'This consent lasts only while this browser tab stays open.',
-      'llm.test.ok': 'Connection test: succeeded', 'llm.test.running': 'Testing the connection', 'llm.test.fail.unconfigured': 'Connection test: failed (not configured)',
+      'llm.test.ok': 'Connection test: succeeded', 'llm.test.running': 'Testing the connection', 'llm.test.fail.unconfigured': 'Connection test: failed (not configured)', 'llm.test.fail.consent': 'Consent is required first (enable LLM integration and agree)',
       'llm.test.fail.auth': 'Connection test: failed (authentication)', 'llm.test.fail.connection': 'Connection test: failed (connection)', 'llm.test.fail.timeout': 'Connection test: failed (timeout)',
       'llm.lastSent': 'Last content sent',
     },
@@ -171,8 +171,9 @@ export function llmModule(ctx) {
     return 'connection';
   }
   api.testLlmConnection = () => track((async () => {
-    const st = await readStatus();
-    if (st.missing.length) { testResult = { ok: false, cause: 'unconfigured' }; }
+    // 有効かつ同意済み（有効化は同意の後にだけ成立する）のときだけ中継へ送る。それ以外は中継への要求を 0 件にする
+    if (!enabled) { testResult = { ok: false, cause: 'consent' }; }
+    else if ((await readStatus()).missing.length) { testResult = { ok: false, cause: 'unconfigured' }; }
     else {
       const res = await send('POST', RESPONSES_PATH, { input: 'ping' }, TEST_TIMEOUT_MS);
       const ok = res.status >= 200 && res.status < 300 && res.body && typeof res.body === 'object';
