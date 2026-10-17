@@ -59,6 +59,17 @@
 | FR-049 | RPGのBGMと効果音（SE） | 承認済み | web/src/rpgaudio.js, web/src/app.js, web/sw.js | tests/unit/rpgaudio.test.js, tests/system/rpg.test.js | アプリ組立, RPG音響 |
 | FR-050 | ファミコン風の操作と仮想パッド | 承認済み | web/src/rpg.js, web/src/ui.js, web/styles/app.css | tests/unit/rpginput.test.js, tests/system/rpginput.test.js | アプリ組立, デザイン基盤, RPG風の地図とスプライト, RPG音響 |
 | FR-051 | RPG風のアクセシビリティ・保存・設定 | 承認済み | web/src/ui.js, web/src/rpgaudio.js, web/src/settings.js, web/styles/app.css | tests/unit/rpginput.test.js, tests/system/rpg.test.js | アプリ組立, デザイン基盤, RPG音響, 描画スタイルの登録 |
+| FR-062 | LLM 連携の既定オフ・明示同意・自動復帰（G-002 の例外条件） | 承認済み | 未実装 | 未実装 | - |
+| FR-063 | 方式1: LLM による描くべき物の抽出と同梱部品への対応づけ | 承認済み | 未実装 | 未実装 | - |
+| FR-064 | 同梱部品の拡充と汎用キャラのビルダー | 承認済み | 未実装 | 未実装 | - |
+| FR-065 | 方式2（任意・既定オフ）: LLM による SVG の生成と挿入 | 承認済み | 未実装 | 未実装 | - |
+| FR-066 | ローカル中継サーバー | 承認済み | 未実装 | 未実装 | - |
+| FR-067 | LLM 連携の設定（エンドポイント・デプロイ名・認証方式） | 承認済み | 未実装 | 未実装 | - |
+| FR-068 | 設定画面での有効/無効と接続テスト | 承認済み | 未実装 | 未実装 | - |
+| FR-069 | LLM 連携の使い方ガイド | 承認済み | 未実装 | 未実装 | - |
+| NFR-SEC-003 | API キー・トークンの非露出 | 承認済み | 未実装 | 未実装 | - |
+| NFR-SEC-004 | SVG の許可リストによる厳格なサニタイズ | 承認済み | 未実装 | 未実装 | - |
+| NFR-PRIV-003 | LLM への送信の最小化 | 承認済み | 未実装 | 未実装 | - |
 
 ## API・イベント
 

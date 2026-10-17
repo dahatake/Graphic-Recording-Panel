@@ -40,5 +40,28 @@
 
 | ID | 名前 | 連携先 | 方向 | 状態 | 関連する要求 |
 |---|---|---|---|---|---|
+| INT-002 | Microsoft Foundry（LLM 連携） | Microsoft Foundry の Azure OpenAI 互換 Responses API | 双方向 | 検討中 | FR-062、FR-063、FR-065、FR-066、NFR-PRIV-003 |
 
 ## 項目
+
+#### INT-002 Microsoft Foundry（LLM 連携）
+- 連携先: 利用者が設定した Microsoft Foundry のエンドポイント（ベース URL は https://<your-resource>.services.ai.azure.com/openai/v1 の形式、model はデプロイ名）
+- 方向: 双方向
+- 方式: REST（HTTPS、Responses API）。ブラウザからは直接呼ばず、ローカル中継サーバー（127.0.0.1・同一オリジンのみ）が中継する
+- データ分類: 会議の発話の要点（利用者の社内情報を含み得る）
+- 個人情報: あり（会話に含まれ得る。簡易マスキングは任意で完全ではない）
+- 認証認可: API キー、または Microsoft Entra ID（az account get-access-token、スコープは ai.azure.com の .default）
+- 秘密の保管場所: 環境変数、または git 管理外の config/llm.local.json（ブラウザには置かない）
+- 責任分界: 利用者が送信に同意した範囲の内容の取り扱いは Foundry の契約に従い、アプリは送信の最小化・サニタイズ・自動復帰に責任を持つ
+- 状態: 検討中
+- 関連する要求: FR-062、FR-063、FR-065、FR-066、FR-067、NFR-SEC-003、NFR-SEC-004、NFR-PRIV-003
+- 頻度と量: シーンの確定ごとに 1 回。1 回の送信は PARAM-070 の文字数以内
+- 可用性・SLA: なし
+- レート制限: なし
+- エラー・再試行・冪等性: タイムアウト PARAM-069 秒。失敗は再試行せず現行ルールベース描画へ復帰（FR-062）
+- 契約・バージョン: Responses API（バージョンの確認は未実施。SRC-057）
+- 変更通知: なし
+- 監視: なし（送信の履歴は件数と時刻だけ。NFR-PRIV-003）
+- データ保持: アプリは送信内容を保存しない（AC-362）。Foundry 側の保持は契約に従う（未確認）
+- 障害時の代替: 現行ルールベース描画（FR-062）
+- 法務・ライセンス: なし（送信の可否・生成物の権利は利用者の組織の規程に従う。外部確認未実施）
