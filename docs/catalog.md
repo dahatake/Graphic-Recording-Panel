@@ -61,7 +61,7 @@
 | FR-051 | RPG風のアクセシビリティ・保存・設定 | 承認済み | web/src/ui.js, web/src/rpgaudio.js, web/src/settings.js, web/styles/app.css | tests/unit/rpginput.test.js, tests/system/rpg.test.js | アプリ組立, デザイン基盤, RPG音響, 描画スタイルの登録 |
 | FR-062 | LLM 連携の既定オフ・明示同意・自動復帰（G-002 の例外条件） | 承認済み | 未実装 | 未実装 | - |
 | FR-063 | 方式1: LLM による描くべき物の抽出と同梱部品への対応づけ | 承認済み | 未実装 | 未実装 | - |
-| FR-064 | 同梱部品の拡充と汎用キャラのビルダー | 承認済み | 未実装 | 未実装 | - |
+| FR-064 | 同梱部品の拡充と汎用キャラのビルダー | 承認済み | web/src/parts.js, web/src/diagram.js, web/sw.js | tests/unit/parts.test.js | 同梱部品, 感情語辞書 |
 | FR-065 | 方式2（任意・既定オフ）: LLM による SVG の生成と挿入 | 承認済み | 未実装 | 未実装 | - |
 | FR-066 | ローカル中継サーバー | 承認済み | 未実装 | 未実装 | - |
 | FR-067 | LLM 連携の設定（エンドポイント・デプロイ名・認証方式） | 承認済み | 未実装 | 未実装 | - |
@@ -91,7 +91,8 @@
 | コマンドバー | web/src/commandbar.js | コマンドのグループ・インライン SVG アイコン・主要コマンド（getCommandBar / getCommandStatus）。ステータスバーの文言（記録状態・音声認識・言語・表示）。ボタンの簡易説明（showTooltip / hideTooltip / getTooltip、tooltip.<command>） | NFR-UX-001, NFR-UX-002, FR-016, FR-017, FR-018, FR-019, NFR-UX-003, FR-026, FR-027, FR-030 |
 | 認識文字列 | web/src/transcript.js | 右パネル（パネル ID input）の確定結果一覧・暫定結果の区別表示（getTranscript / renderTranscript） | FR-013, FR-014 |
 | キーマップ | web/src/keymap.js | 全操作の Alt+Shift+キー割り当て | NFR-A11Y-001, FR-015, FR-017, FR-021, FR-018, FR-019, FR-025, FR-026, FR-027, FR-030 |
-| 感情語辞書 | web/src/emotion.js | 日英の感情・様子の語 → 絵記号の対応（決定的） | FR-004, FR-015, FR-032 |
+| 感情語辞書 | web/src/emotion.js | 日英の感情・様子の語 → 絵記号の対応（決定的） | FR-004, FR-015, FR-032, FR-064 |
+| 同梱部品 | web/src/parts.js | 同梱の汎用物体の SVG 部品 134 点（部品キーで引く: getPartKeys・getPartInfo・getPartSvg・getPartGroup・isPartKey）、語の辞書 → 部品（matchParts）、許可リスト検査（isAllowedPartSvg）、実在人物を特定しない汎用キャラのビルダー（buildCharacter・expressionForText。候補は CHARACTER_OPTIONS）。後続の LLM 抽出はキーを isPartKey で検証して対応づける | FR-064 |
 | 3D ビュー | web/src/view3d.js, web/src/axes3d.js | CSS 3D transforms による 3D 配置（get3D）、評価軸の候補・位置（getAxes3D / setAxis3D）、視点操作と操作説明（viewControl / getViewControls / getViewpoint、view.<op> のキー）、プレゼンのカメラ・タイマー（presentation.*）、WebGL なしの 2D 代替 | FR-009, FR-010, FR-020, FR-021 |
 | セッション | web/src/session.js | データの初期化（data.reset・getDialog・dialogAction）、セッションファイルの保存・読込（file.save・file.load・loadSessionFile。版・上限 PARAM-010 の検証）、手修正の一覧（getManualEdits）。手動の型・描画スタイルの現在値の保存・復元（FR-027・FR-029） | FR-018, FR-019, FR-027, FR-029 |
 | レイアウト型レジストリ | web/src/layouttypes.js, web/src/settings.js | 5 つの型（timeline・bubble・diverge・zone・metaphor）の登録簿。型ごとの配置（layout）・併用の重ね（overlay）を registerLayoutType で差し替える。未実装の型は暫定でタイムライン相当（timelineLayout）。型の決まり方は 手動＞設定の既定（getLayoutInfo・getDiagramLayout・setAutoLayoutSelector）。自動選択は web/src/autolayout.js が登録（FR-028）。timelineLayout はトピックごとのまとまり・小見出し・外枠を持つ（FR-036） | FR-027, FR-028, FR-030, FR-031, FR-032, FR-033, FR-034, FR-035, FR-036 |
