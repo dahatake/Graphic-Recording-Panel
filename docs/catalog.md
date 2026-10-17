@@ -54,6 +54,11 @@
 | FR-035 | 比喩テンプレート型の描画 | 承認済み | web/src/layoutkinds.js, web/src/diagram.js | tests/unit/layoutzone.test.js | アプリ組立, レイアウト型レジストリ, 型ごとの配置 |
 | FR-036 | 共通配置（タイトル・登壇者・本編・小見出しと外枠） | 承認済み | web/src/layouttypes.js, web/src/settings.js, web/src/diagram.js, web/src/app.js, web/src/i18n.js | tests/unit/autolayout.test.js, tests/system/layouttype.test.js | アプリ組立, i18n, レイアウト型レジストリ |
 | FR-039 | ファイル取込はセッションの状態によらずいつでも可能 | 承認済み | web/src/input.js, web/src/app.js | tests/unit/vtt.test.js, tests/unit/core.test.js, tests/unit/transcript.test.js, tests/system/importanystate.test.js | アプリ組立 |
+| FR-047 | RPG風の描画スタイルとドット絵の地図 | 承認済み | 未実装 | 未実装 | - |
+| FR-048 | RPGのキャラクター（ドット絵スプライト） | 承認済み | 未実装 | 未実装 | - |
+| FR-049 | RPGのBGMと効果音（SE） | 承認済み | 未実装 | 未実装 | - |
+| FR-050 | ファミコン風の操作と仮想パッド | 承認済み | 未実装 | 未実装 | - |
+| FR-051 | RPG風のアクセシビリティ・保存・設定 | 承認済み | 未実装 | 未実装 | - |
 
 ## API・イベント
 
