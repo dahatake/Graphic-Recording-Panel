@@ -63,11 +63,11 @@
 | FR-063 | 方式1: LLM による描くべき物の抽出と同梱部品への対応づけ | 承認済み | 未実装 | 未実装 | - |
 | FR-064 | 同梱部品の拡充と汎用キャラのビルダー | 承認済み | 未実装 | 未実装 | - |
 | FR-065 | 方式2（任意・既定オフ）: LLM による SVG の生成と挿入 | 承認済み | 未実装 | 未実装 | - |
-| FR-066 | ローカル中継サーバー | 承認済み | 未実装 | 未実装 | - |
+| FR-066 | ローカル中継サーバー | 承認済み | server/relay.py, server/relay_config.py, server/relay_security.py, server/relay_upstream.py, start.ps1, start.sh | tests/relay/test_relay_units.py, tests/system/llmrelay.test.js | 中継サーバー |
 | FR-067 | LLM 連携の設定（エンドポイント・デプロイ名・認証方式） | 承認済み | 未実装 | 未実装 | - |
 | FR-068 | 設定画面での有効/無効と接続テスト | 承認済み | 未実装 | 未実装 | - |
 | FR-069 | LLM 連携の使い方ガイド | 承認済み | 未実装 | 未実装 | - |
-| NFR-SEC-003 | API キー・トークンの非露出 | 承認済み | 未実装 | 未実装 | - |
+| NFR-SEC-003 | API キー・トークンの非露出 | 承認済み | server/relay.py, server/relay_security.py, server/relay_upstream.py, server/relay_config.py | tests/relay/test_relay_units.py, tests/system/llmrelay.test.js | 中継サーバー |
 | NFR-SEC-004 | SVG の許可リストによる厳格なサニタイズ | 承認済み | 未実装 | 未実装 | - |
 | NFR-PRIV-003 | LLM への送信の最小化 | 承認済み | 未実装 | 未実装 | - |
 
@@ -75,6 +75,8 @@
 
 | 名前 | 定義ファイル | 関連する要求 ID |
 |---|---|---|
+| GET /api/llm/status | server/relay.py | FR-066, NFR-SEC-003 |
+| POST /api/llm/responses | server/relay.py | FR-066, NFR-SEC-003 |
 
 ## テーブル
 
@@ -85,6 +87,7 @@
 
 | 部品名 | ファイル | 用途 | 使っている要求 ID |
 |---|---|---|---|
+| 中継サーバー | server/relay.py, server/relay_config.py, server/relay_security.py, server/relay_upstream.py | 127.0.0.1 だけの静的配信＋LLM 中継。設定は relay_config（環境変数>設定ファイル）、Host/Origin 検証と SVG サニタイズ・秘密の除去は relay_security、上流呼び出しと Entra トークンは relay_upstream。後続の設定・Entra の項目はここを拡張する | FR-066, NFR-SEC-003 |
 | アプリ組立 | web/src/app.js | 状態・コマンド・キー割り当て・パネル描画の拡張点（modules / registerCommand / registerPanelRenderer / addUtterance / addUtterances）。後続の機能はここへ足す | FR-001、FR-002、FR-003、FR-004、FR-005、FR-006、FR-007、FR-008、FR-009、FR-010、FR-011、FR-012、FR-013、FR-014、FR-015、FR-016、FR-017、FR-018、FR-019、FR-020、FR-021、FR-022、FR-023、FR-024、FR-025、FR-026、NFR-A11Y-001、NFR-BG-001、NFR-PERF-001、NFR-UX-001、NFR-UX-003、FR-027、FR-028、FR-029、FR-030、FR-031、FR-032、FR-033、FR-034、FR-035、FR-036、FR-039、FR-047、FR-048、FR-049、FR-050、FR-051 |
 | i18n | web/src/i18n.js | ja/en の UI 文言（addStrings で後続が追加） | FR-006, FR-008, FR-015, FR-016, FR-017, FR-020, FR-021, NFR-UX-002, FR-018, FR-019, NFR-UX-003, FR-025, FR-026, FR-027, FR-030, FR-036 |
 | デザイン基盤 | web/styles/tokens.css, web/styles/app.css, web/styles/view3d.css | Fluent 2 のトークン（colorNeutral/Brand 系・角丸 4/8・4px 余白・Type ramp・影・モーション）・ライト/ダーク/forced-colors・フォーカス 3px・積み重ね・カード風パネル・ボタン（primary/subtle） | FR-004、FR-011、FR-013、FR-017、FR-018、FR-020、FR-021、FR-024、FR-026、FR-027、FR-029、FR-030、NFR-A11Y-001、NFR-UX-001、NFR-UX-002、NFR-UX-003、FR-050、FR-051 |
