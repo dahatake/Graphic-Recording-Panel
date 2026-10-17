@@ -1,6 +1,7 @@
 // FR-004: 2D のグラフィック・ファシリテーション表示。シーンごとに「見出し・吹き出し（要点）・矢印（関係線）・絵記号」を SVG で描く。
 // 純粋関数 renderDiagramSvg（単体で SVG ファイルとしても自立する。色は属性で持つ）と、パネル描画（拡大・縮小・移動）。
 import { sceneEmotions } from './emotion.js';
+import { renderRpgSvg, RPG_STYLE_ID } from './rpgmap.js';
 
 export const STATUS_MARK = { in_progress: '○', confirmed: '●' };
 const SELECTED_MARK = '▶';
@@ -504,7 +505,13 @@ export function diagramModule(ctx) {
       'diagram.canvasLabel': 'Diagram (scroll with arrow keys)',
     },
   });
+  // FR-047: RPG風のときは、従来の SVG（文字・配置の元）を、ドット絵の地図に載せ替える（renderBaseSvg は載せ替える前の SVG）
   ctx.api.renderSvg = () => {
+    const base = ctx.api.renderBaseSvg();
+    const map = ctx.api.getDrawStyle?.() === RPG_STYLE_ID ? ctx.api.getRpgMap?.() : null;
+    return map ? renderRpgSvg(base, map) : base;
+  };
+  ctx.api.renderBaseSvg = () => {
     const o = { selectedSceneId: ctx.state.selectedSceneId, highlightPointId: currentHighlight()?.pointId ?? null, t: ctx.t, title: ctx.t('app.title'), style: ctx.api.getDrawStyleSpec?.() };
     const level = ctx.api.getDetailLevel?.() ?? 'detail';
     const units = level !== 'detail' && ctx.state.scenes.length ? { topics: ctx.api.getTopics(), relations: ctx.api.getTopicRelations(), level } : null;

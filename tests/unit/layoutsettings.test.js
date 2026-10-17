@@ -8,11 +8,11 @@ import { createLayoutTypeRegistry, validTypeList, timelineLayout, LAYOUT_TYPE_ID
 const NEW_STYLE = { id: 'chalk', label: { ja: 'チョーク調', en: 'Chalk' }, line: { width: 1.2, jitter: 0.5 }, fill: { mode: 'tint' }, text: { decor: 'bold', icons: true } };
 
 // FR-029 AC-148: 定義を 1 つ足すだけで選択肢に現れる
-test('FR-029 AC-148: スタイルの定義を 1 つ追加すると選択肢に現れ、選べる。組込みの 3 つは変わらない', () => {
+test('FR-029 AC-148: スタイルの定義を 1 つ追加すると選択肢に現れ、選べる。組込みの 4 つ（RPG風を含む。FR-047）は変わらない', () => {
   const reg = createDrawStyleRegistry();
-  assert.deepEqual(reg.ids(), ['handwritten', 'anime', 'simple']);
+  assert.deepEqual(reg.ids(), ['handwritten', 'anime', 'simple', 'rpg']);
   assert.deepEqual(reg.register(NEW_STYLE), { ok: true });
-  assert.deepEqual(reg.ids(), ['handwritten', 'anime', 'simple', 'chalk']);
+  assert.deepEqual(reg.ids(), ['handwritten', 'anime', 'simple', 'rpg', 'chalk']);
   assert.equal(reg.label('chalk', 'en'), 'Chalk');
   assert.ok(reg.has('chalk'));
 });

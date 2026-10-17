@@ -26,7 +26,7 @@ export function settingsModule(ctx) {
   ctx.i18n.addStrings({
     ja: {
       ...strings('ja'),
-      'drawStyle.anime': 'アニメ調', 'drawStyle.handwritten': '手書き調', 'drawStyle.simple': 'シンプル',
+      'drawStyle.anime': 'アニメ調', 'drawStyle.handwritten': '手書き調', 'drawStyle.simple': 'シンプル', 'drawStyle.rpg': 'RPG風',
       'layoutType.label': 'レイアウト型', 'layoutType.cleared': '手動の選択を解除しました。既定のレイアウトに従います', 'layoutType.keepLast': '最後の 1 つの型は外せません', 'layoutType.invalid': '指定した型は選べません',
       'cmd.layoutType.clear': 'レイアウト型の手動選択を解除', 'label.layoutType.clear': '型を解除', 'tooltip.layoutType.clear': '手動で選んだレイアウト型を解除し、設定の既定のレイアウトに戻します',
       'toolbar.layoutType': 'レイアウト型', 'settings.title': 'レイアウトと描画スタイルの設定', 'settings.layout.mode': '決め方', 'settings.layout.types': 'レイアウト型', 'settings.drawStyle': '描画スタイル',
@@ -36,7 +36,7 @@ export function settingsModule(ctx) {
     },
     en: {
       ...strings('en'),
-      'drawStyle.anime': 'Anime', 'drawStyle.handwritten': 'Hand-drawn', 'drawStyle.simple': 'Simple',
+      'drawStyle.anime': 'Anime', 'drawStyle.handwritten': 'Hand-drawn', 'drawStyle.simple': 'Simple', 'drawStyle.rpg': 'RPG',
       'layoutType.label': 'Layout', 'layoutType.cleared': 'The manual choice was cleared. The default layout applies', 'layoutType.keepLast': 'The last layout type cannot be removed', 'layoutType.invalid': 'That layout type cannot be selected',
       'cmd.layoutType.clear': 'Clear the manual layout choice', 'label.layoutType.clear': 'Clear type', 'tooltip.layoutType.clear': 'Clear the manually chosen layout types and return to the default layout in Settings',
       'toolbar.layoutType': 'Layout type', 'settings.title': 'Layout and draw style settings', 'settings.layout.mode': 'Mode', 'settings.layout.types': 'Layout types', 'settings.drawStyle': 'Draw style',
