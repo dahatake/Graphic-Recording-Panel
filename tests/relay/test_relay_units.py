@@ -122,6 +122,47 @@ def test_endpoint_public_https_ok_and_loopback_flag_is_narrow():
     assert cfg.validate_endpoint("https://10.0.0.5/openai/v1", True)
 
 
+# FR-067 AC-363: IPv6・別表記・mapped・末尾ドット、DNS 解決後の内部アドレス、リダイレクト非追従
+@pytest.mark.parametrize("ep", [
+    "https://2130706433/x", "https://0x7f000001/x", "https://0x7f.0.0.1/x", "https://017700000001/x",
+    "https://127.1/x", "https://[::ffff:127.0.0.1]/x", "https://[fe80::1]/x", "https://[fc00::1]/x",
+    "https://localhost./x", "https://a.localhost/x", "https://192.168.1.1/x", "https://172.16.0.1/x",
+    "https://100.64.0.1/x", "https://0.0.0.0/x", "https://user:pw@example.com/x",
+])
+def test_endpoint_rejects_alt_notations(ep):
+    assert cfg.validate_endpoint(ep, False)
+
+
+# FR-067 AC-363
+def test_resolves_to_public_rejects_private_dns_result(monkeypatch):
+    def fake(host, port, type=0):
+        return [(2, 1, 6, "", ("10.1.2.3", port))]
+    monkeypatch.setattr(cfg.socket, "getaddrinfo", fake)
+    assert not cfg.resolves_to_public("evil.example", 443)
+
+    def mixed(host, port, type=0):
+        return [(2, 1, 6, "", ("93.184.216.34", port)), (10, 1, 6, "", ("::1", port, 0, 0))]
+    monkeypatch.setattr(cfg.socket, "getaddrinfo", mixed)
+    assert not cfg.resolves_to_public("evil.example", 443)
+
+
+# FR-067 AC-364 フラグはループバックだけを通し、https 以外の公開ホスト等には影響しない
+def test_loopback_flag_does_not_open_other_hosts():
+    assert cfg.validate_endpoint("http://localhost:9/x", True) is None
+    assert cfg.validate_endpoint("http://[::1]:9/x", True) is None
+    assert cfg.validate_endpoint("http://192.168.0.1/x", True)
+    assert cfg.validate_endpoint("http://2130706433/x", True)
+    assert cfg.validate_endpoint("http://example.com/x", True)
+    assert cfg.validate_endpoint("https://169.254.169.254/x", True)
+
+
+# FR-067 AC-364 既定オフ
+def test_loopback_flag_default_off(monkeypatch):
+    monkeypatch.delenv("RELAY_ALLOW_LOOPBACK_UPSTREAM", raising=False)
+    monkeypatch.setenv("LLM_ENDPOINT", "http://127.0.0.1:9/x")
+    assert cfg.load_settings().allow_loopback is False
+
+
 # FR-066 AC-345 設定なしでも読める / FR-067 AC-349 環境変数が優先
 def test_load_settings_env_over_file_and_repr_hides_secret(tmp_path, monkeypatch):
     f = tmp_path / "llm.local.json"
