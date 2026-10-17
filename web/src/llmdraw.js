@@ -169,7 +169,7 @@ export function llmDrawModule(ctx) {
     if (!scene) return;
     const { text, truncated } = requestFor(scene);
     const n = ++seq; latest.set(scene.id, n);
-    const pending = api.llmCall(EXTRACT_PATH, { instructions: instructions(), input: text, text: { format: { type: 'json_object' } }, ...(svgGeneration ? { allowSvg: true } : {}) });
+    const pending = api.llmCall(EXTRACT_PATH, { instructions: instructions(), input: text, scene: state.scenes.length, drawStyle: api.getDrawStyle?.() ?? 'handwritten', partKeys: getPartKeys(), text: { format: { type: 'json_object' } }, ...(svgGeneration ? { allowSvg: true } : {}) });
     if (truncated) { await Promise.resolve(); ctx.change(() => ctx.setMessage('llmdraw.truncated')); } // 呼び出し元の状態更新の後に通知する
     const res = await pending;
     if (!res?.ok || latest.get(scene.id) !== n || !active()) return;
@@ -258,4 +258,20 @@ export function llmDrawModule(ctx) {
   };
   const baseView = api.getSettingsView;
   api.getSettingsView = (...a) => { const v = baseView(...a); return { ...v, fields: [...v.fields, { id: 'llm.mask', visible: true }] }; };
+
+  // 設定画面の llm.mask を Enter / Space で切り替える（AC-360）
+  let maskFocus = false;
+  const baseFocus = api.focusSettingsField;
+  api.focusSettingsField = (id) => {
+    if (id === 'llm.mask') { if (!baseDialog()) return false; maskFocus = true; return true; }
+    maskFocus = false; return baseFocus(id);
+  };
+  ctx.on('change', () => { if (!baseDialog()) maskFocus = false; });
+  const baseKeyDraw = api.handleKey;
+  api.handleKey = (ev) => {
+    const k = String(ev?.key);
+    const plain = !ev?.ctrlKey && !ev?.altKey && !ev?.shiftKey;
+    if (maskFocus && baseDialog() && !api.getLlmConsent?.() && plain && (k === 'Enter' || k === ' ' || k === 'Space')) { api.setLlmMasking(!masking); return 'llm.mask.toggle'; }
+    return baseKeyDraw(ev);
+  };
 }
