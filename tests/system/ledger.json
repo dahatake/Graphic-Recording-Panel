@@ -21,7 +21,7 @@
     "AC-029": "sha256:0c3909f0e1309b2e",
     "AC-043": "sha256:9892682e961eed37",
     "AC-030": "sha256:4ff8c6e5383e0179",
-    "AC-031": "sha256:cbf49cc1a0e87ed8",
+    "AC-031": "sha256:ea542ba6b9a5446a",
     "AC-032": "sha256:70a43cf878f66a04",
     "AC-036": "sha256:318b0f2e4205a0cb",
     "AC-038": "sha256:b7d5386af3599f7f",
@@ -100,7 +100,28 @@
     "AC-223": "sha256:0af3a9702cfafbf9",
     "AC-224": "sha256:985a4c110815c649",
     "AC-225": "sha256:d5ce3521b0e4ca34",
-    "AC-226": "sha256:f3469f21aec164eb"
+    "AC-226": "sha256:f3469f21aec164eb",
+    "AC-309": "sha256:1a9886a87363978c",
+    "AC-310": "sha256:f7b35b0b2fae7d24",
+    "AC-313": "sha256:2c289f7360ed8036",
+    "AC-314": "sha256:cafa008a92fe2bd9",
+    "AC-315": "sha256:aed4e3eb34ec8cfb",
+    "AC-316": "sha256:db9095b097c28f30",
+    "AC-353": "sha256:559454a49d9740de",
+    "AC-355": "sha256:2622e76797701472",
+    "AC-356": "sha256:4236124574ec4ec7",
+    "AC-339": "sha256:a78bcb9b484b7155",
+    "AC-319": "sha256:2438bf8370d73f1e",
+    "AC-340": "sha256:742d550ba993b151",
+    "AC-341": "sha256:5d74810f0a420933",
+    "AC-321": "sha256:80668bcb93808e34",
+    "AC-342": "sha256:f12280f13a2d5069",
+    "AC-343": "sha256:8386fcb78b900ca1",
+    "AC-323": "sha256:1a14433e7e7f8181",
+    "AC-344": "sha256:151826f8e900011e",
+    "AC-345": "sha256:ad4e314f2ba254d4",
+    "AC-330": "sha256:a46dccb8ff7599ad",
+    "AC-346": "sha256:b102e2cc33e8edc6"
   },
   "cases": [
     {
@@ -3021,6 +3042,637 @@
       "history": [
         {
           "at": "2026-10-17T15:05:58+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-146",
+      "requirement_ids": [
+        "FR-062"
+      ],
+      "ac_ids": [
+        "AC-309"
+      ],
+      "title": "初期状態は無効で LLM 向けの要求 0 件・ルールベースと同じ図",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-309\" tests/system/llm-consent.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:50:01+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-17T16:50:48+09:00",
+          "by": "test-designer",
+          "change": "canary: True -> False",
+          "reason": "新機能の未実装ケースは canary にしない（stop-on-canary-fail の誤停止を避ける）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-147",
+      "requirement_ids": [
+        "FR-062"
+      ],
+      "ac_ids": [
+        "AC-310"
+      ],
+      "title": "有効化で送信内容を表示し同意するまで有効にならない／拒否で無効のまま",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-310\" tests/system/llm-consent.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:50:05+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-148",
+      "requirement_ids": [
+        "FR-062"
+      ],
+      "ac_ids": [
+        "AC-313"
+      ],
+      "title": "未設定の項目があると有効にできず項目が示される",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-313\" tests/system/llm-consent.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:50:08+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-149",
+      "requirement_ids": [
+        "FR-062"
+      ],
+      "ac_ids": [
+        "AC-314"
+      ],
+      "title": "失敗（タイムアウト・エラー・不正・オフライン）でルールベースへ自動復帰し通知",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-314\" tests/system/llm-consent.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:50:11+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-150",
+      "requirement_ids": [
+        "FR-062"
+      ],
+      "ac_ids": [
+        "AC-315"
+      ],
+      "title": "無効化後は要求 0 件で処理中の結果を図に反映しない",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-315\" tests/system/llm-consent.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:50:14+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-151",
+      "requirement_ids": [
+        "FR-062"
+      ],
+      "ac_ids": [
+        "AC-316"
+      ],
+      "title": "LLM 有効でネットワーク遮断でも全機能が動き同一オリジン以外 0 件",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-316\" tests/system/llm-consent.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:50:19+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-152",
+      "requirement_ids": [
+        "FR-068"
+      ],
+      "ac_ids": [
+        "AC-353"
+      ],
+      "title": "設定画面の切替と状態表示（無効・有効・未設定・エラー）と同意の手順",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-353\" tests/system/llm-consent.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:50:24+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-153",
+      "requirement_ids": [
+        "FR-068"
+      ],
+      "ac_ids": [
+        "AC-355"
+      ],
+      "title": "キー値を表示せず設定済み/未設定のみ・入力欄なし・DOM/保存領域にキーなし",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-355\" tests/system/llm-consent.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:50:29+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-154",
+      "requirement_ids": [
+        "FR-068"
+      ],
+      "ac_ids": [
+        "AC-356"
+      ],
+      "title": "キーボード操作・読み上げ・色だけで示さない",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-356\" tests/system/llm-consent.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:50:33+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "IT-001",
+      "requirement_ids": [
+        "NFR-SEC-003"
+      ],
+      "ac_ids": [
+        "AC-339"
+      ],
+      "title": "キーの非露出: ダミーのキーで使っても応答・静的ファイル・ログにキーが出ない（成功・失敗）",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=AC-339 tests/system/llmrelay.test.js",
+      "canary": true,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:50:44+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-155",
+      "requirement_ids": [
+        "FR-063"
+      ],
+      "ac_ids": [
+        "AC-319"
+      ],
+      "title": "同じ入力・同じモック応答で 2 回描くと SVG が完全一致（部品が描かれている）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"FR-063 AC-319 同じ入力\" tests/system/llm-draw.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:50:48+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "IT-002",
+      "requirement_ids": [
+        "NFR-SEC-003"
+      ],
+      "ac_ids": [
+        "AC-340"
+      ],
+      "title": "ログ・エラーメッセージにキー・トークンの値が出ない（上流失敗・az 失敗含む）",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=AC-340 tests/system/llmrelay.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:50:52+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-156",
+      "requirement_ids": [
+        "FR-063"
+      ],
+      "ac_ids": [
+        "AC-319"
+      ],
+      "title": "不正な部品キーを含む応答でも描画が一致し有効キーだけが描かれる（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"FR-063 AC-319 不正な部品キー\" tests/system/llm-draw.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:50:55+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "IT-003",
+      "requirement_ids": [
+        "NFR-SEC-003"
+      ],
+      "ac_ids": [
+        "AC-341"
+      ],
+      "title": "リポジトリにキー・トークンの実値らしい文字列が 0 件",
+      "layer": "contract",
+      "command": "node --test --test-name-pattern=AC-341 tests/system/llmrelay.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:50:57+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-157",
+      "requirement_ids": [
+        "FR-063"
+      ],
+      "ac_ids": [
+        "AC-321"
+      ],
+      "title": "対応づけた絵が 2D・PNG・SVG・PDF・テキスト一覧に反映される",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"FR-063 AC-321 対応づけられた絵\" tests/system/llm-draw.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:50:59+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "IT-004",
+      "requirement_ids": [
+        "NFR-SEC-003"
+      ],
+      "ac_ids": [
+        "AC-342"
+      ],
+      "title": "中継サーバーの応答（成功・失敗）にキー・認証ヘッダ・設定ファイルの内容が含まれない",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=AC-342 tests/system/llmrelay.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:51:02+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-158",
+      "requirement_ids": [
+        "FR-063"
+      ],
+      "ac_ids": [
+        "AC-321"
+      ],
+      "title": "形式に合わない応答では絵が図・一覧に出ない（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"FR-063 AC-321 形式に合わない\" tests/system/llm-draw.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:51:06+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "IT-005",
+      "requirement_ids": [
+        "FR-066"
+      ],
+      "ac_ids": [
+        "AC-343"
+      ],
+      "title": "中継サーバーは 127.0.0.1 だけで待ち受ける（ほかのアドレスから接続不可）",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=AC-343 tests/system/llmrelay.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:51:09+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-159",
+      "requirement_ids": [
+        "FR-063"
+      ],
+      "ac_ids": [
+        "AC-323"
+      ],
+      "title": "応答を待たず 3 秒以内にルールベース描画が出て、応答後に絵が加わる",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"FR-063 AC-323 LLM の応答を待たずに\" tests/system/llm-draw.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:51:13+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "IT-006",
+      "requirement_ids": [
+        "FR-066"
+      ],
+      "ac_ids": [
+        "AC-344"
+      ],
+      "title": "同一オリジンでない Origin・Host・Origin なしは 403 で拒否し上流へ送らない（正常系含む）",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=AC-344 tests/system/llmrelay.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:51:17+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-160",
+      "requirement_ids": [
+        "FR-063"
+      ],
+      "ac_ids": [
+        "AC-323"
+      ],
+      "title": "LLM 要求が失敗しても要点は 3 秒以内に表示され続ける（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"FR-063 AC-323 LLM の要求が失敗\" tests/system/llm-draw.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:51:21+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "IT-007",
+      "requirement_ids": [
+        "FR-066"
+      ],
+      "ac_ids": [
+        "AC-345"
+      ],
+      "title": "start.ps1・start.sh が同じ中継サーバーを起動・標準ライブラリのみ・設定なしでも静的配信",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=AC-345 tests/system/llmrelay.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:51:24+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-161",
+      "requirement_ids": [
+        "FR-065"
+      ],
+      "ac_ids": [
+        "AC-330"
+      ],
+      "title": "方式2 は既定オフで、LLM 有効でも SVG 生成要求 0 件",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"FR-065 AC-330 方式2 は既定\" tests/system/llm-draw.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:51:28+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "IT-008",
+      "requirement_ids": [
+        "FR-066"
+      ],
+      "ac_ids": [
+        "AC-346"
+      ],
+      "title": "上流の時間超過・サイズ超過で打ち切り、秘密を含まないエラーを返す",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=AC-346 tests/system/llmrelay.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:51:31+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-162",
+      "requirement_ids": [
+        "FR-065"
+      ],
+      "ac_ids": [
+        "AC-330"
+      ],
+      "title": "方式2 をオン→オフに戻すと SVG 生成要求 0 件（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"FR-065 AC-330 方式2 をオンにした\" tests/system/llm-draw.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-17T16:51:35+09:00",
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
