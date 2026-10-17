@@ -1,4 +1,4 @@
-# カタログ
+﻿# カタログ
 
 既存の機能・API・テーブル・共通部品の対応表です。1 行 1 項目の短い表にし、詳細はリンク先のファイルに任せます。
 機能の表は rd-author（要求 ID・題名・決定状態）と implementer（実装ファイル・テスト・共通部品）が更新します。
@@ -59,13 +59,13 @@
 | FR-049 | RPGのBGMと効果音（SE） | 承認済み | web/src/rpgaudio.js, web/src/app.js, web/sw.js | tests/unit/rpgaudio.test.js, tests/system/rpg.test.js | アプリ組立, RPG音響 |
 | FR-050 | ファミコン風の操作と仮想パッド | 承認済み | web/src/rpg.js, web/src/ui.js, web/styles/app.css | tests/unit/rpginput.test.js, tests/system/rpginput.test.js | アプリ組立, デザイン基盤, RPG風の地図とスプライト, RPG音響 |
 | FR-051 | RPG風のアクセシビリティ・保存・設定 | 承認済み | web/src/ui.js, web/src/rpgaudio.js, web/src/settings.js, web/styles/app.css | tests/unit/rpginput.test.js, tests/system/rpg.test.js | アプリ組立, デザイン基盤, RPG音響, 描画スタイルの登録 |
-| FR-062 | LLM 連携の既定オフ・明示同意・自動復帰（G-002 の例外条件） | 承認済み | 未実装 | 未実装 | - |
+| FR-062 | LLM 連携の既定オフ・明示同意・自動復帰（G-002 の例外条件） | 承認済み | web/src/llm.js, web/src/relayclient.js, web/src/main.js, web/src/ui.js, web/sw.js | tests/unit/llmconsent.test.js, tests/system/llm-consent.test.js | アプリ組立, i18n, LLM 連携の制御 |
 | FR-063 | 方式1: LLM による描くべき物の抽出と同梱部品への対応づけ | 承認済み | 未実装 | 未実装 | - |
 | FR-064 | 同梱部品の拡充と汎用キャラのビルダー | 承認済み | web/src/parts.js, web/src/diagram.js, web/sw.js | tests/unit/parts.test.js | 同梱部品, 感情語辞書 |
 | FR-065 | 方式2（任意・既定オフ）: LLM による SVG の生成と挿入 | 承認済み | 未実装 | 未実装 | - |
 | FR-066 | ローカル中継サーバー | 承認済み | server/relay.py, server/relay_config.py, server/relay_security.py, server/relay_upstream.py, start.ps1, start.sh | tests/relay/test_relay_units.py, tests/system/llmrelay.test.js | 中継サーバー |
 | FR-067 | LLM 連携の設定（エンドポイント・デプロイ名・認証方式） | 承認済み | server/relay_config.py, config/llm.example.json, .gitignore | tests/relay/test_llm_config_files.py, tests/system/llmrelay.test.js | 中継サーバー |
-| FR-068 | 設定画面での有効/無効と接続テスト | 承認済み | 未実装 | 未実装 | - |
+| FR-068 | 設定画面での有効/無効と接続テスト | 承認済み | web/src/llm.js, web/src/ui.js, web/styles/app.css | tests/unit/llmconsent.test.js, tests/system/llm-consent.test.js | アプリ組立, デザイン基盤, i18n, LLM 連携の制御 |
 | FR-069 | LLM 連携の使い方ガイド | 承認済み | users-guide/08-llm.md, users-guide/README.md | tests/unit/docs.test.js, tests/unit/llmguide.test.js | - |
 | NFR-SEC-003 | API キー・トークンの非露出 | 承認済み | server/relay.py, server/relay_security.py, server/relay_upstream.py, server/relay_config.py | tests/relay/test_relay_units.py, tests/system/llmrelay.test.js | 中継サーバー |
 | NFR-SEC-004 | SVG の許可リストによる厳格なサニタイズ | 承認済み | 未実装 | 未実装 | - |
@@ -88,9 +88,10 @@
 | 部品名 | ファイル | 用途 | 使っている要求 ID |
 |---|---|---|---|
 | 中継サーバー | server/relay.py, server/relay_config.py, server/relay_security.py, server/relay_upstream.py | 127.0.0.1 だけの静的配信＋LLM 中継。設定は relay_config（環境変数>設定ファイル）、Host/Origin 検証と SVG サニタイズ・秘密の除去は relay_security、上流呼び出しと Entra トークンは relay_upstream。後続の設定・Entra の項目はここを拡張する | FR-066, FR-067, NFR-SEC-003 |
-| アプリ組立 | web/src/app.js | 状態・コマンド・キー割り当て・パネル描画の拡張点（modules / registerCommand / registerPanelRenderer / addUtterance / addUtterances）。後続の機能はここへ足す | FR-001、FR-002、FR-003、FR-004、FR-005、FR-006、FR-007、FR-008、FR-009、FR-010、FR-011、FR-012、FR-013、FR-014、FR-015、FR-016、FR-017、FR-018、FR-019、FR-020、FR-021、FR-022、FR-023、FR-024、FR-025、FR-026、NFR-A11Y-001、NFR-BG-001、NFR-PERF-001、NFR-UX-001、NFR-UX-003、FR-027、FR-028、FR-029、FR-030、FR-031、FR-032、FR-033、FR-034、FR-035、FR-036、FR-039、FR-047、FR-048、FR-049、FR-050、FR-051 |
-| i18n | web/src/i18n.js | ja/en の UI 文言（addStrings で後続が追加） | FR-006, FR-008, FR-015, FR-016, FR-017, FR-020, FR-021, NFR-UX-002, FR-018, FR-019, NFR-UX-003, FR-025, FR-026, FR-027, FR-030, FR-036 |
-| デザイン基盤 | web/styles/tokens.css, web/styles/app.css, web/styles/view3d.css | Fluent 2 のトークン（colorNeutral/Brand 系・角丸 4/8・4px 余白・Type ramp・影・モーション）・ライト/ダーク/forced-colors・フォーカス 3px・積み重ね・カード風パネル・ボタン（primary/subtle） | FR-004、FR-011、FR-013、FR-017、FR-018、FR-020、FR-021、FR-024、FR-026、FR-027、FR-029、FR-030、NFR-A11Y-001、NFR-UX-001、NFR-UX-002、NFR-UX-003、FR-050、FR-051 |
+| LLM 連携の制御 | web/src/llm.js, web/src/relayclient.js | 既定オフ・同意の表示と同意後だけ有効（保存しない）・失敗時のルールベース復帰と短い通知・接続テスト・設定画面の項目（getLlmState / requestLlmEnable / getLlmConsent / answerLlmConsent / disableLlm / flushLlm / llmCall / testLlmConnection / getLlmLastSent）。FR-063・FR-065 は api.llmCall と 'llm:result' を使う | FR-062, FR-068 |
+| アプリ組立 | web/src/app.js | 状態・コマンド・キー割り当て・パネル描画の拡張点（modules / registerCommand / registerPanelRenderer / addUtterance / addUtterances）。後続の機能はここへ足す | FR-001、FR-002、FR-003、FR-004、FR-005、FR-006、FR-007、FR-008、FR-009、FR-010、FR-011、FR-012、FR-013、FR-014、FR-015、FR-016、FR-017、FR-018、FR-019、FR-020、FR-021、FR-022、FR-023、FR-024、FR-025、FR-026、NFR-A11Y-001、NFR-BG-001、NFR-PERF-001、NFR-UX-001、NFR-UX-003、FR-027、FR-028、FR-029、FR-030、FR-031、FR-032、FR-033、FR-034、FR-035、FR-036、FR-039、FR-047、FR-048、FR-049、FR-050、FR-051、FR-062、FR-068 |
+| i18n | web/src/i18n.js | ja/en の UI 文言（addStrings で後続が追加） | FR-006, FR-008, FR-015, FR-016, FR-017, FR-020, FR-021, NFR-UX-002, FR-018, FR-019, NFR-UX-003, FR-025, FR-026, FR-027, FR-030, FR-036, FR-062, FR-068 |
+| デザイン基盤 | web/styles/tokens.css, web/styles/app.css, web/styles/view3d.css | Fluent 2 のトークン（colorNeutral/Brand 系・角丸 4/8・4px 余白・Type ramp・影・モーション）・ライト/ダーク/forced-colors・フォーカス 3px・積み重ね・カード風パネル・ボタン（primary/subtle） | FR-004、FR-011、FR-013、FR-017、FR-018、FR-020、FR-021、FR-024、FR-026、FR-027、FR-029、FR-030、NFR-A11Y-001、NFR-UX-001、NFR-UX-002、NFR-UX-003、FR-050、FR-051、FR-068 |
 | コマンドバー | web/src/commandbar.js | コマンドのグループ・インライン SVG アイコン・主要コマンド（getCommandBar / getCommandStatus）。ステータスバーの文言（記録状態・音声認識・言語・表示）。ボタンの簡易説明（showTooltip / hideTooltip / getTooltip、tooltip.<command>） | NFR-UX-001, NFR-UX-002, FR-016, FR-017, FR-018, FR-019, NFR-UX-003, FR-026, FR-027, FR-030 |
 | 認識文字列 | web/src/transcript.js | 右パネル（パネル ID input）の確定結果一覧・暫定結果の区別表示（getTranscript / renderTranscript） | FR-013, FR-014 |
 | キーマップ | web/src/keymap.js | 全操作の Alt+Shift+キー割り当て | NFR-A11Y-001, FR-015, FR-017, FR-021, FR-018, FR-019, FR-025, FR-026, FR-027, FR-030 |
