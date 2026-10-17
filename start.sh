@@ -21,4 +21,4 @@ fi
 
 echo "Open http://localhost:8080/ in your browser after the server starts."
 echo "Press Ctrl+C in this window to stop the server."
-exec "$python" -m http.server --bind 127.0.0.1 --directory "$here/web" 8080
+exec "$python" "$here/server/relay.py" --web "$here/web" --port 8080
