@@ -54,6 +54,10 @@
 | FR-035 | 比喩テンプレート型の描画 | 承認済み | web/src/layoutkinds.js, web/src/diagram.js | tests/unit/layoutzone.test.js | アプリ組立, レイアウト型レジストリ, 型ごとの配置 |
 | FR-036 | 共通配置（タイトル・登壇者・本編・小見出しと外枠） | 承認済み | web/src/layouttypes.js, web/src/settings.js, web/src/diagram.js, web/src/app.js, web/src/i18n.js | tests/unit/autolayout.test.js, tests/system/layouttype.test.js | アプリ組立, i18n, レイアウト型レジストリ |
 | FR-039 | ファイル取込はセッションの状態によらずいつでも可能 | 承認済み | web/src/input.js, web/src/app.js | tests/unit/vtt.test.js, tests/unit/core.test.js, tests/unit/transcript.test.js, tests/system/importanystate.test.js | アプリ組立 |
+| FR-052 | 提案・未決定・合意済み決定の区別と意味に一致した強調 | 承認済み | 未実装 | 未実装 | なし |
+| FR-053 | 関係の種類・方向・原文上の根拠の区別と推測候補の明示 | 承認済み | 未実装 | 未実装 | なし |
+| FR-054 | 図の関係情報とテキスト一覧の一致 | 承認済み | 未実装 | 未実装 | なし |
+| FR-055 | 時間表現などの非因果を原因→結果から除外する意味的判定 | 承認済み | 未実装 | 未実装 | なし |
 
 ## API・イベント
 
