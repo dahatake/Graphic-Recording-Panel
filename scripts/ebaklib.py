@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
-TOOLKIT_VERSION = "0.5.0"
+TOOLKIT_VERSION = "0.5.1"
 
 
 SPECKIT_PATHS = [".specify/**", "specs/**/*.md"]
@@ -38,6 +38,7 @@ DEFAULT_CONFIG: dict = {
     "base_branch": "main",
     "work": {"dir": "work", "retention_days": 14},
     "verify": {"commands": [], "timeout_sec": 1800},
+    "system_test": {"jobs": "auto", "serial_patterns": ["default_port"]},
     "checks": {
         "ambiguous_words": [
             "適切", "適宜", "なるべく", "できるだけ", "可能な限り", "十分な", "迅速", "高速に", "簡単",
