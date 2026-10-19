@@ -102,6 +102,26 @@ test('FR-078 AC-420: コピーしたメッセージは表示言語の切替で�
   assert.equal(app.getState().message.text, STRINGS.en['prompt.copied']);
 });
 
+// FR-078 AC-420 と FR-077 AC-414: 画風の記述を足しても、画風の一覧（FR-077）の既存 4 つの短い説明は変わらない（ja・en）
+test('FR-078 AC-420 / FR-077 AC-414: 既存 4 つの画風の一覧の短い説明は従来どおり', async () => {
+  const app = await createApp({ storage: mem() });
+  const SHORT = {
+    ja: { handwritten: '手描きの揺らぎのある線と白い紙面', anime: '太い輪郭線と色の淡い塗り', simple: '揺らぎと絵記号を抑えた見た目', rpg: 'ゲームの地図と会話の窓で見せる' },
+    en: { handwritten: 'Wobbly hand-drawn lines on white paper', anime: 'Bold outlines with soft color fills', simple: 'Clean lines without icons or wobble', rpg: 'Shown as a game map with dialog windows' },
+  };
+  for (const lang of ['ja', 'en']) {
+    app.setLang(lang);
+    const opts = app.getDrawStylePicker().options;
+    for (const [id, text] of Object.entries(SHORT[lang])) {
+      assert.equal(opts.find((o) => o.id === id).description, text, `${lang} ${id}`);
+      assert.notEqual(text, app.getDrawStyleDescription(id).drawing, '画像生成用の記述とは別');
+    }
+    // 9 つの風は従来どおり画風の記述（描画の文）を短い説明に使う
+    const yb = opts.find((o) => o.id === 'yellowBlack');
+    assert.equal(yb.description, app.getDrawStyleDescription('yellowBlack').drawing);
+  }
+});
+
 // FR-078 AC-424: 文章はブラウザ内の保存（grp.*）に含まれない
 test('FR-078 AC-424: コピーの前後でブラウザ内の保存に文章が入らない', async () => {
   const { app, storage } = await seeded({ clipboard: clip() });
