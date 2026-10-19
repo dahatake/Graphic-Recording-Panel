@@ -54,7 +54,7 @@ test('NFR-OFFLINE-001 AC-031: web/ に外部 URL・CDN 参照・外部宛の通�
 test('NFR-A11Y-001 AC-036: 統合後の全コマンドにキー割り当てがあり、重複しない', async () => {
   const app = await createApp({ storage: mem() });
   const names = Object.keys(app.commands);
-  for (const must of ['view.2d', 'view.3d', 'save.png', 'save.svg', 'save.pdf', 'speech.start', 'speech.stop',
+  for (const must of ['view.2d', 'view.3d', 'save.png', 'save.svg', 'save.pdf',
     'presentation.start', 'presentation.pause', 'presentation.resume', 'presentation.stop', 'presentation.next', 'presentation.prev', 'lang.ja', 'lang.en']) {
     assert.ok(names.includes(must), `コマンドなし: ${must}`);
   }
@@ -67,7 +67,7 @@ test('NFR-A11Y-001 AC-036: 統合後の全コマンドにキー割り当てが�
   for (const n of names) assert.ok(app.keymap.some((k) => k.command === n), `キーなし: ${n}`);
   for (const k of app.keymap) assert.equal(typeof app.commands[k.command], 'function', `未実装: ${k.command}`);
   const ja = createI18n().getStrings();
-  for (const n of names) if (n !== 'speech.start' && n !== 'speech.stop') assert.ok(ja[`cmd.${n}`], n);
+  for (const n of names) assert.ok(ja[`cmd.${n}`], n);
 });
 
 // NFR-A11Y-001 AC-037: 感情の表現は色だけでなく形（shape）と語でも区別できる。

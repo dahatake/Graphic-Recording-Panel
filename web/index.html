@@ -15,7 +15,15 @@
     <h1 id="app-title" data-i18n="app.title">グラフィックレコーディング パネル</h1>
   </header>
   <nav id="toolbar" class="toolbar commandbar" data-i18n-attr="aria-label:toolbar.label"></nav>
-  <div class="statusbar"><p id="session-status" class="status-chip" role="status" aria-live="polite"></p><p id="layout-kind" class="status-chip" role="status" aria-live="polite"></p><p id="message" class="message" role="status" aria-live="polite"></p></div>
+  <input id="import-file" type="file" accept=".txt,.vtt,text/plain,text/vtt" hidden tabindex="-1" aria-hidden="true">
+  <div id="speech-consent-box" class="speech-consent" data-region="top" data-near="session.start" hidden>
+    <input type="checkbox" id="speech-consent" aria-describedby="speech-consent-notice">
+    <label for="speech-consent" id="speech-consent-label">外部サービスでの音声認識に同意する</label>
+    <span id="speech-consent-state" class="consent-state"></span>
+    <p id="speech-consent-notice" class="message"></p>
+  </div>
+  <div id="panel-tabs" class="tabs" role="tablist" hidden></div>
+  <div class="statusbar"><p id="session-status" class="status-chip" role="status" aria-live="polite"></p><p id="layout-kind" class="status-chip" role="status" aria-live="polite"></p><p id="message" class="message" role="status" aria-live="polite"></p><p id="import-status" class="message" role="status" aria-live="polite"></p></div>
   <main id="workspace" class="workspace" tabindex="-1">
     <section class="panel" data-panel="input" aria-labelledby="panel-input-title">
       <header class="panel-head"><h2 id="panel-input-title" data-i18n="panel.input">認識文字列</h2><div class="panel-menu" data-menu="input"></div></header>
@@ -26,18 +34,7 @@
           <textarea id="draft" rows="4" data-i18n-attr="placeholder:input.placeholder"></textarea>
           <button type="submit" class="btn btn-primary" data-i18n="input.submit">送信</button>
         </form>
-        <div class="file-import">
-          <label for="import-file" data-i18n="input.file"          >テキストファイル（.txt）・字幕ファイル（.vtt）を取り込む</label>
-                    <input id="import-file" type="file" accept=".txt,.vtt,text/plain,text/vtt">
-                              <p id="import-status" class="message" role="status" aria-live="polite"></p>
-                            </div>
         <p id="interim" class="message" role="status" aria-live="polite"></p>
-        <div id="speech-consent-box" class="speech-consent" hidden>
-          <input type="checkbox" id="speech-consent" aria-describedby="speech-consent-notice">
-          <label for="speech-consent" id="speech-consent-label">外部サービスでの音声認識に同意する</label>
-          <span id="speech-consent-state" class="consent-state"></span>
-          <p id="speech-consent-notice" class="message"></p>
-        </div>
       </div>
     </section>
     <section class="panel" data-panel="diagram" aria-labelledby="panel-diagram-title">

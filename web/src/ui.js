@@ -42,6 +42,11 @@ export function mountUI(app, doc = document) {
         b.type = 'button'; b.className = PRIMARY.has(name) ? 'btn btn-primary' : 'btn btn-subtle'; b.dataset.command = name;
         const lab = doc.createElement('span'); lab.className = 'btn-label'; lab.textContent = app.t(labelKey(name));
         b.append(icon(doc, name), lab);
+        // FR-073 AC-388: 取り込みは、取り込めるファイルの説明を常に文字で見せる（アイコンだけに頼らない）
+        if (name === 'import.file') {
+          const d = doc.createElement('span'); d.className = 'btn-desc'; d.textContent = app.t('import.description'); b.append(d);
+          d.id = 'import-desc'; b.className += ' btn-import';
+        }
         const kl = keyLabel(name);
         // NFR-UX-002: ツールチップ（role=tooltip）を aria-describedby で関連付ける。ホバー・フォーカスで表示
         const tip = doc.createElement('span');
@@ -113,8 +118,7 @@ export function mountUI(app, doc = document) {
     for (const b of toolbar.querySelectorAll('[data-command]')) {
       const f = PRESSED[b.dataset.command];
       if (f) b.setAttribute('aria-pressed', String(f(st)));
-      b.disabled = typeof app.commands[b.dataset.command] !== 'function'
-        || (b.dataset.command === 'speech.start' && !app.isSpeechAvailable());
+      b.disabled = typeof app.commands[b.dataset.command] !== 'function';
     }
     // FR-027 AC-139: 選択中のレイアウト型は、色だけでなく枠（先頭の型）・チェック印でも示す
     for (const it of app.getCommandBar().items) {
@@ -126,6 +130,23 @@ export function mountUI(app, doc = document) {
       let mk = b.querySelector('.sel-mark');
       if (!mk) { mk = doc.createElement('span'); mk.className = 'sel-mark'; mk.setAttribute('aria-hidden', 'true'); b.append(mk); }
       mk.textContent = it.selectedMark ? '✓' : '';
+    }
+    // FR-074 AC-391: 狭い画面ではパネルをタブにまとめ、見える位置（選択中のタブ）のパネルだけを出す
+    const pres = app.getPanelPresentation();
+    const tabsEl = $('#panel-tabs');
+    if (tabsEl) {
+      tabsEl.hidden = pres.mode !== 'tabs';
+      tabsEl.textContent = '';
+      if (pres.mode === 'tabs') {
+        for (const id of PANEL_IDS) {
+          if (!app.getLayout().panels[id].visible) continue;
+          const tb = doc.createElement('button');
+          tb.type = 'button'; tb.className = 'btn btn-subtle'; tb.setAttribute('role', 'tab'); tb.dataset.tab = id;
+          tb.setAttribute('aria-selected', String(id === pres.activeTab)); tb.textContent = app.t(`panel.${id}`);
+          tb.addEventListener('click', () => app.setActivePanelTab(id));
+          tabsEl.append(tb);
+        }
+      }
     }
     const interim = $('#interim');
     if (interim) { const ss = app.getSpeechStatus(); interim.textContent = ss.state === 'unavailable' ? ss.text : ''; }
@@ -166,7 +187,7 @@ export function mountUI(app, doc = document) {
     for (const id of PANEL_IDS) {
       const p = layout.panels[id];
       const el = $(`.panel[data-panel="${id}"]`);
-      el.hidden = !p.visible;
+      el.hidden = !p.visible || (pres.mode === 'tabs' && !pres.inView.includes(id));
       el.classList.toggle('is-maximized', p.maximized);
       Object.assign(el.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${p.w}px`, height: `${p.h}px` });
       const max = $(`[data-act="max"][data-panel="${id}"]`);
