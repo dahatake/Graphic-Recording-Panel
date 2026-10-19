@@ -202,9 +202,20 @@ class RelayHandler(SimpleHTTPRequestHandler):
         self._send_json(200, out.encode("utf-8"))
 
 
+class RelayServer(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        # ブラウザー側が接続を切った（中断・リセット）場合はトレースバックを出さない
+        exc = sys.exc_info()[1]
+        if isinstance(exc, (ConnectionError, TimeoutError)):
+            return
+        sys.stderr.write("relay error\n")
+
+
 def make_server(port, web_dir):
     handler = partial(RelayHandler, directory=web_dir)
-    return ThreadingHTTPServer((BIND_ADDRESS, port), handler)
+    return RelayServer((BIND_ADDRESS, port), handler)
 
 
 def main(argv=None):
