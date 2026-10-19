@@ -2,6 +2,7 @@
 import { createApp } from './app.js';
 import { mountUI } from './ui.js';
 import { mountEditUI } from './edit-ui.js';
+import { mountPromptFallback } from './imageprompt-ui.js';
 import { relayRequest } from './relayclient.js';
 
 const mq = (q) => (globalThis.matchMedia ? globalThis.matchMedia(q).matches : false);
@@ -23,6 +24,7 @@ const app = await createApp({
 });
 const ui = mountUI(app);
 mountEditUI(app);
+mountPromptFallback(app); // FR-078 AC-423: クリップボードに書けないときの手でコピーする表示
 ui.measureWorkArea();
 // FR-076 AC-456: 実行中にハイコントラストを切り替えたら、図の配色をシステム色と風の配色の間で切り替える
 globalThis.matchMedia?.('(forced-colors: active)').addEventListener?.('change', (e) => app.setForcedColors?.(e.matches));
