@@ -3,6 +3,7 @@
 import { sceneEmotions } from './emotion.js';
 import { matchParts, getPartGroup } from './parts.js';
 import { renderRpgSvg, RPG_STYLE_ID } from './rpgmap.js';
+import { provisionalTree, leaves, subgroupLabel, countMark, TYPE_SCALE } from './infodesign.js';
 
 export const STATUS_MARK = { in_progress: '○', confirmed: '●' };
 const SELECTED_MARK = '▶';
@@ -477,7 +478,7 @@ function metaphorSvg(m) {
   if (m.axes) {
     out.push(`<g data-role="axes"><text data-role="axis-label" data-axis="x" x="${r1(m.axes.x.x1)}" y="${r1(m.axes.x.y1)}" font-size="12" font-weight="700">${esc(m.axes.x.label)}</text><text data-role="axis-label" data-axis="y" x="${r1(m.axes.y.x1)}" y="${r1(m.axes.y.y1 + 14)}" font-size="12" font-weight="700">${esc(m.axes.y.label)}</text></g>`);
   }
-  return `<g data-role="metaphor" data-metaphor-kind="${attr(m.kind)}">${out.join('')}${(m.sections ?? []).map((s) => `<g data-metaphor-section="${attr(s.id)}"><rect data-role="frame" x="${r1(s.frame.x)}" y="${r1(s.frame.y)}" width="${r1(s.frame.w)}" height="${r1(s.frame.h)}" rx="8" fill="none" stroke="#9a9a9a" stroke-width="1"/><text data-role="subheading" x="${r1(s.headingRect.x)}" y="${r1(s.headingRect.y + 14)}" font-size="13" font-weight="700">${esc(s.heading)}</text></g>`).join('')}</g>`;
+  return `<g data-role="metaphor" data-metaphor-kind="${attr(m.kind)}">${out.join('')}${(m.sections ?? []).map((s) => `<g data-metaphor-section="${attr(s.id)}"><rect data-role="frame" x="${r1(s.frame.x)}" y="${r1(s.frame.y)}" width="${r1(s.frame.w)}" height="${r1(s.frame.h)}" rx="8" fill="none" stroke="#9a9a9a" stroke-width="1"/><text data-role="subheading" x="${r1(s.headingRect.x)}" y="${r1(s.headingRect.y + 18)}" font-size="${TYPE_SCALE.topic}" font-weight="800">${esc(s.heading)}</text></g>`).join('')}</g>`;
 }
 
 // FR-036: 共通配置（タイトル欄・各まとまりの小見出しと外枠）の SVG。まとまりは <g data-group-id>、小見出しは data-role="subheading"、外枠は data-role="frame"。
@@ -485,13 +486,13 @@ function commonPlacementSvg(L) {
   if (!L) return '';
   const parts = [];
   if (L.title?.visible && L.titleLines?.length) {
-    parts.push(`<g data-role="title">${L.titleLines.map((line, i) => `<text x="${L.title.x}" y="${L.title.y + 14 + i * 16}" font-size="13" font-weight="700">${esc(line)}</text>`).join('')}</g>`);
+    parts.push(`<g data-role="title">${(() => { let tx = L.title.x; return L.titleLines.map((line) => { const s = `<text x="${r1(tx)}" y="${L.title.y + 30}" font-size="${TYPE_SCALE.title}" font-weight="800">${esc(line)}</text>`; tx += textWidth(line, TYPE_SCALE.title) + 24; return s; }).join(''); })()}</g>`);
   }
   // FR-035: 比喩（道・山・橋・太陽・4 象限）を先に描く。文字のラベルを必ず付け、外部の画像は使わない
   if (L.metaphor) parts.push(metaphorSvg(L.metaphor));
   const divided = (L.dividers ?? []).length > 0; // FR-034: 区切り線があるとき、区画の外枠は線にしない
   for (const g of L.groups ?? []) {
-    parts.push(`<g data-group-id="${attr(g.id)}" data-group-kind="${attr(g.kind)}"><rect data-role="frame" x="${g.frame.x}" y="${g.frame.y}" width="${g.frame.w}" height="${g.frame.h}" rx="8" fill="none" stroke="${divided && g.kind === 'zone' ? 'none' : 'currentColor'}" stroke-width="1.5"/><text data-role="subheading" x="${g.headingRect.x}" y="${g.headingRect.y + 14}" font-size="13" font-weight="700">${esc(g.heading)}</text></g>`);
+    parts.push(`<g data-group-id="${attr(g.id)}" data-group-kind="${attr(g.kind)}"><rect data-role="frame" x="${g.frame.x}" y="${g.frame.y}" width="${g.frame.w}" height="${g.frame.h}" rx="8" fill="none" stroke="${divided && g.kind === 'zone' ? 'none' : 'currentColor'}" stroke-width="1.5"/><text data-role="subheading" x="${g.headingRect.x}" y="${g.headingRect.y + 18}" font-size="${TYPE_SCALE.topic}" font-weight="800">${esc(g.heading)}</text></g>`);
   }
   // FR-034: 区画の区切り線（グレー。本文より細く、高コントラスト表示では CSS が GrayText にする）
   for (const d of L.dividers ?? []) parts.push(`<line data-role="zone-divider" x1="${d.x1}" y1="${d.y1}" x2="${d.x2}" y2="${d.y2}" stroke="#8a8a8a" stroke-width="1"/>`);
@@ -533,10 +534,10 @@ function commonPlacementSvg(L) {
   };
   if (L.center) {
     const c = L.center;
-    parts.push(`<g data-unit-id="center" data-role="center">${box({ ...c, emphasis: 'center', shape: 'round', text: c.text }, '', 20)}</g>`);
+    parts.push(`<g data-unit-id="center" data-role="center">${box({ ...c, emphasis: 'center', shape: 'round', text: c.text }, '', TYPE_SCALE.theme)}</g>`);
   }
   for (const u of L.units ?? []) {
-    parts.push(`<g data-unit-id="${attr(u.id)}" data-order="${u.order}" data-unit-kind="${attr(u.kind)}"${u.role ? ` data-role-kind="${u.role}"` : ''}${u.attachedTo ? ` data-attached-to="${attr(u.attachedTo)}"` : ''}${u.shape ? ` data-bubble-shape="${u.shape}"` : ''}${u.emphasis ? ` data-emphasis="${u.emphasis}"` : ''}>${box(u, '', 12)}</g>`);
+    parts.push(`<g data-unit-id="${attr(u.id)}" data-order="${u.order}" data-unit-kind="${attr(u.kind)}"${u.role ? ` data-role-kind="${u.role}"` : ''}${u.attachedTo ? ` data-attached-to="${attr(u.attachedTo)}"` : ''}${u.shape ? ` data-bubble-shape="${u.shape}"` : ''}${u.emphasis ? ` data-emphasis="${u.emphasis}"` : ''}>${box(u, '', TYPE_SCALE[u.kind] ?? TYPE_SCALE.point)}</g>`);
   }
   for (const a of L.arrows ?? []) {
     const f = rectOf(a.from); const t = rectOf(a.to);
@@ -581,8 +582,10 @@ export function diagramModule(ctx) {
     };
     // FR-016 AC-089: 画面で選んでいる表示（時系列／整理）と同じ配置で出力する（保存もここを通る）
     if (ctx.state.displayMode === 'arrange' && ctx.api.getArrangement) return mark(renderArrangedSvg(ctx.state.scenes, ctx.api.getArrangement(), { ...o, ...(units ?? {}), selectedLabel: ctx.t('topic.selected') }));
-    if (units) return mark(renderTopicsSvg(units.topics, units.relations, ctx.state.scenes, { ...o, level }));
-    return mark(renderDiagramSvg(ctx.state.scenes, o));
+    // FR-079: 再配置の木（まとまりの中の並び・下位のまとまり・同一の要点のまとめ）に従って描く
+    const view = ctx.api.getArrangeView?.() ?? null;
+    if (units) return mark(renderTopicsSvg(units.topics, units.relations, ctx.state.scenes, { ...o, level, chunks: view?.chunks ?? null }));
+    return mark(renderDiagramSvg(ctx.state.scenes, { ...o, trees: view?.trees ?? null }));
   };
 
   // ---- FR-015 AC-074: 図の演出の記述（見出しと要点の表現） ----
@@ -590,6 +593,7 @@ export function diagramModule(ctx) {
     scenes: ctx.state.scenes.map((s) => ({
       id: s.id,
       heading: { fontSize: FS_HEAD, fontWeight: 800, framed: true },
+      typeScale: { ...TYPE_SCALE }, // FR-079 AC-431: 階層ごとの基準の文字の大きさ（タイトル・テーマ＞トピック＞シーン＞要点）
       points: s.points.map((p) => { const kind = classifyPoint(p.text); const k = KINDS[kind]; const icons = ctx.api.getDrawStyleSpec?.()?.text.icons !== false; return { id: p.id, kind, kindLabel: kindLabelOf(kind, ctx.state.lang), emphasized: kind === 'conclusion', color: k.color, shape: k.shape, icon: icons ? k.icon : 'none', fontSize: FS, fontWeight: kind === 'conclusion' ? 800 : 400 }; }),
     })),
   });
