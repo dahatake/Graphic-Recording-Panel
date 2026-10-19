@@ -9,6 +9,7 @@ import {
   PAPERS, FONT_KINDS, HEADING_DECORATIONS, BALLOON_SHAPES,
 } from '../../web/src/stylepresets.js';
 import { buildLook, forcedLook, toSystemColors, finishPresetSvg, renderPresetDiagram } from '../../web/src/presetdiagram.js';
+import { exportLook } from '../../web/src/export.js';
 
 const PRESET = {
   id: 'ocean', label: { ja: '海風', en: 'Ocean' }, line: { width: 1, jitter: 0 }, fill: { mode: 'paper' }, text: { decor: 'bold', icons: true },
@@ -178,11 +179,13 @@ test('FR-075 AC-407: 風を選んでいるとき PNG の保存は風の紙面と
   const { app, env } = await newApp();
   await seedThreeScenes(app, env); toDetail(app);
   app.setDrawStyle('chalkboard');
-  const look = app.getPresetLook();
-  assert.equal(look.bg, '#1e3d2f');
+  // 保存の配色は export.js の exportLook（契約の getDrawStyleSpec(id) と buildLook から。FR-077 で PNG・PDF の描画を 1 つにまとめた）
+  const look = exportLook(app.getDrawStyleSpec('chalkboard'));
+  assert.equal(look.background, '#1e3d2f');
   assert.match(look.fontFamily, /sans-serif$/);
   await app.commands['save.png']();
   assert.equal(env.downloads.at(-1).mime, 'image/png');
+  assert.ok(env.canvasFactory.log.texts.length > 0);
   app.setDrawStyle('handwritten');
-  assert.equal(app.getPresetLook(), null);
+  assert.equal(exportLook(app.getDrawStyleSpec('handwritten')), null);
 });

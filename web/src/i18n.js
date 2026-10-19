@@ -51,6 +51,8 @@ const BASE = {
     // FR-027・FR-030: レイアウト型・設定のコマンド（コマンドの検索に使う名称）
     ...Object.fromEntries(LAYOUT_TYPE_IDS.flatMap((id) => [[`cmd.layoutType.${id}`, LAYOUT_TYPE_META[id].ja.cmd], [`cmd.layoutType.add.${id}`, `${LAYOUT_TYPE_META[id].ja.label}型を併用に加える／外す`]])),
     'cmd.layoutType.clear': 'レイアウト型の手動選択を解除', 'cmd.settings.open': '設定を開く', 'cmd.settings.close': '設定を閉じる', 'cmd.llm.toggle': 'LLM 連携の有効/無効を切り替え', 'cmd.llm.test': 'LLM 連携の接続テスト',
+    // FR-077: 画風（描画スタイル）の一覧を開く。個々の画風を選ぶコマンド（drawStyle.select.<id>）の名称は登録簿の名前から作る（stylepicker.js）
+    'cmd.drawStyle.pick': '画風（描画スタイル）を選ぶ一覧を開く',
     'cmd.detail.major': '詳細度: 大項目', 'cmd.detail.middle': '詳細度: 中項目', 'cmd.detail.detail': '詳細度: 詳細', 'cmd.detail.next': '詳細度を次へ切り替え',
     'cmd.topic.movePrev': '選択中のシーンを前のトピックへ移す', 'cmd.topic.moveNext': '選択中のシーンを次のトピックへ移す', 'cmd.topic.moveNew': '選択中のシーンを新しいトピックにする',
     'cmd.topic.next': '次のトピックを選ぶ', 'cmd.topic.prev': '前のトピックを選ぶ',
@@ -143,6 +145,7 @@ const BASE = {
     'cmd.view.timeline': 'Timeline layout', 'cmd.view.arrange': 'Arranged layout (axes and sections)', 'cmd.rpg.bgmToggle': 'Stop / resume BGM (RPG style)',
     ...Object.fromEntries(LAYOUT_TYPE_IDS.flatMap((id) => [[`cmd.layoutType.${id}`, LAYOUT_TYPE_META[id].en.cmd], [`cmd.layoutType.add.${id}`, `Add or remove the ${LAYOUT_TYPE_META[id].en.label.toLowerCase()} layout in the combination`]])),
     'cmd.layoutType.clear': 'Clear the manual layout choice', 'cmd.settings.open': 'Open settings', 'cmd.settings.close': 'Close settings', 'cmd.llm.toggle': 'Toggle LLM integration', 'cmd.llm.test': 'Test the LLM connection',
+    'cmd.drawStyle.pick': 'Open the art style (draw style) list',
     'cmd.detail.major': 'Detail: topics', 'cmd.detail.middle': 'Detail: scenes', 'cmd.detail.detail': 'Detail: full', 'cmd.detail.next': 'Switch to the next detail level',
     'cmd.topic.movePrev': 'Move the selected scene to the previous topic', 'cmd.topic.moveNext': 'Move the selected scene to the next topic', 'cmd.topic.moveNew': 'Make the selected scene a new topic',
     'cmd.topic.next': 'Select the next topic', 'cmd.topic.prev': 'Select the previous topic',

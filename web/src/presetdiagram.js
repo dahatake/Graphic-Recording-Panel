@@ -607,8 +607,7 @@ export function stylePresetModule(ctx) {
     if (v !== forced) { forced = v; ctx.emit('change', api); }
     return { ok: true };
   };
-  // PNG の保存に使う配色（風を選んでいないときは null）
-  api.getPresetLook = () => { const spec = api.getDrawStyleSpec?.(); return spec?.preset ? { ...buildLook(spec), fontFamily: fontFamilyOf(presetOf(spec).font) } : null; };
+  // PNG・PDF の保存の配色は export.js の exportLook（buildLook を使う。保存は強制カラーに関係なく風の配色）
   const legacyBase = api.renderBaseSvg;
   api.renderBaseSvg = () => {
     const spec = api.getDrawStyleSpec?.();
@@ -616,4 +615,6 @@ export function stylePresetModule(ctx) {
   };
   const baseRender = api.renderSvg;
   api.renderSvg = () => { const svg = baseRender(); return forced ? toSystemColors(svg) : svg; };
+  // 保存用の SVG（save.svg）: 強制カラーのシステム色への変換は画面の表示だけにし、保存は風の配色で出す
+  api.renderSvgForSave = () => { const was = forced; forced = false; try { return api.renderSvg(); } finally { forced = was; } };
 }
