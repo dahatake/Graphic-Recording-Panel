@@ -158,7 +158,11 @@
     "AC-390": "sha256:bc08a577595d5281",
     "AC-391": "sha256:2394a06e1c7e49df",
     "AC-392": "sha256:9e193779cbb7745d",
-    "AC-393": "sha256:1915692914e41269"
+    "AC-393": "sha256:1915692914e41269",
+    "AC-435": "sha256:27e165388494d9c1",
+    "AC-436": "sha256:1d5cad323ac8017b",
+    "AC-439": "sha256:f1a7a0c6fd121fc0",
+    "AC-440": "sha256:ca69a4ca1c024d77"
   },
   "cases": [
     {
@@ -2743,11 +2747,11 @@
       "ac_ids": [
         "AC-149"
       ],
-      "title": "設定画面の既定レイアウト・描画スタイル選択と反映（異常系含む）",
+      "title": "設定画面の既定レイアウト・描画スタイル選択と反映（異常系含む。後の要求の追加項目を許容）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-149\" tests/system/settings.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "f91ec5a",
       "last_run_at": "2026-10-19T23:22:42+09:00",
       "evidence": "work/runs/202610192220/logs/system-test/E2E-091-202610192322.log",
@@ -2757,6 +2761,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-20T05:32:49+09:00",
+          "by": "test-designer",
+          "change": "title: '設定画面の既定レイアウト・描画スタイル選択と反映（異常系含む）' -> '設定画面の既定レイアウト・描画スタイル選択と反映（異常系含む。後の要求の追加項目を許容）'",
+          "reason": "FR-080（arrange.interval）・FR-081/082 で設定画面に項目が正当に加わるため、FR-030 の 3 項目の存在の検査に改め、追加項目を許す（期待値は弱めない: 3 項目の存在・ラベル長・狭い画面の欠けなしは維持）"
         }
       ]
     },
@@ -2768,11 +2778,11 @@
       "ac_ids": [
         "AC-151"
       ],
-      "title": "設定画面のキーボード・コマンド検索・ラベル・読み上げ・狭い画面（異常系含む）",
+      "title": "設定画面のキーボード・コマンド検索・ラベル・読み上げ・狭い画面（異常系含む。後の要求の追加項目を許容）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-151\" tests/system/settings.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "f91ec5a",
       "last_run_at": "2026-10-19T23:22:42+09:00",
       "evidence": "work/runs/202610192220/logs/system-test/E2E-092-202610192322.log",
@@ -2782,6 +2792,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-20T05:32:50+09:00",
+          "by": "test-designer",
+          "change": "title: '設定画面のキーボード・コマンド検索・ラベル・読み上げ・狭い画面（異常系含む）' -> '設定画面のキーボード・コマンド検索・ラベル・読み上げ・狭い画面（異常系含む。後の要求の追加項目を許容）'",
+          "reason": "FR-080（arrange.interval）・FR-081/082 で設定画面に項目が正当に加わるため、FR-030 の 3 項目の存在の検査に改め、追加項目を許す（期待値は弱めない: 3 項目の存在・ラベル長・狭い画面の欠けなしは維持）"
         }
       ]
     },
@@ -4860,6 +4876,131 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610192220）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-220",
+      "requirement_ids": [
+        "FR-080"
+      ],
+      "ac_ids": [
+        "AC-435"
+      ],
+      "title": "再配置の周期: 起動から10秒ごと・暫定位置の即時表示・前の要素不動・追加なしは再配置しない・非表示中は復帰後（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-435(:| [^F])\" tests/system/rearrange.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:32:14+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "test-designer System Test 設計（run 202610200407 part 1/2）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-221",
+      "requirement_ids": [
+        "FR-080"
+      ],
+      "ac_ids": [
+        "AC-435"
+      ],
+      "title": "周期の再配置がFR-079の規則に従う: 結論の昇格と種類順・整列・近接・重なりなし・下位のまとまり・決定性",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-435 FR-079\" tests/system/rearrange.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:32:21+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "test-designer System Test 設計（run 202610200407 part 1/2）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-222",
+      "requirement_ids": [
+        "FR-080"
+      ],
+      "ac_ids": [
+        "AC-436"
+      ],
+      "title": "設定画面で周期を0〜300の整数に変更・数え直し・初期値10・保存と復元・初期化/セッションファイル対象外（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-436\" tests/system/rearrange-settings.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:32:26+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "test-designer System Test 設計（run 202610200407 part 1/2）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-223",
+      "requirement_ids": [
+        "FR-080"
+      ],
+      "ac_ids": [
+        "AC-439"
+      ],
+      "title": "再配置の前後で記録・選択・ポップアップ・入力中・詳細度・型・表示・拡大率が保たれ、動きを減らす設定でアニメーションなし",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-439\" tests/system/rearrange.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:32:32+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "test-designer System Test 設計（run 202610200407 part 1/2）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-224",
+      "requirement_ids": [
+        "FR-080"
+      ],
+      "ac_ids": [
+        "AC-440"
+      ],
+      "title": "周期の設定をコマンド検索・キーボードだけ・マウスで変更、ラベル6文字以内・表示言語、結果の読み上げ・再配置は無通知（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-440\" tests/system/rearrange-settings.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:32:36+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "test-designer System Test 設計（run 202610200407 part 1/2）"
         }
       ]
     }

@@ -18,9 +18,11 @@ test('FR-030 AC-149: 初めて起動したとき［設定］画面は初期値�
   app.commands['settings.open']();
   const d = app.getSettingsDialog();
   assert.ok(d && d.open === true);
-  // FR-068 で正当に追加された LLM 連携の項目（AC-353〜356）は FR-030 の 3 項目に加えて存在してよい
-  const LLM_IDS = ['llm.credential', 'llm.enabled', 'llm.mask', 'llm.test'];
-  assert.deepEqual(d.fields.map((f) => f.id).filter((id) => !LLM_IDS.includes(id)).sort(), ['drawStyle', 'layout.mode', 'layout.types']);
+  // FR-068（LLM 連携 AC-353〜356）・FR-080（再配置の周期 AC-436）・FR-081/082（音声認識の方式・Azure Speech）など、
+  // 後の要求で正当に追加された項目は FR-030 の 3 項目に加えて存在してよい（追加項目はそれぞれの AC のテストが確かめる）。
+  const ids = d.fields.map((f) => f.id);
+  assert.equal(new Set(ids).size, ids.length, '項目の id は重複しない');
+  for (const id of ['drawStyle', 'layout.mode', 'layout.types']) assert.equal(ids.filter((x) => x === id).length, 1, `FR-030 の項目 ${id} がある`);
   assert.equal(field(app, 'layout.mode').value, 'fixed');
   assert.deepEqual(field(app, 'layout.types').value, ['timeline']);
   assert.equal(field(app, 'drawStyle').value, 'handwritten');
@@ -114,7 +116,8 @@ test('FR-030 AC-151: 画面が狭くても（NFR-UX-001）すべての項目が�
     assert.deepEqual(v.fields.map((f) => f.id), wide.fields.map((f) => f.id), `${w}px: 項目が欠けない`);
     assert.ok(v.fields.every((f) => f.visible === true), `${w}px: すべて表示`);
   }
-  assert.equal(wide.fields.filter((f) => !f.id.startsWith('llm.')).length, 3); // llm.* は FR-068
+  // FR-030 の 3 項目が必ず含まれる（llm.* は FR-068、arrange.* は FR-080 など、後の要求の項目も同じく欠けない）
+  for (const id of ['drawStyle', 'layout.mode', 'layout.types']) assert.ok(wide.fields.some((f) => f.id === id), id);
 });
 
 test('FR-030 AC-151: 静的な画面に設定画面（id="settings-dialog"）があり、文言キーは ja と en で同一集合', async () => {
