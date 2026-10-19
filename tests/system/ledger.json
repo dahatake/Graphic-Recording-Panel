@@ -32,7 +32,7 @@
     "AC-054": "sha256:23866f76e1a10949",
     "AC-057": "sha256:ac812e004e7762a3",
     "AC-060": "sha256:906295de64a708e1",
-    "AC-061": "sha256:92d94f14949497f9",
+    "AC-061": "sha256:8db6810b81b3aaf9",
     "AC-063": "sha256:52e3d2400f012178",
     "AC-064": "sha256:cea138c713e4e5e4",
     "AC-065": "sha256:47f67d016cc7606d",
@@ -86,8 +86,8 @@
     "AC-139": "sha256:d92ff20bcefcf0b3",
     "AC-140": "sha256:2ad6897fb30004c4",
     "AC-145": "sha256:e5246af6ca8a6d0a",
-    "AC-146": "sha256:28ea5257b34f4973",
-    "AC-149": "sha256:acc977c6eece5518",
+    "AC-146": "sha256:3a206e807dc64097",
+    "AC-149": "sha256:7beeaef69388171f",
     "AC-151": "sha256:741308863c433689",
     "AC-152": "sha256:7764f7ef5b30410f",
     "AC-167": "sha256:0109dd95315fdf3a",
@@ -169,7 +169,17 @@
     "AC-421": "sha256:b2f8f19ed6d04d56",
     "AC-422": "sha256:f2fc47d36321cc4a",
     "AC-423": "sha256:4ac7dbc0de97712e",
-    "AC-424": "sha256:2926e2da14f072c2"
+    "AC-424": "sha256:2926e2da14f072c2",
+    "AC-408": "sha256:81bd83b32cf6e0f1",
+    "AC-409": "sha256:c8f79b66910080b4",
+    "AC-410": "sha256:3f2aedf5c15167a4",
+    "AC-411": "sha256:56066efff0855d9a",
+    "AC-412": "sha256:6768b137333b3db8",
+    "AC-413": "sha256:7e5ab20ec94f8377",
+    "AC-425": "sha256:a17ed59fca40e738",
+    "AC-456": "sha256:07048b4b24fb00fc",
+    "AC-406": "sha256:bb3394d2d1b9d7c4",
+    "AC-407": "sha256:e5cf05cc95241fad"
   },
   "cases": [
     {
@@ -1011,9 +1021,9 @@
       ],
       "title": "外部取得 0 件とシステムフォント先頭の書体指定",
       "layer": "e2e",
-      "command": "node --test --test-name-pattern=\"AC-061\" tests/system/ux.test.js",
+      "command": "node --test --test-name-pattern=\"AC-061\" tests/system/ux.test.js tests/system/stylepreset.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "f91ec5a",
       "last_run_at": "2026-10-19T23:22:42+09:00",
       "evidence": "work/runs/202610192220/logs/system-test/E2E-032-202610192322.log",
@@ -1023,6 +1033,18 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-20T05:24:42+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test --test-name-pattern=\"AC-061\" tests/system/ux.test.js' -> 'node --test --test-name-pattern=\"AC-061\" tests/system/ux.test.js tests/system/stylepreset.test.js'",
+          "reason": "AC-061 の文面の変更（FR-075: 図の中の書体は描画スタイルの書体の系統に従い先頭の規定の対象外、外部取得なしは図にも適用）に合わせ、全 13 の描画スタイルの図の外部取得なしと書体の系統の確認を追加"
+        },
+        {
+          "at": "2026-10-20T05:25:01+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "テストを AC の文面の変更（run 202610200356、FR-075/076）に合わせて見直したため、再実行まで not_run"
         }
       ]
     },
@@ -2723,11 +2745,11 @@
       "ac_ids": [
         "AC-146"
       ],
-      "title": "描画スタイルの切替（RPG風を加えた 4 つ）・内容保持・色以外の識別（異常系含む）",
+      "title": "描画スタイルの切替（既存 4 つと 9 つの画風プリセットの計 13）・内容保持・色以外の識別（異常系含む）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-146\" tests/system/drawstyle.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "f91ec5a",
       "last_run_at": "2026-10-19T23:22:42+09:00",
       "evidence": "work/runs/202610192220/logs/system-test/E2E-090-202610192322.log",
@@ -2743,6 +2765,18 @@
           "by": "test-designer",
           "change": "title: '描画スタイルの切替・内容保持・色以外の識別（異常系含む）' -> '描画スタイルの切替（RPG風を加えた 4 つ）・内容保持・色以外の識別（異常系含む）'",
           "reason": "AC-146 の文面変更（FR-047 の追加後は RPG風を加えた 4 つ）に合わせ、drawstyle.test.js を 4 スタイルに更新"
+        },
+        {
+          "at": "2026-10-20T05:24:43+09:00",
+          "by": "test-designer",
+          "change": "title: '描画スタイルの切替（RPG風を加えた 4 つ）・内容保持・色以外の識別（異常系含む）' -> '描画スタイルの切替（既存 4 つと 9 つの画風プリセットの計 13）・内容保持・色以外の識別（異常系含む）'",
+          "reason": "AC-146 の文面の変更（FR-076 の追加後は 13）に合わせ、選択肢の数を 13 に、切替の確認を全 13 に広げる。種類の色の違いは既存の 4 つだけに求め、画風プリセット（単色のミニマル風）は形・絵記号で確かめる"
+        },
+        {
+          "at": "2026-10-20T05:25:03+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "テストを AC の文面の変更（run 202610200356、FR-075/076）に合わせて見直したため、再実行まで not_run"
         }
       ]
     },
@@ -2754,11 +2788,11 @@
       "ac_ids": [
         "AC-149"
       ],
-      "title": "設定画面の既定レイアウト・描画スタイル選択と反映（異常系含む）",
+      "title": "設定画面の既定レイアウト・描画スタイル（9 つの風を含む）の選択と反映、現在の描画スタイルは後から操作した方が決める（異常系含む）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-149\" tests/system/settings.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "f91ec5a",
       "last_run_at": "2026-10-19T23:22:42+09:00",
       "evidence": "work/runs/202610192220/logs/system-test/E2E-091-202610192322.log",
@@ -2768,6 +2802,18 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-20T05:24:44+09:00",
+          "by": "test-designer",
+          "change": "title: '設定画面の既定レイアウト・描画スタイル選択と反映（異常系含む）' -> '設定画面の既定レイアウト・描画スタイル（9 つの風を含む）の選択と反映、現在の描画スタイルは後から操作した方が決める（異常系含む）'",
+          "reason": "AC-149 の文面の変更（既定の描画スタイルを選ぶと現在の描画スタイルもその風になり、画面上部での選択（FR-077）と後から操作した方が決める）に合わせ、3 ケースを追加"
+        },
+        {
+          "at": "2026-10-20T05:25:04+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "テストを AC の文面の変更（run 202610200356、FR-075/076）に合わせて見直したため、再実行まで not_run"
         }
       ]
     },
@@ -2908,7 +2954,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-214\" tests/system/rpg.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "f91ec5a",
       "last_run_at": "2026-10-19T23:22:42+09:00",
       "evidence": "work/runs/202610192220/logs/system-test/E2E-097-202610192322.log",
@@ -2918,6 +2964,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-20T05:25:06+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "テストを AC の文面の変更（run 202610200356、FR-075/076）に合わせて見直したため、再実行まで not_run"
         }
       ]
     },
@@ -5182,6 +5234,310 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "AC-424 の検証レベルは integration（System Test の対象外）。テストは tests/system/imageprompt.test.js に参考として残し、担保は実装者の結合テストで行う。契約は CONTRACT-FR077-078.md"
+        }
+      ]
+    },
+    {
+      "id": "E2E-210",
+      "requirement_ids": [
+        "FR-076"
+      ],
+      "ac_ids": [
+        "AC-408"
+      ],
+      "title": "黄黒手書き風: 白い紙面・黒の文字と枠・黄の塗り（黒かグレーの輪郭線）・黒帯の白抜き見出し・黄の雲形の吹き出し・線画人物・太めの文字と書体の並び（異常系: 手書き風の書体なし）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-408\" tests/system/stylepreset.test.js",
+      "canary": true,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:23:14+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200356 part 1/2）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-211",
+      "requirement_ids": [
+        "FR-076"
+      ],
+      "ac_ids": [
+        "AC-409"
+      ],
+      "title": "描画スタイルの選択肢 13 と、9 つの風の紙面・書体・見出しの飾り・吹き出し・線・線画人物が 3.6 の表と一致し図に反映（異常系: 未知の ID）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-409\" tests/system/stylepreset.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:23:28+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200356 part 1/2）"
+        },
+        {
+          "at": "2026-10-20T05:26:31+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "参考として blocked: AC-409 は検証レベル=integration で System Test の台帳の対象外（CHK-10）。受入基準だけから作ったテストは tests/system/stylepreset.test.js（契約 CONTRACT-STYLE-PRESET.md）にあり、implementer の結合テストのゲートで command を実行して確かめる"
+        }
+      ]
+    },
+    {
+      "id": "E2E-212",
+      "requirement_ids": [
+        "FR-076"
+      ],
+      "ac_ids": [
+        "AC-410"
+      ],
+      "title": "9 つの風の文字 4.5:1・枠と吹き出しの輪郭 3:1・黄の面の輪郭線と黄の上の黒文字（異常系: 強調表示中・英語表示）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-410\" tests/system/stylepreset.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:23:36+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200356 part 1/2）"
+        },
+        {
+          "at": "2026-10-20T05:26:32+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "参考として blocked: AC-410 は検証レベル=integration で System Test の台帳の対象外（CHK-10）。受入基準だけから作ったテストは tests/system/stylepreset.test.js（契約 CONTRACT-STYLE-PRESET.md）にあり、implementer の結合テストのゲートで command を実行して確かめる"
+        }
+      ]
+    },
+    {
+      "id": "E2E-213",
+      "requirement_ids": [
+        "FR-076"
+      ],
+      "ac_ids": [
+        "AC-411"
+      ],
+      "title": "9 つの風で要点の種類・強調表示を色以外で見分けられ、黄の面は輪郭線で見える（異常系: 単色のミニマル風）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-411\" tests/system/stylepreset.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:23:42+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200356 part 1/2）"
+        },
+        {
+          "at": "2026-10-20T05:26:33+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "参考として blocked: AC-411 は検証レベル=integration で System Test の台帳の対象外（CHK-10）。受入基準だけから作ったテストは tests/system/stylepreset.test.js（契約 CONTRACT-STYLE-PRESET.md）にあり、implementer の結合テストのゲートで command を実行して確かめる"
+        }
+      ]
+    },
+    {
+      "id": "E2E-214",
+      "requirement_ids": [
+        "FR-076"
+      ],
+      "ac_ids": [
+        "AC-412"
+      ],
+      "title": "同じ入力・同じ風から同じ図（揺らぎ・質感・線画人物を含む）（異常系: 乱数・時刻の変化）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-412\" tests/system/stylepreset.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:23:45+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200356 part 1/2）"
+        },
+        {
+          "at": "2026-10-20T05:26:33+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "参考として blocked: AC-412 は検証レベル=integration で System Test の台帳の対象外（CHK-10）。受入基準だけから作ったテストは tests/system/stylepreset.test.js（契約 CONTRACT-STYLE-PRESET.md）にあり、implementer の結合テストのゲートで command を実行して確かめる"
+        }
+      ]
+    },
+    {
+      "id": "E2E-215",
+      "requirement_ids": [
+        "FR-076"
+      ],
+      "ac_ids": [
+        "AC-413"
+      ],
+      "title": "LLM 連携で描画スタイル名に風の識別子だけを送り配色・画風の記述は送らず、版・同意は変わらない（異常系: 切替・再読込）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-413\" tests/system/stylepreset.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:23:50+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200356 part 1/2）"
+        },
+        {
+          "at": "2026-10-20T05:26:34+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "参考として blocked: AC-413 は検証レベル=integration で System Test の台帳の対象外（CHK-10）。受入基準だけから作ったテストは tests/system/stylepreset.test.js（契約 CONTRACT-STYLE-PRESET.md）にあり、implementer の結合テストのゲートで command を実行して確かめる"
+        }
+      ]
+    },
+    {
+      "id": "E2E-216",
+      "requirement_ids": [
+        "FR-076"
+      ],
+      "ac_ids": [
+        "AC-425"
+      ],
+      "title": "どの風でも見出し・要点の文字が飾り・吹き出し・線画人物・絵記号・紙面の質感に隠れず、線画人物と絵記号は図形で描く",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-425\" tests/system/stylepreset.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:23:56+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200356 part 1/2）"
+        },
+        {
+          "at": "2026-10-20T05:26:35+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "参考として blocked: AC-425 は検証レベル=integration で System Test の台帳の対象外（CHK-10）。受入基準だけから作ったテストは tests/system/stylepreset.test.js（契約 CONTRACT-STYLE-PRESET.md）にあり、implementer の結合テストのゲートで command を実行して確かめる"
+        }
+      ]
+    },
+    {
+      "id": "E2E-217",
+      "requirement_ids": [
+        "FR-076"
+      ],
+      "ac_ids": [
+        "AC-456"
+      ],
+      "title": "ハイコントラストでは全 13 の描画スタイルの図がシステム色で描かれ、無効に戻すと風の配色（異常系: 不正な指定）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-456\" tests/system/stylepreset.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:24:00+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200356 part 1/2）"
+        },
+        {
+          "at": "2026-10-20T05:26:36+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "参考として blocked: AC-456 は検証レベル=integration で System Test の台帳の対象外（CHK-10）。受入基準だけから作ったテストは tests/system/stylepreset.test.js（契約 CONTRACT-STYLE-PRESET.md）にあり、implementer の結合テストのゲートで command を実行して確かめる"
+        }
+      ]
+    },
+    {
+      "id": "E2E-218",
+      "requirement_ids": [
+        "FR-075"
+      ],
+      "ac_ids": [
+        "AC-406"
+      ],
+      "title": "既存の 4 つの描画スタイルは拡張の前（91a15b8）と同じ図（異常系: 風から戻す）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-406\" tests/system/stylepreset.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:24:04+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200356 part 1/2）"
+        },
+        {
+          "at": "2026-10-20T05:26:37+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "参考として blocked: AC-406 は検証レベル=integration で System Test の台帳の対象外（CHK-10）。受入基準だけから作ったテストは tests/system/stylepreset.test.js（契約 CONTRACT-STYLE-PRESET.md）にあり、implementer の結合テストのゲートで command を実行して確かめる"
+        }
+      ]
+    },
+    {
+      "id": "E2E-219",
+      "requirement_ids": [
+        "FR-075"
+      ],
+      "ac_ids": [
+        "AC-407"
+      ],
+      "title": "画風プリセットの表示・PNG/SVG/PDF 保存で外部リクエスト 0・紙面は図形・書体の並び・UI の書体は不変（異常系: 書体なし・判定失敗）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-407\" tests/system/stylepreset.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:24:08+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200356 part 1/2）"
+        },
+        {
+          "at": "2026-10-20T05:26:37+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "参考として blocked: AC-407 は検証レベル=integration で System Test の台帳の対象外（CHK-10）。受入基準だけから作ったテストは tests/system/stylepreset.test.js（契約 CONTRACT-STYLE-PRESET.md）にあり、implementer の結合テストのゲートで command を実行して確かめる"
         }
       ]
     }

@@ -69,6 +69,65 @@ test('FR-030 AC-149: 手動の型の選択は設定の既定より優先され�
   assert.deepEqual(app.getLayoutInfo().selected, ['zone']);
 });
 
+// FR-030 AC-149（FR-076 の画風プリセット・FR-077 の画面上部での選択との関係。契約: CONTRACT-STYLE-PRESET.md）
+const PRESET_LABELS = ['黄黒手書き風', '黒板風', '付箋ボード風', '色鉛筆風', 'ミント風', 'ビジネス風', 'ミニマル風', 'ポップ風', 'クラフト紙風'];
+const presetId = (app, label) => { const s = app.getDrawStyles().find((x) => x.label === label); assert.ok(s, `選択肢に「${label}」`); return s.id; };
+test('FR-030 AC-149: 既定の描画スタイルとして 9 つの風も選べ、選ぶと現在の描画スタイルもその風になり、図に反映される', async () => {
+  const { app, env } = await newApp();
+  app.setLang('ja');
+  await seedThreeScenes(app, env);
+  app.selectScene(app.getState().scenes[1].id);
+  app.setDraft('入力中の文字');
+  app.commands['settings.open']();
+  const before = snap(app);
+  for (const label of PRESET_LABELS) {
+    const id = presetId(app, label);
+    assert.equal(app.setSettings({ drawStyle: id }).ok, true, label);
+    assert.equal(app.getSettings().drawStyle, id, `${label}: 既定`);
+    assert.equal(field(app, 'drawStyle').value, id, `${label}: 設定画面の値`);
+    assert.equal(app.getDrawStyle(), id, `${label}: 現在の描画スタイルもその風`);
+    assert.match(app.renderSvg(), new RegExp(`data-draw-style="${id}"`));
+  }
+  assert.equal(snap(app), before, '内容・選択・入力中の内容・記録中の状態は失われない');
+  assert.equal(app.getState().session, 'recording');
+});
+
+test('FR-030 AC-149: 現在の描画スタイルは 1 つで、既定の選択と画面での選択（FR-029・FR-077）のうち後から操作した方が決める', async () => {
+  const { app, env } = await newApp();
+  app.setLang('ja');
+  await seedThreeScenes(app, env);
+  const yb = presetId(app, '黄黒手書き風'); const board = presetId(app, '黒板風'); const biz = presetId(app, 'ビジネス風');
+  assert.ok(app.setSettings({ drawStyle: yb }).ok);
+  assert.equal(app.getDrawStyle(), yb, '既定を選ぶと現在もその風');
+  assert.ok(app.setDrawStyle(board).ok);
+  assert.equal(app.getDrawStyle(), board, '後から画面で選んだ方が現在の描画スタイル');
+  assert.match(app.renderSvg(), new RegExp(`data-draw-style="${board}"`));
+  assert.ok(app.setSettings({ drawStyle: biz }).ok);
+  assert.equal(app.getDrawStyle(), biz, '後から既定を選んだ方が現在の描画スタイル');
+  assert.ok(app.setDrawStyle('anime').ok);
+  assert.equal(app.getDrawStyle(), 'anime');
+  assert.ok(app.setSettings({ drawStyle: 'handwritten' }).ok);
+  assert.equal(app.getDrawStyle(), 'handwritten');
+  assert.match(app.renderSvg(), /data-draw-style="handwritten"/);
+});
+
+test('FR-030 AC-149 異常系: 保存された既定が 9 つの風のとき、再読込（同じ storage）後もその風で表示され、不正な既定は拒否される', async () => {
+  const { app, env, createApp } = await newApp();
+  app.setLang('ja');
+  const mint = presetId(app, 'ミント風');
+  assert.ok(app.setSettings({ drawStyle: mint }).ok);
+  const re = await createApp(env.options);
+  assert.equal(re.getSettings().drawStyle, mint, '保存された既定');
+  assert.equal(re.getDrawStyle(), mint, '再読込後の現在の描画スタイル');
+  const s0 = JSON.stringify(re.getSettings());
+  for (const bad of [{ drawStyle: 'ミント風' }, { drawStyle: 'Mint Note' }, { drawStyle: `${mint}-nosuch` }, { drawStyle: null }]) {
+    let r; try { r = re.setSettings(bad); } catch { r = { ok: false }; }
+    assert.equal(r.ok, false, JSON.stringify(bad));
+  }
+  assert.equal(JSON.stringify(re.getSettings()), s0);
+  assert.equal(re.getDrawStyle(), mint);
+});
+
 // FR-030 AC-151
 test('FR-030 AC-151: ［設定］画面はキーボードとコマンドの検索から少ない手順で開け、Esc で閉じ、ボタンに名称ラベル・ツールチップがある', async () => {
   const { app } = await newApp();
