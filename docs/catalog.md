@@ -42,7 +42,7 @@
 | FR-020 | 3D 表現の評価軸の選択 | 承認済み | web/src/axes3d.js, web/src/view3d.js, web/styles/view3d.css, web/sw.js | tests/unit/axes3d.test.js, tests/system/axes3d.test.js | アプリ組立, 3D ビュー, i18n, デザイン基盤 |
 | FR-021 | 3D 表現の画面操作と操作説明の表示 | 承認済み | web/src/view3d.js, web/src/i18n.js, web/styles/view3d.css | tests/unit/axes3d.test.js, tests/system/view3dhelp.test.js | アプリ組立, 3D ビュー, i18n, キーマップ, デザイン基盤 |
 | NFR-UX-003 | コマンドバーのアイコンの常時ラベル | 承認済み | web/src/commandbar.js, web/src/ui.js, web/styles/app.css | tests/unit/session.test.js, tests/system/cmdlabel.test.js | コマンドバー, i18n, デザイン基盤, アプリ組立 |
-| NFR-UX-011 | コマンドバーのアイコンの作業順の分類と並び | 承認済み | 未実装 | 未実装 | コマンドバー, i18n, デザイン基盤 |
+| NFR-UX-011 | コマンドバーのアイコンの作業順の分類と並び | 承認済み | web/src/commandbar.js, web/src/ui.js, web/styles/app.css, web/src/i18n.js | tests/system/cmdgroups.test.js, tests/unit/commandbar-groups.test.js, tests/unit/ui.test.js | コマンドバー, i18n, デザイン基盤 |
 | FR-023 | 字幕ファイル取込の処理中表示と再取込 | 承認済み | web/src/input.js, web/src/ui.js, web/index.html | tests/unit/importstatus.test.js, tests/system/importstatus.test.js | アプリ組立 |
 | FR-024 | オブジェクト選択時のテキスト一覧のポップアップ表示 | 承認済み | web/src/popup.js, web/src/app.js, web/src/ui.js, web/src/i18n.js, web/styles/app.css, web/sw.js | tests/unit/popup.test.js, tests/system/scenepopup.test.js | アプリ組立, デザイン基盤 |
 | FR-025 | シーンのトピックへの分類と集約 | 承認済み | web/src/topics.js, web/src/diagram.js, web/src/arrange.js, web/src/popup.js, web/src/outline.js, web/src/persist.js, web/src/session.js, web/src/edit-ui.js, web/src/app.js, web/src/i18n.js, web/styles/app.css, web/sw.js | tests/unit/topics.test.js, tests/system/detail.test.js | アプリ組立, i18n, キーマップ |
@@ -105,7 +105,7 @@
 | 描画の合流 | web/src/frame.js | 状態変更の通知を 1 フレームに 1 回の描画へ合流する（coalesceFrame）。通知がなければ rAF・タイマーを予約しない。ui.js・edit-ui.js が使い、diagram.js・ui.js は同一内容の DOM を作り直さない | NFR-PERF-002、NFR-PERF-003、NFR-PERF-004 |
 | i18n | web/src/i18n.js | ja/en の UI 文言（addStrings で後続が追加） | FR-006、FR-008、FR-015、FR-016、FR-017、FR-018、FR-019、FR-020、FR-021、FR-025、FR-026、FR-027、FR-030、FR-036、FR-062、FR-068、FR-072、FR-073、NFR-UX-002、NFR-UX-003、NFR-UX-011 |
 | デザイン基盤 | web/styles/tokens.css, web/styles/app.css, web/styles/view3d.css | Fluent 2 のトークン（colorNeutral/Brand 系・角丸 4/8・4px 余白・Type ramp・影・モーション）・ライト/ダーク/forced-colors・フォーカス 3px・積み重ね・カード風パネル・ボタン（primary/subtle） | FR-004、FR-011、FR-013、FR-017、FR-018、FR-020、FR-021、FR-024、FR-026、FR-027、FR-029、FR-030、FR-050、FR-051、FR-068、FR-073、NFR-A11Y-001、NFR-UX-001、NFR-UX-002、NFR-UX-003、NFR-UX-011 |
-| コマンドバー | web/src/commandbar.js | コマンドのグループ・インライン SVG アイコン・主要コマンド（getCommandBar / getCommandStatus）。ステータスバーの文言（記録状態・音声認識・言語・表示）。ボタンの簡易説明（showTooltip / hideTooltip / getTooltip、tooltip.<command>） | FR-016、FR-017、FR-018、FR-019、FR-026、FR-027、FR-030、FR-072、FR-073、NFR-UX-001、NFR-UX-002、NFR-UX-003、NFR-UX-011 |
+| コマンドバー | web/src/commandbar.js | コマンドの作業順 8 グループ（GROUPS・getCommandBar().groups/focusOrder・getCommandBarLayout の rect）・インライン SVG アイコン・主要コマンド（getCommandBar / getCommandStatus）。ステータスバーの文言（記録状態・音声認識・言語・表示）。ボタンの簡易説明（showTooltip / hideTooltip / getTooltip、tooltip.<command>） | FR-016、FR-017、FR-018、FR-019、FR-026、FR-027、FR-030、FR-072、FR-073、NFR-UX-001、NFR-UX-002、NFR-UX-003、NFR-UX-011 |
 | 認識文字列 | web/src/transcript.js | 右パネル（パネル ID input）の確定結果一覧・暫定結果の区別表示（getTranscript / renderTranscript） | FR-013, FR-014 |
 | キーマップ | web/src/keymap.js | 全操作の Alt+Shift+キー割り当て | NFR-A11Y-001, FR-015, FR-017, FR-021, FR-018, FR-019, FR-025, FR-026, FR-027, FR-030 |
 | 感情語辞書 | web/src/emotion.js | 日英の感情・様子の語 → 絵記号の対応（決定的） | FR-004, FR-015, FR-032, FR-064 |
