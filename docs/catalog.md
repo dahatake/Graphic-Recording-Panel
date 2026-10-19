@@ -21,7 +21,7 @@
 | FR-010 | ダイナミックカメラによるプレゼンテーション | 承認済み | web/src/view3d.js, web/src/keymap.js, web/src/ui.js | tests/unit/view3d.test.js, tests/system/view.test.js | アプリ組立, 3D ビュー |
 | FR-011 | パネルのレイアウト変更と保存 | 承認済み | web/src/layout.js, web/src/app.js, web/src/ui.js, web/styles/app.css | tests/unit/shell.test.js, tests/system/layout.test.js | アプリ組立, デザイン基盤 |
 | FR-012 | セッションの保存と復元 | 承認済み | web/src/persist.js, web/src/app.js, web/src/speech.js | tests/unit/speech.test.js, tests/system/persist.test.js | 音声入力源, アプリ組立 |
-| NFR-OFFLINE-001 | 外部通信なしでの動作 | 承認済み | web/sw.js, web/src/main.js, web/src/speech.js | tests/unit/shell.test.js, tests/unit/speech.test.js, tests/system/offline.test.js, tests/system/speech.test.js | 音声入力源 |
+| NFR-OFFLINE-001 | 外部通信なしでの動作 | 承認済み | web/sw.js, web/src/main.js, web/src/speech.js | tests/unit/shell.test.js, tests/unit/sw-version.test.js, tests/unit/speech.test.js, tests/system/offline.test.js, tests/system/speech.test.js | 音声入力源 |
 | NFR-PRIV-001 | 音声データの扱い | 承認済み | web/src/speech.js, web/src/persist.js | tests/unit/speech.test.js, tests/system/speech.test.js | 音声入力源 |
 | NFR-A11Y-001 | 視覚表現の代替手段 | 承認済み | web/src/keymap.js, web/src/outline.js, web/styles/app.css | tests/unit/shell.test.js, tests/system/view.test.js | キーマップ, デザイン基盤, アプリ組立 |
 | NFR-PERF-001 | ほぼリアルタイムの表示 | 承認済み | web/src/app.js | tests/unit/speech.test.js | アプリ組立 |
