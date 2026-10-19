@@ -6,3 +6,5 @@ config/llm.local.json
 
 __pycache__/
 *.pyc
+
+node_modules/

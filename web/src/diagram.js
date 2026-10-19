@@ -428,6 +428,10 @@ function paint(host, app) {
   const canvas = host.querySelector('.diagram-canvas');
   canvas.setAttribute('aria-label', t('diagram.canvasLabel'));
   const svg = app.renderSvg();
+  // 同じ SVG・同じ拡大率・同じ幅なら、DOM を作り直さない（NFR-PERF-002/003: ドラッグ・ホバー中の全再構築を避ける）
+  const sig = `${host._zoom}|${host._fit}|${canvas.clientWidth}`;
+  if (host._lastSvg === svg && host._lastSig === sig) return;
+  host._lastSvg = svg; host._lastSig = sig;
   canvas.innerHTML = svg;
   const el = canvas.querySelector('svg');
   if (el) {

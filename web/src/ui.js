@@ -1,6 +1,7 @@
 // DOM との結び付け（ブラウザ専用。app.js は DOM を知らない）。app の状態を描くだけで、状態は持たない。
 import { PANEL_IDS, PANEL_COMMANDS, MIN_H } from './layout.js';
 
+import { coalesceFrame } from './frame.js';
 import { GROUPS, ICONS, PRIMARY, tooltipId, labelKey } from './commandbar.js';
 
 function icon(doc, command) {
@@ -162,10 +163,13 @@ export function mountUI(app, doc = document) {
     // FR-013/FR-014: 認識文字列。過去を読んでいる間はスクロール位置を奪わない（AC-051）
     const tr = $('#transcript');
     if (tr) {
-      const atBottom = tr.scrollHeight - tr.scrollTop - tr.clientHeight <= 8;
-      const keep = tr.scrollTop;
-      tr.innerHTML = app.renderTranscript();
-      tr.scrollTop = atBottom ? tr.scrollHeight : keep;
+      const html = app.renderTranscript();
+      if (tr._html !== html) {
+        const atBottom = tr.scrollHeight - tr.scrollTop - tr.clientHeight <= 8;
+        const keep = tr.scrollTop;
+        tr.innerHTML = html; tr._html = html;
+        tr.scrollTop = atBottom ? tr.scrollHeight : keep;
+      }
     }
     if (doc.activeElement !== draft && draft.value !== st.input.draft) draft.value = st.input.draft;
     $('#message').textContent = st.message ? st.message.text : '';
@@ -174,7 +178,7 @@ export function mountUI(app, doc = document) {
       ise.textContent = is.text; ise.setAttribute('role', is.role); ise.setAttribute('aria-live', is.live);
       ise.dataset.state = is.state;
     }
-    $('#outline').innerHTML = app.renderOutline();
+    { const o = $('#outline'); const html = app.renderOutline(); if (o._html !== html) { o.innerHTML = html; o._html = html; } }
 
     const layout = app.getLayout();
     const mode = app.getLayoutMode();
@@ -471,7 +475,9 @@ export function mountUI(app, doc = document) {
   app.on('change', syncPopup);
   doc.addEventListener('pointerdown', (e) => { if (popEl && !e.target.closest?.('#scene-popup, [data-scene-id], [data-topic-id]')) app.popupOutside(); });
 
-  app.subscribe(render);
+  // 変更が続いても再構築は 1 フレームに 1 回（NFR-PERF-002/003）
+  const renderSoon = coalesceFrame(render, doc.defaultView?.requestAnimationFrame?.bind(doc.defaultView), doc.defaultView?.cancelAnimationFrame?.bind(doc.defaultView));
+  app.subscribe(renderSoon);
   render();
-  return { render, measureWorkArea };
+  return { render, renderSoon, measureWorkArea };
 }

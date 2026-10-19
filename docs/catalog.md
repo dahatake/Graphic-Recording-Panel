@@ -25,9 +25,9 @@
 | NFR-PRIV-001 | 音声データの扱い | 承認済み | web/src/speech.js, web/src/persist.js | tests/unit/speech.test.js, tests/system/speech.test.js | 音声入力源 |
 | NFR-A11Y-001 | 視覚表現の代替手段 | 承認済み | web/src/keymap.js, web/src/outline.js, web/styles/app.css | tests/unit/shell.test.js, tests/system/view.test.js | キーマップ, デザイン基盤, アプリ組立 |
 | NFR-PERF-001 | ほぼリアルタイムの表示 | 承認済み | web/src/app.js | tests/unit/speech.test.js | アプリ組立 |
-| NFR-PERF-002 | マウス操作への応答性 | 承認済み | 未実装 | 未実装 | アプリ組立 |
-| NFR-PERF-003 | 記録中・大きい図での応答性の維持 | 承認済み | 未実装 | 未実装 | アプリ組立, 音声入力源 |
-| NFR-PERF-004 | アイドル時に CPU を使い続けない | 承認済み | 未実装 | 未実装 | アプリ組立 |
+| NFR-PERF-002 | マウス操作への応答性 | 承認済み | web/src/frame.js, web/src/ui.js, web/src/edit-ui.js, web/src/diagram.js, web/sw.js | tests/unit/perf.test.js, tests/system/perf.test.js | アプリ組立, 描画の合流 |
+| NFR-PERF-003 | 記録中・大きい図での応答性の維持 | 承認済み | web/src/frame.js, web/src/ui.js, web/src/edit-ui.js, web/src/diagram.js, web/sw.js | tests/unit/perf.test.js, tests/system/perf.test.js | アプリ組立, 音声入力源, 描画の合流 |
+| NFR-PERF-004 | アイドル時に CPU を使い続けない | 承認済み | web/src/frame.js, web/src/ui.js | tests/unit/perf.test.js, tests/system/perf.test.js | アプリ組立, 描画の合流 |
 | FR-013 | 右パネルでの認識文字列の表示（ファイル取込は画面最上部） | 承認済み | web/src/transcript.js, web/src/layout.js, web/src/input.js, web/src/ui.js, web/index.html, web/styles/app.css, web/sw.js | tests/unit/transcript.test.js, tests/system/rightpanel.test.js | アプリ組立, デザイン基盤, 認識文字列 |
 | FR-014 | 認識・取込の内容の図へのリアルタイム反映 | 承認済み | web/src/transcript.js, web/src/speech.js, web/src/input.js, web/src/app.js | tests/unit/transcript.test.js, tests/system/rightpanel.test.js | アプリ組立, 認識文字列 |
 | NFR-BG-001 | バックグラウンドでの動作継続 | 承認済み | web/src/speech.js | tests/unit/background.test.js, tests/system/background.test.js, tests/system/speech.test.js | 音声入力源, アプリ組立 |
@@ -101,6 +101,7 @@
 | 中継サーバー | server/relay.py, server/relay_config.py, server/relay_security.py, server/relay_upstream.py | 127.0.0.1 だけの静的配信＋LLM 中継。設定は relay_config（環境変数>設定ファイル）、Host/Origin 検証と SVG サニタイズ・秘密の除去は relay_security、上流呼び出しと Entra トークンは relay_upstream。後続の設定・Entra の項目はここを拡張する | FR-063, FR-065, FR-066, FR-067, NFR-SEC-003 |
 | LLM 連携の制御 | web/src/llm.js, web/src/relayclient.js | 既定オフ・同意の表示と同意後だけ有効（同意の事実・版・日時だけを grp.llm.consent に保存し、版が違えば再同意・無効化で撤回）・失敗時のルールベース復帰と短い通知・接続テスト・設定画面の項目（getLlmState / requestLlmEnable / getLlmConsent / answerLlmConsent / disableLlm / flushLlm / llmCall / testLlmConnection / getLlmLastSent）。FR-063・FR-065 は api.llmCall と 'llm:result' を使う | FR-062, FR-063, FR-068, NFR-PRIV-003 |
 | アプリ組立 | web/src/app.js | 状態・コマンド・キー割り当て・パネル描画の拡張点（modules / registerCommand / registerPanelRenderer / addUtterance / addUtterances）。後続の機能はここへ足す | FR-001、FR-002、FR-003、FR-004、FR-005、FR-006、FR-007、FR-008、FR-009、FR-010、FR-011、FR-012、FR-013、FR-014、FR-015、FR-016、FR-017、FR-018、FR-019、FR-020、FR-021、FR-022、FR-023、FR-024、FR-025、FR-026、FR-027、FR-028、FR-029、FR-030、FR-031、FR-032、FR-033、FR-034、FR-035、FR-036、FR-039、FR-047、FR-048、FR-049、FR-050、FR-051、FR-062、FR-068、FR-072、FR-073、FR-074、NFR-A11Y-001、NFR-BG-001、NFR-PERF-001、NFR-PERF-002、NFR-PERF-003、NFR-PERF-004、NFR-UX-001、NFR-UX-003 |
+| 描画の合流 | web/src/frame.js | 状態変更の通知を 1 フレームに 1 回の描画へ合流する（coalesceFrame）。通知がなければ rAF・タイマーを予約しない。ui.js・edit-ui.js が使い、diagram.js・ui.js は同一内容の DOM を作り直さない | NFR-PERF-002、NFR-PERF-003、NFR-PERF-004 |
 | i18n | web/src/i18n.js | ja/en の UI 文言（addStrings で後続が追加） | FR-006、FR-008、FR-015、FR-016、FR-017、FR-018、FR-019、FR-020、FR-021、FR-025、FR-026、FR-027、FR-030、FR-036、FR-062、FR-068、FR-072、FR-073、NFR-UX-002、NFR-UX-003 |
 | デザイン基盤 | web/styles/tokens.css, web/styles/app.css, web/styles/view3d.css | Fluent 2 のトークン（colorNeutral/Brand 系・角丸 4/8・4px 余白・Type ramp・影・モーション）・ライト/ダーク/forced-colors・フォーカス 3px・積み重ね・カード風パネル・ボタン（primary/subtle） | FR-004、FR-011、FR-013、FR-017、FR-018、FR-020、FR-021、FR-024、FR-026、FR-027、FR-029、FR-030、FR-050、FR-051、FR-068、FR-073、NFR-A11Y-001、NFR-UX-001、NFR-UX-002、NFR-UX-003 |
 | コマンドバー | web/src/commandbar.js | コマンドのグループ・インライン SVG アイコン・主要コマンド（getCommandBar / getCommandStatus）。ステータスバーの文言（記録状態・音声認識・言語・表示）。ボタンの簡易説明（showTooltip / hideTooltip / getTooltip、tooltip.<command>） | FR-016、FR-017、FR-018、FR-019、FR-026、FR-027、FR-030、FR-072、FR-073、NFR-UX-001、NFR-UX-002、NFR-UX-003 |
