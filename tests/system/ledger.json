@@ -158,7 +158,18 @@
     "AC-390": "sha256:bc08a577595d5281",
     "AC-391": "sha256:2394a06e1c7e49df",
     "AC-392": "sha256:9e193779cbb7745d",
-    "AC-393": "sha256:1915692914e41269"
+    "AC-393": "sha256:1915692914e41269",
+    "AC-414": "sha256:c925b40caf7094e7",
+    "AC-415": "sha256:2efc4bd53d807502",
+    "AC-416": "sha256:ba93db768f821d6a",
+    "AC-417": "sha256:a118cbbb63a602be",
+    "AC-418": "sha256:02f6cc4a1725a831",
+    "AC-419": "sha256:781fa2ea3b8415ac",
+    "AC-420": "sha256:09062126b098b50f",
+    "AC-421": "sha256:b2f8f19ed6d04d56",
+    "AC-422": "sha256:f2fc47d36321cc4a",
+    "AC-423": "sha256:4ac7dbc0de97712e",
+    "AC-424": "sha256:2926e2da14f072c2"
   },
   "cases": [
     {
@@ -4860,6 +4871,317 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610192220）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-199",
+      "requirement_ids": [
+        "FR-077"
+      ],
+      "ac_ids": [
+        "AC-414"
+      ],
+      "title": "上部の画風を選ぶボタン（常時ラベル・ツールチップ・現在値）と 13 の描画スタイルの一覧・選択中の印（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-414\" tests/system/stylepicker.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:12:37+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "run 202610200356 part 2/2: AC-414 の System Test を追加"
+        }
+      ]
+    },
+    {
+      "id": "E2E-200",
+      "requirement_ids": [
+        "FR-077"
+      ],
+      "ac_ids": [
+        "AC-415"
+      ],
+      "title": "10 シーン・要点 50 個・詳細で、上部で選んでから描き替えまで 1 秒以内、内容・配置・型・詳細度・選択・記録中・入力中・テキスト一覧が保たれる",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-415\" tests/system/stylepicker.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:12:40+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "run 202610200356 part 2/2: AC-415 の System Test を追加"
+        }
+      ]
+    },
+    {
+      "id": "E2E-201",
+      "requirement_ids": [
+        "FR-077"
+      ],
+      "ac_ids": [
+        "AC-416"
+      ],
+      "title": "キーボードだけでボタン移動・一覧の開閉・候補移動・決定・Esc でボタンに戻る、コマンド検索で名前から選ぶ、読み上げ（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-416\" tests/system/stylepicker.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:12:45+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "run 202610200356 part 2/2: AC-416 の System Test を追加"
+        }
+      ]
+    },
+    {
+      "id": "E2E-202",
+      "requirement_ids": [
+        "FR-077"
+      ],
+      "ac_ids": [
+        "AC-417"
+      ],
+      "title": "640px 以下でボタンとラベルが省かれず全候補へ横スクロールなしで到達、1280px で 1 行・重ならない、日英の切替",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-417\" tests/system/stylepicker.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:12:49+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "run 202610200356 part 2/2: AC-417 の System Test を追加"
+        }
+      ]
+    },
+    {
+      "id": "E2E-203",
+      "requirement_ids": [
+        "FR-077"
+      ],
+      "ac_ids": [
+        "AC-418"
+      ],
+      "title": "上部の選択はセッションファイルで復元・再読込は［設定］の既定・選択肢が同じ・後から操作した方が有効・未登録の名前は既定（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-418\" tests/system/stylepicker.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:12:54+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "run 202610200356 part 2/2: AC-418 の System Test を追加"
+        },
+        {
+          "at": "2026-10-20T05:15:05+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-418 の検証レベルは integration（System Test の対象外）。テストは tests/system/stylepicker.test.js に参考として残し、担保は実装者の結合テストで行う。契約は CONTRACT-FR077-078.md"
+        }
+      ]
+    },
+    {
+      "id": "E2E-204",
+      "requirement_ids": [
+        "FR-077"
+      ],
+      "ac_ids": [
+        "AC-419"
+      ],
+      "title": "上部で選んだ描画スタイルが PNG・SVG・PDF に反映され SVG に文字が入り、外部へのリクエストは 0 件",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-419\" tests/system/stylepicker.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:13:03+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "run 202610200356 part 2/2: AC-419 の System Test を追加"
+        },
+        {
+          "at": "2026-10-20T05:15:09+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-419 の検証レベルは integration（System Test の対象外）。テストは tests/system/stylepicker.test.js に参考として残し、担保は実装者の結合テストで行う。契約は CONTRACT-FR077-078.md"
+        }
+      ]
+    },
+    {
+      "id": "E2E-205",
+      "requirement_ids": [
+        "FR-078"
+      ],
+      "ac_ids": [
+        "AC-420"
+      ],
+      "title": "画像生成プロンプトのコピー（ボタン・キー・検索）で 7 つの見出しの文章がクリップボードに入り、画風の記述・型・内容が入る",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-420\" tests/system/imageprompt.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:13:09+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "run 202610200356 part 2/2: AC-420 の System Test を追加"
+        }
+      ]
+    },
+    {
+      "id": "E2E-206",
+      "requirement_ids": [
+        "FR-078"
+      ],
+      "ac_ids": [
+        "AC-421"
+      ],
+      "title": "同じ入力で同じ文章・表示言語で作られる・テキスト一覧と同じ順序・手修正後の文字・記述のない描画スタイルは名前だけ（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-421\" tests/system/imageprompt.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:13:14+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "run 202610200356 part 2/2: AC-421 の System Test を追加"
+        },
+        {
+          "at": "2026-10-20T05:15:08+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-421 の検証レベルは integration（System Test の対象外）。テストは tests/system/imageprompt.test.js に参考として残し、担保は実装者の結合テストで行う。契約は CONTRACT-FR077-078.md"
+        }
+      ]
+    },
+    {
+      "id": "E2E-207",
+      "requirement_ids": [
+        "FR-078"
+      ],
+      "ac_ids": [
+        "AC-422"
+      ],
+      "title": "内容が 2000 文字を超えるとシーンの区切りで切り詰め、文章の末尾とメッセージで示す",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-422\" tests/system/imageprompt.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:13:20+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "run 202610200356 part 2/2: AC-422 の System Test を追加"
+        },
+        {
+          "at": "2026-10-20T05:15:06+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-422 の検証レベルは integration（System Test の対象外）。テストは tests/system/imageprompt.test.js に参考として残し、担保は実装者の結合テストで行う。契約は CONTRACT-FR077-078.md"
+        }
+      ]
+    },
+    {
+      "id": "E2E-208",
+      "requirement_ids": [
+        "FR-078"
+      ],
+      "ac_ids": [
+        "AC-423"
+      ],
+      "title": "シーン 0 ではコピーされない、クリップボードの拒否・使えないときは選択できる文章を表示し、入力・選択は失われない（異常系）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-423\" tests/system/imageprompt.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:13:30+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "run 202610200356 part 2/2: AC-423 の System Test を追加"
+        },
+        {
+          "at": "2026-10-20T05:15:07+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-423 の検証レベルは integration（System Test の対象外）。テストは tests/system/imageprompt.test.js に参考として残し、担保は実装者の結合テストで行う。契約は CONTRACT-FR077-078.md"
+        }
+      ]
+    },
+    {
+      "id": "E2E-209",
+      "requirement_ids": [
+        "FR-078"
+      ],
+      "ac_ids": [
+        "AC-424"
+      ],
+      "title": "コピーで外部へのリクエスト 0 件、文章はセッションファイル・ブラウザ内の保存・LLM 連携の送信に含まれず、有効・無効で変わらない",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-424\" tests/system/imageprompt.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:13:37+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "run 202610200356 part 2/2: AC-424 の System Test を追加"
+        },
+        {
+          "at": "2026-10-20T05:15:06+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-424 の検証レベルは integration（System Test の対象外）。テストは tests/system/imageprompt.test.js に参考として残し、担保は実装者の結合テストで行う。契約は CONTRACT-FR077-078.md"
         }
       ]
     }
