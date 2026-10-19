@@ -70,7 +70,9 @@ test('FR-048 AC-217 AC-218: スプライトは 16x16 の型紙から決定的に
 // FR-047 AC-216: 拡張点の定義の追加で、既存 3 つは変わらない
 test('FR-047 AC-216: RPG風は登録簿の定義として加わり、既存 3 つの定義は変わらず、重複は拒否される', () => {
   const reg = createDrawStyleRegistry();
-  assert.deepEqual(reg.ids(), ['handwritten', 'anime', 'simple', 'rpg']);
+  // FR-076: 9 つの画風プリセットは RPG風の後に加わる（既存 4 つの並びと定義は変わらない）
+  assert.deepEqual(reg.ids().slice(0, 4), ['handwritten', 'anime', 'simple', 'rpg']);
+  assert.equal(reg.ids().length, 13);
   assert.deepEqual(reg.get('anime'), { id: 'anime', label: { ja: 'アニメ調', en: 'Anime' }, line: { width: 1.6, jitter: 0 }, fill: { mode: 'tint' }, text: { decor: 'bold', icons: true } });
   assert.equal(reg.register({ ...reg.get('rpg') }).ok, false);
   assert.equal(reg.label('rpg', 'ja'), 'RPG風'); assert.equal(reg.label('rpg', 'en'), 'RPG');

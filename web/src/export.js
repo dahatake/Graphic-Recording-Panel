@@ -137,10 +137,12 @@ async function partsBand(items, width, imageFactory) {
 }
 
 // ---- PNG（canvasFactory に全シーンの見出しと要点を描く） ----
-export async function renderPng(scenes, canvasFactory, { title = '', arrange = null, parts = null, imageFactory = null } = {}) {
+// look: FR-075 の画風プリセットの配色（presetdiagram.js の buildLook。null なら従来の配色）
+export async function renderPng(scenes, canvasFactory, { title = '', arrange = null, parts = null, imageFactory = null, look = null } = {}) {
   if (arrange) return renderArrangedPng(scenes, arrange, canvasFactory, parts, imageFactory);
   const FS_H = 18; const FS_P = 15; const ROW_H = 30; const HEAD_H = 40; const GAP = 22;
-  const font = (px, bold) => `${bold ? '700 ' : ''}${px}px system-ui, 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif`;
+  const family = look?.fontFamily ?? "system-ui, 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif";
+  const font = (px, bold) => `${bold ? '700 ' : ''}${px}px ${family}`;
   const probe = canvasFactory(8, 8).getContext('2d');
   const measure = (s, px, bold) => { probe.font = font(px, bold); return probe.measureText(s).width; };
   let w = 320;
@@ -153,17 +155,17 @@ export async function renderPng(scenes, canvasFactory, { title = '', arrange = n
   const h = baseH + band.h;
   const canvas = canvasFactory(w, h);
   const g = canvas.getContext('2d');
-  g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h);
+  g.fillStyle = look?.bg ?? '#ffffff'; g.fillRect(0, 0, w, h);
   let y = MARGIN;
   scenes.forEach((sc, i) => {
-    const color = PALETTE[i % PALETTE.length];
+    const color = look?.band ?? PALETTE[i % PALETTE.length];
     g.fillStyle = color; g.fillRect(MARGIN, y, w - MARGIN * 2, HEAD_H - 4);
-    g.fillStyle = '#ffffff'; g.font = font(FS_H, true); g.textBaseline = 'middle';
+    g.fillStyle = look?.bandText ?? '#ffffff'; g.font = font(FS_H, true); g.textBaseline = 'middle';
     g.fillText(sc.heading, MARGIN + 14, y + (HEAD_H - 4) / 2);
     y += HEAD_H;
     for (const p of sc.points) {
-      g.strokeStyle = color; g.lineWidth = 2; g.strokeRect(MARGIN + 18, y + 2, w - MARGIN * 2 - 18, ROW_H - 6);
-      g.fillStyle = '#15191f'; g.font = font(FS_P, false);
+      g.strokeStyle = look?.frame ?? color; g.lineWidth = 2; g.strokeRect(MARGIN + 18, y + 2, w - MARGIN * 2 - 18, ROW_H - 6);
+      g.fillStyle = look?.ink ?? '#15191f'; g.font = font(FS_P, false);
       g.fillText(p.text, MARGIN + 30, y + (ROW_H - 2) / 2);
       y += ROW_H;
     }
@@ -272,6 +274,6 @@ export function exportModule(ctx) {
   ctx.registerCommand('save.png', () => run('png', 'image/png', async () => {
     const factory = ctx.options.canvasFactory ?? browserCanvasFactory();
     if (!factory) throw new Error('no canvas');
-    return renderPng(scenes(), factory, { arrange: arranged(), rpg: ctx.api.getRpgMap?.() ?? null, parts: drawn(), imageFactory: ctx.options.imageFactory ?? null });
+    return renderPng(scenes(), factory, { arrange: arranged(), rpg: ctx.api.getRpgMap?.() ?? null, parts: drawn(), imageFactory: ctx.options.imageFactory ?? null, look: ctx.api.getPresetLook?.() ?? null });
   }));
 }

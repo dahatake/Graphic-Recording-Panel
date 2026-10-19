@@ -127,7 +127,8 @@ export function settingsModule(ctx) {
   // ---- 描画スタイル ----
   api.getDrawStyles = () => styles.list(lang());
   api.getDrawStyle = () => manualStyle ?? settings.drawStyle;
-  api.getDrawStyleSpec = () => styles.get(api.getDrawStyle());
+  // FR-075: getDrawStyleSpec(id) は定義の写し（preset: 見た目の項目を持つか）。引数なしは現在の描画スタイル。未知の id は null。
+  api.getDrawStyleSpec = (...a) => styles.spec(a.length && a[0] !== undefined ? a[0] : api.getDrawStyle());
   api.setDrawStyle = (id) => {
     if (!styles.has(id)) return reject('drawStyle.invalid', 'invalid');
     manualStyle = id;
