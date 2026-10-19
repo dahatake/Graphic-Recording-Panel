@@ -63,9 +63,6 @@ export function createBrowserSpeechSource(g = globalThis) {
 export async function speechModule(ctx) {
   ctx.i18n.addStrings({
     ja: {
-      'cmd.speech.start': '音声認識を開始',
-      'toolbar.speech': '音声認識',
-      'cmd.speech.stop': '音声認識を停止',
       'speech.interim': '認識中（未確定）',
       'msg.speechApi': 'このブラウザは音声認識（Web Speech API）に対応していないため、音声認識は使えません。テキスト入力またはテキストファイルの取り込みをご利用ください',
       'msg.speechLang': '選択中の言語は、このブラウザの音声認識が対応していないため使えません。テキスト入力またはテキストファイルの取り込みをご利用ください',
@@ -85,9 +82,6 @@ export async function speechModule(ctx) {
       'msg.speechError': '音声認識でエラーが発生しました。記録済みの内容は保持されています。テキスト入力をご利用いただけます',
     },
     en: {
-      'cmd.speech.start': 'Start speech recognition',
-      'toolbar.speech': 'Speech',
-      'cmd.speech.stop': 'Stop speech recognition',
       'speech.interim': 'Listening (not final)',
       'msg.speechApi': 'This browser does not support speech recognition (Web Speech API), so it is unavailable. Please use text input or import a text file',
       'msg.speechLang': 'The selected language is not supported by this browser\'s speech recognition. Please use text input or import a text file',
@@ -140,7 +134,9 @@ export async function speechModule(ctx) {
   ctx.api.getSpeechStatus = statusNow;
   ctx.api.getSpeechConsent = () => consent;
   ctx.api.getConsentUi = () => ({
-    visible: statusNow().state === 'consent', role: 'checkbox', checked: consent, tabbable: true,
+    // FR-072 AC-385: 同意のチェックと説明は最上部の [記録開始] の直近に、セッションの状態によらず（外部送信の可能性があるとき）常に見える。
+    visible: statusNow().state === 'consent', noticeVisible: statusNow().state === 'consent',
+    region: 'top', nearCommand: 'session.start', role: 'checkbox', checked: consent, tabbable: true,
     label: ctx.t('speech.consent.label'), notice: ctx.t('speech.consent.notice'),
     stateText: ctx.t(consent ? 'speech.consent.on' : 'speech.consent.off'), colorOnly: false,
   });
@@ -199,10 +195,11 @@ export async function speechModule(ctx) {
   const begin = () => source.start(avail() === 'local' ? { lang: curLang(), processLocally: true } : { lang: curLang() });
   const fail = (reason, msgKey) => { ctx.change(() => ctx.setMessage(msgKey)); return { ok: false, reason }; };
   const go = () => {
-    if (!speech.active) { speech.active = true; begin(); }
+    if (!speech.active) { speech.active = true; begin(); ctx.emit('speech:started'); } // FR-074: 開始を通知（認識文字列パネルの自動表示）
     ctx.change(() => ctx.setMessage(null));
     return { ok: true };
   };
+  let installing = null;
   ctx.api.startSpeech = () => {
     micDenied = false; modelFailed = false;
     const a = avail();
@@ -211,11 +208,14 @@ export async function speechModule(ctx) {
     if (a === 'remote') return consent ? go() : fail('consent_required', 'msg.speechConsent');
     if (a === 'downloadable') {
       const lang = curLang();
-      return Promise.resolve(source.install?.({ lang })).catch(() => ({ ok: false })).then((r) => {
+      if (installing) return installing; // 導入の最中に重ねて呼ばれても、導入と開始は 1 回（[記録開始] と明示の開始の重複）
+      installing = Promise.resolve(source.install?.({ lang })).catch(() => ({ ok: false })).then((r) => {
+        installing = null;
         if (!r?.ok) { modelFailed = true; return fail('model_missing', 'msg.speechModel'); }
         if (avail() === 'remote') return consent ? go() : fail('consent_required', 'msg.speechConsent');
         return go();
       });
+      return installing;
     }
     return go();
   };
@@ -235,16 +235,22 @@ export async function speechModule(ctx) {
     ctx.change(() => { speech.active = false; speech.interim = ''; });
     return { ok: true };
   };
-  ctx.registerCommand('speech.start', () => ctx.api.startSpeech());
-  ctx.registerCommand('speech.stop', () => ctx.api.stopSpeech());
-  ctx.registerKey({ key: 's', alt: true, shift: true, command: 'speech.start' });
-  ctx.registerKey({ key: 'w', alt: true, shift: true, command: 'speech.stop' });
+  // FR-072: 音声認識の開始は [記録開始]・[再開] だけ（音声だけを始める別の操作は設けない）。
 
-  // 一時停止・停止で止め、再開（復元後の再開を含む）で改めて開始する（FR-012 AC-043）。
+  // 一時停止・停止で止め、記録開始・再開（復元後の再開を含む）で改めて開始する（FR-012 AC-043）。
   const halt = () => { pendingResume = false; if (speech.active) ctx.api.stopSpeech(); };
+  const kick = () => {
+    pendingResume = false;
+    const r = ctx.api.startSpeech();
+    // 同意待ちなら、同意が入った時点で始める（FR-072 AC-386）
+    if (r && typeof r.then === 'function') r.then((x) => { if (x?.reason === 'consent_required') pendingResume = true; });
+    else if (r && r.reason === 'consent_required') pendingResume = true;
+    else if (!r?.ok && statusNow().reason === 'consent') pendingResume = true;
+  };
   ctx.on('session:pause', halt);
   ctx.on('session:stop', halt);
-  ctx.on('session:resume', () => { if (available()) { pendingResume = false; ctx.api.startSpeech(); } else pendingResume = true; });
+  ctx.on('session:start', kick);
+  ctx.on('session:resume', kick);
   // 言語切替: 次の認識から切替後の言語（AC-039）
   ctx.on('lang', () => {
     micDenied = false; modelFailed = false;

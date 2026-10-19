@@ -71,9 +71,9 @@
 | FR-067 | LLM 連携の設定（エンドポイント・デプロイ名・認証方式） | 承認済み | server/relay_config.py, config/llm.example.json, .gitignore | tests/relay/test_llm_config_files.py, tests/relay/test_relay_units.py, tests/system/llmrelay.test.js | 中継サーバー |
 | FR-068 | 設定画面での有効/無効と接続テスト | 承認済み | web/src/llm.js, web/src/ui.js, web/styles/app.css | tests/unit/llmconsent.test.js, tests/system/llm-consent.test.js, tests/system/llm-consent-persist.test.js | アプリ組立, デザイン基盤, i18n, LLM 連携の制御 |
 | FR-069 | LLM 連携の使い方ガイド | 承認済み | users-guide/08-llm.md, users-guide/README.md | tests/unit/docs.test.js, tests/unit/llmguide.test.js | - |
-| FR-072 | [記録開始] での音声開始の集約と、外部音声認識への同意の近接配置 | 承認済み | 未実装 | 未実装 | コマンドバー, 音声入力源, アプリ組立, i18n |
-| FR-073 | 画面最上部の「取り込み」機能（アイコンと説明の文字列） | 承認済み | 未実装 | 未実装 | コマンドバー, アプリ組立, i18n, デザイン基盤 |
-| FR-074 | 音声入力の開始時の認識文字列パネルの自動表示 | 承認済み | 未実装 | 未実装 | アプリ組立 |
+| FR-072 | [記録開始] での音声開始の集約と、外部音声認識への同意の近接配置 | 承認済み | web/src/speech.js, web/src/commandbar.js, web/src/ui.js, web/index.html, web/src/i18n.js | tests/unit/startbar.test.js, tests/system/startbar.test.js | コマンドバー, 音声入力源, アプリ組立, i18n |
+| FR-073 | 画面最上部の「取り込み」機能（アイコンと説明の文字列） | 承認済み | web/src/commandbar.js, web/src/input.js, web/src/ui.js, web/index.html, web/styles/app.css, web/src/i18n.js | tests/unit/startbar.test.js, tests/system/startbar.test.js | コマンドバー, アプリ組立, i18n, デザイン基盤 |
+| FR-074 | 音声入力の開始時の認識文字列パネルの自動表示 | 承認済み | web/src/app.js, web/src/speech.js, web/src/ui.js, web/index.html | tests/unit/startbar.test.js, tests/system/startbar.test.js | アプリ組立 |
 | NFR-SEC-003 | API キー・トークンの非露出 | 承認済み | server/relay.py, server/relay_security.py, server/relay_upstream.py, server/relay_config.py | tests/relay/test_relay_units.py, tests/system/llmrelay.test.js | 中継サーバー |
 | NFR-SEC-004 | SVG の許可リストによる厳格なサニタイズ | 承認済み | web/src/svgsanitize.js, server/relay_security.py, web/src/session.js, web/src/parts.js | tests/unit/svgsanitize.test.js, tests/relay/test_relay_units.py | SVG サニタイズ, 同梱部品 |
 | NFR-PRIV-003 | LLM への送信の最小化 | 承認済み | web/src/llmdraw.js, web/src/llm.js | tests/unit/llmdraw.test.js, tests/system/llm-draw.test.js, tests/system/llm-consent-persist.test.js | LLM 連携の制御 |

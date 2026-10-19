@@ -58,7 +58,7 @@ test('NFR-DOC-001 AC-062: 起動コマンドとキー割り当てが実装と一
     assert.match(read(f), /server[\\/]relay\.py[\s\S]* --port 8080/);
   }
   const keys = read('web/src/keymap.js') + read('web/src/speech.js');
-  for (const k of ['r', 'p', 'e', 'x', 'n', 'i', 's', 'w', 'j', 'k', 'd', 'v', 'g', 'h', 'y', 't', 'm']) {
+  for (const k of ['r', 'p', 'e', 'x', 'n', 'i', 'j', 'k', 'd', 'v', 'g', 'h', 'y', 't', 'm']) {
     assert.ok(new RegExp(`key: '${k}'`).test(keys), `キー ${k} が実装にない`);
     assert.match(read('users-guide/05-language-and-views.md'), new RegExp(`\\b${k.toUpperCase()}\\b`));
   }
