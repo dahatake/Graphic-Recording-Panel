@@ -26,7 +26,7 @@
     "AC-036": "sha256:318b0f2e4205a0cb",
     "AC-038": "sha256:b7d5386af3599f7f",
     "AC-049": "sha256:b530880830288c02",
-    "AC-050": "sha256:16ca2f5dfd31cf4d",
+    "AC-050": "sha256:9d9068d925e207dd",
     "AC-052": "sha256:bf4a4635a20763f2",
     "AC-053": "sha256:148c246cce07c2be",
     "AC-054": "sha256:23866f76e1a10949",
@@ -36,13 +36,13 @@
     "AC-063": "sha256:52e3d2400f012178",
     "AC-064": "sha256:cea138c713e4e5e4",
     "AC-065": "sha256:47f67d016cc7606d",
-    "AC-040": "sha256:96db3759f2a77ac0",
+    "AC-040": "sha256:437274386a937d4e",
     "AC-066": "sha256:98b5bf8c2f46f3e6",
-    "AC-067": "sha256:56556691900514c6",
-    "AC-068": "sha256:458676de47a71a94",
+    "AC-067": "sha256:9324098890ec0feb",
+    "AC-068": "sha256:86d2d54c756b3829",
     "AC-069": "sha256:18e591971857522f",
     "AC-034": "sha256:183ff7e3663d4046",
-    "AC-071": "sha256:5c062e032598db79",
+    "AC-071": "sha256:7c97c04498000c85",
     "AC-072": "sha256:3f7bd1db19b605dc",
     "AC-073": "sha256:f4613d37cff276b7",
     "AC-074": "sha256:8ba50b57132b2dd7",
@@ -71,7 +71,7 @@
     "AC-106": "sha256:79d009b23128130b",
     "AC-108": "sha256:5ab9bfab110c8582",
     "AC-109": "sha256:bece39cc6a2542bc",
-    "AC-113": "sha256:71e13fa485fdb36a",
+    "AC-113": "sha256:34ccc84e91e62d1b",
     "AC-118": "sha256:8f14f90c0aad8c92",
     "AC-119": "sha256:d6cf9e60e552fc4a",
     "AC-120": "sha256:50fda30e54962d68",
@@ -147,7 +147,18 @@
     "AC-359": "sha256:be22be9a12c869c3",
     "AC-360": "sha256:53839b89932f7c68",
     "AC-366": "sha256:4c4ba8a297894acc",
-    "AC-367": "sha256:c517d020b9e88f71"
+    "AC-367": "sha256:c517d020b9e88f71",
+    "AC-384": "sha256:71d95fbfd9f2938c",
+    "AC-385": "sha256:0f3c2bcf35c410ed",
+    "AC-386": "sha256:a543da5eaf526b65",
+    "AC-387": "sha256:8f0fcf639887893c",
+    "AC-394": "sha256:8621ec6a92d25a85",
+    "AC-388": "sha256:4763edb855b78154",
+    "AC-389": "sha256:d76adcb523bd6173",
+    "AC-390": "sha256:bc08a577595d5281",
+    "AC-391": "sha256:2394a06e1c7e49df",
+    "AC-392": "sha256:9e193779cbb7745d",
+    "AC-393": "sha256:1915692914e41269"
   },
   "cases": [
     {
@@ -4550,6 +4561,305 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610171425）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-181",
+      "requirement_ids": [
+        "FR-072"
+      ],
+      "ac_ids": [
+        "AC-384"
+      ],
+      "title": "記録開始の 1 操作で記録中になり音声認識が同時に開始される。別の音声開始操作は無い（API 非対応の異常系を含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-384\" tests/system/startbar.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-19T22:42:19+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610192220）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-182",
+      "requirement_ids": [
+        "FR-072"
+      ],
+      "ac_ids": [
+        "AC-385"
+      ],
+      "title": "外部送信の可能性がある環境で同意のチェックと説明が最上部の記録開始の直近に表示され、パネルには置かれない。デバイス内処理では出ない",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-385\" tests/system/startbar.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-19T22:42:24+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610192220）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-183",
+      "requirement_ids": [
+        "FR-072"
+      ],
+      "ac_ids": [
+        "AC-386"
+      ],
+      "title": "未同意の記録開始は記録中になるが音声認識は開始されず同意待ちを示す。同意で開始、同意を外すと停止（記録中のまま）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-386\" tests/system/startbar.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-19T22:42:26+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610192220）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-184",
+      "requirement_ids": [
+        "FR-072"
+      ],
+      "ac_ids": [
+        "AC-387"
+      ],
+      "title": "同意のチェックはキーボード・文字の状態表示・表示言語に従い、再読込後は未同意に戻る",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-387\" tests/system/startbar.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-19T22:42:29+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610192220）"
+        },
+        {
+          "at": "2026-10-19T22:43:53+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（implementer が統合テストで担保）。テストは tests/system/startbar.test.js に参考として残す"
+        }
+      ]
+    },
+    {
+      "id": "E2E-185",
+      "requirement_ids": [
+        "FR-072"
+      ],
+      "ac_ids": [
+        "AC-394"
+      ],
+      "title": "一時停止・停止・再開・再記録・復元での音声認識と同意状態の引継ぎ、記録中以外での同意の表示と変更（異常系を含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-394\" tests/system/startbar.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-19T22:42:33+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610192220）"
+        },
+        {
+          "at": "2026-10-19T22:43:54+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（implementer が統合テストで担保）。テストは tests/system/startbar.test.js に参考として残す"
+        }
+      ]
+    },
+    {
+      "id": "E2E-186",
+      "requirement_ids": [
+        "FR-073"
+      ],
+      "ac_ids": [
+        "AC-388"
+      ],
+      "title": "最上部の取り込みにアイコン・名称・説明が常時表示され、パネルには取込操作が無い。表示言語の切替に従う",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-388\" tests/system/startbar.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-19T22:42:36+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610192220）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-187",
+      "requirement_ids": [
+        "FR-073"
+      ],
+      "ac_ids": [
+        "AC-389"
+      ],
+      "title": "最上部の取り込みで .txt・.vtt をどの状態でもパネル非表示でも取り込める。上限超過は拒否。キーボード・アクセシブルな名前",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-389\" tests/system/startbar.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-19T22:42:39+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610192220）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-188",
+      "requirement_ids": [
+        "FR-074"
+      ],
+      "ac_ids": [
+        "AC-390"
+      ],
+      "title": "音声認識の開始（記録開始・同意後・再開）で非表示の認識文字列パネルが自動表示され、表示済みなら変わらない",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-390\" tests/system/startbar.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-19T22:42:41+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610192220）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-189",
+      "requirement_ids": [
+        "FR-074"
+      ],
+      "ac_ids": [
+        "AC-391"
+      ],
+      "title": "狭い画面で音声認識の開始によりパネルが見える位置に出て、入力・選択・記録中の状態は失われない",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-391\" tests/system/startbar.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-19T22:42:44+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610192220）"
+        },
+        {
+          "at": "2026-10-19T22:43:55+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（implementer が統合テストで担保）。テストは tests/system/startbar.test.js に参考として残す"
+        }
+      ]
+    },
+    {
+      "id": "E2E-190",
+      "requirement_ids": [
+        "FR-074"
+      ],
+      "ac_ids": [
+        "AC-392"
+      ],
+      "title": "音声認識が開始されないとき・取込・手入力だけのときは自動表示されず、再び隠した後は次の開始まで再表示されない",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-392\" tests/system/startbar.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-19T22:42:46+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610192220）"
+        },
+        {
+          "at": "2026-10-19T22:43:55+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（implementer が統合テストで担保）。テストは tests/system/startbar.test.js に参考として残す"
+        }
+      ]
+    },
+    {
+      "id": "E2E-191",
+      "requirement_ids": [
+        "FR-074"
+      ],
+      "ac_ids": [
+        "AC-393"
+      ],
+      "title": "自動表示は保存レイアウトを書き換えず、音声認識なしの再読込は保存どおりに復元される",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-393\" tests/system/startbar.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-19T22:42:49+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610192220）"
         }
       ]
     }
