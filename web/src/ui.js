@@ -32,11 +32,14 @@ export function mountUI(app, doc = document) {
 
   function buildToolbar() {
     toolbar.textContent = '';
-    for (const [groupLabelKey, names] of GROUPS) {
-      const fs = doc.createElement('fieldset');
-      fs.className = 'toolbar-group';
-      const lg = doc.createElement('legend');
+    for (const [groupLabelKey, names, groupId] of GROUPS) {
+      // NFR-UX-011 AC-460: 見出し（常に表示）と、グループ要素のアクセシブルな名前（aria-label）は同じ文言
+      const fs = doc.createElement('div');
+      fs.className = 'toolbar-group'; fs.setAttribute('role', 'group'); fs.dataset.group = groupId;
+      const lg = doc.createElement('span');
+      lg.className = 'toolbar-group-heading';
       lg.textContent = app.t(groupLabelKey);
+      fs.setAttribute('aria-label', lg.textContent);
       fs.append(lg);
       for (const name of names) {
         const b = doc.createElement('button');
@@ -68,7 +71,7 @@ export function mountUI(app, doc = document) {
       toolbar.append(fs);
     }
     // 非表示のパネルを戻す操作
-    const fs = doc.createElement('fieldset'); fs.className = 'toolbar-group'; fs.dataset.role = 'panel-show';
+    const fs = doc.createElement('div'); fs.className = 'toolbar-group'; fs.dataset.role = 'panel-show';
     toolbar.append(fs);
     syncTooltip();
   }
