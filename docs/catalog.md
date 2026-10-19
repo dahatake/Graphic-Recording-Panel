@@ -104,7 +104,7 @@
 | 描画の合流 | web/src/frame.js | 状態変更の通知を 1 フレームに 1 回の描画へ合流する（coalesceFrame）。通知がなければ rAF・タイマーを予約しない。ui.js・edit-ui.js が使い、diagram.js・ui.js は同一内容の DOM を作り直さない | NFR-PERF-002、NFR-PERF-003、NFR-PERF-004 |
 | i18n | web/src/i18n.js | ja/en の UI 文言（addStrings で後続が追加） | FR-006、FR-008、FR-015、FR-016、FR-017、FR-018、FR-019、FR-020、FR-021、FR-025、FR-026、FR-027、FR-030、FR-036、FR-062、FR-068、FR-072、FR-073、NFR-UX-002、NFR-UX-003 |
 | デザイン基盤 | web/styles/tokens.css, web/styles/app.css, web/styles/view3d.css | Fluent 2 のトークン（colorNeutral/Brand 系・角丸 4/8・4px 余白・Type ramp・影・モーション）・ライト/ダーク/forced-colors・フォーカス 3px・積み重ね・カード風パネル・ボタン（primary/subtle） | FR-004、FR-011、FR-013、FR-017、FR-018、FR-020、FR-021、FR-024、FR-026、FR-027、FR-029、FR-030、FR-050、FR-051、FR-068、FR-073、NFR-A11Y-001、NFR-UX-001、NFR-UX-002、NFR-UX-003 |
-| コマンドバー | web/src/commandbar.js | コマンドのグループ・インライン SVG アイコン・主要コマンド（getCommandBar / getCommandStatus）。ステータスバーの文言（記録状態・音声認識・言語・表示）。ボタンの簡易説明（showTooltip / hideTooltip / getTooltip、tooltip.<command>） | FR-016、FR-017、FR-018、FR-019、FR-026、FR-027、FR-030、FR-072、FR-073、NFR-UX-001、NFR-UX-002、NFR-UX-003 |
+| コマンドバー | web/src/commandbar.js | コマンドのグループ・インライン SVG アイコン・主要コマンド（getCommandBar / getCommandStatus）。ステータスバーの文言（記録状態・音声認識・言語・表示）。ボタンの簡易説明（showTooltip / hideTooltip / getTooltip、tooltip.<command>） | FR-016、FR-017、FR-018、FR-019、FR-026、FR-027、FR-030、FR-072、FR-073、NFR-UX-001、NFR-UX-002、NFR-UX-003、NFR-UX-011 |
 | 認識文字列 | web/src/transcript.js | 右パネル（パネル ID input）の確定結果一覧・暫定結果の区別表示（getTranscript / renderTranscript） | FR-013, FR-014 |
 | キーマップ | web/src/keymap.js | 全操作の Alt+Shift+キー割り当て | NFR-A11Y-001, FR-015, FR-017, FR-021, FR-018, FR-019, FR-025, FR-026, FR-027, FR-030 |
 | 感情語辞書 | web/src/emotion.js | 日英の感情・様子の語 → 絵記号の対応（決定的） | FR-004, FR-015, FR-032, FR-064 |
