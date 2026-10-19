@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { WEB } from './helpers.js';
 
 // PARAM-076..080（docs/requirements-definition.md の PARAM 表）
@@ -70,7 +70,7 @@ async function ensureDeps() {
 
 export async function launch() {
   await ensureDeps();
-  const { chromium } = await import(pathToFileURL(resolvePw()).href);
+  const { chromium } = createRequire(path.join(HERE, 'x.js'))('playwright-core');
   const exe = process.env.PERF_BROWSER || CANDIDATES.find((c) => fs.existsSync(c));
   if (!exe) throw new Error('Chromium 系ブラウザが見つからない（PERF_BROWSER で指定する）');
   return chromium.launch({ executablePath: exe, headless: true });
