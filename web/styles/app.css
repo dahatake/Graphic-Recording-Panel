@@ -168,14 +168,14 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 /* FR-077: 画風（描画スタイル）のボタンと一覧。ボタンはラベルの下に現在の画風を出す。一覧は 1 列・縦スクロールのみ（横スクロールなし）。
    選択中は色だけでなくチェック印と枠で示す。トークンのみ使用 */
 .commandbar .btn-drawstyle .btn-value { font-size: var(--font-size-caption); font-weight: var(--font-weight-regular, 400); color: var(--color-text-muted); white-space: nowrap; }
-.drawstyle-list { position: fixed; z-index: 180; margin: 0; padding: var(--space-1); list-style: none; max-width: calc(100vw - 2 * var(--space-2)); max-height: min(28rem, calc(100vh - 6rem)); overflow-x: hidden; overflow-y: auto; background: var(--color-surface); color: var(--color-text); border: var(--stroke) solid var(--color-border); border-radius: var(--radius); box-shadow: var(--shadow-8); }
+.drawstyle-list { position: fixed; z-index: 180; margin: 0; padding: var(--space-1); list-style: none; max-width: calc(100vw - 2 * var(--space-2)); max-height: calc(100vh - 2 * var(--space-2)); overflow-x: hidden; overflow-y: auto; background: var(--color-surface); color: var(--color-text); border: var(--stroke) solid var(--color-border); border-radius: var(--radius); box-shadow: var(--shadow-8); }
 .drawstyle-list:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
 .drawstyle-option { display: grid; grid-template-columns: var(--space-5) 1fr; column-gap: var(--space-1); align-items: baseline; min-height: var(--target-size); padding: var(--space-2) var(--space-3) var(--space-2) var(--space-1); border: var(--stroke) solid transparent; border-radius: var(--radius-control); cursor: pointer; }
 .drawstyle-option:hover, .drawstyle-option.is-active { background: var(--color-surface-2); }
 .drawstyle-option.is-active { outline: 2px solid var(--color-focus); outline-offset: -2px; }
 .drawstyle-option[aria-selected="true"] { border-color: var(--color-primary); border-width: var(--stroke-thick); }
 .drawstyle-mark { grid-row: 1 / span 2; font-weight: 700; text-align: center; }
-.drawstyle-name { font-weight: var(--font-weight-semibold); }
+.drawstyle-name { font-weight: var(--font-weight-semibold); overflow-wrap: anywhere; }
 .drawstyle-desc { grid-column: 2; font-size: var(--font-size-caption); color: var(--color-text-muted); overflow-wrap: anywhere; }
 @media (forced-colors: active) { .drawstyle-option[aria-selected="true"], .drawstyle-option.is-active { border-color: Highlight; outline-color: Highlight; } }
 @media (prefers-reduced-motion: reduce) { .drawstyle-list { scroll-behavior: auto; } }

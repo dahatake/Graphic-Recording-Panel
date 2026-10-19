@@ -5,8 +5,14 @@
 //   - 一覧: role=listbox。開いている間は ↑↓・Home・End で候補の移動、Enter・Space で決定、Esc で取り消し（ボタンへ戻る）
 //   - コマンドの検索: 登録された画風ごとに drawStyle.select.<id>。名称は「画風を選ぶ: <名前>」（登録簿の名前から作る）
 
+import { drawStyleSpecOf } from './stylespec.js';
+
 export const PICK = 'drawStyle.pick';
 export const SELECT_PREFIX = 'drawStyle.select.';
+
+// 一覧の寸法の見積もり（px。app.css の .drawstyle-list・.drawstyle-option とトークンに合わせる）
+const VIEW = { margin: 8, gap: 4, maxW: 352, chrome: 56, listPad: 10, optPad: 20, nameLine: 21, descLine: 17, emName: 14, emDesc: 12 };
+const weight = (s) => [...String(s ?? '')].reduce((n, ch) => n + (ch.codePointAt(0) >= 0x2e80 ? 1 : 0.5), 0);
 
 // 組込みの画風の短い説明（定義に description がないときに使う。定義の description {ja,en} が優先）
 const DESC = {
@@ -40,7 +46,7 @@ export function stylePickerModule(ctx) {
     return '';
   };
   const describe = (id, label) => {
-    const d = api.getDrawStyleDef?.(id)?.description;
+    const d = drawStyleSpecOf(api, id)?.description; // 契約の取り出し口（stylespec.js）
     const own = textOf(d) || (d && typeof d === 'object' ? textOf(d[lang()] ?? d.ja ?? d.en) : '');
     if (own) return own;
     const key = `drawStyle.desc.${id}`; const v = t(key);
@@ -62,10 +68,34 @@ export function stylePickerModule(ctx) {
       options: list().map((s) => ({ id: s.id, label: s.label, description: describe(s.id, s.label), selected: s.id === current, selectedMark: s.id === current ? 'check' : null })),
     };
   };
-  // 狭い画面（AC-417）: 一覧は 1 列の縦並び（幅は画面に合わせ、説明は折り返す）。全候補へ縦のスクロールとキーで届き、横スクロールしない
+  // 狭い画面・低い画面（AC-417）: 一覧は 1 列の縦並び（説明は折り返す）。ボタンの下に入りきらず上の方が広いときは上に開き、
+  // 高さの上限は「画面の高さ − 一覧の上端 − 余白」。入りきらない分は一覧の中の縦スクロールとキーで届く。
+  // opts: { viewportWidth, viewportHeight, anchor:{x,y,w,h}（ボタンの外形。省略時はコマンドバーの見積もり） }
   api.getDrawStylePickerView = (opts = {}) => {
-    const vw = Math.max(1, Number(opts.viewportWidth ?? ctx.env.viewportWidth) || 1);
-    return { width: Math.min(352, Math.max(1, vw - 16)), columns: 1, options: ids().map((id) => ({ id, reachable: true })), scrollsHorizontally: false };
+    const num = (v, d) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : d);
+    const vw = num(opts.viewportWidth ?? ctx.env.viewportWidth, 1280);
+    const vh = num(opts.viewportHeight ?? ctx.env.viewportHeight, 720);
+    const M = VIEW.margin;
+    let a = opts.anchor;
+    if (!a) { // 見積もり（コマンドバーの外形）。ボタンが画面の外なら、押せる位置（画面の上端）まで送られている前提で置く
+      a = api.getCommandBarLayout?.({ viewportWidth: vw }).items.find((i) => i.command === PICK)?.rect ?? { x: M, y: M, w: 0, h: 0 };
+      if (a.y < 0 || a.y + a.h > vh) a = { ...a, y: M };
+    }
+    const width = Math.max(1, Math.min(VIEW.maxW, vw - M * 2));
+    const left = Math.max(M, Math.min(a.x, vw - M - width));
+    const inner = Math.max(1, width - VIEW.chrome); // 名前・説明の欄の幅
+    const p = api.getDrawStylePicker();
+    const heights = p.options.map((o) => VIEW.optPad + VIEW.nameLine * Math.max(1, Math.ceil((weight(o.label) * VIEW.emName) / inner)) + VIEW.descLine * Math.max(1, Math.ceil((weight(o.description) * VIEW.emDesc) / inner)));
+    const content = heights.reduce((x, y) => x + y, 0) + VIEW.listPad;
+    const below = vh - (a.y + a.h + VIEW.gap) - M;
+    const above = a.y - VIEW.gap - M;
+    const placement = below >= content || below >= above ? 'below' : 'above';
+    const maxHeight = Math.max(0, Math.min(content, placement === 'below' ? below : above));
+    const top = placement === 'below' ? a.y + a.h + VIEW.gap : a.y - VIEW.gap - maxHeight;
+    const inside = top >= 0 && top + maxHeight <= vh && left >= 0 && left + width <= vw;
+    const reachable = inside && maxHeight >= Math.max(0, ...heights) + VIEW.listPad; // 候補が 1 つ以上見え、残りは縦のスクロールとキーで届く
+    const scrollsHorizontally = !(left >= 0 && left + width <= vw) || p.options.some((o) => Math.max(...[...o.label].map((ch) => weight(ch) * VIEW.emName)) > inner);
+    return { placement, top, left, width, maxHeight, scrollsVertically: maxHeight < content, columns: 1, scrollsHorizontally, options: p.options.map((o) => ({ id: o.id, reachable })) };
   };
   // 一覧の項目のクリック相当。選んで閉じ、ボタンへフォーカスを戻す。登録にない値・非文字列は何も変えない
   api.pickDrawStyle = (id) => {

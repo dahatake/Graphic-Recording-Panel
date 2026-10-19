@@ -418,10 +418,12 @@ export function mountUI(app, doc = document) {
       doc.body.append(dsEl);
     }
     dsEl.setAttribute('role', p.role); dsEl.setAttribute('aria-label', p.label);
-    const view = app.getDrawStylePickerView({ viewportWidth: doc.documentElement.clientWidth || 1280 });
+    const vw = doc.documentElement.clientWidth || 1280; const vh = doc.defaultView?.innerHeight || doc.documentElement.clientHeight || 720;
     const r = btn?.getBoundingClientRect?.();
-    const left = r ? Math.max(8, Math.min(r.left, (doc.documentElement.clientWidth || 1280) - view.width - 8)) : 8;
-    dsEl.style.cssText = `left:${left}px;top:${r ? r.bottom + 4 : 64}px;width:${view.width}px;`;
+    // AC-417: 位置・高さの上限・上下どちらに開くかは app が画面の大きさとボタンの位置から決める（下に入りきらなければ上に開く）
+    const view = app.getDrawStylePickerView({ viewportWidth: vw, viewportHeight: vh, anchor: r ? { x: r.left, y: r.top, w: r.width, h: r.height } : undefined });
+    dsEl.dataset.placement = view.placement;
+    dsEl.style.cssText = `left:${view.left}px;top:${view.top}px;width:${view.width}px;max-height:${view.maxHeight}px;`;
     const key = JSON.stringify(p.options);
     if (dsEl.dataset.key !== key) {
       dsEl.dataset.key = key; dsEl.textContent = '';
@@ -441,6 +443,7 @@ export function mountUI(app, doc = document) {
     dsWasOpen = true;
   }
   app.on('change', syncStylePicker);
+  for (const ev of ['resize', 'scroll']) doc.defaultView?.addEventListener?.(ev, () => { if (dsEl) syncStylePicker(); }, { passive: true, capture: true }); // 画面の大きさ・スクロールが変わったら置き直す
   doc.addEventListener('pointerdown', (e) => { if (dsEl && !e.target.closest?.('#drawstyle-list, [data-command="drawStyle.pick"]')) app.closeDrawStylePicker(null); });
 
   // FR-062: LLM 連携の同意の表示（送る項目の種類・送信先ホスト名・送らないもの）。同意するまで有効にならない

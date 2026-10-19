@@ -128,7 +128,6 @@ export function settingsModule(ctx) {
   api.getDrawStyles = () => styles.list(lang());
   api.getDrawStyle = () => manualStyle ?? settings.drawStyle;
   api.getDrawStyleSpec = () => styles.get(api.getDrawStyle());
-  api.getDrawStyleDef = (id) => styles.get(id); // FR-077: 一覧の説明（定義の description）を引く。登録にない ID は null
   api.setDrawStyle = (id) => {
     if (!styles.has(id)) return reject('drawStyle.invalid', 'invalid');
     manualStyle = id;

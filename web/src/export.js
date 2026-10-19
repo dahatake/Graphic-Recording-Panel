@@ -1,4 +1,5 @@
 import { paintRpgCanvas } from './rpgmap.js';
+import { drawStyleSpecOf } from './stylespec.js';
 // FR-006（PNG・SVG 保存）/ FR-007（PDF 保存）。外部通信なし・依存なし（PDF は自前で生成する）。
 // 保存は「表示中のビュー」ではなく常に 2D の図の内容（全シーンの見出しと要点）を出力する。3D 表示中はその旨を表示する（AC-014）。
 // シーンが 0 件のときは保存できず、理由を表示する（AC-046）。
@@ -8,32 +9,57 @@ const PALETTE = ['#1346a8', '#0b5d2a', '#8a3c00', '#6b2a8f', '#9b1c1c', '#0b6070
 
 const TEXT = '#15191f';
 
-// ---- FR-077 AC-419: 保存（PNG・PDF）に描画スタイルの見た目（紙面・配色・見出しの飾り・吹き出し・線）を反映する ----
-// 定義（drawstyles.js の登録簿の定義。FR-075 の任意の項目 palette・paper・headingDecoration・balloon・stroke を含みうる）から保存用の見た目を決める。
-// 従来の見た目（手書き調: 白紙・帯の見出し・四角の枠・線 2px）になる定義は null（従来の出力と同じ）。外部の素材は使わない。
+// ---- FR-077 AC-419: 保存（PNG・PDF）に画風プリセットの見た目（紙面の質感・配色・見出しの飾り・吹き出し・線）を反映する ----
+// 定義は契約の形（CONTRACT-STYLE-PRESET の getDrawStyleSpec(id)。取り出し口は stylespec.js）で受け取る。
+// 画風プリセット（preset:true）だけに効かせ、既存の 4 つ（手書き調・アニメ調・シンプル・RPG風）は null（従来の出力のまま。AC-147・AC-227）。
+// 紙面の質感はアプリが描く線分で表し、外部の素材は使わない（AC-407）。
 const HEADINGS = ['band', 'marker', 'sticky', 'classic'];
 const BALLOONS = ['cloud', 'rounded', 'sticky'];
+export const PAPERS = ['plain', 'grid', 'ruled', 'chalkboard', 'whiteboard', 'kraft'];
 const isHex = (v) => typeof v === 'string' && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v);
 const hex6 = (v) => (v.length === 4 ? `#${[...v.slice(1)].map((c) => c + c).join('')}` : v).toLowerCase();
-const alpha = (v, aa) => `${hex6(v)}${aa}`;
-export function exportLook(def) {
-  if (!def || typeof def !== 'object') return null;
-  const line = def.line ?? {}; const fill = def.fill ?? {}; const text = def.text ?? {};
-  const pal = def.palette && typeof def.palette === 'object' ? def.palette : null;
+// 2 色の混色（t=0 で a、1 で b）。透明度を使わずに PNG と PDF で同じ色にする
+const mix = (a, b, t) => `#${[1, 3, 5].map((i) => Math.round(parseInt(hex6(a).slice(i, i + 2), 16) * (1 - t) + parseInt(hex6(b).slice(i, i + 2), 16) * t).toString(16).padStart(2, '0')).join('')}`;
+export function exportLook(spec) {
+  if (!spec || typeof spec !== 'object' || spec.preset !== true) return null;
+  const pal = spec.palette && typeof spec.palette === 'object' ? spec.palette : {};
   const pick = (v, d) => (isHex(v) ? hex6(v) : d);
-  const accent = (Array.isArray(pal?.accent) ? pal.accent : []).filter(isHex).map(hex6);
-  const headingDecoration = HEADINGS.includes(def.headingDecoration) ? def.headingDecoration : (text.decor === 'plain' ? 'underline' : 'band');
-  const balloon = BALLOONS.includes(def.balloon) ? def.balloon : (fill.mode === 'tint' ? 'rounded' : 'square');
-  const width = Number(def.stroke?.width) > 0 ? Number(def.stroke.width) : 2 * (Number(line.width) > 0 ? Number(line.width) : 1);
-  const look = {
-    background: pick(pal?.background, '#ffffff'), text: pick(pal?.text, TEXT),
-    colors: pal ? [pick(pal.primary, PALETTE[0]), pick(pal.secondary, PALETTE[1]), ...accent] : PALETTE,
-    accent: accent[0] ?? pick(pal?.primary, '#f2c94c'),
-    lineWidth: Math.round(width * 10) / 10, tint: fill.mode === 'tint', headingDecoration, balloon,
-    headWeight: text.decor === 'bold' ? 800 : 700, paper: typeof def.paper === 'string' ? def.paper : 'plain',
+  const accent = (Array.isArray(pal.accent) ? pal.accent : []).filter(isHex).map(hex6);
+  const background = pick(pal.background, '#ffffff');
+  const width = Number(spec.stroke?.width) > 0 ? Number(spec.stroke.width) : 2;
+  return {
+    background, text: pick(pal.text, TEXT),
+    colors: [pick(pal.primary, PALETTE[0]), pick(pal.secondary, PALETTE[1]), ...accent],
+    accent: accent[0] ?? pick(pal.primary, PALETTE[0]),
+    lineWidth: Math.round(width * 10) / 10,
+    headingDecoration: HEADINGS.includes(spec.headingDecoration) ? spec.headingDecoration : 'classic',
+    balloon: BALLOONS.includes(spec.balloon) ? spec.balloon : 'rounded',
+    headWeight: 700, paper: PAPERS.includes(spec.paper) ? spec.paper : 'plain',
   };
-  const legacy = !pal && look.paper === 'plain' && headingDecoration === 'band' && balloon === 'square' && look.lineWidth === 2 && look.headWeight === 700 && !look.tint;
-  return legacy ? null : look;
+}
+const rnd = (i) => { const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }; // 決定的な擬似乱数（毎回同じ質感）
+// 紙面の質感の線分 [{x1,y1,x2,y2,width,color}]（左上原点。PNG・PDF で共通。PDF は上下を反転して描く）
+export function paperTexture(look, w, h) {
+  const out = [];
+  if (!look) return out;
+  const bg = look.background; const faint = mix(bg, look.text, 0.12);
+  const L = (x1, y1, x2, y2, width = 1, color = faint) => out.push({ x1: Math.round(x1), y1: Math.round(y1), x2: Math.round(x2), y2: Math.round(y2), width, color });
+  const frame = (inset, width, color) => { L(inset, inset, w - inset, inset, width, color); L(w - inset, inset, w - inset, h - inset, width, color); L(w - inset, h - inset, inset, h - inset, width, color); L(inset, h - inset, inset, inset, width, color); };
+  if (look.paper === 'grid') { for (let y = 24; y < h; y += 24) L(0, y, w, y); for (let x = 24; x < w; x += 24) L(x, 0, x, h); }
+  else if (look.paper === 'ruled') { for (let y = 48; y < h; y += 28) L(0, y, w, y); L(40, 0, 40, h, 1, mix(bg, look.accent, 0.6)); } // 横罫と左の余白線
+  else if (look.paper === 'chalkboard') { // 黒板: チョークの粉のかすれと木の枠
+    const n = Math.max(12, Math.round((w * h) / 12000));
+    for (let i = 0; i < n; i++) { const x = rnd(i) * w; const y = rnd(i + 101) * h; const len = 20 + rnd(i + 202) * 60; const a = (rnd(i + 303) - 0.5) * 0.6; L(x, y, x + len * Math.cos(a), y + len * Math.sin(a), 2, mix(bg, look.text, 0.16)); }
+    frame(3, 6, mix(bg, '#8b5a2b', 0.75));
+  } else if (look.paper === 'kraft') { // クラフト紙: 短い繊維
+    const n = Math.max(40, Math.round((w * h) / 2500));
+    for (let i = 0; i < n; i++) { const x = rnd(i + 7) * w; const y = rnd(i + 409) * h; const len = 4 + rnd(i + 811) * 8; const a = rnd(i + 613) * Math.PI; L(x, y, x + len * Math.cos(a), y + len * Math.sin(a), 1, mix(bg, look.text, 0.15)); }
+  } else if (look.paper === 'whiteboard') { // ホワイトボード: 枠・下のトレイ・映り込み
+    frame(2, 4, mix(bg, look.text, 0.35));
+    L(8, h - 10, w - 8, h - 10, 3, mix(bg, look.text, 0.25));
+    L(w * 0.55, 8, w * 0.75, h * 0.35, 10, mix(bg, look.text, 0.05)); L(w * 0.62, 8, w * 0.82, h * 0.35, 4, mix(bg, look.text, 0.05));
+  }
+  return out;
 }
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -74,11 +100,7 @@ export function buildPdf(scenes, { title = '', arrange = null, parts = null, loo
   const paper = () => {
     if (!look) return [];
     let g = `q ${rgb(look.background)} rg 0 0 ${A4.w} ${A4.h} re f\n`;
-    if (look.paper === 'grid' || look.paper === 'ruled') {
-      g += `${rgb(look.text)} RG 0.3 w\n`;
-      for (let yy = A4.margin; yy < A4.h - A4.margin; yy += 24) g += `${A4.margin} ${yy} m ${A4.w - A4.margin} ${yy} l S\n`;
-      if (look.paper === 'grid') for (let xx = A4.margin; xx < A4.w - A4.margin; xx += 24) g += `${xx} ${A4.margin} m ${xx} ${A4.h - A4.margin} l S\n`;
-    }
+    for (const t of paperTexture(look, A4.w, A4.h)) g += `${rgb(t.color)} RG ${t.width} w ${t.x1} ${A4.h - t.y1} m ${t.x2} ${A4.h - t.y2} l S\n`;
     return [`${g}Q\n`];
   };
   const pages = [paper()];
@@ -93,10 +115,8 @@ export function buildPdf(scenes, { title = '', arrange = null, parts = null, loo
       if (d === 'band') g += `${rgb(color)} rg ${x - 4} ${top - h} ${w + 8} ${h} re f\n`;
       else if (d === 'marker') g += `${rgb(look.accent)} rg ${x - 2} ${top - h} ${w + 4} ${Math.max(4, h * 0.35)} re f\n`;
       else if (d === 'sticky') g += `${rgb(look.accent)} rg ${x - 4} ${top - h} ${w + 8} ${h} re f\n`;
-      else if (d === 'underline') g += `${rgb(color)} RG ${lw} w ${x} ${top - h} m ${x + w} ${top - h} l S\n`;
     } else {
-      const fillC = look.balloon === 'sticky' ? look.accent : look.tint ? color : null;
-      if (fillC) g += `${rgb(fillC)} rg ${x - 6} ${top - h} ${w + 8} ${h} re f\n`;
+      g += `${rgb(look.balloon === 'sticky' ? look.accent : mix(look.background, color, 0.15))} rg ${x - 6} ${top - h} ${w + 8} ${h} re f\n`;
       g += `${rgb(color)} RG ${lw} w ${x - 6} ${top - h} ${w + 8} ${h} re S\n`;
     }
     return `${g}Q\n`;
@@ -104,7 +124,7 @@ export function buildPdf(scenes, { title = '', arrange = null, parts = null, loo
   const inkOf = (kind) => {
     if (!look) return '';
     if (kind === 'heading' && look.headingDecoration === 'band') return '1 1 1 rg ';
-    if (kind === 'point' && (look.tint || look.balloon === 'sticky')) return `${rgb(TEXT)} rg `;
+    if (kind === 'point' && look.balloon === 'sticky') return `${rgb(TEXT)} rg `;
     if (kind === 'heading' && look.headingDecoration === 'sticky') return `${rgb(TEXT)} rg `;
     return `${rgb(look.text)} rg `;
   };
@@ -258,11 +278,7 @@ async function renderStyledPng(scenes, canvasFactory, look, parts, imageFactory)
   const canvas = canvasFactory(w, h);
   const g = canvas.getContext('2d');
   g.fillStyle = look.background; g.fillRect(0, 0, w, h);
-  if (look.paper === 'grid' || look.paper === 'ruled') { // 紙面の質感（方眼・罫線）
-    g.strokeStyle = alpha(look.text, '22'); g.lineWidth = 1;
-    for (let yy = MARGIN; yy < h; yy += 24) { g.beginPath(); g.moveTo(0, yy); g.lineTo(w, yy); g.stroke(); }
-    if (look.paper === 'grid') for (let xx = MARGIN; xx < w; xx += 24) { g.beginPath(); g.moveTo(xx, 0); g.lineTo(xx, h); g.stroke(); }
-  }
+  for (const t of paperTexture(look, w, h)) { g.strokeStyle = t.color; g.lineWidth = t.width; g.beginPath(); g.moveTo(t.x1, t.y1); g.lineTo(t.x2, t.y2); g.stroke(); } // 紙面の質感
   const round = (x, y, rw, rh, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + rw, y, x + rw, y + rh, r); g.arcTo(x + rw, y + rh, x, y + rh, r); g.arcTo(x, y + rh, x, y, r); g.arcTo(x, y, x + rw, y, r); g.closePath(); };
   let y = MARGIN;
   scenes.forEach((sc, i) => {
@@ -271,19 +287,18 @@ async function renderStyledPng(scenes, canvasFactory, look, parts, imageFactory)
     let ink = look.text;
     if (look.headingDecoration === 'band') { g.fillStyle = color; g.fillRect(MARGIN, y, hw, hh); ink = '#ffffff'; }
     else if (look.headingDecoration === 'sticky') { g.fillStyle = look.accent; g.fillRect(MARGIN, y, hw, hh); g.strokeStyle = color; g.lineWidth = look.lineWidth; g.strokeRect(MARGIN, y, hw, hh); ink = TEXT; }
-    else if (look.headingDecoration === 'marker') { g.fillStyle = alpha(look.accent, 'aa'); g.fillRect(MARGIN + 8, y + hh * 0.55, Math.min(hw - 8, measure(sc.heading, FS_H, look.headWeight) + 12), hh * 0.4); }
-    else if (look.headingDecoration === 'underline') { g.strokeStyle = color; g.lineWidth = look.lineWidth; g.beginPath(); g.moveTo(MARGIN, y + hh); g.lineTo(MARGIN + hw, y + hh); g.stroke(); ink = color; }
+    else if (look.headingDecoration === 'marker') { g.fillStyle = mix(look.background, look.accent, 0.7); g.fillRect(MARGIN + 8, y + hh * 0.55, Math.min(hw - 8, measure(sc.heading, FS_H, look.headWeight) + 12), hh * 0.4); }
     else ink = color; // classic: 見出しの文字を主色で
     g.fillStyle = ink; g.font = font(FS_H, look.headWeight); g.textBaseline = 'middle';
     g.fillText(sc.heading, MARGIN + 14, y + hh / 2);
     y += HEAD_H;
     for (const p of sc.points) {
       const bx = MARGIN + 18; const by = y + 3; const bw = w - MARGIN * 2 - 18; const bh = ROW_H - 8;
-      const fillC = look.balloon === 'sticky' ? look.accent : look.tint ? alpha(color, '2e') : null;
-      if (look.balloon === 'square' || look.balloon === 'sticky') { if (fillC) { g.fillStyle = fillC; g.fillRect(bx, by, bw, bh); } }
-      else { round(bx, by, bw, bh, look.balloon === 'cloud' ? bh / 2 : 8); if (fillC) { g.fillStyle = fillC; g.fill(); } }
+      const fillC = look.balloon === 'sticky' ? look.accent : mix(look.background, color, 0.15);
+      if (look.balloon === 'sticky') { g.fillStyle = fillC; g.fillRect(bx, by, bw, bh); }
+      else { round(bx, by, bw, bh, look.balloon === 'cloud' ? bh / 2 : 8); g.fillStyle = fillC; g.fill(); }
       g.strokeStyle = color; g.lineWidth = look.lineWidth;
-      if (look.balloon === 'square' || look.balloon === 'sticky') g.strokeRect(bx, by, bw, bh); else g.stroke();
+      if (look.balloon === 'sticky') g.strokeRect(bx, by, bw, bh); else g.stroke();
       g.fillStyle = look.balloon === 'sticky' ? TEXT : look.text; g.font = font(FS_P, 0);
       g.fillText(p.text, bx + 12, by + bh / 2);
       y += ROW_H;
@@ -389,7 +404,7 @@ export function exportModule(ctx) {
   ctx.registerCommand('save.svg', () => run('svg', 'image/svg+xml', () => ctx.api.renderSvg()));
   const drawn = () => ctx.api.getLlmDrawItems?.() ?? null; // FR-063
   // FR-077 AC-419: 現在の描画スタイル（上部・［設定］で選んだもの）の見た目で保存する
-  const look = () => { const id = ctx.api.getDrawStyle?.(); return exportLook(id ? (ctx.api.getDrawStyleDef?.(id) ?? null) : null); };
+  const look = () => exportLook(drawStyleSpecOf(ctx.api, ctx.api.getDrawStyle?.()));
   ctx.registerCommand('save.pdf', () => run('pdf', 'application/pdf', () => buildPdf(scenes(), { title: ctx.t('app.title'), arrange: arranged(), parts: drawn(), look: look() })));
   ctx.registerCommand('save.png', () => run('png', 'image/png', async () => {
     const factory = ctx.options.canvasFactory ?? browserCanvasFactory();
