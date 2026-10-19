@@ -436,12 +436,12 @@ function paint(host, app) {
     const avail = canvas.clientWidth - 2;
     const fit = host._fit !== false && avail > 0 && w > avail ? avail / w : 1;
     const z = host._fit !== false ? fit * host._zoom : host._zoom;
-    el.setAttribute('width', String(Math.round(w * z))); el.setAttribute('height', String(Math.round(h * z)));
-    // 図が空のときは案内文の紙面を図の幅いっぱいに広げる（文字は等倍のまま）
-    if (!el.querySelector('[data-scene-id], [data-topic-id]') && avail > w * z) {
-      el.setAttribute('viewBox', `0 0 ${avail / z} ${h}`);
-      el.setAttribute('width', String(avail));
-    }
+    // 紙面（背景）は図の大きさではなく、表示域の全体を覆う。小さい図でも、パネルの領域を全部使って描く（文字は等倍のまま）
+    const availH = canvas.clientHeight - 2;
+    const cw = Math.max(w * z, avail);
+    const ch = Math.max(h * z, availH);
+    el.setAttribute('width', String(Math.round(cw))); el.setAttribute('height', String(Math.round(ch)));
+    el.setAttribute('viewBox', `0 0 ${cw / z} ${ch / z}`);
   }
 }
 
