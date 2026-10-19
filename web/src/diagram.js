@@ -135,8 +135,8 @@ function iconShape(shape, x, y, color) {
 // 描画（renderDiagramSvg）と図の要素の外枠（app.getDiagramElements）が同じ値を使う。trees: Map(sceneId → 木。infodesign.js)。
 // 木がないシーンは話順のまま（まとめない）。列の幅と高さはそのシーンの内容だけで決まるので、後ろのシーンの変化で前の列は動かない（AC-432(b)）。
 const SUB_HEAD = 26; const SUB_PAD = 10; const SUB_GAP = 20; const FS_SUB = 15;
-export function detailGeometry(scenes, trees = null, lang = 'ja') {
-  const out = []; let x = MARGIN;
+export function detailGeometry(scenes, trees = null, lang = 'ja', originX = 0) {
+  const out = []; let x = MARGIN + originX;
   for (const s of scenes) {
     const tree = trees?.get?.(s.id) ?? provisionalTree(s, null);
     const byId = new Map(s.points.map((p) => [p.id, p]));
@@ -176,7 +176,7 @@ export function renderDiagramSvg(scenes, opts = {}) {
   const hlId = opts.highlightPointId ?? null;
   const parts = []; let x = MARGIN; let maxH = 0;
   const heads = []; const rects = new Map();
-  const geo = detailGeometry(scenes, opts.trees ?? null, opts.lang);
+  const geo = detailGeometry(scenes, opts.trees ?? null, opts.lang, opts.originX ?? 0);
   scenes.forEach((s, i) => {
     const g = geo[i];
     const color = PALETTE[i % PALETTE.length];
@@ -292,15 +292,17 @@ export function renderDiagramSvg(scenes, opts = {}) {
 // FR-079: 大項目・中項目の幾何（トピックは話順に左から右の箱、中項目ではその下にシーンの見出しの行。1 トピックのシーンが PARAM-088 を超えると、
 // 話順のまま下位のまとまり（chunks）に分ける。AC-428）。描画（renderTopicsSvg）と図の要素の外枠が同じ値を使う。
 const T_ROW = 32; const T_BOX_GAP = 90;
+// FR-079 AC-432(b): 関連の弧の帯の高さは一定（弧の高さを ARC_SPAN_MAX 個分の距離で頭打ちにする）。後から加わる関連で前のトピックが下へ動かない。
+const ARC_SPAN_MAX = 3;
+export const arcHeight = (span) => 36 + 20 * Math.min(Math.max(span, 1), ARC_SPAN_MAX);
+export const TOPICS_TOP = MARGIN + arcHeight(ARC_SPAN_MAX) + 22;
 export function topicsGeometry(topics, relations, scenes, opts = {}) {
   const t = opts.t ?? ((k) => k);
   const level = opts.level === 'middle' ? 'middle' : 'major';
   const byId = new Map(scenes.map((s) => [s.id, s]));
   const selText = t('topic.selected');
-  const span = (r) => Math.abs(topics.findIndex((q) => q.id === r.to) - topics.findIndex((q) => q.id === r.from));
-  const arcMax = Math.max(0, ...relations.filter((r) => r.kind === 'related').map((r) => 36 + 20 * span(r)));
-  const top = MARGIN + (arcMax ? arcMax + 22 : 0);
-  const out = []; let x = MARGIN;
+  const top = TOPICS_TOP;
+  const out = []; let x = MARGIN + (opts.originX ?? 0);
   for (const tp of topics) {
     const heads = tp.sceneIds.map((id) => byId.get(id)).filter(Boolean);
     const chunks = level === 'middle' ? (opts.chunks?.get?.(tp.id) ?? null) : null;
@@ -380,12 +382,12 @@ export function renderTopicsSvg(topics, relations, scenes, opts = {}) {
       lines.push(`<g data-topic-relation="${attr(r.id)}" data-kind="order"><path d="M${a.x + a.w + 10} ${y} L${b.x - 12} ${y}" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round" marker-end="url(#arrow-flow)"/>`
         + `<text x="${(a.x + a.w + b.x) / 2}" y="${y - 8}" text-anchor="middle" font-size="${FS}" font-weight="700" fill="${INK}" data-role="relation-label">${label}</text></g>`);
     } else {
-      const ax = a.x + a.w / 2; const bx = b.x + b.w / 2; const h = 36 + 20 * Math.abs(topics.findIndex((q) => q.id === r.to) - topics.findIndex((q) => q.id === r.from));
+      const ax = a.x + a.w / 2; const bx = b.x + b.w / 2; const h = arcHeight(Math.abs(topics.findIndex((q) => q.id === r.to) - topics.findIndex((q) => q.id === r.from)));
       lines.push(`<g data-topic-relation="${attr(r.id)}" data-kind="related"><path d="M${ax} ${top - 10} C${ax} ${top - 10 - h} ${bx} ${top - 10 - h} ${bx} ${top - 12}" fill="none" stroke="${INK}" stroke-width="2.5" stroke-dasharray="6 4" stroke-linecap="round" marker-end="url(#arrow-flow)"/>`
         + `<text x="${(ax + bx) / 2}" y="${top - 10 - h * 0.75 - 4}" text-anchor="middle" font-size="${FS}" font-weight="700" fill="${INK}" data-role="relation-label">${label}</text></g>`);
     }
   }
-  const width = Math.max(320, x - BOX_GAP + MARGIN);
+  const width = Math.max(320, (geo.topics.length ? x - BOX_GAP : MARGIN + (opts.originX ?? 0)) + MARGIN);
   const height = Math.max(160, maxH);
   const marker = `<marker id="arrow-flow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="${INK}"/></marker>`;
   const title = esc(opts.title ?? '');
@@ -574,9 +576,8 @@ function commonPlacementSvg(L) {
   if (!L) return '';
   const parts = [];
   if (L.title?.visible && L.titleLines?.length) {
-    // FR-079 AC-431: タイトル欄は階層の最上位（いちばん大きい文字）。欄の高さに収まるよう 1 行に並べる
-    let tx = L.title.x;
-    parts.push(`<g data-role="title">${L.titleLines.map((line) => { const s = `<text x="${r1(tx)}" y="${L.title.y + 30}" font-size="${TYPE_SCALE.title}" font-weight="800">${esc(line)}</text>`; tx += textWidth(line, TYPE_SCALE.title) + 24; return s; }).join('')}</g>`);
+    // FR-079 AC-431: タイトル欄は階層の最上位（いちばん大きい文字）。欄の幅で折り返し、欄の範囲に収める（fitTitle）
+    parts.push(`<g data-role="title">${(L.titleRows ?? []).map((r) => `<text x="${r.x}" y="${r.y}" font-size="${r.size}" font-weight="800">${esc(r.text)}</text>`).join('')}</g>`);
   }
   // FR-035: 比喩（道・山・橋・太陽・4 象限）を先に描く。文字のラベルを必ず付け、外部の画像は使わない
   if (L.metaphor) parts.push(metaphorSvg(L.metaphor));
@@ -639,6 +640,21 @@ function commonPlacementSvg(L) {
   return parts.join('');
 }
 
+// FR-079 AC-430(c): 型の配置（タイトル欄・まとまり・単位）がある図では、シーン・要点の詳細をその右に置き、外枠を重ねない。
+// 型の配置の幅（canvas.w）は発散型以外は一定なので、詳細の位置は後から加わる要素で動かない（AC-432(b)）。
+export function diagramOriginX(L) {
+  if (!L || !((L.units ?? []).length || (L.groups ?? []).length || L.center)) return 0;
+  return Math.ceil(L.canvas?.w ?? 0);
+}
+// 型の配置の範囲（canvas）が入るように、ルートの SVG の幅・高さ・viewBox を広げる（はみ出して切れないように）
+export function fitViewBox(svg, canvas) {
+  if (!canvas) return svg;
+  return svg.replace(/<svg ([^>]*?)viewBox="0 0 ([\d.]+) ([\d.]+)" width="([\d.]+)" height="([\d.]+)"/, (m, pre, vw, vh) => {
+    const w = Math.max(Number(vw), Math.ceil(canvas.w)); const h = Math.max(Number(vh), Math.ceil(canvas.h));
+    return `<svg ${pre}viewBox="0 0 ${w} ${h}" width="${w}" height="${h}"`;
+  });
+}
+
 // アプリ組立の拡張（modules）: 図の描画・文言・パネル
 export function diagramModule(ctx) {
   ctx.i18n.addStrings({
@@ -662,20 +678,28 @@ export function diagramModule(ctx) {
     const level = ctx.api.getDetailLevel?.() ?? 'detail';
     const units = level !== 'detail' && ctx.state.scenes.length ? { topics: ctx.api.getTopics(), relations: ctx.api.getTopicRelations(), level } : null;
     // FR-029 AC-146: 現在の描画スタイル、FR-027 AC-140: 時系列の 2D の図に適用している型を、ルートの属性で示す（整理の表示に型は適用されない）
+    const info = ctx.api.getLayoutInfo?.();
+    const L = info && info.applied && ctx.state.displayMode !== 'arrange' ? (ctx.api.getDiagramLayout?.() ?? null) : null;
+    const originX = diagramOriginX(L); // FR-079 AC-430(c): 型の配置（左）と、シーン・要点の詳細（右）を重ねない
     const mark = (svg) => {
-      const info = ctx.api.getLayoutInfo?.();
       const attrs = [`data-draw-style="${ctx.api.getDrawStyle?.() ?? 'handwritten'}"`];
       if (info && info.applied) attrs.push(`data-layout-types="${info.selected.join(' ')}"`, `data-layout-head="${info.head}"`);
       let out = svg.replace('<svg ', `<svg ${attrs.join(' ')} `);
-      if (info && info.applied) out = out.replace(/<\/svg>\s*$/, `${commonPlacementSvg(ctx.api.getDiagramLayout?.())}</svg>`);
+      if (info && info.applied) out = out.replace(/<\/svg>\s*$/, `${commonPlacementSvg(L ?? ctx.api.getDiagramLayout?.())}</svg>`);
+      if (L) out = fitViewBox(out, L.canvas);
       return out;
     };
     // FR-016 AC-089: 画面で選んでいる表示（時系列／整理）と同じ配置で出力する（保存もここを通る）
     if (ctx.state.displayMode === 'arrange' && ctx.api.getArrangement) return mark(renderArrangedSvg(ctx.state.scenes, ctx.api.getArrangement(), { ...o, ...(units ?? {}), selectedLabel: ctx.t('topic.selected') }));
     // FR-079: 再配置の木（まとまりの中の並び・下位のまとまり・同一の要点のまとめ）に従って描く
     const view = ctx.api.getArrangeView?.() ?? null;
-    if (units) return mark(renderTopicsSvg(units.topics, units.relations, ctx.state.scenes, { ...o, level, chunks: view?.chunks ?? null }));
-    return mark(renderDiagramSvg(ctx.state.scenes, { ...o, trees: view?.trees ?? null }));
+    if (units) return mark(renderTopicsSvg(units.topics, units.relations, ctx.state.scenes, { ...o, level, chunks: view?.chunks ?? null, originX }));
+    return mark(renderDiagramSvg(ctx.state.scenes, { ...o, trees: view?.trees ?? null, originX }));
+  };
+  // FR-079: 図の詳細（シーンの列・トピックの箱）の左端。型の配置があればその右に置く（図の要素の外枠と描画で同じ値）
+  ctx.api.getDiagramOriginX = () => {
+    const info = ctx.api.getLayoutInfo?.();
+    return info && info.applied && ctx.state.displayMode !== 'arrange' ? diagramOriginX(ctx.api.getDiagramLayout?.()) : 0;
   };
 
   // ---- FR-015 AC-074: 図の演出の記述（見出しと要点の表現） ----

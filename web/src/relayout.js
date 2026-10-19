@@ -77,15 +77,47 @@ export function relayoutModule(ctx) {
   api.rearrangeNow = () => { if (!pending()) return false; rearrange(); return true; };
 
   // ---- 図の要素の外枠（2D・時系列の表示。テキスト一覧・3D・ポップアップの位置は含まない） ----
+  // 型の配置（タイトル欄 kind:'title'・まとまり kind:'group'・単位 kind:'unit'）と、その右のシーン・要点の詳細（scene・point・subgroup・topic）を含む。
+  const overlay = () => {
+    const info = api.getLayoutInfo?.();
+    return info && info.applied && state.displayMode !== 'arrange' ? (api.getDiagramLayout?.() ?? null) : null;
+  };
+  function overlayElements(L, topicOf, tps) {
+    const out = [];
+    if (!L) return out;
+    const known = snap?.known;
+    const topicIds = new Set(tps.map((tp) => tp.id));
+    const sceneOfPoint = new Map(state.scenes.flatMap((s) => s.points.map((p) => [p.id, s.id])));
+    if (L.title?.visible && (L.titleRows ?? []).length) out.push({ id: 'title', kind: 'title', refIds: [], parentId: null, topicId: null, readIndex: 0, x: L.title.x, y: L.title.y, w: L.title.w, h: L.title.h, provisional: false });
+    const groups = (L.groups ?? []).map((g, i) => ({ id: `layout-group:${g.id}`, kind: 'group', refIds: [g.id], parentId: null, topicId: topicIds.has(g.id) ? g.id : null, readIndex: i, x: g.frame.x, y: g.frame.y, w: g.frame.w, h: g.frame.h, provisional: false }));
+    out.push(...groups);
+    const inside = (u, g) => u.x >= g.x && u.y >= g.y && u.x + u.w <= g.x + g.w && u.y + u.h <= g.y + g.h;
+    if (L.center) out.push({ id: 'unit:center', kind: 'unit', refIds: [], parentId: null, topicId: null, readIndex: 0, x: L.center.x, y: L.center.y, w: L.center.w, h: L.center.h, provisional: false });
+    const topicOfUnit = (u) => {
+      if (u.kind === 'topic') return u.id;
+      if (u.kind === 'scene') return topicOf.get(u.id) ?? null;
+      return topicOf.get(sceneOfPoint.get(u.id)) ?? null;
+    };
+    const counts = new Map();
+    for (const u of L.units ?? []) {
+      const parent = u.attachedTo ? `unit:${u.attachedTo}` : (groups.find((g) => inside(u, g))?.id ?? null);
+      const n = counts.get(parent) ?? 0; counts.set(parent, n + 1);
+      const refIds = u.refIds ?? [u.id];
+      out.push({ id: `unit:${u.id}`, kind: 'unit', refIds: [...refIds], parentId: parent, topicId: topicOfUnit(u), readIndex: n, x: u.x, y: u.y, w: u.w, h: u.h, provisional: u.kind === 'topic' ? false : !known?.has(u.id) });
+    }
+    return out;
+  }
   api.getDiagramElements = () => {
     if (!state.scenes.length) return [];
     const { trees, chunks } = view();
     const tps = topics();
     const topicOf = new Map(); for (const tp of tps) for (const id of tp.sceneIds) topicOf.set(id, tp.id);
+    const L = overlay();
+    const originX = api.getDiagramOriginX?.() ?? 0;
     const out = [];
     const lv = level();
     if (lv === 'detail') {
-      const geo = detailGeometry(state.scenes, trees, state.lang);
+      const geo = detailGeometry(state.scenes, trees, state.lang, originX);
       geo.forEach((g, si) => {
         const sid = `scene:${g.sceneId}`; const topicId = topicOf.get(g.sceneId) ?? null;
         out.push({ id: sid, kind: 'scene', refIds: [g.sceneId], parentId: null, topicId, readIndex: si, x: g.x, y: g.y, w: g.w, h: g.h, provisional: g.provisional });
@@ -100,9 +132,9 @@ export function relayoutModule(ctx) {
           } else out.push(pointEl(g.points.find((q) => q.key === n.key && !q.parent)));
         }
       });
-      return out;
+      return [...out, ...overlayElements(L, topicOf, tps)];
     }
-    const geo = topicsGeometry(tps, api.getTopicRelations?.() ?? [], state.scenes, { level: lv, chunks, t: ctx.t });
+    const geo = topicsGeometry(tps, api.getTopicRelations?.() ?? [], state.scenes, { level: lv, chunks, t: ctx.t, originX });
     const known = snap?.known;
     geo.topics.forEach((g, ti) => {
       const tid = `topic:${g.topicId}`;
@@ -116,7 +148,7 @@ export function relayoutModule(ctx) {
         }
       } else for (const r of g.rows) out.push(row(r));
     });
-    return out;
+    return [...out, ...overlayElements(L, topicOf, tps)];
   };
 
   // ---- まとめた要素（AC-429）: 選ぶとまとめた要点のすべてが対象。編集・削除はまとめた要点のすべてに適用 ----

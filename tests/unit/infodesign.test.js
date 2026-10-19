@@ -323,3 +323,95 @@ test('FR-079 AC-434: 同じ発話列と同じ時点の列からは毎回同じ�
   const g2 = detailGeometry([{ id: 's', heading: 'h', status: 'confirmed', relations: [], points: [{ id: 'a', text: 'x' }] }], null, 'ja');
   assert.deepEqual(g1, g2);
 });
+
+// ---- 差し戻し（レビュー）で足した結合テスト ----
+const LAYOUT_TYPES = ['timeline', 'bubble', 'diverge', 'zone', 'metaphor'];
+const rectOf = (e) => [e.x, e.y, e.w, e.h];
+
+// FR-079 AC-432
+test('FR-079 AC-432: 中項目・大項目で、後から加わるトピックが前のトピックと関連（離れた関連の弧）で結ばれても、前のトピックの要素は動かない', async () => {
+  for (const type of LAYOUT_TYPES) for (const lv of ['middle', 'major']) {
+    const { app, say, next, toPeriod } = await mk();
+    app.setLayoutTypes([type]); app.setDetailLevel(lv);
+    say('予算 会議 その一'); next(); say('リリース 計画 です'); next(); say('担当 割当 です');
+    toPeriod();
+    const tps0 = app.getTopics();
+    assert.equal(tps0.length, 3);
+    const keep = new Set(tps0.slice(0, 2).map((tp) => tp.id));
+    const before = new Map(els(app).filter((e) => keep.has(e.topicId) && e.kind !== 'group' && e.kind !== 'unit').map((e) => [e.id, rectOf(e)]));
+    assert.ok(before.size >= 2);
+    for (const [i, extra] of ['予算 会議 その二', '名札 配布 です', '撮影 後方 です', 'リリース 計画 その二'].entries()) {
+      next(); say(extra); toPeriod();
+      assert.ok(app.getTopicRelations().some((r) => r.kind === 'related') || i > 0, '離れたトピックの関連がある');
+      for (const e of els(app).filter((x) => before.has(x.id))) assert.deepEqual(rectOf(e), before.get(e.id), `${type}・${lv}: ${e.id} は動かない（${extra}）`);
+    }
+  }
+});
+
+// FR-079 AC-431（FR-036 AC-166）
+test('FR-079 AC-431: タイトル欄の文字は最上位の大きさのまま欄の幅で折り返され、長い演題でも日付・会場を含めタイトル欄と図の範囲（viewBox）に収まる', async () => {
+  for (const type of LAYOUT_TYPES) {
+    const { app, say } = await mk();
+    app.setLayoutTypes([type]);
+    say('会議室は三階にあります');
+    const info = { series: '週次の振り返り', theme: 'とても長い演題の例です'.repeat(6), date: '2026-10-16', venue: '大会議室' };
+    app.setTitleInfo(info);
+    const L = app.getDiagramLayout();
+    const rows = L.titleRows;
+    assert.ok(rows.length >= 4);
+    const svg = app.renderSvg();
+    const [, vw, vh] = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(svg).map(Number);
+    for (const r of rows) {
+      assert.equal(r.size, TYPE_SCALE.title);
+      assert.ok(r.x >= L.title.x && r.x + r.w <= L.title.x + L.title.w + 0.5, `${type}: 「${r.text}」が欄の幅に収まる`);
+      assert.ok(r.y - r.size >= L.title.y - 1 && r.y + r.size * 0.3 <= L.title.y + L.title.h, `${type}: 「${r.text}」が欄の高さに収まる`);
+      assert.ok(r.x + r.w <= vw && L.title.y + L.title.h <= vh, `${type}: viewBox に収まる`);
+      assert.ok(svg.includes(`>${r.text}</text>`), 'SVG に描かれる');
+    }
+    for (const k of ['date', 'venue', 'series']) assert.ok(rows.some((r) => r.text === info[k]), `${k} が欄に表示される`);
+    assert.equal(rows.filter((r) => info.theme.includes(r.text)).map((r) => r.text).join(''), info.theme, '演題は折り返しても欠けない');
+    for (const g of L.groups) assert.ok(g.frame.y >= L.title.y + L.title.h, `${type}: 本編はタイトル欄の下`);
+    for (const u of L.units) assert.ok(u.y >= L.title.y + L.title.h, `${type}: 単位はタイトル欄の下`);
+  }
+});
+
+// FR-079 AC-426 AC-429 AC-433
+test('FR-079 AC-426 AC-429: 吹き出し型・区画型・比喩型の詳細でも、再配置で結論が先頭に昇格し、同一の要点はまとめて件数を示す', async () => {
+  for (const type of ['bubble', 'zone', 'metaphor']) {
+    const { app, say, toPeriod } = await mk();
+    app.setLayoutTypes([type]);
+    say('コストが高くて困った', '資料は共有フォルダに置きました', '資料は共有フォルダに置きました', 'Aを採用すると決まりました。');
+    const pre = JSON.stringify(app.getDiagramLayout().units.map((u) => u.text));
+    toPeriod();
+    const L = app.getDiagramLayout();
+    if (type === 'bubble') {
+      const texts = L.units.sort((a, b) => a.order - b.order).map((u) => u.text);
+      assert.deepEqual(texts, ['Aを採用すると決まりました。', 'コストが高くて困った', '資料は共有フォルダに置きました ×2'], `${type}: 種類の順・まとめ`);
+    } else {
+      const u = L.units.find((x) => x.kind === 'scene');
+      const pts = u.text.slice(u.text.indexOf('：') + 1);
+      assert.ok(pts.indexOf('Aを採用すると決まりました。') === 0 && pts.indexOf('コストが高くて困った') > 0, `${type}: 結論が先頭`);
+      assert.ok(pts.includes('資料は共有フォルダに置きました ×2'), `${type}: 同一の要点はまとめる`);
+    }
+    assert.notEqual(JSON.stringify(L.units.map((u) => u.text)), pre, `${type}: 再配置の前は話順のまま`);
+  }
+});
+
+// FR-079 AC-430
+test('FR-079 AC-430(c): 型の配置（タイトル欄・まとまり・単位）を含む図の要素は、すべての型・詳細度で親子でなければ重ならない', async () => {
+  for (const type of LAYOUT_TYPES) for (const lv of ['detail', 'middle', 'major']) {
+    const { app, say, next, toPeriod } = await mk();
+    app.setLayoutTypes([type]); app.setDetailLevel(lv);
+    app.setTitleInfo({ series: '週次', theme: '長い演題'.repeat(12), date: '2026-10-16', venue: '大会議室' });
+    say('予算 会議 は三階', 'コストが高くて困った'); next();
+    say('リリース 計画 を決める', 'Aを採用すると決まりました。', '質問はありますか？', 'ありません'); next();
+    say('担当 割当 の確認', '会場 の件', '名札 の件', '撮影 の件', '配布 の件');
+    toPeriod();
+    const list = els(app);
+    const kinds = new Set(list.map((e) => e.kind));
+    for (const k of ['title', 'group', 'unit']) assert.ok(kinds.has(k), `${type}・${lv}: 型の配置の ${k} を含む`);
+    assertNoOverlap(list);
+    say('追加の要点'); // 暫定の位置でも重ならない
+    assertNoOverlap(els(app));
+  }
+});
