@@ -165,7 +165,13 @@
     "AC-398": "sha256:fbbd0b2aabd53dfa",
     "AC-399": "sha256:bac7405a3162f881",
     "AC-401": "sha256:043f1d9a1fe9098f",
-    "AC-402": "sha256:3525c8cc4738a353"
+    "AC-402": "sha256:3525c8cc4738a353",
+    "AC-459": "sha256:572f2efa70b36f71",
+    "AC-460": "sha256:e5633f20b76bcbf4",
+    "AC-461": "sha256:e739eb391b8b4c84",
+    "AC-462": "sha256:788240e79830f31d",
+    "AC-463": "sha256:6e96cc8c51660daa",
+    "AC-464": "sha256:dfdd92720d94b458"
   },
   "cases": [
     {
@@ -5042,6 +5048,168 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610200342）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-225",
+      "requirement_ids": [
+        "NFR-UX-011"
+      ],
+      "ac_ids": [
+        "AC-459"
+      ],
+      "title": "コマンドバーの作業順 8 グループと所属・7 個以内（異常系: 折返し時の順）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-459\" tests/system/cmdgroups.test.js",
+      "canary": true,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:37:47+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-226",
+      "requirement_ids": [
+        "NFR-UX-011"
+      ],
+      "ac_ids": [
+        "AC-460"
+      ],
+      "title": "グループ見出しとアクセシブルな名前・日英切替",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-460\" tests/system/cmdgroups.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:37:50+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-227",
+      "requirement_ids": [
+        "NFR-UX-011"
+      ],
+      "ac_ids": [
+        "AC-461"
+      ],
+      "title": "データの初期化がグループの最後（視覚順・DOM 順・英語）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-461\" tests/system/cmdgroups.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:37:55+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-229",
+      "requirement_ids": [
+        "NFR-UX-011"
+      ],
+      "ac_ids": [
+        "AC-462"
+      ],
+      "title": "DOM 順・Tab 順・視覚順の一致（異常系: 640px 以下の折返し）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-462\" tests/system/cmdgroups.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:38:02+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-231",
+      "requirement_ids": [
+        "NFR-UX-011"
+      ],
+      "ac_ids": [
+        "AC-463"
+      ],
+      "title": "並べ替え後のボタン集合・ラベル・ツールチップ・操作の不変",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-463\" tests/system/cmdgroups.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:38:08+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-20T05:38:45+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration（System Test の対象外）。implementer の結合テストで確認する。この System 側のテストは参考"
+        }
+      ]
+    },
+    {
+      "id": "E2E-232",
+      "requirement_ids": [
+        "NFR-UX-011"
+      ],
+      "ac_ids": [
+        "AC-464"
+      ],
+      "title": "640px 以下で横スクロールなし・見出しが重ならない（異常系: 英語）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-464\" tests/system/cmdgroups.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:38:15+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-20T05:38:46+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration（System Test の対象外）。implementer の結合テストで確認する。この System 側のテストは参考"
         }
       ]
     }
