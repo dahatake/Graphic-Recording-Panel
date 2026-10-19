@@ -77,6 +77,10 @@
 | NFR-SEC-003 | API キー・トークンの非露出 | 承認済み | server/relay.py, server/relay_security.py, server/relay_upstream.py, server/relay_config.py | tests/relay/test_relay_units.py, tests/system/llmrelay.test.js | 中継サーバー |
 | NFR-SEC-004 | SVG の許可リストによる厳格なサニタイズ | 承認済み | web/src/svgsanitize.js, server/relay_security.py, web/src/session.js, web/src/parts.js | tests/unit/svgsanitize.test.js, tests/relay/test_relay_units.py | SVG サニタイズ, 同梱部品 |
 | NFR-PRIV-003 | LLM への送信の最小化 | 承認済み | web/src/llmdraw.js, web/src/llm.js | tests/unit/llmdraw.test.js, tests/system/llm-draw.test.js, tests/system/llm-consent-persist.test.js | LLM 連携の制御 |
+| FR-075 | 画風プリセットによる描画スタイルの定義の拡張 | 承認済み | 未実装 | 未実装 | - |
+| FR-076 | 組み込みの画風プリセット（9 つの「〇〇風」） | 承認済み | 未実装 | 未実装 | - |
+| FR-077 | 画面上部での画風（「〇〇風」）の選択 | 承認済み | 未実装 | 未実装 | - |
+| FR-078 | 画像生成 AI 向けのプロンプトのコピー | 承認済み | 未実装 | 未実装 | - |
 
 ## API・イベント
 
