@@ -158,7 +158,14 @@
     "AC-390": "sha256:bc08a577595d5281",
     "AC-391": "sha256:2394a06e1c7e49df",
     "AC-392": "sha256:9e193779cbb7745d",
-    "AC-393": "sha256:1915692914e41269"
+    "AC-393": "sha256:1915692914e41269",
+    "AC-395": "sha256:df11b58880ba98a3",
+    "AC-396": "sha256:87a01467359171f3",
+    "AC-397": "sha256:c01a818784e12058",
+    "AC-398": "sha256:fbbd0b2aabd53dfa",
+    "AC-399": "sha256:bac7405a3162f881",
+    "AC-401": "sha256:043f1d9a1fe9098f",
+    "AC-402": "sha256:3525c8cc4738a353"
   },
   "cases": [
     {
@@ -4860,6 +4867,181 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610192220）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-192",
+      "requirement_ids": [
+        "NFR-PERF-002"
+      ],
+      "ac_ids": [
+        "AC-395"
+      ],
+      "title": "読み込み完了から 2 秒以内にコマンドバーのクリックが反映される（実ブラウザ）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-395\" tests/system/perf.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T03:50:03+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200342）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-193",
+      "requirement_ids": [
+        "NFR-PERF-002"
+      ],
+      "ac_ids": [
+        "AC-396"
+      ],
+      "title": "準備中のクリック・ホバーの入力から次の描画まで 95 パーセンタイル 100ms 以内",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-396\" tests/system/perf.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T03:50:06+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200342）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-194",
+      "requirement_ids": [
+        "NFR-PERF-002"
+      ],
+      "ac_ids": [
+        "AC-397"
+      ],
+      "title": "ドラッグ・スクロール・ホイール中 30fps 以上かつ長いタスクが 100ms 超なし",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-397\" tests/system/perf.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T03:50:09+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200342）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-195",
+      "requirement_ids": [
+        "NFR-PERF-003"
+      ],
+      "ac_ids": [
+        "AC-398"
+      ],
+      "title": "記録中の連続発話追加中もクリック・ホバーが 95 パーセンタイル 100ms 以内",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-398\" tests/system/perf.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T03:50:12+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200342）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-196",
+      "requirement_ids": [
+        "NFR-PERF-003"
+      ],
+      "ac_ids": [
+        "AC-399"
+      ],
+      "title": "500 件の図でスクロール・ドラッグ 30fps 以上、クリック・ホバー 100ms 以内",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-399\" tests/system/perf.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T03:50:15+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200342）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-197",
+      "requirement_ids": [
+        "NFR-PERF-003"
+      ],
+      "ac_ids": [
+        "AC-401"
+      ],
+      "title": "記録中・500 件でも要点 3 秒以内表示・非表示中の発話欠落なし",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-401\" tests/system/perf.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T03:50:18+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200342）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-198",
+      "requirement_ids": [
+        "NFR-PERF-004"
+      ],
+      "ac_ids": [
+        "AC-402"
+      ],
+      "title": "準備中 10 秒の無操作でメインスレッド稼働率 5% 以下",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-402\" tests/system/perf.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T03:50:22+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200342）"
         }
       ]
     }
