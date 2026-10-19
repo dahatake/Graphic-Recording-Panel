@@ -8,6 +8,8 @@ export const GROUPS = [
   ['toolbar.save', ['save.png', 'save.svg', 'save.pdf']],
   ['toolbar.language', ['lang.ja', 'lang.en']],
   ['toolbar.view', ['view.2d', 'view.3d', 'view.timeline', 'view.arrange', 'detail.next', 'theme.toggle']],
+  // FR-077: 画風（描画スタイル）の一覧を開くボタン（一覧・選択は stylepicker.js）
+  ['toolbar.drawStyle', ['drawStyle.pick']],
   ['toolbar.layoutType', [...LAYOUT_TYPE_IDS.map((id) => `layoutType.${id}`), 'layoutType.clear', 'settings.open']],
   ['toolbar.presentation', ['presentation.start', 'presentation.pause', 'presentation.resume', 'presentation.stop', 'presentation.prev', 'presentation.next']],
   ['toolbar.layout', ['layout.tile', 'layout.focus', 'layout.maximize', 'layout.reset']],
@@ -22,7 +24,7 @@ const LABELS = {
   'save.png': ['PNG保存', 'Save PNG'], 'save.svg': ['SVG保存', 'Save SVG'], 'save.pdf': ['PDF保存', 'Save PDF'],
   'lang.ja': ['日本語', 'Japanese'], 'lang.en': ['英語', 'English'],
   'view.2d': ['2D表示', '2D view'], 'view.3d': ['3D表示', '3D view'], 'view.timeline': ['時系列', 'Timeline'], 'view.arrange': ['整理', 'Arrange'], 'detail.next': ['詳細度', 'Detail'],
-  'theme.toggle': ['配色', 'Theme'],
+  'theme.toggle': ['配色', 'Theme'], 'drawStyle.pick': ['画風', 'Art style'],
   'presentation.start': ['発表開始', 'Present'], 'presentation.pause': ['発表休止', 'Pause talk'], 'presentation.resume': ['発表再開', 'Resume talk'],
   'presentation.stop': ['発表終了', 'End talk'], 'presentation.prev': ['前へ', 'Previous'], 'presentation.next': ['次へ', 'Next'],
   'layout.tile': ['タイル', 'Tile'], 'layout.focus': ['集中', 'Focus'], 'layout.maximize': ['最大化', 'Maximize'], 'layout.reset': ['配置初期化', 'Reset layout'],
@@ -59,12 +61,13 @@ const P = {
   trash: 'M4 6h12M8 6V4h4v2M6 6l1 11h6l1-11M9 9v5M11 9v5',
   fileSave: 'M4 3h8l4 4v10H4zM12 3v4h4M10 9v5M8 12l2 2 2-2',
   fileLoad: 'M4 3h8l4 4v10H4zM12 3v4h4M10 14V9M8 11l2-2 2 2',
+  palette: 'M10 2a8 8 0 1 0 0 16c1 0 1.5-.7 1.5-1.5 0-1-.8-1.4-.8-2.2 0-.8.7-1.3 1.5-1.3H14a4 4 0 0 0 4-4c0-3.900-3.600-7-8-7ZM5 9.500a1.200 1.200 0 1 0 2.400 0 1.200 1.200 0 1 0-2.400 0M7.800 5.800a1.200 1.200 0 1 0 2.400 0 1.200 1.200 0 1 0-2.400 0M11.800 5.800a1.200 1.200 0 1 0 2.400 0 1.200 1.200 0 1 0-2.400 0',
 };
 export const ICONS = {
   'session.start': P.rec, 'session.pause': P.pause, 'session.resume': P.play, 'session.stop': P.stop,
   'session.nextScene': P.next, 'input.focus': P.edit, 'import.file': P.fileLoad,
   'save.png': P.save, 'save.svg': P.save, 'save.pdf': P.save, 'lang.ja': P.lang, 'lang.en': P.lang,
-  'view.2d': P.square, 'view.3d': P.cube, 'theme.toggle': P.theme, 'view.timeline': P.prev, 'view.arrange': P.tile, 'detail.next': P.detail,
+  'view.2d': P.square, 'view.3d': P.cube, 'theme.toggle': P.theme, 'drawStyle.pick': P.palette, 'view.timeline': P.prev, 'view.arrange': P.tile, 'detail.next': P.detail,
   'presentation.start': P.present, 'presentation.pause': P.pause, 'presentation.resume': P.play,
   'presentation.stop': P.stop, 'presentation.prev': P.prev, 'presentation.next': P.next, 'layout.reset': P.reset,
   'layout.tile': P.tile, 'layout.focus': P.focus, 'layout.maximize': P.maximize,
@@ -93,6 +96,7 @@ const TIP = {
   'view.arrange': ['図を縦軸・横軸の区分に整理して表示します', 'Show the diagram arranged by vertical and horizontal axes'],
   'detail.next': ['図の詳細度（大項目・中項目・詳細）を次へ切り替えます', 'Switch the diagram detail level (topics, scenes, full) to the next one'],
   'theme.toggle': ['画面の配色をダークとライトで切り替えます', 'Toggle the screen colors between dark and light'],
+  'drawStyle.pick': ['図の画風（〇〇風などの描画スタイル）を一覧から選び、図をすぐに描き替えます', 'Pick the art style of the diagram from a list and redraw it at once'],
   'presentation.start': ['シーンを順に見せるプレゼンテーションを始めます', 'Start a presentation that plays the scenes in order'],
   'presentation.pause': ['プレゼンテーションを一時停止します', 'Pause the presentation'],
   'presentation.resume': ['一時停止したプレゼンテーションを再開します', 'Resume the paused presentation'],
@@ -123,7 +127,7 @@ export function commandBarModule(ctx) {
   });
   ctx.i18n.addStrings({
     ja: {
-      'toolbar.import': '取り込み',
+      'toolbar.import': '取り込み', 'toolbar.drawStyle': '画風',
       'import.description': 'テキストファイル（.txt）・字幕ファイル（.vtt）を取り込みます',
       'status.speech.label': '音声認識',
       'status.lang': '言語',
@@ -133,7 +137,7 @@ export function commandBarModule(ctx) {
       'view.name.2d': '2D', 'view.name.3d': '3D',
     },
     en: {
-      'toolbar.import': 'Import',
+      'toolbar.import': 'Import', 'toolbar.drawStyle': 'Art style',
       'import.description': 'Import a text file (.txt) or a caption file (.vtt)',
       'status.speech.label': 'Speech',
       'status.lang': 'Language',
@@ -184,9 +188,35 @@ export function commandBarModule(ctx) {
     status: api.getCommandStatus(),
   });
   // NFR-UX-003 AC-090: 幅ごとの 1 行の収まり。ラベルは全角 1・半角 0.5 と数え、PARAM-011 以内なら 1 行。グループは折り返すので横スクロールしない。
+  // FR-077 AC-417: 各ボタンの外形（rect。ラベル・現在値の表示を含む）を、グループ単位の折り返し（app.css の .toolbar-group）で見積もる。
   api.getCommandBarLayout = (opts = {}) => {
-    void (opts.viewportWidth ?? ctx.env.viewportWidth);
-    const w = (s) => [...s].reduce((n, ch) => n + (ch.codePointAt(0) >= 0x2e80 ? 1 : 0.5), 0);
-    return { items: api.getCommandBar().items.map((i) => ({ command: i.command, labelLines: w(i.label) <= 6 ? 1 : 2 })), scrollsHorizontally: false };
+    const vw = Math.max(1, Number(opts.viewportWidth ?? ctx.env.viewportWidth) || 1);
+    const w = (s) => [...String(s ?? '')].reduce((n, ch) => n + (ch.codePointAt(0) >= 0x2e80 ? 1 : 0.5), 0);
+    const items = api.getCommandBar().items;
+    const byCmd = new Map(items.map((i) => [i.command, i]));
+    const out = [];
+    let x = BAR.pad; let y = BAR.pad;
+    for (const [, names] of GROUPS) {
+      const list = names.map((n) => byCmd.get(n)).filter(Boolean);
+      if (!list.length) continue;
+      // 幅 = 余白 + max(アイコン, ラベル, 現在値)。常時表示の説明（取り込み）は横に並び、最大 24em で折り返す
+      const widths = list.map((i) => {
+        const main = Math.max(BAR.icon, Math.ceil(Math.max(w(i.label), w(i.valueLabel)) * BAR.em));
+        const desc = i.descriptionVisible && i.description ? Math.min(BAR.descMax, Math.ceil(w(i.description) * BAR.em)) + BAR.gapInner : 0;
+        return Math.max(BAR.minW, main + desc + BAR.padX * 2);
+      });
+      const groupW = widths.reduce((a, b) => a + b, 0) + BAR.gap * (list.length - 1);
+      if (x > BAR.pad && x + groupW > vw - BAR.pad) { x = BAR.pad; y += BAR.h + BAR.gap; } // グループごと次の行へ
+      list.forEach((i, k) => {
+        if (x > BAR.pad && x + widths[k] > vw - BAR.pad) { x = BAR.pad; y += BAR.h + BAR.gap; } // 狭い画面: グループの中でも折り返す
+        out.push({ command: i.command, labelLines: w(i.label) <= 6 ? 1 : 2, rect: { x, y, w: widths[k], h: BAR.h } });
+        x += widths[k] + BAR.gap;
+      });
+      x += BAR.groupGap;
+    }
+    return { items: out, scrollsHorizontally: false };
   };
 }
+
+// コマンドバーの寸法の見積もり（px。tokens.css の --target-size・caption の文字の大きさ・余白 4px グリッドに合わせる）
+const BAR = { pad: 8, gap: 2, groupGap: 8, padX: 8, em: 12, icon: 20, gapInner: 8, descMax: 288, minW: 56, h: 64 };

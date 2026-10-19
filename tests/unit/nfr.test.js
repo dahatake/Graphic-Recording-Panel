@@ -64,10 +64,19 @@ test('NFR-A11Y-001 AC-036: 統合後の全コマンドにキー割り当てが�
     assert.ok(!keyed.has(id), `キーの重複: ${k.key}`);
     keyed.set(id, k.command);
   }
-  for (const n of names) assert.ok(app.keymap.some((k) => k.command === n), `キーなし: ${n}`);
+  // FR-077: 画風ごとのコマンド（drawStyle.select.<id>）は登録簿から作る可変の集合。キーは一覧を開く drawStyle.pick（↑↓・Enter で選ぶ）で、
+  // 名称は登録簿の名前から作る（コマンドの検索で見つかる）。それ以外の全コマンドは個別のキーと基本辞書の名称を持つ。
+  const perStyle = (n) => n.startsWith('drawStyle.select.');
+  for (const n of names.filter((x) => !perStyle(x))) assert.ok(app.keymap.some((k) => k.command === n), `キーなし: ${n}`);
   for (const k of app.keymap) assert.equal(typeof app.commands[k.command], 'function', `未実装: ${k.command}`);
   const ja = createI18n().getStrings();
-  for (const n of names) assert.ok(ja[`cmd.${n}`], n);
+  for (const n of names.filter((x) => !perStyle(x))) assert.ok(ja[`cmd.${n}`], n);
+  assert.ok(names.some(perStyle), '画風ごとのコマンドがある');
+  assert.ok(app.keymap.some((k) => k.command === 'drawStyle.pick'), '画風の一覧を開くキーがある');
+  for (const s of app.getDrawStyles()) {
+    assert.ok(names.includes(`drawStyle.select.${s.id}`), `画風のコマンドなし: ${s.id}`);
+    assert.ok(app.searchCommands(s.label).some((c) => c.command === `drawStyle.select.${s.id}` && c.label.trim()), `検索で見つからない: ${s.label}`);
+  }
 });
 
 // NFR-A11Y-001 AC-037: 感情の表現は色だけでなく形（shape）と語でも区別できる。

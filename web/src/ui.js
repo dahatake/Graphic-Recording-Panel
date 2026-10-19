@@ -47,6 +47,12 @@ export function mountUI(app, doc = document) {
           const d = doc.createElement('span'); d.className = 'btn-desc'; d.textContent = app.t('import.description'); b.append(d);
           d.id = 'import-desc'; b.className += ' btn-import';
         }
+        // FR-077 AC-414: 画風のボタンは、ラベルの下に現在の画風の名前を常に出し、一覧（listbox）を開くことを示す
+        if (name === 'drawStyle.pick') {
+          const v = doc.createElement('span'); v.className = 'btn-value'; v.dataset.role = 'drawstyle-value'; b.append(v);
+          b.setAttribute('aria-haspopup', 'listbox'); b.setAttribute('aria-controls', 'drawstyle-list'); b.setAttribute('aria-expanded', 'false');
+          b.className += ' btn-drawstyle';
+        }
         const kl = keyLabel(name);
         // NFR-UX-002: ツールチップ（role=tooltip）を aria-describedby で関連付ける。ホバー・フォーカスで表示
         const tip = doc.createElement('span');
@@ -130,6 +136,14 @@ export function mountUI(app, doc = document) {
       let mk = b.querySelector('.sel-mark');
       if (!mk) { mk = doc.createElement('span'); mk.className = 'sel-mark'; mk.setAttribute('aria-hidden', 'true'); b.append(mk); }
       mk.textContent = it.selectedMark ? '✓' : '';
+    }
+    // FR-077: 画風のボタンの現在値と、一覧の開閉
+    for (const it of app.getCommandBar().items) {
+      if (!('valueLabel' in it)) continue;
+      const b = toolbar.querySelector(`[data-command="${it.command}"]`);
+      if (!b) continue;
+      const v = b.querySelector('.btn-value'); if (v) v.textContent = it.valueLabel;
+      if ('expanded' in it) b.setAttribute('aria-expanded', String(!!it.expanded));
     }
     // FR-074 AC-391: 狭い画面ではパネルをタブにまとめ、見える位置（選択中のタブ）のパネルだけを出す
     const pres = app.getPanelPresentation();
@@ -318,7 +332,7 @@ export function mountUI(app, doc = document) {
     if (!setEl) return;
     const d = app.getSettingsDialog();
     if (!d) { setEl.hidden = true; setBuilt = null; return; }
-    const key = app.getState().lang;
+    const key = `${app.getState().lang}|${app.getDrawStyles().map((s) => s.id).join(',')}`; // 描画スタイルが登録されたら選択肢を作り直す（FR-077 AC-418）
     if (setBuilt !== key) {
       setBuilt = key; setEl.textContent = '';
       const o = app.getSettingsOptions();
@@ -383,6 +397,51 @@ export function mountUI(app, doc = document) {
     if (wasHidden) setEl.querySelector('select')?.focus();
   }
   app.on('change', syncSettings);
+
+  // FR-077: 画風の一覧（role=listbox。ボタンの下に出す）。状態（開閉・候補・現在値）は app が持ち、ここは描くだけ。
+  // キー（↑↓ Home End Enter Space Esc）は document の keydown → app.handleKey が扱う。項目のクリックは pickDrawStyle。
+  let dsEl = null; let dsWasOpen = false;
+  function syncStylePicker() {
+    const p = app.getDrawStylePicker?.();
+    if (!p) return;
+    const btn = toolbar.querySelector('[data-command="drawStyle.pick"]');
+    if (!p.open) {
+      if (dsEl) { dsEl.remove(); dsEl = null; }
+      if (dsWasOpen && p.focus === 'button' && btn && doc.activeElement !== btn) btn.focus();
+      dsWasOpen = false;
+      return;
+    }
+    if (!dsEl) {
+      dsEl = doc.createElement('ul'); dsEl.id = 'drawstyle-list'; dsEl.className = 'drawstyle-list'; dsEl.tabIndex = -1;
+      dsEl.addEventListener('click', (e) => { const li = e.target.closest?.('[data-style-id]'); if (li) app.pickDrawStyle(li.dataset.styleId); });
+      dsEl.addEventListener('focusout', (e) => { if (!e.relatedTarget || (!dsEl?.contains(e.relatedTarget) && e.relatedTarget !== btn)) app.closeDrawStylePicker(null); });
+      doc.body.append(dsEl);
+    }
+    dsEl.setAttribute('role', p.role); dsEl.setAttribute('aria-label', p.label);
+    const view = app.getDrawStylePickerView({ viewportWidth: doc.documentElement.clientWidth || 1280 });
+    const r = btn?.getBoundingClientRect?.();
+    const left = r ? Math.max(8, Math.min(r.left, (doc.documentElement.clientWidth || 1280) - view.width - 8)) : 8;
+    dsEl.style.cssText = `left:${left}px;top:${r ? r.bottom + 4 : 64}px;width:${view.width}px;`;
+    const key = JSON.stringify(p.options);
+    if (dsEl.dataset.key !== key) {
+      dsEl.dataset.key = key; dsEl.textContent = '';
+      for (const o of p.options) {
+        const li = doc.createElement('li'); li.id = `drawstyle-opt-${o.id}`; li.setAttribute('role', 'option'); li.dataset.styleId = o.id;
+        li.setAttribute('aria-selected', String(o.selected)); li.className = 'drawstyle-option';
+        if (o.selectedMark) li.dataset.selectedMark = o.selectedMark;
+        const mk = doc.createElement('span'); mk.className = 'drawstyle-mark'; mk.setAttribute('aria-hidden', 'true'); mk.textContent = o.selected ? '✓' : '';
+        const nm = doc.createElement('span'); nm.className = 'drawstyle-name'; nm.textContent = o.label;
+        const ds = doc.createElement('span'); ds.className = 'drawstyle-desc'; ds.textContent = o.description;
+        li.append(mk, nm, ds); dsEl.append(li);
+      }
+    }
+    for (const li of dsEl.children) li.classList.toggle('is-active', li.dataset.styleId === p.activeId);
+    if (p.activeId) { dsEl.setAttribute('aria-activedescendant', `drawstyle-opt-${p.activeId}`); dsEl.querySelector(`[data-style-id="${p.activeId}"]`)?.scrollIntoView?.({ block: 'nearest' }); }
+    if (p.focus === 'list' && doc.activeElement !== dsEl) dsEl.focus();
+    dsWasOpen = true;
+  }
+  app.on('change', syncStylePicker);
+  doc.addEventListener('pointerdown', (e) => { if (dsEl && !e.target.closest?.('#drawstyle-list, [data-command="drawStyle.pick"]')) app.closeDrawStylePicker(null); });
 
   // FR-062: LLM 連携の同意の表示（送る項目の種類・送信先ホスト名・送らないもの）。同意するまで有効にならない
   let consentEl = null;
