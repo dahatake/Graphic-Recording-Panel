@@ -5,7 +5,7 @@ import { LAYOUT_TYPE_IDS, LAYOUT_TYPE_META } from './layouttypes.js';
 export const GROUPS = [
   ['toolbar.import', ['import.file']],
   ['toolbar.session', ['session.start', 'session.pause', 'session.resume', 'session.stop', 'session.nextScene', 'input.focus']],
-  ['toolbar.save', ['save.png', 'save.svg', 'save.pdf']],
+  ['toolbar.save', ['save.png', 'save.svg', 'save.pdf', 'prompt.copy']],
   ['toolbar.language', ['lang.ja', 'lang.en']],
   ['toolbar.view', ['view.2d', 'view.3d', 'view.timeline', 'view.arrange', 'detail.next', 'theme.toggle']],
   // FR-077: 画風（描画スタイル）の一覧を開くボタン（一覧・選択は stylepicker.js）
@@ -72,6 +72,8 @@ export const ICONS = {
   'presentation.stop': P.stop, 'presentation.prev': P.prev, 'presentation.next': P.next, 'layout.reset': P.reset,
   'layout.tile': P.tile, 'layout.focus': P.focus, 'layout.maximize': P.maximize,
   'data.reset': P.trash, 'file.save': P.fileSave, 'file.load': P.fileLoad,
+  // FR-078: プロンプトのコピー（2 枚重ねの紙。ラベル・ツールチップの文言は imageprompt.js）
+  'prompt.copy': 'M7 3h9v11H7zM4 6v11h9',
   'layoutType.clear': P.reset, 'settings.open': 'M10 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM10 2v2M10 16v2M2 10h2M16 10h2M4.500 4.500l1.500 1.500M14 14l1.500 1.500M4.500 15.500L6 14M14 6l1.500-1.500',
   ...Object.fromEntries(LAYOUT_TYPE_IDS.map((id) => [`layoutType.${id}`, LAYOUT_TYPE_META[id].icon])),
 };

@@ -37,6 +37,7 @@ import { rpgAudioModule } from './rpgaudio.js';
 import { llmModule } from './llm.js';
 import { llmDrawModule } from './llmdraw.js';
 import { stylePresetModule } from './presetdiagram.js';
+import { imagePromptModule } from './imageprompt.js';
 
 const GAP_MS_DEFAULT = 20_000; // PARAM-002
 const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -286,6 +287,8 @@ export async function createApp(options = {}) {
   app.use = async (mod) => { await mod(ctx); };
   for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, sessionModule, settingsModule, stylePickerModule, autoLayoutModule, layoutKindsModule, rpgModule, rpgAudioModule, llmModule, llmDrawModule, stylePresetModule, ...(options.modules ?? [])]) await app.use(mod);
 
+  // FR-078: 画像生成 AI 向けのプロンプトのコピー（描画スタイル・レイアウト型・トピックの登録の後に足す）
+  await app.use(imagePromptModule);
   return app;
 }
 

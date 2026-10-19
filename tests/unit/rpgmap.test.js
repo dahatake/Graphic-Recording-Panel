@@ -73,7 +73,10 @@ test('FR-047 AC-216: RPG風は登録簿の定義として加わり、既存 3 �
   // FR-076: 9 つの画風プリセットは RPG風の後に加わる（既存 4 つの並びと定義は変わらない）
   assert.deepEqual(reg.ids().slice(0, 4), ['handwritten', 'anime', 'simple', 'rpg']);
   assert.equal(reg.ids().length, 13);
-  assert.deepEqual(reg.get('anime'), { id: 'anime', label: { ja: 'アニメ調', en: 'Anime' }, line: { width: 1.6, jitter: 0 }, fill: { mode: 'tint' }, text: { decor: 'bold', icons: true } });
+  // FR-078: 既存の定義に画風の記述（description。見た目は変えない）が加わった。見た目の定義（line・fill・text）は従来どおり
+  const { description, ...animeLook } = reg.get('anime');
+  assert.deepEqual(animeLook, { id: 'anime', label: { ja: 'アニメ調', en: 'Anime' }, line: { width: 1.6, jitter: 0 }, fill: { mode: 'tint' }, text: { decor: 'bold', icons: true } });
+  assert.deepEqual(Object.keys(description).sort(), ['en', 'ja']);
   assert.equal(reg.register({ ...reg.get('rpg') }).ok, false);
   assert.equal(reg.label('rpg', 'ja'), 'RPG風'); assert.equal(reg.label('rpg', 'en'), 'RPG');
 });

@@ -14,15 +14,37 @@ export const DEFAULT_STYLE_ID = 'handwritten';
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 
+// FR-078: 既存の 4 つの画風の記述（配色・描画・書体・雰囲気）。画像生成プロンプトだけが使い、見た目は変えない
+// （description は見た目の項目ではないため、preset:false のまま）。
+const dsc = (color, drawing, font, mood) => ({ color, drawing, font, mood });
+const LEGACY_DESCRIPTIONS = {
+  handwritten: {
+    ja: dsc('白い紙に黒の線と文字。要点の種類ごとに緑・赤・橙・青・紫・青緑の落ち着いた色の枠で区別する', '少し揺らぐ手描きの線で描いた枠と矢印。要点ごとに小さな絵記号を添える', '読みやすい標準の太さの文字。見出しは本文より大きく', '手描きの温かみがあり、落ち着いた'),
+    en: dsc('Black lines and text on white paper. Points are told apart by frames in calm green, red, orange, blue, purple and teal by kind', 'Frames and arrows drawn with slightly wobbly hand-drawn lines, with a small pictogram for each point', 'Easy-to-read lettering of regular weight. Headings larger than the body text', 'Calm, with a warm hand-drawn feel'),
+  },
+  anime: {
+    ja: dsc('白い背景に、要点の種類ごとの色を淡く塗った面と、同じ色の濃い輪郭', '揺らぎのない太めのくっきりした輪郭線と、角の丸い塗りの面。絵記号を添える', '太字の見出しと、はっきりした本文の文字', 'くっきりと明るいアニメのような'),
+    en: dsc('White background with light tinted fills per kind of point and darker outlines in the same colors', 'Bold, crisp outlines without wobble and filled shapes with rounded corners, with pictograms', 'Bold headings and clear body lettering', 'Crisp and bright, like an anime'),
+  },
+  simple: {
+    ja: dsc('白い背景に黒と灰色を中心にした控えめな色', '揺らぎのない細い線と簡素な四角い枠。絵記号や飾りは使わない', '飾りのない標準のゴシック体', '簡潔で事務的'),
+    en: dsc('Restrained colors centered on black and gray on a white background', 'Thin lines without wobble and plain rectangular frames. No pictograms or decorations', 'Plain standard sans-serif type without decoration', 'Concise and matter-of-fact'),
+  },
+  rpg: {
+    ja: dsc('草地の緑・道の土色・水の青などのレトロゲームの色。会話の窓は黒地に白', 'ドット絵（ピクセルアート）の見下ろしのマップ。トピックを街や城、要点を地点として描き、道でつなぐ', 'ドット絵風の角ばった文字。会話の窓に白い文字で書く', '冒険の旅のような懐かしいレトロゲーム'),
+    en: dsc('Retro game colors such as grass green, earthy road brown and water blue. Dialog windows in white on black', 'A top-down pixel-art map. Topics drawn as towns or castles and points as places, linked by roads', 'Blocky pixel-style lettering. Text written in white inside dialog windows', 'Nostalgic retro game, like an adventure journey'),
+  },
+};
+
 export const BUILTIN_STYLES = [
   // 手書き調: FR-015 の手描き風（線の揺らぎ。従来の見た目）
-  { id: 'handwritten', label: { ja: '手書き調', en: 'Hand-drawn' }, line: { width: 1, jitter: 1 }, fill: { mode: 'paper' }, text: { decor: 'standard', icons: true } },
+  { id: 'handwritten', label: { ja: '手書き調', en: 'Hand-drawn' }, line: { width: 1, jitter: 1 }, fill: { mode: 'paper' }, text: { decor: 'standard', icons: true }, description: LEGACY_DESCRIPTIONS.handwritten },
   // アニメ調: 揺らぎのない太めの輪郭線と角の丸い塗りの面（絵記号は維持）
-  { id: 'anime', label: { ja: 'アニメ調', en: 'Anime' }, line: { width: 1.6, jitter: 0 }, fill: { mode: 'tint' }, text: { decor: 'bold', icons: true } },
+  { id: 'anime', label: { ja: 'アニメ調', en: 'Anime' }, line: { width: 1.6, jitter: 0 }, fill: { mode: 'tint' }, text: { decor: 'bold', icons: true }, description: LEGACY_DESCRIPTIONS.anime },
   // シンプル: 揺らぎ・装飾の絵記号を抑えた見た目
-  { id: 'simple', label: { ja: 'シンプル', en: 'Simple' }, line: { width: 0.8, jitter: 0 }, fill: { mode: 'paper' }, text: { decor: 'plain', icons: false } },
+  { id: 'simple', label: { ja: 'シンプル', en: 'Simple' }, line: { width: 0.8, jitter: 0 }, fill: { mode: 'paper' }, text: { decor: 'plain', icons: false }, description: LEGACY_DESCRIPTIONS.simple },
   // RPG風（FR-047）: 拡張点（register）の定義の追加。描画は rpgmap.js が行う（既存 3 つの定義・処理は変えない）。選択肢の並びは末尾。
-  { id: 'rpg', label: { ja: 'RPG風', en: 'RPG' }, line: { width: 1, jitter: 0 }, fill: { mode: 'paper' }, text: { decor: 'plain', icons: true } },
+  { id: 'rpg', label: { ja: 'RPG風', en: 'RPG' }, line: { width: 1, jitter: 0 }, fill: { mode: 'paper' }, text: { decor: 'plain', icons: true }, description: LEGACY_DESCRIPTIONS.rpg },
   // FR-076: 9 つの「〇〇風」（画風プリセット）。拡張点（register）の定義の追加で、既存の 4 つの定義・処理は変えない。
   ...PRESET_STYLES,
 ];

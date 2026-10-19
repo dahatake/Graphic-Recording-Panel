@@ -12,7 +12,7 @@ export const SELECT_PREFIX = 'drawStyle.select.';
 const VIEW = { margin: 8, gap: 4, maxW: 352, chrome: 56, listPad: 10, optPad: 20, nameLine: 21, descLine: 17, emName: 14, emDesc: 12 };
 const weight = (s) => [...String(s ?? '')].reduce((n, ch) => n + (ch.codePointAt(0) >= 0x2e80 ? 1 : 0.5), 0);
 
-// 組込みの画風の短い説明（定義に description がないときに使う。定義の description {ja,en} が優先）
+// 組込みの画風の短い説明（既存の 4 つはこれを使う。それ以外は定義の description {ja,en} が優先）
 const DESC = {
   handwritten: ['手描きの揺らぎのある線と白い紙面', 'Wobbly hand-drawn lines on white paper'],
   anime: ['太い輪郭線と色の淡い塗り', 'Bold outlines with soft color fills'],
@@ -43,7 +43,9 @@ export function stylePickerModule(ctx) {
     if (v && typeof v === 'object') for (const k of ['drawing', 'mood', 'color', 'font']) if (typeof v[k] === 'string' && v[k].trim()) return v[k].trim();
     return '';
   };
+  // FR-078: 既存の 4 つは画像生成用の画風の記述（長い文）を持つが、一覧の短い説明は組込みの説明（DESC）を優先して変えない
   const describe = (id, label) => {
+    if (Object.hasOwn(DESC, id)) return t(`drawStyle.desc.${id}`);
     const d = api.getDrawStyleSpec?.(id)?.description; // 契約の getDrawStyleSpec(id)（FR-075。画風の記述 {ja:{color,drawing,font,mood}}）
     const own = textOf(d) || (d && typeof d === 'object' ? textOf(d[lang()] ?? d.ja ?? d.en) : '');
     if (own) return own;
