@@ -4,6 +4,9 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import { createRequire } from 'node:module';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { WEB } from './helpers.js';
 
 // PARAM-076..080（docs/requirements-definition.md の PARAM 表）
@@ -32,8 +35,42 @@ const CANDIDATES = [
   '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/microsoft-edge',
 ];
 
+// playwright-core を tests/system 内に 1 回だけ導入する（mkdir の原子的ロック。並行実行でも 1 プロセスだけが npm を走らせる）。
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const LOCK = path.join(HERE, '.npm-lock');
+const STALE_MS = 5 * 60 * 1000;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function resolvePw() {
+  try { return createRequire(path.join(HERE, 'x.js')).resolve('playwright-core'); } catch { return null; }
+}
+async function ensureDeps() {
+  if (resolvePw()) return;
+  const deadline = Date.now() + STALE_MS + 60_000;
+  while (!resolvePw()) {
+    let got = false;
+    try { fs.mkdirSync(LOCK); got = true; } catch {
+      try { if (Date.now() - fs.statSync(LOCK).mtimeMs > STALE_MS) fs.rmSync(LOCK, { recursive: true, force: true }); } catch { /* 競合は無視 */ }
+    }
+    if (got) {
+      try {
+        if (!resolvePw()) {
+          const run = (args) => spawnSync('npm', args, { cwd: HERE, shell: true, stdio: 'pipe', encoding: 'utf8' });
+          let r = run(['ci', '--no-audit', '--no-fund']);
+          if (r.status !== 0) r = run(['install', '--no-audit', '--no-fund']);
+          if (r.status !== 0) console.error(`[perf-util] npm 失敗: ${(r.stderr || '').slice(-500)}`);
+        }
+      } finally { fs.rmSync(LOCK, { recursive: true, force: true }); }
+      break;
+    }
+    if (Date.now() > deadline) break;
+    await sleep(500);
+  }
+  if (!resolvePw()) throw new Error('playwright-core を導入できない。tests/system で `npm ci`（または `npm install`）を実行すること（Node と npm が必要）。');
+}
+
 export async function launch() {
-  const { chromium } = await import('playwright-core');
+  await ensureDeps();
+  const { chromium } = createRequire(path.join(HERE, 'x.js'))('playwright-core');
   const exe = process.env.PERF_BROWSER || CANDIDATES.find((c) => fs.existsSync(c));
   if (!exe) throw new Error('Chromium 系ブラウザが見つからない（PERF_BROWSER で指定する）');
   return chromium.launch({ executablePath: exe, headless: true });
