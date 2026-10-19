@@ -5,8 +5,6 @@
 //   - 一覧: role=listbox。開いている間は ↑↓・Home・End で候補の移動、Enter・Space で決定、Esc で取り消し（ボタンへ戻る）
 //   - コマンドの検索: 登録された画風ごとに drawStyle.select.<id>。名称は「画風を選ぶ: <名前>」（登録簿の名前から作る）
 
-import { drawStyleSpecOf } from './stylespec.js';
-
 export const PICK = 'drawStyle.pick';
 export const SELECT_PREFIX = 'drawStyle.select.';
 
@@ -46,7 +44,7 @@ export function stylePickerModule(ctx) {
     return '';
   };
   const describe = (id, label) => {
-    const d = drawStyleSpecOf(api, id)?.description; // 契約の取り出し口（stylespec.js）
+    const d = api.getDrawStyleSpec?.(id)?.description; // 契約の getDrawStyleSpec(id)（FR-075。画風の記述 {ja:{color,drawing,font,mood}}）
     const own = textOf(d) || (d && typeof d === 'object' ? textOf(d[lang()] ?? d.ja ?? d.en) : '');
     if (own) return own;
     const key = `drawStyle.desc.${id}`; const v = t(key);

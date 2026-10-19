@@ -1,5 +1,6 @@
 import { paintRpgCanvas } from './rpgmap.js';
-import { drawStyleSpecOf } from './stylespec.js';
+import { buildLook } from './presetdiagram.js';
+import { presetOf, fontFamilyOf } from './stylepresets.js';
 // FR-006（PNG・SVG 保存）/ FR-007（PDF 保存）。外部通信なし・依存なし（PDF は自前で生成する）。
 // 保存は「表示中のビュー」ではなく常に 2D の図の内容（全シーンの見出しと要点）を出力する。3D 表示中はその旨を表示する（AC-014）。
 // シーンが 0 件のときは保存できず、理由を表示する（AC-046）。
@@ -7,34 +8,27 @@ import { drawStyleSpecOf } from './stylespec.js';
 const MARGIN = 24;
 const PALETTE = ['#1346a8', '#0b5d2a', '#8a3c00', '#6b2a8f', '#9b1c1c', '#0b6070'];
 
-const TEXT = '#15191f';
-
-// ---- FR-077 AC-419: 保存（PNG・PDF）に画風プリセットの見た目（紙面の質感・配色・見出しの飾り・吹き出し・線）を反映する ----
-// 定義は契約の形（CONTRACT-STYLE-PRESET の getDrawStyleSpec(id)。取り出し口は stylespec.js）で受け取る。
+// ---- FR-075・FR-077 AC-419: 保存（PNG・PDF）に画風プリセットの見た目（紙面の質感・配色・見出しの飾り・吹き出し・線・書体の系統）を反映する ----
+// 定義は契約の getDrawStyleSpec(id) の形で受け取り、配色の役割は画面の図と同じ buildLook（presetdiagram.js。AC-410 のコントラストを満たす）から決める。
 // 画風プリセット（preset:true）だけに効かせ、既存の 4 つ（手書き調・アニメ調・シンプル・RPG風）は null（従来の出力のまま。AC-147・AC-227）。
-// 紙面の質感はアプリが描く線分で表し、外部の素材は使わない（AC-407）。
-const HEADINGS = ['band', 'marker', 'sticky', 'classic'];
-const BALLOONS = ['cloud', 'rounded', 'sticky'];
+// 強制カラー（AC-456）は画面の表示だけの変換で、保存には使わない（常に風の配色）。紙面の質感はアプリが描く線分で、外部の素材は使わない（AC-407）。
 export const PAPERS = ['plain', 'grid', 'ruled', 'chalkboard', 'whiteboard', 'kraft'];
-const isHex = (v) => typeof v === 'string' && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v);
 const hex6 = (v) => (v.length === 4 ? `#${[...v.slice(1)].map((c) => c + c).join('')}` : v).toLowerCase();
 // 2 色の混色（t=0 で a、1 で b）。透明度を使わずに PNG と PDF で同じ色にする
 const mix = (a, b, t) => `#${[1, 3, 5].map((i) => Math.round(parseInt(hex6(a).slice(i, i + 2), 16) * (1 - t) + parseInt(hex6(b).slice(i, i + 2), 16) * t).toString(16).padStart(2, '0')).join('')}`;
 export function exportLook(spec) {
   if (!spec || typeof spec !== 'object' || spec.preset !== true) return null;
-  const pal = spec.palette && typeof spec.palette === 'object' ? spec.palette : {};
-  const pick = (v, d) => (isHex(v) ? hex6(v) : d);
-  const accent = (Array.isArray(pal.accent) ? pal.accent : []).filter(isHex).map(hex6);
-  const background = pick(pal.background, '#ffffff');
-  const width = Number(spec.stroke?.width) > 0 ? Number(spec.stroke.width) : 2;
+  const pr = presetOf(spec);
+  if (!pr) return null;
+  const L = buildLook(spec);
+  const fills = L.stickyFills ?? [L.frameFill];
   return {
-    background, text: pick(pal.text, TEXT),
-    colors: [pick(pal.primary, PALETTE[0]), pick(pal.secondary, PALETTE[1]), ...accent],
-    accent: accent[0] ?? pick(pal.primary, PALETTE[0]),
-    lineWidth: Math.round(width * 10) / 10,
-    headingDecoration: HEADINGS.includes(spec.headingDecoration) ? spec.headingDecoration : 'classic',
-    balloon: BALLOONS.includes(spec.balloon) ? spec.balloon : 'rounded',
-    headWeight: 700, paper: PAPERS.includes(spec.paper) ? spec.paper : 'plain',
+    background: hex6(L.bg), text: hex6(L.ink), frame: hex6(L.frame), band: hex6(L.band), bandText: hex6(L.bandText),
+    marker: hex6(L.marker), headSticky: hex6(L.headSticky), headStickyText: hex6(L.textOn(L.headSticky)),
+    pointFills: fills.map(hex6), pointTexts: fills.map((f) => hex6(L.textOn(f))), pointStroke: (f) => hex6(L.outlineOf(f)),
+    texture: hex6(L.texture), accent: hex6(pr.palette.accent[0]),
+    lineWidth: Math.round(pr.stroke.width * 10) / 10, headingDecoration: pr.headingDecoration, balloon: pr.balloon,
+    headWeight: L.headWeight, weight: L.weight, paper: PAPERS.includes(pr.paper) ? pr.paper : 'plain', fontFamily: fontFamilyOf(pr.font),
   };
 }
 const rnd = (i) => { const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }; // 決定的な擬似乱数（毎回同じ質感）
@@ -42,7 +36,7 @@ const rnd = (i) => { const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; retu
 export function paperTexture(look, w, h) {
   const out = [];
   if (!look) return out;
-  const bg = look.background; const faint = mix(bg, look.text, 0.12);
+  const bg = look.background; const faint = mix(bg, look.texture, 0.35);
   const L = (x1, y1, x2, y2, width = 1, color = faint) => out.push({ x1: Math.round(x1), y1: Math.round(y1), x2: Math.round(x2), y2: Math.round(y2), width, color });
   const frame = (inset, width, color) => { L(inset, inset, w - inset, inset, width, color); L(w - inset, inset, w - inset, h - inset, width, color); L(w - inset, h - inset, inset, h - inset, width, color); L(inset, h - inset, inset, inset, width, color); };
   if (look.paper === 'grid') { for (let y = 24; y < h; y += 24) L(0, y, w, y); for (let x = 24; x < w; x += 24) L(x, 0, x, h); }
@@ -106,34 +100,33 @@ export function buildPdf(scenes, { title = '', arrange = null, parts = null, loo
   const pages = [paper()];
   let y = A4.h - A4.margin; let page = 0;
   const need = (h) => { if (y - h < A4.margin) { pages.push(paper()); page++; y = A4.h - A4.margin; } };
-  // 見出し・要点の飾り（look があるときだけ）
-  const deco = (kind, color, x, top, w, h) => {
+  // 見出し・要点の飾り（look があるときだけ）。i はシーンの番号（付箋の色の巡回）
+  const deco = (kind, i, x, top, w, h) => {
     if (!look || (kind !== 'heading' && kind !== 'point')) return '';
-    const lw = look.lineWidth / 2; let g = 'q ';
+    let g = 'q ';
     if (kind === 'heading') {
       const d = look.headingDecoration;
-      if (d === 'band') g += `${rgb(color)} rg ${x - 4} ${top - h} ${w + 8} ${h} re f\n`;
-      else if (d === 'marker') g += `${rgb(look.accent)} rg ${x - 2} ${top - h} ${w + 4} ${Math.max(4, h * 0.35)} re f\n`;
-      else if (d === 'sticky') g += `${rgb(look.accent)} rg ${x - 4} ${top - h} ${w + 8} ${h} re f\n`;
+      if (d === 'band') g += `${rgb(look.band)} rg ${x - 4} ${top - h} ${w + 8} ${h} re f\n`;
+      else if (d === 'marker') g += `${rgb(look.marker)} rg ${x - 2} ${top - h} ${w + 4} ${Math.max(4, h * 0.35)} re f\n`;
+      else if (d === 'sticky') g += `${rgb(look.headSticky)} rg ${rgb(look.pointStroke(look.headSticky))} RG ${look.lineWidth / 2} w ${x - 4} ${top - h} ${w + 8} ${h} re B\n`;
     } else {
-      g += `${rgb(look.balloon === 'sticky' ? look.accent : mix(look.background, color, 0.15))} rg ${x - 6} ${top - h} ${w + 8} ${h} re f\n`;
-      g += `${rgb(color)} RG ${lw} w ${x - 6} ${top - h} ${w + 8} ${h} re S\n`;
+      const f = look.pointFills[i % look.pointFills.length];
+      g += `${rgb(f)} rg ${rgb(look.pointStroke(f))} RG ${look.lineWidth / 2} w ${x - 6} ${top - h} ${w + 8} ${h} re B\n`;
     }
     return `${g}Q\n`;
   };
-  const inkOf = (kind) => {
-    if (!look) return '';
-    if (kind === 'heading' && look.headingDecoration === 'band') return '1 1 1 rg ';
-    if (kind === 'point' && look.balloon === 'sticky') return `${rgb(TEXT)} rg `;
-    if (kind === 'heading' && look.headingDecoration === 'sticky') return `${rgb(TEXT)} rg `;
+  const inkOf = (kind, i) => {
+    if (kind === 'heading' && look.headingDecoration === 'band') return `${rgb(look.bandText)} rg `;
+    if (kind === 'heading' && look.headingDecoration === 'sticky') return `${rgb(look.headStickyText)} rg `;
+    if (kind === 'point') return `${rgb(look.pointTexts[i % look.pointTexts.length])} rg `;
     return `${rgb(look.text)} rg `;
   };
   // 内容ストリームの 1 ブロック: 全文を ActualText にして、表示は折り返した行ごとに Tj。
-  const block = (text, fs, lh, indent, kind = null, color = PALETTE[0]) => {
+  const block = (text, fs, lh, indent, kind = null, i = 0) => {
     const lines = wrapLines(text, fs, width - indent);
     need(lines.length * lh + 4);
-    let s = deco(kind, color, A4.margin + indent, y + 2, width - indent, lines.length * lh + 2);
-    s += `/Span <</ActualText <FEFF${utf16Hex(text)}>>> BDC\nBT ${look ? inkOf(kind) : ''}/F1 ${fs} Tf ${lh} TL ${A4.margin + indent} ${y - fs} Td\n`;
+    let s = deco(kind, i, A4.margin + indent, y + 2, width - indent, lines.length * lh + 2);
+    s += `/Span <</ActualText <FEFF${utf16Hex(text)}>>> BDC\nBT ${look ? inkOf(kind, i) : ''}/F1 ${fs} Tf ${lh} TL ${A4.margin + indent} ${y - fs} Td\n`;
     lines.forEach((l, i) => { s += `${i ? 'T* ' : ''}<${utf16Hex(l, true)}> Tj\n`; });
     s += 'ET\nEMC\n';
     pages[page].push(s);
@@ -157,9 +150,8 @@ export function buildPdf(scenes, { title = '', arrange = null, parts = null, loo
   } else {
     scenes.forEach((sc, i) => {
       y -= i ? 10 : 0;
-      const color = (look ? look.colors : PALETTE)[i % (look ? look.colors : PALETTE).length];
-      block(sc.heading, FS_H, LH_H, 0, 'heading', color);
-      for (const p of sc.points) block(p.text, FS_P, LH_P, 16, 'point', color);
+      block(sc.heading, FS_H, LH_H, 0, 'heading', i);
+      for (const p of sc.points) block(p.text, FS_P, LH_P, 16, 'point', i);
     });
   }
   // FR-063 AC-321: LLM が対応づけた絵（物の名前）を、PDF にも文字で含める
@@ -263,14 +255,14 @@ export async function renderPng(scenes, canvasFactory, { title = '', arrange = n
   return canvas.toBytes();
 }
 
-// FR-077 AC-419: 描画スタイルの見た目で描く PNG（紙面・配色・見出しの飾り・吹き出し・線の太さ）。文字は fillText で全部描く
+// FR-075・FR-077 AC-419: 画風プリセットの見た目で描く PNG（紙面と質感・配色・見出しの飾り・吹き出し・線の太さ・書体の系統）。文字は fillText で全部描く
 async function renderStyledPng(scenes, canvasFactory, look, parts, imageFactory) {
   const FS_H = 18; const FS_P = 15; const ROW_H = 34; const HEAD_H = 44; const GAP = 22;
-  const font = (px, weight) => `${weight ? `${weight} ` : ''}${px}px system-ui, 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif`;
+  const font = (px, weight) => `${weight ? `${weight} ` : ''}${px}px ${look.fontFamily}`;
   const probe = canvasFactory(8, 8).getContext('2d');
   const measure = (s, px, wt) => { probe.font = font(px, wt); return probe.measureText(s).width; };
   let w = 320;
-  for (const sc of scenes) w = Math.max(w, measure(sc.heading, FS_H, look.headWeight) + 40, ...sc.points.map((p) => measure(p.text, FS_P, 0) + 64));
+  for (const sc of scenes) w = Math.max(w, measure(sc.heading, FS_H, look.headWeight) + 40, ...sc.points.map((p) => measure(p.text, FS_P, look.weight) + 64));
   w = Math.ceil(w + MARGIN * 2);
   const band = await partsBand(parts, w, imageFactory);
   const baseH = Math.ceil(MARGIN * 2 + scenes.reduce((a, sc) => a + HEAD_H + sc.points.length * ROW_H + GAP, 0));
@@ -282,24 +274,21 @@ async function renderStyledPng(scenes, canvasFactory, look, parts, imageFactory)
   const round = (x, y, rw, rh, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + rw, y, x + rw, y + rh, r); g.arcTo(x + rw, y + rh, x, y + rh, r); g.arcTo(x, y + rh, x, y, r); g.arcTo(x, y, x + rw, y, r); g.closePath(); };
   let y = MARGIN;
   scenes.forEach((sc, i) => {
-    const color = look.colors[i % look.colors.length];
     const hw = w - MARGIN * 2; const hh = HEAD_H - 6;
     let ink = look.text;
-    if (look.headingDecoration === 'band') { g.fillStyle = color; g.fillRect(MARGIN, y, hw, hh); ink = '#ffffff'; }
-    else if (look.headingDecoration === 'sticky') { g.fillStyle = look.accent; g.fillRect(MARGIN, y, hw, hh); g.strokeStyle = color; g.lineWidth = look.lineWidth; g.strokeRect(MARGIN, y, hw, hh); ink = TEXT; }
-    else if (look.headingDecoration === 'marker') { g.fillStyle = mix(look.background, look.accent, 0.7); g.fillRect(MARGIN + 8, y + hh * 0.55, Math.min(hw - 8, measure(sc.heading, FS_H, look.headWeight) + 12), hh * 0.4); }
-    else ink = color; // classic: 見出しの文字を主色で
+    if (look.headingDecoration === 'band') { g.fillStyle = look.band; g.fillRect(MARGIN, y, hw, hh); ink = look.bandText; }
+    else if (look.headingDecoration === 'sticky') { g.fillStyle = look.headSticky; g.fillRect(MARGIN, y, hw, hh); g.strokeStyle = look.pointStroke(look.headSticky); g.lineWidth = look.lineWidth; g.strokeRect(MARGIN, y, hw, hh); ink = look.headStickyText; }
+    else if (look.headingDecoration === 'marker') { g.fillStyle = look.marker; g.fillRect(MARGIN + 8, y + hh * 0.6, Math.min(hw - 8, measure(sc.heading, FS_H, look.headWeight) + 12), hh * 0.35); }
     g.fillStyle = ink; g.font = font(FS_H, look.headWeight); g.textBaseline = 'middle';
     g.fillText(sc.heading, MARGIN + 14, y + hh / 2);
     y += HEAD_H;
+    const fill = look.pointFills[i % look.pointFills.length];
     for (const p of sc.points) {
       const bx = MARGIN + 18; const by = y + 3; const bw = w - MARGIN * 2 - 18; const bh = ROW_H - 8;
-      const fillC = look.balloon === 'sticky' ? look.accent : mix(look.background, color, 0.15);
-      if (look.balloon === 'sticky') { g.fillStyle = fillC; g.fillRect(bx, by, bw, bh); }
-      else { round(bx, by, bw, bh, look.balloon === 'cloud' ? bh / 2 : 8); g.fillStyle = fillC; g.fill(); }
-      g.strokeStyle = color; g.lineWidth = look.lineWidth;
-      if (look.balloon === 'sticky') g.strokeRect(bx, by, bw, bh); else g.stroke();
-      g.fillStyle = look.balloon === 'sticky' ? TEXT : look.text; g.font = font(FS_P, 0);
+      g.strokeStyle = look.pointStroke(fill); g.lineWidth = look.lineWidth; g.fillStyle = fill;
+      if (look.balloon === 'sticky') { g.fillRect(bx, by, bw, bh); g.strokeRect(bx, by, bw, bh); }
+      else { round(bx, by, bw, bh, look.balloon === 'cloud' ? bh / 2 : 8); g.fill(); g.stroke(); }
+      g.fillStyle = look.pointTexts[i % look.pointTexts.length]; g.font = font(FS_P, look.weight);
       g.fillText(p.text, bx + 12, by + bh / 2);
       y += ROW_H;
     }
@@ -401,10 +390,11 @@ export function exportModule(ctx) {
   const scenes = () => ctx.state.scenes;
   // 整理の表示を選んでいるときは、その配置（軸・区分・未分類を含む）で出力する（AC-089）
   const arranged = () => (ctx.state.displayMode === 'arrange' && ctx.api.getArrangement ? ctx.api.getArrangement() : null);
-  ctx.registerCommand('save.svg', () => run('svg', 'image/svg+xml', () => ctx.api.renderSvg()));
+  // 保存する SVG は風の配色で出す（強制カラーのシステム色への変換は画面の表示だけ。AC-456 の指摘）
+  ctx.registerCommand('save.svg', () => run('svg', 'image/svg+xml', () => (ctx.api.renderSvgForSave ?? ctx.api.renderSvg)()));
   const drawn = () => ctx.api.getLlmDrawItems?.() ?? null; // FR-063
   // FR-077 AC-419: 現在の描画スタイル（上部・［設定］で選んだもの）の見た目で保存する
-  const look = () => exportLook(drawStyleSpecOf(ctx.api, ctx.api.getDrawStyle?.()));
+  const look = () => exportLook(ctx.api.getDrawStyleSpec?.(ctx.api.getDrawStyle?.()) ?? null);
   ctx.registerCommand('save.pdf', () => run('pdf', 'application/pdf', () => buildPdf(scenes(), { title: ctx.t('app.title'), arrange: arranged(), parts: drawn(), look: look() })));
   ctx.registerCommand('save.png', () => run('png', 'image/png', async () => {
     const factory = ctx.options.canvasFactory ?? browserCanvasFactory();

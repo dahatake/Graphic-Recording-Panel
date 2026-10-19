@@ -7,12 +7,13 @@ import { createLayoutTypeRegistry, validTypeList, timelineLayout, LAYOUT_TYPE_ID
 
 const NEW_STYLE = { id: 'chalk', label: { ja: 'チョーク調', en: 'Chalk' }, line: { width: 1.2, jitter: 0.5 }, fill: { mode: 'tint' }, text: { decor: 'bold', icons: true } };
 
-// FR-029 AC-148: 定義を 1 つ足すだけで選択肢に現れる
+// FR-029 AC-148: 定義を 1 つ足すだけで選択肢に現れる（FR-076 の追加後は、組込みの 4 つの後に 9 つの画風プリセットが並ぶ）
+const PRESET_IDS = ['yellowBlack', 'chalkboard', 'stickyNotes', 'colorPencil', 'mintNote', 'business', 'minimal', 'popColor', 'kraftPaper'];
 test('FR-029 AC-148: スタイルの定義を 1 つ追加すると選択肢に現れ、選べる。組込みの 4 つ（RPG風を含む。FR-047）は変わらない', () => {
   const reg = createDrawStyleRegistry();
-  assert.deepEqual(reg.ids(), ['handwritten', 'anime', 'simple', 'rpg']);
+  assert.deepEqual(reg.ids(), ['handwritten', 'anime', 'simple', 'rpg', ...PRESET_IDS]);
   assert.deepEqual(reg.register(NEW_STYLE), { ok: true });
-  assert.deepEqual(reg.ids(), ['handwritten', 'anime', 'simple', 'rpg', 'chalk']);
+  assert.deepEqual(reg.ids(), ['handwritten', 'anime', 'simple', 'rpg', ...PRESET_IDS, 'chalk']);
   assert.equal(reg.label('chalk', 'en'), 'Chalk');
   assert.ok(reg.has('chalk'));
 });

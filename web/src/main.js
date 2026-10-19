@@ -18,11 +18,14 @@ const app = await createApp({
     reducedMotion: mq('(prefers-reduced-motion: reduce)'),
     viewportWidth: globalThis.innerWidth,
     prefersDark: mq('(prefers-color-scheme: dark)'),
+    forcedColors: mq('(forced-colors: active)'), // FR-076 AC-456: ハイコントラスト（強制カラー）
   },
 });
 const ui = mountUI(app);
 mountEditUI(app);
 ui.measureWorkArea();
+// FR-076 AC-456: 実行中にハイコントラストを切り替えたら、図の配色をシステム色と風の配色の間で切り替える
+globalThis.matchMedia?.('(forced-colors: active)').addEventListener?.('change', (e) => app.setForcedColors?.(e.matches));
 globalThis.addEventListener('resize', () => { /* 幅の変化に合わせて再描画 */ app.setViewportWidth?.(globalThis.innerWidth); });
 
 if ('serviceWorker' in navigator) {

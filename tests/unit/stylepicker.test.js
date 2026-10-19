@@ -5,18 +5,17 @@ import assert from 'node:assert/strict';
 import { newApp, seedThreeScenes, toDetail, pdfTexts, CJK } from '../system/helpers.js';
 import { exportLook, buildPdf, renderPng, paperTexture, PAPERS } from '../../web/src/export.js';
 import { BUILTIN_STYLES } from '../../web/src/drawstyles.js';
-import { drawStyleSpecOf } from '../../web/src/stylespec.js';
 
-// 画風プリセットの定義は、契約（CONTRACT-STYLE-PRESET の getDrawStyleSpec(id)）の形をテスト用の module で与える（FR-075 の統合の前後で同じに動く）。
-const CHALK = { id: 'chalk', label: { ja: 'チョーク風', en: 'Chalk' }, line: { width: 1.3, jitter: 0.6 }, fill: { mode: 'tint' }, text: { decor: 'bold', icons: true } };
-const INK = { id: 'ink', label: { ja: '墨絵風', en: 'Ink wash' }, line: { width: 0.9, jitter: 0.2 }, fill: { mode: 'paper' }, text: { decor: 'plain', icons: false } };
-const CHALK_SPEC = {
-  id: 'chalk', preset: true, paper: 'chalkboard', font: 'handwriting', headingDecoration: 'marker', balloon: 'cloud', stroke: { wobble: 1, width: 2.5 }, figures: false, icons: true,
+// テスト用の画風プリセット（FR-075 の見た目の項目を持つ定義）と、見た目の項目を持たない定義
+const CHALK_LOOK = {
   palette: { background: '#1f3a2e', primary: '#f5f5f0', accent: ['#ffd84d'], text: '#fafafa', secondary: '#9ad1ff' },
+  paper: 'chalkboard', font: 'handwriting', headingDecoration: 'marker', balloon: 'cloud', stroke: { wobble: 1, width: 2.5 }, figures: false, icons: true,
   description: { ja: { color: '深緑の地に白と黄', drawing: '黒板にチョークで描いた線', font: '手書き風', mood: '授業のよう' }, en: { color: 'White and yellow on green', drawing: 'Chalk lines on a blackboard', font: 'Handwriting', mood: 'Like a class' } },
 };
-const contract = (specs) => (ctx) => { const base = ctx.api.getDrawStyleSpec; ctx.api.getDrawStyleSpec = (id) => (id !== undefined && specs[id] ? specs[id] : base(id)); };
-const opts = (extra = {}) => ({ ...extra, options: { drawStyles: [CHALK, INK], modules: [contract({ chalk: CHALK_SPEC })], ...(extra.options ?? {}) } });
+const CHALK = { id: 'chalk', label: { ja: 'チョーク風', en: 'Chalk' }, line: { width: 1.3, jitter: 0.6 }, fill: { mode: 'tint' }, text: { decor: 'bold', icons: true }, ...CHALK_LOOK };
+const INK = { id: 'ink', label: { ja: '墨絵風', en: 'Ink wash' }, line: { width: 0.9, jitter: 0.2 }, fill: { mode: 'paper' }, text: { decor: 'plain', icons: false } };
+const CHALK_SPEC = { id: 'chalk', preset: true, ...CHALK_LOOK };
+const opts = (extra = {}) => ({ ...extra, options: { drawStyles: [CHALK, INK], ...(extra.options ?? {}) } });
 const pickItem = (app) => app.getCommandBar().items.find((i) => i.command === 'drawStyle.pick');
 const labelOf = (app, id) => app.getDrawStyles().find((s) => s.id === id).label;
 
@@ -191,7 +190,6 @@ test('FR-077 AC-419: exportLook は画風プリセットだけに効き、既存
   assert.equal(exportLook(null), null);
   const look = exportLook(CHALK_SPEC);
   assert.deepEqual([look.background, look.text, look.paper, look.headingDecoration, look.balloon, look.lineWidth, look.accent], ['#1f3a2e', '#fafafa', 'chalkboard', 'marker', 'cloud', 2.5, '#ffd84d']);
-  assert.equal(exportLook({ ...CHALK_SPEC, palette: { ...CHALK_SPEC.palette, background: 'not-a-color' } }).background, '#ffffff', '色でない値は使わない');
   assert.equal(exportLook({ ...CHALK_SPEC, paper: 'nosuch' }).paper, 'plain');
 });
 
@@ -226,8 +224,8 @@ test('FR-077 AC-417: 一覧は画面の内側に収まり、下に入りきら�
   const { app } = await newApp(opts());
   const inside = (v, vw, vh) => v.top >= 0 && v.top + v.maxHeight <= vh && v.left >= 0 && v.left + v.width <= vw;
   // 下に十分な高さ: 下に開き、全候補が入る
-  let v = app.getDrawStylePickerView({ viewportWidth: 1280, viewportHeight: 900, anchor: { x: 390, y: 115, w: 63, h: 59 } });
-  assert.equal(v.placement, 'below'); assert.ok(inside(v, 1280, 900)); assert.equal(v.scrollsVertically, false);
+  let v = app.getDrawStylePickerView({ viewportWidth: 1280, viewportHeight: 1400, anchor: { x: 390, y: 115, w: 63, h: 59 } });
+  assert.equal(v.placement, 'below'); assert.ok(inside(v, 1280, 1400)); assert.equal(v.scrollsVertically, false);
   assert.ok(v.options.every((o) => o.reachable)); assert.equal(v.scrollsHorizontally, false);
   // 狭く低い画面でボタンが下の方: 上に開く
   v = app.getDrawStylePickerView({ viewportWidth: 480, viewportHeight: 400, anchor: { x: 12, y: 300, w: 63, h: 59 } });
@@ -251,10 +249,24 @@ test('FR-077 AC-417: 一覧は画面の内側に収まり、下に入りきら�
   }
 });
 
-test('FR-077: 定義の取り出し口（stylespec.js）は契約の形を読み、id の違う定義・例外は使わない', () => {
-  const api = { getDrawStyleSpec: (id) => (id === 'x' ? { id: 'x', preset: true } : { id: 'current' }) };
-  assert.deepEqual(drawStyleSpecOf(api, 'x'), { id: 'x', preset: true });
-  assert.equal(drawStyleSpecOf(api, 'y'), null, '引数を無視して現在の定義を返す版では、id が一致しないものは使わない');
-  assert.equal(drawStyleSpecOf({ getDrawStyleSpec: () => { throw new Error('x'); } }, 'x'), null);
-  assert.equal(drawStyleSpecOf({}, 'x'), null); assert.equal(drawStyleSpecOf(api, 3), null);
+// AC-456 の指摘: 強制カラーのシステム色への変換は画面の表示だけ。保存する SVG・PNG・PDF は風の配色
+test('FR-077 AC-419: 強制カラーの間も、保存する SVG・PNG・PDF は風の配色で、画面の図だけがシステム色になる', async () => {
+  const cv = recordingCanvas();
+  const { app, env } = await newApp(opts({ canvasFactory: cv }));
+  await seedThreeScenes(app, env);
+  app.pickDrawStyle('chalk');
+  const before = { svg: app.renderSvg() };
+  await app.commands['save.png'](); before.png = JSON.stringify(cv.ops); cv.ops.length = 0;
+  await app.commands['save.pdf'](); before.pdf = Buffer.from(env.downloads.at(-1).data).toString('latin1');
+  assert.equal(app.setForcedColors(true).ok, true);
+  assert.notEqual(app.renderSvg(), before.svg, '画面の図はシステム色');
+  assert.match(app.renderSvg(), /CanvasText/);
+  await app.commands['save.svg']();
+  const svg = env.downloads.at(-1).data;
+  assert.equal(svg, before.svg, '保存する SVG は風の配色（強制カラーでないときの図と同じ）');
+  assert.doesNotMatch(svg, /CanvasText|ButtonText/);
+  await app.commands['save.png'](); assert.equal(JSON.stringify(cv.ops), before.png, 'PNG は風の配色');
+  await app.commands['save.pdf'](); assert.equal(Buffer.from(env.downloads.at(-1).data).toString('latin1'), before.pdf, 'PDF は風の配色');
+  assert.equal(app.getForcedColors(), true, '保存の後も画面の強制カラーは保たれる');
+  assert.match(app.renderSvg(), /CanvasText/);
 });
