@@ -4,6 +4,8 @@
 //   fill.mode   'paper'（白地）| 'tint'（種類の色の淡い塗り）
 //   text.decor  見出しの文字の飾り 'standard' | 'bold' | 'plain' ／ text.icons  要点・様子の絵記号を描くか
 // 新しいスタイルは register(def) で足すだけで選択肢に現れる（既存の処理は変えない）。不正な定義は加えられない。
+// FR-075: 見た目の項目（配色・紙面・書体・見出しの飾り・吹き出し・線・線画人物・画風の記述）を任意で持てる（stylepresets.js）。
+import { PRESET_STYLES, validatePresetFields, hasVisualFields } from './stylepresets.js';
 
 export const FILL_MODES = ['paper', 'tint'];
 export const TEXT_DECORS = ['standard', 'bold', 'plain'];
@@ -21,9 +23,12 @@ export const BUILTIN_STYLES = [
   { id: 'simple', label: { ja: 'シンプル', en: 'Simple' }, line: { width: 0.8, jitter: 0 }, fill: { mode: 'paper' }, text: { decor: 'plain', icons: false } },
   // RPG風（FR-047）: 拡張点（register）の定義の追加。描画は rpgmap.js が行う（既存 3 つの定義・処理は変えない）。選択肢の並びは末尾。
   { id: 'rpg', label: { ja: 'RPG風', en: 'RPG' }, line: { width: 1, jitter: 0 }, fill: { mode: 'paper' }, text: { decor: 'plain', icons: true } },
+  // FR-076: 9 つの「〇〇風」（画風プリセット）。拡張点（register）の定義の追加で、既存の 4 つの定義・処理は変えない。
+  ...PRESET_STYLES,
 ];
 
-// 定義の検証。{ ok:true } か { ok:false, reason }（invalid_id / invalid_label / missing_line / missing_fill / missing_text）。
+// 定義の検証。{ ok:true } か { ok:false, reason }（invalid_id / invalid_label / missing_line / missing_fill / missing_text、
+// FR-075 AC-405 の見た目の項目: invalid_palette / low_contrast / invalid_paper / invalid_font / invalid_heading / invalid_balloon / invalid_stroke / invalid_figures / invalid_icons / invalid_description）。
 export function validateStyle(def) {
   if (!isObj(def)) return { ok: false, reason: 'invalid_id' };
   if (typeof def.id !== 'string' || !def.id.trim()) return { ok: false, reason: 'invalid_id' };
@@ -33,7 +38,7 @@ export function validateStyle(def) {
   if (!isObj(def.line) || !(isNum(def.line.width) && def.line.width > 0) || !(isNum(def.line.jitter) && def.line.jitter >= 0)) return { ok: false, reason: 'missing_line' };
   if (!isObj(def.fill) || !FILL_MODES.includes(def.fill.mode)) return { ok: false, reason: 'missing_fill' };
   if (!isObj(def.text) || !TEXT_DECORS.includes(def.text.decor) || typeof def.text.icons !== 'boolean') return { ok: false, reason: 'missing_text' };
-  return { ok: true };
+  return validatePresetFields(def);
 }
 
 const freeze = (def) => JSON.parse(JSON.stringify(def));
@@ -52,6 +57,8 @@ export function createDrawStyleRegistry(initial = BUILTIN_STYLES) {
     },
     has: (id) => typeof id === 'string' && map.has(id),
     get: (id) => (typeof id === 'string' && map.has(id) ? map.get(id) : null),
+    // FR-075: 定義の参照（写し）。preset は見た目の項目を持つか。未知は null。
+    spec: (id) => (typeof id === 'string' && map.has(id) ? { ...freeze(map.get(id)), preset: hasVisualFields(map.get(id)) } : null),
     ids: () => [...map.keys()],
     label(id, lang = 'ja') {
       const d = map.get(id); if (!d) return '';

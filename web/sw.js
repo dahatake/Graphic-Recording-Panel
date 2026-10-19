@@ -1,13 +1,13 @@
 // NFR-OFFLINE-001: app shell をキャッシュして、ネットワークなしでも起動できるようにする。
 // 外部へのリクエストは一切しない（キャッシュにある同一オリジンの資産だけを返す）。
 // 後続の項目が資産（ファイル）を足したら SHELL に追加し、VERSION を上げる。
-const VERSION = 'grp-shell-v17';
+const VERSION = 'grp-shell-v18';
 const SHELL = [
   './', './index.html', './styles/tokens.css', './styles/app.css',
   './src/main.js', './src/app.js', './src/ui.js', './src/i18n.js', './src/layout.js',
   './src/keymap.js', './src/outline.js', './src/popup.js', './src/persist.js', './src/scenes.js',
   './src/diagram.js', './src/emotion.js', './src/parts.js', './src/svgsanitize.js', './src/input.js', './src/vtt.js', './src/speech.js', './src/view3d.js', './styles/view3d.css',
-  './src/edit.js', './src/edit-ui.js', './src/export.js', './src/transcript.js', './src/commandbar.js', './src/arrange.js', './src/axes3d.js',   './src/session.js', './src/topics.js', './src/settings.js', './src/layouttypes.js', './src/autolayout.js', './src/layoutkinds.js', './src/drawstyles.js', './src/rpgmap.js', './src/rpgsprites.js', './src/rpg.js', './src/rpgaudio.js', './src/llm.js', './src/llmdraw.js', './src/relayclient.js',
+  './src/edit.js', './src/edit-ui.js', './src/export.js', './src/transcript.js', './src/commandbar.js', './src/arrange.js', './src/axes3d.js',   './src/session.js', './src/topics.js', './src/settings.js', './src/layouttypes.js', './src/autolayout.js', './src/layoutkinds.js', './src/drawstyles.js', './src/stylepresets.js', './src/presetdiagram.js', './src/rpgmap.js', './src/rpgsprites.js', './src/rpg.js', './src/rpgaudio.js', './src/llm.js', './src/llmdraw.js', './src/relayclient.js',
 ];
 
 self.addEventListener('install', (e) => {
