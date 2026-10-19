@@ -429,23 +429,30 @@ function paint(host, app) {
   const canvas = host.querySelector('.diagram-canvas');
   canvas.setAttribute('aria-label', t('diagram.canvasLabel'));
   const svg = app.renderSvg();
-  canvas.innerHTML = svg;
-  const el = canvas.querySelector('svg');
+  // 同じ SVG・同じ拡大率・同じ幅なら、DOM を作り直さない（NFR-PERF-002/003: ドラッグ・ホバー中の全再構築を避ける）
+  const sig = `${host._zoom}|${host._fit}|${canvas.clientWidth}`;
+  if (host._lastSvg === svg && host._lastSig === sig) return;
+  // SVG が同じで幅・拡大率だけ変わったとき（パネルの大きさ変更中）は、図の DOM を作り直さず寸法だけ直す（長いタスクの回避）
+  const reuse = host._lastSvg === svg && host._base && host._svgEl && host._svgEl.isConnected;
+  host._lastSvg = svg; host._lastSig = sig;
+  if (!reuse) canvas.innerHTML = svg;
+  const el = reuse ? host._svgEl : canvas.querySelector('svg');
   if (el) {
-    const w = Number(el.getAttribute('width')); const h = Number(el.getAttribute('height'));
+    if (!reuse) { host._svgEl = el; host._base = { w: Number(el.getAttribute('width')), h: Number(el.getAttribute('height')), vb: el.getAttribute('viewBox') }; }
+    const { w, h, vb } = host._base;
+    if (vb === null) el.removeAttribute('viewBox'); else el.setAttribute('viewBox', vb);
     // 既定は「幅に合わせる」: パネルより広い図は縮めて、右にはみ出さない（ボタンで拡大・縮小すると解除）
     const avail = canvas.clientWidth - 2;
     const fit = host._fit !== false && avail > 0 && w > avail ? avail / w : 1;
     const z = host._fit !== false ? fit * host._zoom : host._zoom;
-    el.setAttribute('width', String(Math.round(w * z))); el.setAttribute('height', String(Math.round(h * z)));
-    // 図が空のときは案内文の紙面を図の幅いっぱいに広げる（文字は等倍のまま）
-    if (!el.querySelector('[data-scene-id], [data-topic-id]') && avail > w * z) {
-      el.setAttribute('viewBox', `0 0 ${avail / z} ${h}`);
-      el.setAttribute('width', String(avail));
-    }
+    // 紙面（背景）は図の大きさではなく、表示域の全体を覆う。小さい図でも、パネルの領域を全部使って描く（文字は等倍のまま）
+    const availH = canvas.clientHeight - 2;
+    const cw = Math.max(w * z, avail);
+    const ch = Math.max(h * z, availH);
+    el.setAttribute('width', String(Math.round(cw))); el.setAttribute('height', String(Math.round(ch)));
+    el.setAttribute('viewBox', `0 0 ${cw / z} ${ch / z}`);
   }
 }
-
 // FR-035: 比喩の絵（SVG の図形だけ。色だけにせず、各要素に文字のラベル）
 function metaphorSvg(m) {
   const out = [];

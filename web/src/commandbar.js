@@ -2,18 +2,19 @@
 // アイコンはインライン SVG のパス（Fluent System Icons 風の 20px・線画）。外部の資産は使わない。
 import { LAYOUT_TYPE_IDS, LAYOUT_TYPE_META } from './layouttypes.js';
 
+// NFR-UX-011 AC-459〜462: 作業順（左→右）の 8 グループ [見出しの i18n キー, コマンド名, グループ ID]。1 グループは PARAM-092（7）個以内。
+// DOM 順＝フォーカス順＝視覚順。取り消せない data.reset はデータの末尾。
 export const GROUPS = [
-  ['toolbar.import', ['import.file']],
-  ['toolbar.session', ['session.start', 'session.pause', 'session.resume', 'session.stop', 'session.nextScene', 'input.focus']],
-  ['toolbar.save', ['save.png', 'save.svg', 'save.pdf', 'prompt.copy']],
-  ['toolbar.language', ['lang.ja', 'lang.en']],
-  ['toolbar.view', ['view.2d', 'view.3d', 'view.timeline', 'view.arrange', 'detail.next', 'theme.toggle']],
-  // FR-077: 画風（描画スタイル）の一覧を開くボタン（一覧・選択は stylepicker.js）
-  ['toolbar.drawStyle', ['drawStyle.pick']],
-  ['toolbar.layoutType', [...LAYOUT_TYPE_IDS.map((id) => `layoutType.${id}`), 'layoutType.clear', 'settings.open']],
-  ['toolbar.presentation', ['presentation.start', 'presentation.pause', 'presentation.resume', 'presentation.stop', 'presentation.prev', 'presentation.next']],
-  ['toolbar.layout', ['layout.tile', 'layout.focus', 'layout.maximize', 'layout.reset']],
-  ['toolbar.data', ['data.reset', 'file.save', 'file.load']],
+  ['toolbar.import', ['import.file'], 'import'],
+  ['toolbar.session', ['session.start', 'session.pause', 'session.resume', 'session.stop', 'session.nextScene', 'input.focus'], 'session'],
+  // FR-077: 画風（描画スタイル。〇〇風）の一覧を開くボタンは「表示」の末尾（一覧・選択は stylepicker.js）
+  ['toolbar.view', ['view.2d', 'view.3d', 'view.timeline', 'view.arrange', 'detail.next', 'drawStyle.pick'], 'view'],
+  ['toolbar.layoutType', [...LAYOUT_TYPE_IDS.map((id) => `layoutType.${id}`), 'layoutType.clear', 'settings.open'], 'layoutType'],
+  ['toolbar.presentation', ['presentation.start', 'presentation.pause', 'presentation.resume', 'presentation.stop', 'presentation.prev', 'presentation.next'], 'presentation'],
+  // FR-078: 画像生成 AI 向けのプロンプトのコピーは、図の書き出し（PNG・SVG・PDF）の後ろ
+  ['toolbar.export', ['save.png', 'save.svg', 'save.pdf', 'prompt.copy'], 'export'],
+  ['toolbar.data', ['file.save', 'file.load', 'data.reset'], 'data'],
+  ['toolbar.environment', ['layout.tile', 'layout.focus', 'layout.maximize', 'layout.reset', 'theme.toggle', 'lang.ja', 'lang.en'], 'environment'],
 ];
 
 // NFR-UX-003: アイコンの下に常に表示する短いラベル（ja は全角換算 6 以内、en は半角 12 以内。ボタンごとに異なる）。
@@ -129,7 +130,7 @@ export function commandBarModule(ctx) {
   });
   ctx.i18n.addStrings({
     ja: {
-      'toolbar.import': '取り込み', 'toolbar.drawStyle': '画風',
+      'toolbar.import': '取り込み', 'toolbar.export': '図の書き出し', 'toolbar.environment': '画面・環境',
       'import.description': 'テキストファイル（.txt）・字幕ファイル（.vtt）を取り込みます',
       'status.speech.label': '音声認識',
       'status.lang': '言語',
@@ -139,7 +140,7 @@ export function commandBarModule(ctx) {
       'view.name.2d': '2D', 'view.name.3d': '3D',
     },
     en: {
-      'toolbar.import': 'Import', 'toolbar.drawStyle': 'Art style',
+      'toolbar.import': 'Import', 'toolbar.export': 'Export diagram', 'toolbar.environment': 'Screen & environment',
       'import.description': 'Import a text file (.txt) or a caption file (.vtt)',
       'status.speech.label': 'Speech',
       'status.lang': 'Language',
@@ -176,49 +177,51 @@ export function commandBarModule(ctx) {
     return { visible: false };
   };
   api.getTooltip = () => (shown && known(shown) ? { command: shown, ...tip(shown), visible: true } : null);
-  api.getCommandBar = () => ({
-    position: 'top',
-    items: GROUPS.flatMap(([, names]) => names)
-      .filter((name) => typeof api.commands[name] === 'function')
-      .map((command) => {
-        const label = ctx.t(labelKey(command));
-        const it = { command, label, labelVisible: true, accessibleName: label, tabbable: true, tooltip: tip(command), describedBy: tooltipId(command), icon: ICONS[command] ?? '' };
-        // FR-073 AC-388: 取り込みは、何を取り込めるかの説明を常時表示する（ホバー・フォーカスを待たない）
-        if (command === 'import.file') { it.description = ctx.t('import.description'); it.descriptionVisible = true; }
-        return it;
-      }),
-    status: api.getCommandStatus(),
-  });
-  // NFR-UX-003 AC-090: 幅ごとの 1 行の収まり。ラベルは全角 1・半角 0.5 と数え、PARAM-011 以内なら 1 行。グループは折り返すので横スクロールしない。
-  // FR-077 AC-417: 各ボタンの外形（rect。ラベル・現在値の表示を含む）を、グループ単位の折り返し（app.css の .toolbar-group）で見積もる。
+  // NFR-UX-011: 作業順のグループ。見出し（name）とアクセシブルな名前は表示言語に従い、呼ぶたびに作り直す（再読み込み不要）。
+  const present = (name) => typeof api.commands[name] === 'function';
+  api.getCommandBar = () => {
+    const groups = GROUPS.map(([key, names, id]) => {
+      const name = ctx.t(key);
+      return { id, name, accessibleName: name, headingVisible: true, commands: names.filter(present) };
+    }).filter((g) => g.commands.length);
+    const groupOfCommand = new Map(groups.flatMap((g) => g.commands.map((c) => [c, g.id])));
+    const items = groups.flatMap((g) => g.commands).map((command) => {
+      const label = ctx.t(labelKey(command));
+      const it = { command, group: groupOfCommand.get(command), label, labelVisible: true, accessibleName: label, tabbable: true, tabIndex: 0, tooltip: tip(command), describedBy: tooltipId(command), icon: ICONS[command] ?? '' };
+      // FR-073 AC-388: 取り込みは、何を取り込めるかの説明を常時表示する（ホバー・フォーカスを待たない）
+      if (command === 'import.file') { it.description = ctx.t('import.description'); it.descriptionVisible = true; }
+      return it;
+    });
+    return { position: 'top', groups, items, focusOrder: items.map((i) => i.command), status: api.getCommandStatus() };
+  };
+  // NFR-UX-003 AC-090 / NFR-UX-011 AC-462・464: 幅ごとの 1 行の収まりと、各ボタン・見出しの表示範囲（コマンドバー内の座標）。
+  // ラベルは全角 1・半角 0.5 と数え、PARAM-011 以内なら 1 行。グループは折り返すので横スクロールしない。
+  // 配置の規則は CSS と同じ: 狭い画面（768px 未満）は 1 グループ 1 行帯でボタンが折り返し、広い画面はグループを左→右に並べ、入りきらなければ次の行帯へ。
   api.getCommandBarLayout = (opts = {}) => {
-    const vw = Math.max(1, Number(opts.viewportWidth ?? ctx.env.viewportWidth) || 1);
-    const w = (s) => [...String(s ?? '')].reduce((n, ch) => n + (ch.codePointAt(0) >= 0x2e80 ? 1 : 0.5), 0);
-    const items = api.getCommandBar().items;
-    const byCmd = new Map(items.map((i) => [i.command, i]));
-    const out = [];
-    let x = BAR.pad; let y = BAR.pad;
-    for (const [, names] of GROUPS) {
-      const list = names.map((n) => byCmd.get(n)).filter(Boolean);
-      if (!list.length) continue;
-      // 幅 = 余白 + max(アイコン, ラベル, 現在値)。常時表示の説明（取り込み）は横に並び、最大 24em で折り返す
-      const widths = list.map((i) => {
-        const main = Math.max(BAR.icon, Math.ceil(Math.max(w(i.label), w(i.valueLabel)) * BAR.em));
-        const desc = i.descriptionVisible && i.description ? Math.min(BAR.descMax, Math.ceil(w(i.description) * BAR.em)) + BAR.gapInner : 0;
-        return Math.max(BAR.minW, main + desc + BAR.padX * 2);
+    const vw = opts.viewportWidth ?? ctx.env.viewportWidth;
+    const w = (s) => [...s].reduce((n, ch) => n + (ch.codePointAt(0) >= 0x2e80 ? 1 : 0.5), 0);
+    const bar = api.getCommandBar();
+    const BTN_W = 72; const BTN_H = 56; const GAP = 4; const HEAD_H = 20; const PAD = 8; const HEAD_CH = 14;
+    const width = Number.isFinite(vw) && vw > 0 ? vw : 1280;
+    const narrow = width < 768;
+    const avail = width - PAD * 2;
+    const items = []; const heads = [];
+    let x = PAD; let y = PAD; let bandH = 0;
+    for (const g of bar.groups) {
+      const perRow = Math.max(1, Math.floor((avail + GAP) / (BTN_W + GAP)));
+      const cols = Math.min(g.commands.length, perRow);
+      const rows = Math.ceil(g.commands.length / cols);
+      const gw = cols * (BTN_W + GAP) - GAP;
+      const gh = HEAD_H + rows * (BTN_H + GAP) - GAP;
+      if (x > PAD && (narrow || x + gw > PAD + avail)) { x = PAD; y += bandH + GAP; bandH = 0; }
+      const hw = Math.min(Math.max(gw, 1), Math.max(1, Math.ceil(w(g.name) * HEAD_CH * 2) / 2));
+      heads.push({ id: g.id, headingRect: { x, y, w: Math.min(hw, gw), h: HEAD_H } });
+      g.commands.forEach((command, i) => {
+        items.push({ command, rect: { x: x + (i % cols) * (BTN_W + GAP), y: y + HEAD_H + Math.floor(i / cols) * (BTN_H + GAP), w: BTN_W, h: BTN_H } });
       });
-      const groupW = widths.reduce((a, b) => a + b, 0) + BAR.gap * (list.length - 1);
-      if (x > BAR.pad && x + groupW > vw - BAR.pad) { x = BAR.pad; y += BAR.h + BAR.gap; } // グループごと次の行へ
-      list.forEach((i, k) => {
-        if (x > BAR.pad && x + widths[k] > vw - BAR.pad) { x = BAR.pad; y += BAR.h + BAR.gap; } // 狭い画面: グループの中でも折り返す
-        out.push({ command: i.command, labelLines: w(i.label) <= 6 ? 1 : 2, rect: { x, y, w: widths[k], h: BAR.h } });
-        x += widths[k] + BAR.gap;
-      });
-      x += BAR.groupGap;
+      x += gw + PAD; bandH = Math.max(bandH, gh);
     }
-    return { items: out, scrollsHorizontally: false };
+    const label = new Map(bar.items.map((i) => [i.command, i.label]));
+    return { items: items.map((it) => ({ ...it, labelLines: w(label.get(it.command)) <= 6 ? 1 : 2 })), groups: heads, scrollsHorizontally: false };
   };
 }
-
-// コマンドバーの寸法の見積もり（px。tokens.css の --target-size・caption の文字の大きさ・余白 4px グリッドに合わせる）
-const BAR = { pad: 8, gap: 2, groupGap: 8, padX: 8, em: 12, icon: 20, gapInner: 8, descMax: 288, minW: 56, h: 64 };

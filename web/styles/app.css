@@ -14,9 +14,10 @@ h1 { font-size: var(--font-size-title); } h2 { font-size: var(--font-size-subtit
 .app-header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4) var(--space-1); background: var(--color-surface); }
 .app-header h1 { font-size: var(--font-size-subtitle); }
 /* コマンドバー: グループを横に並べて折り返す 1〜2 段。アイコン中心（ラベルはツールチップ・読み上げ）、主要コマンドだけラベル併記 */
-.commandbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); padding: var(--space-1) var(--space-4); background: var(--color-surface); border-bottom: var(--stroke) solid var(--color-border-subtle); }
-.toolbar-group { display: flex; flex-wrap: nowrap; align-items: center; gap: 2px; border: 0; margin: 0; padding: 0; min-width: 0; }
-.toolbar-group legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; padding: 0; }
+.commandbar { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-1) var(--space-2); padding: var(--space-1) var(--space-4); background: var(--color-surface); border-bottom: var(--stroke) solid var(--color-border-subtle); }
+.toolbar-group { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; border: 0; margin: 0; padding: 0; min-width: 0; }
+/* NFR-UX-011: グループ見出しは常に見える（作業順の 8 グループ。DOM 順＝フォーカス順＝視覚順） */
+.toolbar-group-heading { flex: 0 0 100%; font-size: var(--font-size-caption); color: var(--color-text-secondary, var(--color-text)); line-height: 1.2; padding: 0 var(--space-1); white-space: nowrap; }
 .toolbar-group + .toolbar-group { padding-left: var(--space-2); border-left: var(--stroke) solid var(--color-border-subtle); }
 .tooltip-host { position: relative; display: inline-flex; }
 .tooltip { position: absolute; top: calc(100% + 4px); left: 0; z-index: 20; width: max-content; max-width: 260px; padding: var(--space-1) var(--space-2); background: var(--color-surface); color: inherit; border: var(--stroke) solid var(--color-border-subtle); border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,.25); font-size: 0.85rem; pointer-events: none; }

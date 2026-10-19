@@ -1,3 +1,4 @@
+import { coalesceFrame } from './frame.js';
 // FR-005 / FR-006 / FR-007 の画面部分（ブラウザ専用）。mountUI の後に呼ぶ。
 // ・手修正フォーム（アウトラインのパネルの下）  ・保存ボタンの無効化と理由の表示（シーン 0 件: AC-046）
 export function mountEditUI(app, doc = document) {
@@ -91,6 +92,6 @@ export function mountEditUI(app, doc = document) {
     }
   }
 
-  app.subscribe(sync);
+  app.subscribe(coalesceFrame(sync, doc.defaultView?.requestAnimationFrame?.bind(doc.defaultView), doc.defaultView?.cancelAnimationFrame?.bind(doc.defaultView)));
   sync();
 }
