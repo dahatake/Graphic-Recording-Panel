@@ -26,6 +26,14 @@ ui.measureWorkArea();
 globalThis.addEventListener('resize', () => { /* 幅の変化に合わせて再描画 */ app.setViewportWidth?.(globalThis.innerWidth); });
 
 if ('serviceWorker' in navigator) {
+  // 旧版のキャッシュで開いたあとに新しい SW が有効になったら、1 回だけ読み直して新しい資産に切り替える（旧 UI が残り続けるのを防ぐ）。
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener?.('controllerchange', () => {
+    if (!hadController || reloaded) return;
+    reloaded = true;
+    globalThis.location?.reload?.();
+  });
   navigator.serviceWorker.register('./sw.js').catch(() => { /* オフライン用。失敗しても動作は続ける */ });
 }
 globalThis.__app = app;
