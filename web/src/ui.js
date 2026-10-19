@@ -1,6 +1,7 @@
 // DOM との結び付け（ブラウザ専用。app.js は DOM を知らない）。app の状態を描くだけで、状態は持たない。
 import { PANEL_IDS, PANEL_COMMANDS, MIN_H } from './layout.js';
 
+import { coalesceFrame } from './frame.js';
 import { GROUPS, ICONS, PRIMARY, tooltipId, labelKey } from './commandbar.js';
 
 function icon(doc, command) {
@@ -108,6 +109,7 @@ export function mountUI(app, doc = document) {
     }
   }
 
+  let dragging = false; // ドラッグ中は文字列・アウトラインの再構築を止め、位置の更新だけにする（終了時に 1 回描く）
   function render() {
     const st = app.getState();
     if (builtLang !== st.lang) { applyStatic(); buildToolbar(); buildPanelMenus(); builtLang = st.lang; }
@@ -161,11 +163,14 @@ export function mountUI(app, doc = document) {
     }
     // FR-013/FR-014: 認識文字列。過去を読んでいる間はスクロール位置を奪わない（AC-051）
     const tr = $('#transcript');
-    if (tr) {
-      const atBottom = tr.scrollHeight - tr.scrollTop - tr.clientHeight <= 8;
-      const keep = tr.scrollTop;
-      tr.innerHTML = app.renderTranscript();
-      tr.scrollTop = atBottom ? tr.scrollHeight : keep;
+    if (tr && !dragging) {
+      const html = app.renderTranscript();
+      if (tr._html !== html) {
+        const atBottom = tr.scrollHeight - tr.scrollTop - tr.clientHeight <= 8;
+        const keep = tr.scrollTop;
+        tr.innerHTML = html; tr._html = html;
+        tr.scrollTop = atBottom ? tr.scrollHeight : keep;
+      }
     }
     if (doc.activeElement !== draft && draft.value !== st.input.draft) draft.value = st.input.draft;
     $('#message').textContent = st.message ? st.message.text : '';
@@ -174,7 +179,7 @@ export function mountUI(app, doc = document) {
       ise.textContent = is.text; ise.setAttribute('role', is.role); ise.setAttribute('aria-live', is.live);
       ise.dataset.state = is.state;
     }
-    $('#outline').innerHTML = app.renderOutline();
+    if (!dragging) { const o = $('#outline'); const html = app.renderOutline(); if (o._html !== html) { o.innerHTML = html; o._html = html; } }
 
     const layout = app.getLayout();
     const mode = app.getLayoutMode();
@@ -243,12 +248,13 @@ export function mountUI(app, doc = document) {
       const p = app.getLayout().panels[id];
       const sx = ev.clientX; const sy = ev.clientY;
       el.setPointerCapture?.(ev.pointerId);
+      dragging = true;
       const move = (e) => {
         const dx = e.clientX - sx; const dy = e.clientY - sy;
         if (kind === 'move') app.movePanel(id, { x: p.x + dx, y: p.y + dy });
         else app.resizePanel(id, { w: p.w + dx, h: p.h + dy });
       };
-      const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
+      const up = () => { dragging = false; renderSoon(); el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
       el.addEventListener('pointermove', move); el.addEventListener('pointerup', up);
     });
   }
@@ -471,7 +477,9 @@ export function mountUI(app, doc = document) {
   app.on('change', syncPopup);
   doc.addEventListener('pointerdown', (e) => { if (popEl && !e.target.closest?.('#scene-popup, [data-scene-id], [data-topic-id]')) app.popupOutside(); });
 
-  app.subscribe(render);
+  // 変更が続いても再構築は 1 フレームに 1 回（NFR-PERF-002/003）
+  const renderSoon = coalesceFrame(render, doc.defaultView?.requestAnimationFrame?.bind(doc.defaultView), doc.defaultView?.cancelAnimationFrame?.bind(doc.defaultView));
+  app.subscribe(renderSoon);
   render();
-  return { render, measureWorkArea };
+  return { render, renderSoon, measureWorkArea };
 }

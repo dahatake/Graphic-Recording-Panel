@@ -2,6 +2,7 @@
 
 System Test（`tests/system/*.test.js`、`node --test tests/system/`）が前提にする、`web/` の公開 API。実装者はこれに従う。
 期待値は要求定義書の受入基準だけから決めており、この契約は「テストが何を呼ぶか」だけを定める（内部構造は自由）。
+実ブラウザの性能テスト（perf-util.js）の前提: Node（npm 付き）、システムの Edge/Chrome（`PERF_BROWSER` で指定可）、初回に `tests/system` へ playwright-core を自動で `npm ci`（ブラウザはダウンロードしない）。
 アプリは静的 Web（ビルド不要、ES モジュール）。`web/index.html` が `web/src/app.js` を読み込んで DOM に結び付ける。
 `web/src/app.js` は DOM・グローバルに依存せずに import でき（Node で import できる）、副作用は注入された依存だけを通す。
 
