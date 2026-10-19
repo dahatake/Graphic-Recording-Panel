@@ -109,6 +109,7 @@ export function mountUI(app, doc = document) {
     }
   }
 
+  let dragging = false; // ドラッグ中は文字列・アウトラインの再構築を止め、位置の更新だけにする（終了時に 1 回描く）
   function render() {
     const st = app.getState();
     if (builtLang !== st.lang) { applyStatic(); buildToolbar(); buildPanelMenus(); builtLang = st.lang; }
@@ -162,7 +163,7 @@ export function mountUI(app, doc = document) {
     }
     // FR-013/FR-014: 認識文字列。過去を読んでいる間はスクロール位置を奪わない（AC-051）
     const tr = $('#transcript');
-    if (tr) {
+    if (tr && !dragging) {
       const html = app.renderTranscript();
       if (tr._html !== html) {
         const atBottom = tr.scrollHeight - tr.scrollTop - tr.clientHeight <= 8;
@@ -178,7 +179,7 @@ export function mountUI(app, doc = document) {
       ise.textContent = is.text; ise.setAttribute('role', is.role); ise.setAttribute('aria-live', is.live);
       ise.dataset.state = is.state;
     }
-    { const o = $('#outline'); const html = app.renderOutline(); if (o._html !== html) { o.innerHTML = html; o._html = html; } }
+    if (!dragging) { const o = $('#outline'); const html = app.renderOutline(); if (o._html !== html) { o.innerHTML = html; o._html = html; } }
 
     const layout = app.getLayout();
     const mode = app.getLayoutMode();
@@ -247,12 +248,13 @@ export function mountUI(app, doc = document) {
       const p = app.getLayout().panels[id];
       const sx = ev.clientX; const sy = ev.clientY;
       el.setPointerCapture?.(ev.pointerId);
+      dragging = true;
       const move = (e) => {
         const dx = e.clientX - sx; const dy = e.clientY - sy;
         if (kind === 'move') app.movePanel(id, { x: p.x + dx, y: p.y + dy });
         else app.resizePanel(id, { w: p.w + dx, h: p.h + dy });
       };
-      const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
+      const up = () => { dragging = false; renderSoon(); el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
       el.addEventListener('pointermove', move); el.addEventListener('pointerup', up);
     });
   }
