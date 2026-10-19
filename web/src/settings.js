@@ -5,7 +5,8 @@
 // 端末ごとの設定（grp.settings）は詳細度（grp.detail）と同じ仕組みで保存し、初期化・セッションファイルの対象外。
 import * as P from './persist.js';
 import { createDrawStyleRegistry, DEFAULT_STYLE_ID } from './drawstyles.js';
-import { createLayoutTypeRegistry, validTypeList, LAYOUT_TYPE_IDS, LAYOUT_TYPE_META, DEFAULT_LAYOUT_TYPE } from './layouttypes.js';
+import { createLayoutTypeRegistry, validTypeList, LAYOUT_TYPE_IDS, LAYOUT_TYPE_META, DEFAULT_LAYOUT_TYPE, fitTitle } from './layouttypes.js';
+import { TYPE_SCALE } from './infodesign.js';
 
 export const SETTINGS_KEY = 'grp.settings';
 export const FIELD_IDS = ['layout.mode', 'layout.types', 'drawStyle'];
@@ -156,9 +157,10 @@ export function settingsModule(ctx) {
   api.getDiagramLayout = () => {
     const info = api.getLayoutInfo();
     const level = api.getDetailLevel?.() ?? 'detail';
-    const input = { level, topics: api.getTopics?.() ?? [], scenes: state.scenes, titleInfo: api.getTitleInfo?.() ?? null, types: info.selected, lang: lang() };
+    const input = { level, topics: api.getTopics?.() ?? [], scenes: state.scenes, titleInfo: api.getTitleInfo?.() ?? null, types: info.selected, lang: lang(), arranged: api.getArrangeView?.()?.trees ?? null };
     const base = types.layoutFor(info.head)(input);
     for (const id of info.selected.slice(1)) { const ov = types.overlayFor(id); if (ov) ov(base, input); }
+    fitTitle(base, TYPE_SCALE.title); // タイトル欄を欄の幅で折り返し、収まらなければ欄を高くする（AC-166・AC-431）
     return JSON.parse(JSON.stringify({ type: info.head, types: info.selected, ...base }));
   };
 

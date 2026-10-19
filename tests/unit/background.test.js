@@ -32,7 +32,8 @@ test('NFR-BG-001 AC-064: 自動終了から 2 秒以内（PARAM-008）に再開�
   const { sp, sched } = await mk();
   for (let i = 0; i < 20; i++) {
     sp.onend();
-    const ms = sched.flush();
+    // FR-080: 再配置の周期（PARAM-084＝10 秒）のタイマーも同じ scheduler にあるので、再開（PARAM-008 以内）の予約だけを数える
+    const ms = sched.flush().filter((m) => m <= 2000);
     assert.ok(ms.length === 1 && ms[0] <= 2000);
     sp.emit(`発話${i}`); // 結果が届けば上限に達しない
   }
@@ -50,7 +51,7 @@ test('NFR-BG-001 AC-064: 結果が得られないまま再開が続くと上限�
 test('NFR-BG-001 AC-064: 再開待ちの間に停止すると再開しない・二重に予約しない', async () => {
   const { app, sp, sched } = await mk();
   sp.onend(); sp.onend();
-  assert.equal(sched.q.length, 1);
+  assert.equal(sched.q.filter((e) => e.ms <= 2000).length, 1); // 再開の予約は 1 つ（FR-080 の周期のタイマーは数えない）
   app.stopSpeech();
   const n = sp.startCalls.length;
   sched.flush();

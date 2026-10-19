@@ -1,6 +1,7 @@
 // FR-016 意味のある配置による 2D 整理（契約: tests/system/CONTRACT.md「意味のある配置による 2D 整理」）。
 // 縦軸・横軸の区分にオブジェクト（要点・シーン）を割り当てて並べる「整理の表示」と、時系列の表示を切り替える。
 // 状態は ctx.state.displayMode / ctx.state.arrange に持ち、セッションの保存（persist.js）で復元される。DOM に依存しない。
+import { GROUP_MAX, KIND_ORDER, kindOf, chunk, leaves, subgroupLabel } from './infodesign.js';
 
 export const PRESET_ID = 'logical-physical_workflow';
 export const DISPLAY_MODES = ['timeline', 'arrange'];
@@ -147,18 +148,65 @@ export function arrangeModule(ctx) {
     return { vertical, horizontal, text };
   }
 
+  // FR-079 AC-433: 整理の表示では、区分の中の要点の並び（AC-426）・同一の要点のまとめ（AC-429）・下位のまとまり（AC-428）だけを適用する。
+  // 要素の区分の割り当てと区分の位置は変えない。並び・まとめ・分け方は再配置の木（relayout.js の時点）に従う。
+  function cellArrange(placed) {
+    const view = api.getArrangeView?.();
+    if (!view) return placed;
+    const sceneIdx = new Map(st.scenes.map((s, i) => [s.id, i]));
+    const sceneOfPoint = new Map(st.scenes.flatMap((s) => s.points.map((p) => [p.id, s.id])));
+    const leafOf = new Map(); const leafIdx = new Map();
+    for (const s of st.scenes) leaves(view.trees.get(s.id) ?? { children: [] }).forEach((l, i) => { for (const id of l.refIds) { leafOf.set(id, l.refIds[0]); leafIdx.set(id, i); } });
+    const grouped = (sid) => (view.trees.get(sid)?.children ?? []).some((n) => n.type === 'subgroup');
+    const byCell = new Map();
+    for (const p of placed) { const k = `${p.ri}:${p.ci}`; if (!byCell.has(k)) byCell.set(k, []); byCell.get(k).push(p); }
+    const out = [];
+    for (const [cellKey, list] of byCell) {
+      const per = new Map();
+      for (const p of list) {
+        const sid = p.o.kind === 'scene' ? p.o.id : sceneOfPoint.get(p.o.id);
+        if (!per.has(sid)) per.set(sid, { scene: null, points: [] });
+        if (p.o.kind === 'scene') per.get(sid).scene = p; else per.get(sid).points.push(p);
+      }
+      for (const [sid, g] of [...per].sort((a, b) => (sceneIdx.get(a[0]) ?? 0) - (sceneIdx.get(b[0]) ?? 0))) {
+        if (g.scene) out.push(g.scene);
+        const reps = new Map();
+        for (const p of g.points) {
+          const k = leafOf.get(p.o.id) ?? p.o.id;
+          if (reps.has(k)) reps.get(k).refIds.push(p.o.id); else reps.set(k, { ...p, refIds: [p.o.id] });
+        }
+        const list2 = [...reps.values()].sort((a, b) => (leafIdx.get(a.o.id) ?? 0) - (leafIdx.get(b.o.id) ?? 0));
+        if (list2.length > GROUP_MAX && grouped(sid)) {
+          for (const kind of KIND_ORDER) {
+            const of = list2.filter((p) => kindOf(p.o.text) === kind);
+            const parts = chunk(of, GROUP_MAX);
+            parts.forEach((part, i) => {
+              const node = { kind, part: i + 1, parts: parts.length };
+              out.push({ o: { id: `sg:${cellKey}:${sid}:${kind}:${i + 1}`, kind: 'subgroup', text: subgroupLabel(node, st.lang, part.reduce((n, p) => n + p.refIds.length, 0)) }, a: part[0].a, ri: part[0].ri, ci: part[0].ci });
+              out.push(...part);
+            });
+          }
+        } else out.push(...list2);
+      }
+    }
+    return out;
+  }
+
   // 位置の計算（時系列の順に、区分ごとに上から積む）。未分類は縦・横それぞれ最後の行・列。
   function layout() {
     const { vertical: V, horizontal: H } = st.arrange.axes;
     const nv = V.sections.length; const nh = H.sections.length;
     const cells = new Map();
-    const items = drawnObjects().map((o) => {
+    const placed = drawnObjects().map((o) => {
       const a = assignFor(o);
       const ri = a.v ? V.sections.findIndex((s) => s.id === a.v) : nv;
       const ci = a.h ? H.sections.findIndex((s) => s.id === a.h) : nh;
+      return { o, a, ri, ci };
+    });
+    const items = (level() === 'detail' ? cellArrange(placed) : placed).map(({ o, a, ri, ci, refIds }) => {
       const key = `${ri}:${ci}`;
       const idx = cells.get(key) ?? 0; cells.set(key, idx + 1);
-      return { ...o, ri, ci, idx, unclassified: !a.v && !a.h, reason: describe(o.id).text, a };
+      return { ...o, ri, ci, idx, unclassified: !a.v && !a.h, reason: o.kind === 'subgroup' ? '' : describe(o.id).text, a, refIds: refIds ?? null };
     });
     const colW = Array.from({ length: nh + 1 }, () => MIN_COL_W);
     for (const it of items) colW[it.ci] = Math.max(colW[it.ci], Math.ceil((it.kind !== 'point' ? tw(it.text, 16) + 50 : tw(it.text, 14) + 70) + 20));
@@ -177,7 +225,7 @@ export function arrangeModule(ctx) {
     for (const h of rowH) { rowY.push(y); y += h; }
     const width = x + MARGIN; const height = y + MARGIN;
     const out = items.map((it) => ({
-      id: it.id, kind: it.kind, text: it.text, unclassified: it.unclassified, reason: it.reason,
+      id: it.id, kind: it.kind, text: it.text, unclassified: it.unclassified, reason: it.reason, ...(it.refIds ? { refIds: it.refIds } : {}),
       x: colX[it.ci] + 10, y: rowY[it.ri] + ITEM_PAD + it.idx * ITEM_H, w: colW[it.ci] - 20, h: it.kind !== 'point' ? 36 : 38,
     }));
     return {
@@ -202,7 +250,7 @@ export function arrangeModule(ctx) {
   api.getArrangement = () => {
     const { vertical: V, horizontal: H } = st.arrange.axes;
     const g = layout();
-    const pos = new Map(g.items.map((i) => [i.id, { x: i.x, y: i.y }]));
+    const pos = new Map(g.items.flatMap((i) => (i.refIds ?? [i.id]).map((id) => [id, { x: i.x, y: i.y }])));
     const ax = (A) => ({ name: axisName(A), sections: A.sections.map((s) => ({ id: s.id, label: secLabel(s) })) });
     return {
       mode: st.displayMode,

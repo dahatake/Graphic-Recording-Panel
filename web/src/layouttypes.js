@@ -84,6 +84,58 @@ export function timelineLayout(input) {
   };
 }
 
+// FR-036 AC-166・FR-079 AC-431: タイトル欄の文字（階層の最上位の大きさ fontSize）を欄の幅で折り返して並べ、
+// 行が増えて欄に収まらないときは欄を高くし、本編（まとまり・単位・中心・区切り線・比喩）をその分だけ下へずらす。
+// 入力 L は型の配置（timelineLayout などの返り値）。L.titleRows = [{ text, x, y（ベースライン）, w }] を足す。
+const charW = (ch, size) => (ch.codePointAt(0) >= 0x2e80 ? size : size * 0.56);
+export const titleTextWidth = (s, size) => [...String(s)].reduce((w, ch) => w + charW(ch, size), 0);
+export const TITLE_LINE_H = 1.3; // 行の高さ（文字の大きさの倍率）
+export function fitTitle(L, fontSize) {
+  const t = L.title; const lines = L.titleLines ?? [];
+  if (!t || !t.visible || !lines.length) { L.titleRows = []; return L; }
+  const GAP_X = 24; const PAD = 6; const lh = Math.ceil(fontSize * TITLE_LINE_H);
+  const rows = []; let row = 0; let x = t.x; let rowUsed = false;
+  const push = (text) => {
+    const w = titleTextWidth(text, fontSize);
+    if (rowUsed && x + w > t.x + t.w) { row += 1; x = t.x; rowUsed = false; }
+    rows.push({ text, x, row, w }); x += w + GAP_X; rowUsed = true;
+  };
+  for (const line of lines) {
+    // 欄の幅より長い 1 項目は、文字の単位で欄の幅に収まる長さに分ける
+    let cur = ''; let cw = 0;
+    const parts = [];
+    for (const ch of [...line]) {
+      const c = charW(ch, fontSize);
+      if (cur && cw + c > t.w) { parts.push(cur); cur = ''; cw = 0; }
+      cur += ch; cw += c;
+    }
+    if (cur) parts.push(cur);
+    parts.forEach((p, i) => { if (i > 0) { row += 1; x = t.x; rowUsed = false; } push(p); });
+  }
+  const n = row + 1;
+  const need = PAD * 2 + n * lh;
+  const dy = Math.max(0, need - t.h);
+  L.titleRows = rows.map((r) => ({ text: r.text, x: Math.round(r.x * 10) / 10, y: t.y + PAD + r.row * lh + Math.round(fontSize * 0.95), w: Math.round(r.w * 10) / 10, size: fontSize }));
+  if (dy > 0) shiftBody(L, dy);
+  t.h += dy;
+  return L;
+}
+// 本編を dy だけ下へずらす（タイトル欄より下にあるものすべて）
+export function shiftBody(L, dy) {
+  const sy = (o, ...ks) => { if (o) for (const k of ks) if (typeof o[k] === 'number') o[k] += dy; };
+  sy(L.body, 'y'); sy(L.center, 'y');
+  for (const u of L.units ?? []) sy(u, 'y');
+  for (const g of L.groups ?? []) { sy(g.frame, 'y'); sy(g.headingRect, 'y'); }
+  for (const d of L.dividers ?? []) sy(d, 'y1', 'y2');
+  if (L.metaphor) {
+    for (const e of L.metaphor.elements ?? []) sy(e, 'y');
+    for (const s of L.metaphor.sections ?? []) { sy(s.frame, 'y'); sy(s.headingRect, 'y'); }
+    if (L.metaphor.axes) { sy(L.metaphor.axes.x, 'y1', 'y2'); sy(L.metaphor.axes.y, 'y1', 'y2'); }
+  }
+  if (L.canvas) L.canvas.h += dy;
+  return L;
+}
+
 // 登録簿（アプリごとに 1 つ）。
 export function createLayoutTypeRegistry() {
   const impls = new Map(LAYOUT_TYPE_IDS.map((id) => [id, {}]));
