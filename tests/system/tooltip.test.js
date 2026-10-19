@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { newApp, WEB } from './helpers.js';
 
-const ICON_CMDS = ['session.pause', 'session.stop', 'session.nextScene', 'input.focus', 'speech.start', 'save.png', 'save.svg', 'save.pdf',
+const ICON_CMDS = ['session.pause', 'session.stop', 'session.nextScene', 'input.focus', 'save.png', 'save.svg', 'save.pdf',
   'view.2d', 'view.3d', 'presentation.start', 'layout.reset'];
 const items = (app) => app.getCommandBar().items;
 

@@ -6,7 +6,7 @@ import { newApp, CJK } from './helpers.js';
 
 const MAX_FULL = 6; // PARAM-011
 const WIDTH = 1280; // PARAM-012
-const NEEDED = ['session.pause', 'session.stop', 'session.nextScene', 'input.focus', 'speech.start', 'save.png', 'save.svg', 'save.pdf',
+const NEEDED = ['session.pause', 'session.stop', 'session.nextScene', 'input.focus', 'save.png', 'save.svg', 'save.pdf',
   'view.2d', 'view.3d', 'presentation.start', 'layout.reset', 'data.reset', 'file.save', 'file.load'];
 const items = (app) => app.getCommandBar().items;
 const weight = (s) => [...s].reduce((n, ch) => n + (CJK.test(ch) ? 1 : 0.5), 0);
