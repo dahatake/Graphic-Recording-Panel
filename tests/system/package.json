@@ -1,0 +1,9 @@
+{
+  "name": "grp-system-test",
+  "private": true,
+  "type": "module",
+  "description": "System Test の実ブラウザ計測用の依存。ブラウザは取得しない（システムの Edge/Chrome を使う）。",
+  "devDependencies": {
+    "playwright-core": "1.63.0"
+  }
+}

@@ -6,3 +6,6 @@ config/llm.local.json
 
 __pycache__/
 *.pyc
+
+tests/system/node_modules/
+tests/system/.npm-lock/
