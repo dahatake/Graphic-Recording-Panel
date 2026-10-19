@@ -3,6 +3,7 @@
 import { sceneEmotions } from './emotion.js';
 import { matchParts, getPartGroup } from './parts.js';
 import { renderRpgSvg, RPG_STYLE_ID } from './rpgmap.js';
+import { provisionalTree, leaves, subgroupLabel, countMark, TYPE_SCALE } from './infodesign.js';
 
 export const STATUS_MARK = { in_progress: '○', confirmed: '●' };
 const SELECTED_MARK = '▶';
@@ -130,7 +131,44 @@ function iconShape(shape, x, y, color) {
   }
 }
 
-// scenes: アプリの状態のシーン配列。opts: { selectedSceneId, t, title }
+// FR-079: 詳細度「詳細」の 2D の図の幾何（シーンは話順に左から右の列、列の中は見出し→要点（再配置の木の読み順）→絵記号→部品）。
+// 描画（renderDiagramSvg）と図の要素の外枠（app.getDiagramElements）が同じ値を使う。trees: Map(sceneId → 木。infodesign.js)。
+// 木がないシーンは話順のまま（まとめない）。列の幅と高さはそのシーンの内容だけで決まるので、後ろのシーンの変化で前の列は動かない（AC-432(b)）。
+const SUB_HEAD = 26; const SUB_PAD = 10; const SUB_GAP = 20; const FS_SUB = 15;
+export function detailGeometry(scenes, trees = null, lang = 'ja') {
+  const out = []; let x = MARGIN;
+  for (const s of scenes) {
+    const tree = trees?.get?.(s.id) ?? provisionalTree(s, null);
+    const byId = new Map(s.points.map((p) => [p.id, p]));
+    const grouped = tree.children.some((n) => n.type === 'subgroup');
+    const inset = grouped ? SUB_PAD : 0;
+    const emos = sceneEmotions(s);
+    const emoW = Math.max(0, ...emos.map((e) => 34 + textWidth(e.word, FS)));
+    const pw = (leaf) => { const p = byId.get(leaf.refIds[0]); const c = countMark(leaf.refIds.length); return textWidth(p?.text ?? '', FS) + 32 + ICON_W + textWidth(kindLabelOf(classifyPoint(p?.text), lang), 11) + 12 + (c ? textWidth(c, 11) + 8 : 0) + inset * 2; };
+    const count = (n) => n.children.reduce((a, l) => a + l.refIds.length, 0);
+    const subs = tree.children.filter((n) => n.type === 'subgroup').map((n) => textWidth(subgroupLabel(n, lang, count(n)), FS_SUB) + SUB_PAD * 2 + 8);
+    const w = Math.ceil(Math.max(240, textWidth(s.heading, FS_HEAD) + 70, ...leaves(tree).map(pw), ...subs, emoW + 32));
+    const points = []; const subgroups = [];
+    let y = MARGIN + HEAD_H + GAP;
+    const place = (leaf, parent, idx, px, ww) => { points.push({ key: leaf.key, refIds: [...leaf.refIds], parent, readIndex: idx, x: px, y, w: ww, h: BUBBLE_H, provisional: leaf.provisional === true }); y += BUBBLE_H + GAP; };
+    tree.children.forEach((n, ci) => {
+      if (n.type !== 'subgroup') { place(n, null, ci, x, w); return; }
+      const top = y; y += SUB_HEAD;
+      n.children.forEach((l, li) => place(l, n.key, li, x + SUB_PAD, w - SUB_PAD * 2));
+      const bottom = y - GAP + 8 + SUB_PAD; // 最後の吹き出しの尾（8）＋内側の余白
+      subgroups.push({ key: n.key, node: n, readIndex: ci, x, y: top, w, h: bottom - top, label: subgroupLabel(n, lang, count(n)), refIds: n.children.flatMap((l) => l.refIds), provisional: false });
+      y = bottom + SUB_GAP;
+    });
+    const contentEnd = y;
+    y += emos.length * 34;
+    if (matchParts([s.heading, ...s.points.map((p) => p.text)].join('\n'), 4).length) y += 48;
+    out.push({ sceneId: s.id, x, w, y: MARGIN, h: y - MARGIN, contentEnd, end: y, points, subgroups, emotions: emos, provisional: tree.provisional === true });
+    x += w + SCENE_GAP;
+  }
+  return out;
+}
+
+// scenes: アプリの状態のシーン配列。opts: { selectedSceneId, t, title, trees（FR-079 の再配置の木） }
 export function renderDiagramSvg(scenes, opts = {}) {
   ST = opts.style ?? HAND;
   const t = opts.t ?? ((k) => k);
@@ -138,11 +176,12 @@ export function renderDiagramSvg(scenes, opts = {}) {
   const hlId = opts.highlightPointId ?? null;
   const parts = []; let x = MARGIN; let maxH = 0;
   const heads = []; const rects = new Map();
+  const geo = detailGeometry(scenes, opts.trees ?? null, opts.lang);
   scenes.forEach((s, i) => {
+    const g = geo[i];
     const color = PALETTE[i % PALETTE.length];
-    const emos = sceneEmotions(s);
-    const emoW = Math.max(0, ...emos.map((e) => 34 + textWidth(e.word, FS)));
-    const w = Math.ceil(Math.max(240, textWidth(s.heading, FS_HEAD) + 70, ...s.points.map((p) => textWidth(p.text, FS) + 32 + ICON_W + textWidth(kindLabelOf(classifyPoint(p.text), opts.lang), 11) + 12), emoW + 32));
+    const emos = g.emotions;
+    x = g.x; const w = g.w;
     const isSel = s.id === sel;
     const body = [];
     const cx = x + w / 2;
@@ -151,31 +190,45 @@ export function renderDiagramSvg(scenes, opts = {}) {
     body.push(`<text x="${x + 14}" y="${MARGIN + 29}" font-size="${FS_HEAD}" font-weight="${HEAD_WEIGHT[ST.text.decor]}" fill="#ffffff" data-role="status">${STATUS_MARK[s.status] ?? ''}${isSel ? SELECTED_MARK : ''}</text>`);
     body.push(`<text x="${x + 44}" y="${MARGIN + 29}" font-size="${FS_HEAD}" font-weight="${HEAD_WEIGHT[ST.text.decor]}" fill="#ffffff" data-role="heading">${esc(s.heading)}</text>`);
     body.push(`<path d="${wobblyD([[x + 6, MARGIN + HEAD_H + 6], [x + w - 6, MARGIN + HEAD_H + 6]], `${s.id}:u`, false, 1.2)}" fill="none" stroke="${color}" stroke-width="${sw(3)}" stroke-linecap="round"/>`);
-    // 要点の吹き出し（種類ごとに 色・形・絵記号 が異なる）
-    const top = new Map(); let y = MARGIN + HEAD_H + GAP;
+    // 要点の吹き出し（種類ごとに 色・形・絵記号 が異なる）。並び・下位のまとまり・同一の要点のまとめは再配置の木（FR-079）に従う。
+    const top = new Map();
     const dash = s.status === 'in_progress' ? ' stroke-dasharray="6 4"' : '';
-    s.points.forEach((p) => {
-      top.set(p.id, y); rects.set(p.id, { x, y, w, sceneId: s.id });
-      const k = KINDS[classifyPoint(p.text)];
+    const byId = new Map(s.points.map((p) => [p.id, p]));
+    for (const sg of g.subgroups) {
+      body.push(`<g data-subgroup="${attr(sg.key)}" data-subgroup-kind="${attr(sg.node.kind)}"><path d="${wobblyD(outline('rect', sg.x, sg.y, sg.w, sg.h), `${sg.key}:g`, true, 0.8)}" fill="none" stroke="${color}" stroke-width="${sw(1.2)}" stroke-dasharray="4 3" data-role="subgroup-frame"/>`
+        + `<text x="${sg.x + SUB_PAD}" y="${sg.y + 18}" font-size="${FS_SUB}" font-weight="700" fill="${INK}" data-role="subgroup-heading">${esc(sg.label)}</text></g>`);
+    }
+    for (const g1 of g.points) {
+      const p = byId.get(g1.refIds[0]);
+      if (!p) continue;
+      const { x: px, y, w: pw } = g1;
+      for (const id of g1.refIds) { top.set(id, y); rects.set(id, { x: px, y, w: pw, sceneId: s.id }); }
       const kind = classifyPoint(p.text);
-      const hl = p.id === hlId;
+      const k = KINDS[kind];
+      const hl = hlId != null && g1.refIds.includes(hlId);
       const stroke = hl ? HL_COLOR : k.color;
       const concl = kind === 'conclusion'; const sWidth = sw(hl ? 5 : concl ? 4.5 : 2.5);
-      const frame = hl ? `<path d="${wobblyD(outline(k.shape, x - 6, y - 6, w + 12, BUBBLE_H + 12), `${p.id}:f`, true, 1.2)}" fill="none" stroke="${HL_COLOR}" stroke-width="2" stroke-dasharray="3 3" data-role="highlight-frame"/>` : '';
-      const star = hl ? `<g data-role="highlight-icon">${iconShape('star', x + w - 20, y - 16, HL_COLOR)}</g>` : '';
+      const frame = hl ? `<path d="${wobblyD(outline(k.shape, px - 6, y - 6, pw + 12, BUBBLE_H + 12), `${p.id}:f`, true, 1.2)}" fill="none" stroke="${HL_COLOR}" stroke-width="2" stroke-dasharray="3 3" data-role="highlight-frame"/>` : '';
+      const star = hl ? `<g data-role="highlight-icon">${iconShape('star', px + pw - 20, y - 16, HL_COLOR)}</g>` : '';
       const paper = paperFor(k.color);
-      body.push(`<g data-point-id="${attr(p.id)}" data-kind="${kind}"${hl ? ' data-highlight="1"' : ''}>${frame}`
-        + `<path d="${wobblyD(outline(k.shape, x, y, w, BUBBLE_H), p.id, true)}" fill="${paper}" stroke="${stroke}" stroke-width="${sWidth}" stroke-linejoin="round"${dash}/>`
-        + `<path d="${wobblyD([[x + 18, y + BUBBLE_H], [x + 12, y + BUBBLE_H + 8], [x + 26, y + BUBBLE_H]], `${p.id}:t`, false, 0.4)}"         fill="${paper}" stroke="${stroke}" stroke-width="${sw(2.5)}" stroke-linejoin="round"/>`
-        + decoIcon(k.icon, x + 8, y + 7, stroke)
-        + `<text x="${x + 8 + ICON_W}" y="${y + 24}" font-size="${FS}"${concl ? ' ' + 'font-weight="800"' : ''} fill="${INK}">${esc(p.text)}</text>`
-        + `<text data-role="kind-label" x="${x + w - 8}" y="${y + 12}" font-size="11" font-weight="700" text-anchor="end" fill="${INK}">${esc(kindLabelOf(kind, opts.lang))}</text>${star}</g>`);
-      y += BUBBLE_H + GAP;
-    });
-    // 関係線（手描き風の矢印）
+      const label = kindLabelOf(kind, opts.lang);
+      const dup = countMark(g1.refIds.length);
+      const dupSvg = dup ? `<text data-role="dup-count" x="${r1(px + pw - 14 - textWidth(label, 11))}" y="${y + 12}" font-size="11" font-weight="700" text-anchor="end" fill="${INK}">${esc(dup)}</text>` : '';
+      body.push(`<g data-point-id="${attr(p.id)}"${g1.refIds.length > 1 ? ` data-point-ids="${attr(g1.refIds.join(' '))}"` : ''} data-kind="${kind}"${hl ? ' data-highlight="1"' : ''}${g1.provisional ? ' data-provisional="1"' : ''}>${frame}`
+        + `<path d="${wobblyD(outline(k.shape, px, y, pw, BUBBLE_H), p.id, true)}" fill="${paper}" stroke="${stroke}" stroke-width="${sWidth}" stroke-linejoin="round"${dash}/>`
+        + `<path d="${wobblyD([[px + 18, y + BUBBLE_H], [px + 12, y + BUBBLE_H + 8], [px + 26, y + BUBBLE_H]], `${p.id}:t`, false, 0.4)}"         fill="${paper}" stroke="${stroke}" stroke-width="${sw(2.5)}" stroke-linejoin="round"/>`
+        + decoIcon(k.icon, px + 8, y + 7, stroke)
+        + `<text x="${px + 8 + ICON_W}" y="${y + 24}" font-size="${FS}"${concl ? ' ' + 'font-weight="800"' : ''} fill="${INK}">${esc(p.text)}</text>`
+        + `<text data-role="kind-label" x="${px + pw - 8}" y="${y + 12}" font-size="11" font-weight="700" text-anchor="end" fill="${INK}">${esc(label)}</text>${dupSvg}${star}</g>`);
+    }
+    let y = g.contentEnd;
+    // 関係線（手描き風の矢印）。FR-079: 再配置で並びが変わったときは、同じまとまりの隣り合う要素の間だけに引く（ほかの要素を横切らない）
+    const slot = new Map(); for (const g1 of g.points) for (const id of g1.refIds) slot.set(id, g1);
     for (const r of s.relations) {
       const a = top.get(r.from); const b = top.get(r.to);
-      if (a == null || b == null) continue;
+      if (a == null || b == null || a === b) continue; // FR-079 AC-429: まとめた要素の中の関係は描かない
+      const sa = slot.get(r.from); const sb = slot.get(r.to);
+      if (sa.parent !== sb.parent || Math.abs(sa.readIndex - sb.readIndex) !== 1) continue;
       const [from, to] = a <= b ? [a, b] : [b, a];
       const hot = hlId != null && (r.from === hlId || r.to === hlId);
       body.push(`<path data-relation="${attr(r.from)}>${attr(r.to)}"${hot ? ' data-highlight="1"' : ''} d="${wobblyD([[cx, from + BUBBLE_H + 4], [cx, to - 3]], `${r.from}>${r.to}`, false, 1)}" fill="none" stroke="${hot ? HL_COLOR : color}" stroke-width="${sw(hot ? 5 : 2.5)}" stroke-linecap="round" marker-end="url(#${hot ? 'arrow-hl' : `arrow-${i % PALETTE.length}`})"/>`);
@@ -203,7 +256,7 @@ export function renderDiagramSvg(scenes, opts = {}) {
   // FR-053: 要点どうしの関係線（種類のラベル・向き=始点→終点の矢印・明示/推測）。推測は破線＋文字「推測」で、明示と見分ける。
   const relSvg = (opts.relations ?? []).map((r, ri) => {
     const a = rects.get(r.from); const b = rects.get(r.to);
-    if (!a || !b) return '';
+    if (!a || !b || (a.x === b.x && a.y === b.y)) return '';
     const inferred = r.basis === 'inferred';
     const dashA = inferred ? ' stroke-dasharray="5 4"' : '';
     const label = `${r.kindLabel}（${r.basisLabel}）`;
@@ -236,44 +289,80 @@ export function renderDiagramSvg(scenes, opts = {}) {
     + `<title>${title}</title><defs>${markers}</defs><rect width="100%" height="100%" fill="${PAPER}"/>${parts.join('')}${flows.join('')}${relSvg}${empty}</svg>`;
 }
 
-// FR-025/FR-026: 2D の時系列で詳細度が「大項目」「中項目」のときの図。トピックを大項目の箱（題名）、中項目ではその下にシーンの見出しを描く。
-// トピック間の関係は線と種類の文字（順・関連）で示し、色だけに頼らない。要点・関係線・絵記号は描かない（テキスト一覧・ポップアップで確認できる）。
-// topics: [{id,title,sceneIds,containsSelected}]、relations: [{id,from,to,kind,label}]、scenes: アプリのシーン配列。opts: { level, selectedSceneId, t, title }
-export function renderTopicsSvg(topics, relations, scenes, opts = {}) {
-  ST = opts.style ?? HAND;
+// FR-079: 大項目・中項目の幾何（トピックは話順に左から右の箱、中項目ではその下にシーンの見出しの行。1 トピックのシーンが PARAM-088 を超えると、
+// 話順のまま下位のまとまり（chunks）に分ける。AC-428）。描画（renderTopicsSvg）と図の要素の外枠が同じ値を使う。
+const T_ROW = 32; const T_BOX_GAP = 90;
+export function topicsGeometry(topics, relations, scenes, opts = {}) {
   const t = opts.t ?? ((k) => k);
   const level = opts.level === 'middle' ? 'middle' : 'major';
-  const sel = opts.selectedSceneId ?? null;
   const byId = new Map(scenes.map((s) => [s.id, s]));
-  const ROW = 32; const BOX_GAP = 90;
   const selText = t('topic.selected');
-  const boxes = []; const groups = []; let x = MARGIN;
   const span = (r) => Math.abs(topics.findIndex((q) => q.id === r.to) - topics.findIndex((q) => q.id === r.from));
   const arcMax = Math.max(0, ...relations.filter((r) => r.kind === 'related').map((r) => 36 + 20 * span(r)));
   const top = MARGIN + (arcMax ? arcMax + 22 : 0);
+  const out = []; let x = MARGIN;
+  for (const tp of topics) {
+    const heads = tp.sceneIds.map((id) => byId.get(id)).filter(Boolean);
+    const chunks = level === 'middle' ? (opts.chunks?.get?.(tp.id) ?? null) : null;
+    const inset = chunks ? 14 : 0;
+    const w = Math.ceil(Math.max(220, textWidth(tp.title, TYPE_SCALE.topic) + 40,
+      level === 'middle' ? Math.max(0, ...heads.map((s) => textWidth(s.heading, TYPE_SCALE.scene) + 48 + inset * 2)) : 0,
+      tp.containsSelected && level === 'major' ? textWidth(selText, FS) + 48 : 0));
+    let y = top + HEAD_H + 22;
+    const rows = []; const subs = [];
+    let selY = null;
+    if (level === 'major' && tp.containsSelected) { selY = y; y += T_ROW - 6; }
+    const row = (s, parent, idx, rx, rw) => { rows.push({ sceneId: s.id, parent, readIndex: idx, x: rx, y: y - 20, w: rw, h: 26, baseline: y }); y += T_ROW; };
+    if (level === 'middle' && chunks) {
+      const live = new Set(heads.map((s) => s.id));
+      const list = chunks.map((c) => c.filter((id) => live.has(id))).filter((c) => c.length);
+      list.forEach((c, ci) => {
+        const subTop = y - 22; y = subTop + 44;
+        c.forEach((id, k) => row(byId.get(id), `${tp.id}:${ci + 1}`, k, x + inset, w - inset * 2));
+        const bottom = y - T_ROW + 10;
+        subs.push({ key: `${tp.id}:${ci + 1}`, readIndex: ci, x: x + 4, y: subTop, w: w - 8, h: bottom - subTop, label: `${ci + 1}/${list.length}（${c.length}）`, refIds: [...c] });
+        y = bottom + 14 + 22;
+      });
+    } else if (level === 'middle') heads.forEach((s, k) => row(s, null, k, x + 6, w - 12));
+    out.push({ topicId: tp.id, x, y: top, w, h: y - top - 8, end: y, rows, subs, selY });
+    x += w + T_BOX_GAP;
+  }
+  return { top, topics: out, end: x };
+}
+
+// FR-025/FR-026: 2D の時系列で詳細度が「大項目」「中項目」のときの図。トピックを大項目の箱（題名）、中項目ではその下にシーンの見出しを描く。
+// トピック間の関係は線と種類の文字（順・関連）で示し、色だけに頼らない。要点・関係線・絵記号は描かない（テキスト一覧・ポップアップで確認できる）。
+// topics: [{id,title,sceneIds,containsSelected}]、relations: [{id,from,to,kind,label}]、scenes: アプリのシーン配列。opts: { level, selectedSceneId, t, title, chunks }
+export function renderTopicsSvg(topics, relations, scenes, opts = {}) {
+  ST = opts.style ?? HAND;
+  const t = opts.t ?? ((k) => k);
+  const sel = opts.selectedSceneId ?? null;
+  const byId = new Map(scenes.map((s) => [s.id, s]));
+  const BOX_GAP = T_BOX_GAP;
+  const selText = t('topic.selected');
+  const boxes = []; const groups = []; let x = MARGIN;
+  const geo = topicsGeometry(topics, relations, scenes, opts);
+  const { top } = geo;
   let maxH = 0;
   topics.forEach((tp, i) => {
+    const g = geo.topics[i];
     const color = PALETTE[i % PALETTE.length];
-    const heads = tp.sceneIds.map((id) => byId.get(id)).filter(Boolean);
     const marks = (s) => `${s.id === sel ? SELECTED_MARK : ''}`;
-    const w = Math.ceil(Math.max(220, textWidth(tp.title, FS_HEAD) + 40,
-      level === 'middle' ? Math.max(0, ...heads.map((s) => textWidth(s.heading, FS) + 48)) : 0,
-      tp.containsSelected && level === 'major' ? textWidth(selText, FS) + 48 : 0));
+    x = g.x; const { w } = g;
     const body = [];
     body.push(`<path d="${wobblyD(outline('rect', x, top, w, HEAD_H), `${tp.id}:h`, true, 1.4)}" fill="${color}" stroke="${tp.containsSelected ? INK : color}" stroke-width="${tp.containsSelected ? 4 : 2}" stroke-linejoin="round" data-role="topic-band"/>`);
-    body.push(`<text x="${x + 14}" y="${top + 29}" font-size="${FS_HEAD}" font-weight="800" fill="#ffffff" data-role="topic-title">${esc(tp.title)}</text>`);
-    let y = top + HEAD_H + 22;
-    if (level === 'major' && tp.containsSelected) {
-      body.push(`<text x="${x + 10}" y="${y}" font-size="${FS}" font-weight="700" fill="${INK}" data-role="contains-selected">${SELECTED_MARK} ${esc(selText)}</text>`);
-      y += ROW - 6;
+    body.push(`<text x="${x + 14}" y="${top + 29}" font-size="${TYPE_SCALE.topic}" font-weight="800" fill="#ffffff" data-role="topic-title">${esc(tp.title)}</text>`);
+    if (g.selY != null) body.push(`<text x="${x + 10}" y="${g.selY}" font-size="${FS}" font-weight="700" fill="${INK}" data-role="contains-selected">${SELECTED_MARK} ${esc(selText)}</text>`);
+    for (const sg of g.subs) {
+      body.push(`<g data-subgroup="${attr(sg.key)}"><path d="${wobblyD(outline('rect', sg.x, sg.y, sg.w, sg.h), `${sg.key}:g`, true, 0.8)}" fill="none" stroke="${color}" stroke-width="${sw(1.2)}" stroke-dasharray="4 3" data-role="subgroup-frame"/>`
+        + `<text x="${sg.x + 8}" y="${sg.y + 17}" font-size="${FS_SUB}" font-weight="700" fill="${INK}" data-role="subgroup-heading">${esc(sg.label)}</text></g>`);
     }
-    if (level === 'middle') {
-      for (const s of heads) {
-        const on = s.id === sel;
-        body.push(`<text x="${x + 10}" y="${y}" font-size="${FS}" font-weight="${on ? 800 : 600}" fill="${INK}" data-scene-id="${attr(s.id)}" data-role="scene-heading"${on ? ' aria-current="true"' : ''}>${STATUS_MARK[s.status] ?? ''}${marks(s)} ${esc(s.heading)}</text>`);
-        y += ROW;
-      }
+    for (const r of g.rows) {
+      const s = byId.get(r.sceneId);
+      const on = s.id === sel;
+      body.push(`<text x="${r.x + 4}" y="${r.baseline}" font-size="${TYPE_SCALE.scene}" font-weight="${on ? 800 : 600}" fill="${INK}" data-scene-id="${attr(s.id)}" data-role="scene-heading"${on ? ' aria-current="true"' : ''}>${STATUS_MARK[s.status] ?? ''}${marks(s)} ${esc(s.heading)}</text>`);
     }
+    const y = g.end;
     body.unshift(`<path d="${wobblyD(outline('rect', x - 10, top - 10, w + 20, y - top + 2), `${tp.id}:e`, true, 1.6)}" fill="none" stroke="${color}" stroke-width="1.5" stroke-opacity="0.45" stroke-dasharray="2 5" data-role="topic-frame"/>`);
     boxes.push({ id: tp.id, x, w, color });
     groups.push(`<g data-topic-id="${attr(tp.id)}"${tp.containsSelected ? ' aria-current="true"' : ''}>${body.join('')}</g>`);
@@ -353,15 +442,22 @@ export function renderArrangedSvg(scenes, model, opts = {}) {
       parts.push(`<g data-scene-id="${attr(it.id)}" data-assigned="${it.unclassified ? 'unclassified' : 'assigned'}"${isSel ? ' aria-current="true"' : ''}>${reason}`
         + `<path d="${wobblyD(outline('rect', it.x, it.y, it.w, it.h), `${it.id}:h`, true, 1.2)}" fill="${color}" stroke="${isSel ? INK : color}" stroke-width="${isSel ? 4 : 2}" stroke-linejoin="round" data-role="heading-band"/>`
         + `<text x="${it.x + 10}" y="${it.y + it.h - 11}" font-size="${FS_HEAD - 2}" font-weight="800" fill="#ffffff" data-role="heading">${STATUS_MARK[sc.status] ?? ''}${isSel ? SELECTED_MARK : ''} ${esc(sc.heading)}</text></g>`);
+    } else if (it.kind === 'subgroup') {
+      // FR-079 AC-433 AC-428: 区分の中の下位のまとまりの小見出し（種類のラベルと件数）
+      parts.push(`<text x="${it.x + 4}" y="${it.y + 24}" font-size="${FS_SUB}" font-weight="700" fill="${INK}" data-role="subgroup-heading" data-subgroup="${attr(it.id)}">${esc(it.text)}</text>`);
     } else {
       const p = scenes.flatMap((s) => s.points).find((q) => q.id === it.id);
       const kind = classifyPoint(p.text); const k = KINDS[kind];
-      const hl = p.id === hlId;
+      const refIds = it.refIds ?? [p.id];
+      const hl = hlId != null && refIds.includes(hlId);
       const stroke = hl ? HL_COLOR : k.color;
-      parts.push(`<g data-point-id="${attr(p.id)}" data-kind="${kind}" data-assigned="${it.unclassified ? 'unclassified' : 'assigned'}"${hl ? ' data-highlight="1"' : ''}>${reason}`
+      const dup = countMark(refIds.length); // FR-079 AC-429: 同一の要点のまとめの件数
+      parts.push(`<g data-point-id="${attr(p.id)}"${refIds.length > 1 ? ` data-point-ids="${attr(refIds.join(' '))}"` : ''} data-kind="${kind}" data-assigned="${it.unclassified ? 'unclassified' : 'assigned'}"${hl ? ' data-highlight="1"' : ''}>${reason}`
         + `<path d="${wobblyD(outline(k.shape, it.x, it.y, it.w, BUBBLE_H), p.id, true)}" fill="${PAPER}" stroke="${stroke}" stroke-width="${hl ? 5 : 2.5}" stroke-linejoin="round"/>`
         + iconShape(k.icon, it.x + 8, it.y + 7, stroke)
-        + `<text x="${it.x + 8 + ICON_W}" y="${it.y + 24}" font-size="${FS}" fill="${INK}">${esc(p.text)}</text></g>`);
+        + `<text x="${it.x + 8 + ICON_W}" y="${it.y + 24}" font-size="${FS}" fill="${INK}">${esc(p.text)}</text>`
+        + (dup ? `<text data-role="dup-count" x="${it.x + it.w - 8}" y="${it.y + 12}" font-size="11" font-weight="700" text-anchor="end" fill="${INK}">${esc(dup)}</text>` : '')
+        + '</g>');
     }
   }
   parts.push(...relLabels);
@@ -470,7 +566,7 @@ function metaphorSvg(m) {
   if (m.axes) {
     out.push(`<g data-role="axes"><text data-role="axis-label" data-axis="x" x="${r1(m.axes.x.x1)}" y="${r1(m.axes.x.y1)}" font-size="12" font-weight="700">${esc(m.axes.x.label)}</text><text data-role="axis-label" data-axis="y" x="${r1(m.axes.y.x1)}" y="${r1(m.axes.y.y1 + 14)}" font-size="12" font-weight="700">${esc(m.axes.y.label)}</text></g>`);
   }
-  return `<g data-role="metaphor" data-metaphor-kind="${attr(m.kind)}">${out.join('')}${(m.sections ?? []).map((s) => `<g data-metaphor-section="${attr(s.id)}"><rect data-role="frame" x="${r1(s.frame.x)}" y="${r1(s.frame.y)}" width="${r1(s.frame.w)}" height="${r1(s.frame.h)}" rx="8" fill="none" stroke="#9a9a9a" stroke-width="1"/><text data-role="subheading" x="${r1(s.headingRect.x)}" y="${r1(s.headingRect.y + 14)}" font-size="13" font-weight="700">${esc(s.heading)}</text></g>`).join('')}</g>`;
+  return `<g data-role="metaphor" data-metaphor-kind="${attr(m.kind)}">${out.join('')}${(m.sections ?? []).map((s) => `<g data-metaphor-section="${attr(s.id)}"><rect data-role="frame" x="${r1(s.frame.x)}" y="${r1(s.frame.y)}" width="${r1(s.frame.w)}" height="${r1(s.frame.h)}" rx="8" fill="none" stroke="#9a9a9a" stroke-width="1"/><text data-role="subheading" x="${r1(s.headingRect.x)}" y="${r1(s.headingRect.y + 18)}" font-size="${TYPE_SCALE.topic}" font-weight="800">${esc(s.heading)}</text></g>`).join('')}</g>`;
 }
 
 // FR-036: 共通配置（タイトル欄・各まとまりの小見出しと外枠）の SVG。まとまりは <g data-group-id>、小見出しは data-role="subheading"、外枠は data-role="frame"。
@@ -478,13 +574,15 @@ function commonPlacementSvg(L) {
   if (!L) return '';
   const parts = [];
   if (L.title?.visible && L.titleLines?.length) {
-    parts.push(`<g data-role="title">${L.titleLines.map((line, i) => `<text x="${L.title.x}" y="${L.title.y + 14 + i * 16}" font-size="13" font-weight="700">${esc(line)}</text>`).join('')}</g>`);
+    // FR-079 AC-431: タイトル欄は階層の最上位（いちばん大きい文字）。欄の高さに収まるよう 1 行に並べる
+    let tx = L.title.x;
+    parts.push(`<g data-role="title">${L.titleLines.map((line) => { const s = `<text x="${r1(tx)}" y="${L.title.y + 30}" font-size="${TYPE_SCALE.title}" font-weight="800">${esc(line)}</text>`; tx += textWidth(line, TYPE_SCALE.title) + 24; return s; }).join('')}</g>`);
   }
   // FR-035: 比喩（道・山・橋・太陽・4 象限）を先に描く。文字のラベルを必ず付け、外部の画像は使わない
   if (L.metaphor) parts.push(metaphorSvg(L.metaphor));
   const divided = (L.dividers ?? []).length > 0; // FR-034: 区切り線があるとき、区画の外枠は線にしない
   for (const g of L.groups ?? []) {
-    parts.push(`<g data-group-id="${attr(g.id)}" data-group-kind="${attr(g.kind)}"><rect data-role="frame" x="${g.frame.x}" y="${g.frame.y}" width="${g.frame.w}" height="${g.frame.h}" rx="8" fill="none" stroke="${divided && g.kind === 'zone' ? 'none' : 'currentColor'}" stroke-width="1.5"/><text data-role="subheading" x="${g.headingRect.x}" y="${g.headingRect.y + 14}" font-size="13" font-weight="700">${esc(g.heading)}</text></g>`);
+    parts.push(`<g data-group-id="${attr(g.id)}" data-group-kind="${attr(g.kind)}"><rect data-role="frame" x="${g.frame.x}" y="${g.frame.y}" width="${g.frame.w}" height="${g.frame.h}" rx="8" fill="none" stroke="${divided && g.kind === 'zone' ? 'none' : 'currentColor'}" stroke-width="1.5"/><text data-role="subheading" x="${g.headingRect.x}" y="${g.headingRect.y + 18}" font-size="${TYPE_SCALE.topic}" font-weight="800">${esc(g.heading)}</text></g>`);
   }
   // FR-034: 区画の区切り線（グレー。本文より細く、高コントラスト表示では CSS が GrayText にする）
   for (const d of L.dividers ?? []) parts.push(`<line data-role="zone-divider" x1="${d.x1}" y1="${d.y1}" x2="${d.x2}" y2="${d.y2}" stroke="#8a8a8a" stroke-width="1"/>`);
@@ -526,10 +624,10 @@ function commonPlacementSvg(L) {
   };
   if (L.center) {
     const c = L.center;
-    parts.push(`<g data-unit-id="center" data-role="center">${box({ ...c, emphasis: 'center', shape: 'round', text: c.text }, '', 20)}</g>`);
+    parts.push(`<g data-unit-id="center" data-role="center">${box({ ...c, emphasis: 'center', shape: 'round', text: c.text }, '', TYPE_SCALE.theme)}</g>`);
   }
   for (const u of L.units ?? []) {
-    parts.push(`<g data-unit-id="${attr(u.id)}" data-order="${u.order}" data-unit-kind="${attr(u.kind)}"${u.role ? ` data-role-kind="${u.role}"` : ''}${u.attachedTo ? ` data-attached-to="${attr(u.attachedTo)}"` : ''}${u.shape ? ` data-bubble-shape="${u.shape}"` : ''}${u.emphasis ? ` data-emphasis="${u.emphasis}"` : ''}>${box(u, '', 12)}</g>`);
+    parts.push(`<g data-unit-id="${attr(u.id)}" data-order="${u.order}" data-unit-kind="${attr(u.kind)}"${u.role ? ` data-role-kind="${u.role}"` : ''}${u.attachedTo ? ` data-attached-to="${attr(u.attachedTo)}"` : ''}${u.shape ? ` data-bubble-shape="${u.shape}"` : ''}${u.emphasis ? ` data-emphasis="${u.emphasis}"` : ''}>${box(u, '', TYPE_SCALE[u.kind] ?? TYPE_SCALE.point)}</g>`);
   }
   for (const a of L.arrows ?? []) {
     const f = rectOf(a.from); const t = rectOf(a.to);
@@ -574,8 +672,10 @@ export function diagramModule(ctx) {
     };
     // FR-016 AC-089: 画面で選んでいる表示（時系列／整理）と同じ配置で出力する（保存もここを通る）
     if (ctx.state.displayMode === 'arrange' && ctx.api.getArrangement) return mark(renderArrangedSvg(ctx.state.scenes, ctx.api.getArrangement(), { ...o, ...(units ?? {}), selectedLabel: ctx.t('topic.selected') }));
-    if (units) return mark(renderTopicsSvg(units.topics, units.relations, ctx.state.scenes, { ...o, level }));
-    return mark(renderDiagramSvg(ctx.state.scenes, o));
+    // FR-079: 再配置の木（まとまりの中の並び・下位のまとまり・同一の要点のまとめ）に従って描く
+    const view = ctx.api.getArrangeView?.() ?? null;
+    if (units) return mark(renderTopicsSvg(units.topics, units.relations, ctx.state.scenes, { ...o, level, chunks: view?.chunks ?? null }));
+    return mark(renderDiagramSvg(ctx.state.scenes, { ...o, trees: view?.trees ?? null }));
   };
 
   // ---- FR-015 AC-074: 図の演出の記述（見出しと要点の表現） ----
@@ -583,6 +683,7 @@ export function diagramModule(ctx) {
     scenes: ctx.state.scenes.map((s) => ({
       id: s.id,
       heading: { fontSize: FS_HEAD, fontWeight: 800, framed: true },
+      typeScale: { ...TYPE_SCALE }, // FR-079 AC-431: 階層ごとの基準の文字の大きさ（タイトル・テーマ＞トピック＞シーン＞要点）
       points: s.points.map((p) => { const kind = classifyPoint(p.text); const k = KINDS[kind]; const icons = ctx.api.getDrawStyleSpec?.()?.text.icons !== false; return { id: p.id, kind, kindLabel: kindLabelOf(kind, ctx.state.lang), emphasized: kind === 'conclusion', color: k.color, shape: k.shape, icon: icons ? k.icon : 'none', fontSize: FS, fontWeight: kind === 'conclusion' ? 800 : 400 }; }),
     })),
   });

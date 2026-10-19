@@ -156,7 +156,7 @@ export function settingsModule(ctx) {
   api.getDiagramLayout = () => {
     const info = api.getLayoutInfo();
     const level = api.getDetailLevel?.() ?? 'detail';
-    const input = { level, topics: api.getTopics?.() ?? [], scenes: state.scenes, titleInfo: api.getTitleInfo?.() ?? null, types: info.selected, lang: lang() };
+    const input = { level, topics: api.getTopics?.() ?? [], scenes: state.scenes, titleInfo: api.getTitleInfo?.() ?? null, types: info.selected, lang: lang(), arranged: api.getArrangeView?.()?.trees ?? null };
     const base = types.layoutFor(info.head)(input);
     for (const id of info.selected.slice(1)) { const ov = types.overlayFor(id); if (ov) ov(base, input); }
     return JSON.parse(JSON.stringify({ type: info.head, types: info.selected, ...base }));

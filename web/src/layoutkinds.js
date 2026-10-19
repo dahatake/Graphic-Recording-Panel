@@ -94,13 +94,25 @@ export function timelineTypeLayout(input) {
 }
 
 // ---- 吹き出し型・発散型の共通: 描く単位（詳細度に従う） ----
-function sources(input) {
+function sources(input, arranged = false) {
   const tOf = topicOfScene(input.topics);
   if (input.level === 'major') {
     return input.topics.map((tp) => ({ id: tp.id, kind: 'topic', text: tp.title, topicId: tp.id, sceneId: tp.sceneIds[0], texts: tp.sceneIds.flatMap((id) => input.scenes.find((s) => s.id === id)?.points.map((p) => p.text) ?? []) }));
   }
   if (input.level === 'middle') {
     return input.scenes.map((s) => ({ id: s.id, kind: 'scene', text: s.heading, topicId: tOf.get(s.id)?.id ?? `scene:${s.id}`, sceneId: s.id, texts: s.points.map((p) => p.text) }));
+  }
+  // FR-079 AC-426 AC-429: 発散型の放射状の配置では、シーンの要点を再配置の木の読み順（結論が 12 時の位置から時計回りの先頭）に並べ、同一の要点はまとめる
+  if (arranged && input.arranged) {
+    return input.scenes.flatMap((s) => {
+      const tree = input.arranged.get?.(s.id);
+      if (!tree) return s.points.map((p) => ({ id: p.id, kind: 'point', text: p.text, topicId: tOf.get(s.id)?.id ?? `scene:${s.id}`, sceneId: s.id, texts: [p.text] }));
+      const byId = new Map(s.points.map((p) => [p.id, p]));
+      return tree.children.flatMap((n) => (n.type === 'subgroup' ? n.children : [n])).filter((l) => byId.has(l.refIds[0])).map((l) => {
+        const p = byId.get(l.refIds[0]);
+        return { id: p.id, kind: 'point', text: l.refIds.length > 1 ? `${p.text} ×${l.refIds.length}` : p.text, refIds: [...l.refIds], topicId: tOf.get(s.id)?.id ?? `scene:${s.id}`, sceneId: s.id, texts: [p.text] };
+      });
+    });
   }
   return input.scenes.flatMap((s) => s.points.map((p) => ({ id: p.id, kind: 'point', text: p.text, topicId: tOf.get(s.id)?.id ?? `scene:${s.id}`, sceneId: s.id, texts: [p.text] })));
 }
@@ -142,7 +154,7 @@ export function divergeLayout(input) {
   const info = input.titleInfo ?? {};
   const visible = titleLines(info).length > 0;
   const OW = 200; const OH = 56; const CW = 240; const CH = 80; const R0 = 250; const STEP = 250; const ARC = 240; const HEAD = 24;
-  const src = sources(input);
+  const src = sources(input, true); // FR-079: 放射状の配置は再配置の木の読み順（結論が先頭）
   // 共感: 同じ語句が MIN_ECHO 以上の異なるシーンの要点に現れる意見を強調する（大きさの基準は全員同じ）
   const sceneSets = new Map(input.scenes.map((s) => [s.id, new Set(tokenize(s.points.map((p) => p.text)).map((w) => w.toLowerCase()))]));
   const spread = new Map();
