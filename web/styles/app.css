@@ -83,8 +83,13 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .transcript-item.final { font-style: normal; margin-bottom: var(--space-1); }
 .transcript-item.interim { font-style: italic; border: 1px dashed var(--color-border); border-radius: var(--radius-control); padding: var(--space-1) var(--space-2); margin: var(--space-1) 0 0; }
 .transcript-tag { font-size: var(--font-size-caption); border: var(--stroke) solid var(--color-border); border-radius: var(--radius-control); padding: 0 var(--space-1); font-style: normal; }
-.file-import { display: flex; flex-direction: column; gap: var(--space-1); margin-top: var(--space-3); }
-.file-import input[type="file"] { font: inherit; color: var(--color-text); max-width: 100%; }
+/* FR-073: 最上部の「取り込み」は、アイコン・名称・説明の文字を常時見せる */
+.commandbar .btn-import { height: auto; flex-direction: row; gap: var(--space-2); text-align: left; }
+.commandbar .btn-import .btn-desc { font-size: var(--font-size-caption); color: var(--color-text-secondary, var(--color-text)); white-space: normal; max-width: 24em; }
+/* FR-072: 同意のチェックと説明は、最上部の操作領域（コマンドバーの直下）に置く */
+#speech-consent-box.speech-consent { margin: var(--space-1) var(--space-3); }
+.tabs [role="tab"][aria-selected="true"] { border-bottom: 3px solid currentColor; font-weight: 600; }
+#panel-tabs:not([hidden]) { display: flex; }
 
 /* 図（FR-004）: 拡大・縮小・ドラッグ移動できるキャンバス。SVG は自前の紙色で描くので、ダーク時も枠で囲む */
 .diagram-tools { display: flex; gap: var(--space-2); margin-bottom: var(--space-2); }

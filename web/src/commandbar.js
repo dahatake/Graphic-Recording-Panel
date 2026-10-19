@@ -3,8 +3,8 @@
 import { LAYOUT_TYPE_IDS, LAYOUT_TYPE_META } from './layouttypes.js';
 
 export const GROUPS = [
+  ['toolbar.import', ['import.file']],
   ['toolbar.session', ['session.start', 'session.pause', 'session.resume', 'session.stop', 'session.nextScene', 'input.focus']],
-  ['toolbar.speech', ['speech.start', 'speech.stop']],
   ['toolbar.save', ['save.png', 'save.svg', 'save.pdf']],
   ['toolbar.language', ['lang.ja', 'lang.en']],
   ['toolbar.view', ['view.2d', 'view.3d', 'view.timeline', 'view.arrange', 'detail.next', 'theme.toggle']],
@@ -18,7 +18,7 @@ export const GROUPS = [
 const LABELS = {
   'session.start': ['記録開始', 'Record'], 'session.pause': ['一時停止', 'Pause'], 'session.resume': ['再開', 'Resume'],
   'session.stop': ['記録終了', 'Stop'], 'session.nextScene': ['次シーン', 'Next scene'], 'input.focus': ['入力', 'Type'],
-  'speech.start': ['音声開始', 'Mic on'], 'speech.stop': ['音声停止', 'Mic off'],
+  'import.file': ['取り込み', 'Import'],
   'save.png': ['PNG保存', 'Save PNG'], 'save.svg': ['SVG保存', 'Save SVG'], 'save.pdf': ['PDF保存', 'Save PDF'],
   'lang.ja': ['日本語', 'Japanese'], 'lang.en': ['英語', 'English'],
   'view.2d': ['2D表示', '2D view'], 'view.3d': ['3D表示', '3D view'], 'view.timeline': ['時系列', 'Timeline'], 'view.arrange': ['整理', 'Arrange'], 'detail.next': ['詳細度', 'Detail'],
@@ -62,7 +62,7 @@ const P = {
 };
 export const ICONS = {
   'session.start': P.rec, 'session.pause': P.pause, 'session.resume': P.play, 'session.stop': P.stop,
-  'session.nextScene': P.next, 'input.focus': P.edit, 'speech.start': P.mic, 'speech.stop': P.micOff,
+  'session.nextScene': P.next, 'input.focus': P.edit, 'import.file': P.fileLoad,
   'save.png': P.save, 'save.svg': P.save, 'save.pdf': P.save, 'lang.ja': P.lang, 'lang.en': P.lang,
   'view.2d': P.square, 'view.3d': P.cube, 'theme.toggle': P.theme, 'view.timeline': P.prev, 'view.arrange': P.tile, 'detail.next': P.detail,
   'presentation.start': P.present, 'presentation.pause': P.pause, 'presentation.resume': P.play,
@@ -81,8 +81,7 @@ const TIP = {
   'session.stop': ['記録を終了します', 'End the recording'],
   'session.nextScene': ['次のシーンに区切って新しい場面を始めます', 'Close this scene and start the next one'],
   'input.focus': ['テキスト入力欄に移動して文字で入力します', 'Jump to the text field to type input'],
-  'speech.start': ['マイクで音声認識を始めます', 'Start speech recognition with the microphone'],
-  'speech.stop': ['音声認識を止めます', 'Stop speech recognition'],
+  'import.file': ['テキスト・字幕のファイルを選んで、発話として取り込みます', 'Pick a text or caption file and import it as utterances'],
   'save.png': ['図を PNG 画像として保存します', 'Save the diagram as a PNG image'],
   'save.svg': ['図を SVG ファイルとして保存します', 'Save the diagram as an SVG file'],
   'save.pdf': ['図を PDF として保存します', 'Save the diagram as a PDF'],
@@ -124,6 +123,8 @@ export function commandBarModule(ctx) {
   });
   ctx.i18n.addStrings({
     ja: {
+      'toolbar.import': '取り込み',
+      'import.description': 'テキストファイル（.txt）・字幕ファイル（.vtt）を取り込みます',
       'status.speech.label': '音声認識',
       'status.lang': '言語',
       'status.view': '表示',
@@ -132,6 +133,8 @@ export function commandBarModule(ctx) {
       'view.name.2d': '2D', 'view.name.3d': '3D',
     },
     en: {
+      'toolbar.import': 'Import',
+      'import.description': 'Import a text file (.txt) or a caption file (.vtt)',
       'status.speech.label': 'Speech',
       'status.lang': 'Language',
       'status.view': 'View',
@@ -173,7 +176,10 @@ export function commandBarModule(ctx) {
       .filter((name) => typeof api.commands[name] === 'function')
       .map((command) => {
         const label = ctx.t(labelKey(command));
-        return { command, label, labelVisible: true, accessibleName: label, tabbable: true, tooltip: tip(command), describedBy: tooltipId(command) };
+        const it = { command, label, labelVisible: true, accessibleName: label, tabbable: true, tooltip: tip(command), describedBy: tooltipId(command), icon: ICONS[command] ?? '' };
+        // FR-073 AC-388: 取り込みは、何を取り込めるかの説明を常時表示する（ホバー・フォーカスを待たない）
+        if (command === 'import.file') { it.description = ctx.t('import.description'); it.descriptionVisible = true; }
+        return it;
       }),
     status: api.getCommandStatus(),
   });

@@ -82,6 +82,8 @@ export function inputModule(ctx) {
     return { ok: false, reason };
   };
   ctx.registerCommand('file.import', () => ctx.emit('ui:pickImportFile'));
+  ctx.registerCommand('import.file', () => ctx.emit('ui:pickImportFile')); // FR-073: 最上部のコマンドバーの「取り込み」（入口は importTextFile の 1 つ）
+  ctx.registerKey({ key: 'w', alt: true, shift: true, command: 'import.file' });
   ctx.registerKey({ key: '4', alt: true, shift: true, command: 'file.import' });
   ctx.api.importTextFile = async (file) => {
     // AC-121: 取込の最中に重ねて実行しても、同じ発話を重複して追加しない
