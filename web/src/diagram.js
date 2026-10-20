@@ -4,6 +4,8 @@ import { sceneEmotions } from './emotion.js';
 import { matchParts, getPartGroup } from './parts.js';
 import { renderRpgSvg, RPG_STYLE_ID } from './rpgmap.js';
 import { provisionalTree, leaves, subgroupLabel, countMark, TYPE_SCALE } from './infodesign.js';
+// NFR-UX-012 AC-466: 既存の 4 つの描画スタイルの図の書体の指定（欧文専用の書体がないため Yu Gothic UI が先頭。stylepresets.js の LEGACY_FONT_FAMILY と同じ）
+const SVG_FONT_FAMILY = `font-family="'Yu Gothic UI', system-ui, 'Hiragino Sans', Meiryo, sans-serif"`;
 
 export const STATUS_MARK = { in_progress: '○', confirmed: '●' };
 const SELECTED_MARK = '▶';
@@ -286,7 +288,7 @@ export function renderDiagramSvg(scenes, opts = {}) {
     + `<marker id="arrow-hl" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="${HL_COLOR}"/></marker>`;
   const title = esc(opts.title ?? '');
   const empty = scenes.length ? '' : `<text x="${MARGIN}" y="${MARGIN + 24}" font-size="${FS}" fill="${INK}">${esc(t('diagram.empty'))}</text>`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" font-family="system-ui, 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif" role="img" aria-label="${attr(opts.title ?? '')}">`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" ${SVG_FONT_FAMILY} role="img" aria-label="${attr(opts.title ?? '')}">`
     + `<title>${title}</title><defs>${markers}</defs><rect width="100%" height="100%" fill="${PAPER}"/>${parts.join('')}${flows.join('')}${relSvg}${empty}</svg>`;
 }
 
@@ -392,7 +394,7 @@ export function renderTopicsSvg(topics, relations, scenes, opts = {}) {
   const height = Math.max(160, maxH);
   const marker = `<marker id="arrow-flow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="${INK}"/></marker>`;
   const title = esc(opts.title ?? '');
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" font-family="system-ui, 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif" role="img" aria-label="${attr(opts.title ?? '')}">`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" ${SVG_FONT_FAMILY} role="img" aria-label="${attr(opts.title ?? '')}">`
     + `<title>${title}</title><defs>${marker}</defs><rect width="100%" height="100%" fill="${PAPER}"/>${groups.join('')}${lines.join('')}</svg>`;
 }
 
@@ -466,7 +468,7 @@ export function renderArrangedSvg(scenes, model, opts = {}) {
   parts.push(...relLabels);
   const title = esc(opts.title ?? '');
   const { width, height } = g;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" font-family="system-ui, 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif" role="img" aria-label="${attr(opts.title ?? '')}" data-display-mode="arrange">`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" ${SVG_FONT_FAMILY} role="img" aria-label="${attr(opts.title ?? '')}" data-display-mode="arrange">`
     + `<title>${title}</title><rect width="100%" height="100%" fill="${PAPER}"/>${parts.join('')}</svg>`;
 }
 

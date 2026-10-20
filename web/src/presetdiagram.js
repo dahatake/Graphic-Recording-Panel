@@ -128,6 +128,38 @@ function cloud(x, y, w, h, seed) {
   return { d: `${d}Z`, box: [x - m, y - m, w + 2 * m, h + 2 * m] };
 }
 
+// FR-076 AC-467・FR-032 AC-156: 感情語を含むトピックの吹き出しの形（ギザギザ）。矩形の辺に沿って外向きの歯を並べた多角形の頂点。
+// 通常の吹き出し（雲形・角丸・付箋）と、要素の種類（polygon）と輪郭（歯）の両方で異なる。画面の SVG・PNG・PDF で同じ生成器を使う（同じ形）。
+// 乱数・時刻を使わない（決定的。AC-412）。depth は歯の高さ、tooth は歯の幅の目安。
+export function jaggedPoints(x, y, w, h, depth = 7, tooth = 14) {
+  const corners = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+  const normals = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+  const pts = [];
+  for (let e = 0; e < 4; e++) {
+    const [ax, ay] = corners[e]; const [bx, by] = corners[(e + 1) % 4]; const [nx, ny] = normals[e];
+    const n = Math.max(2, Math.round(Math.hypot(bx - ax, by - ay) / tooth));
+    for (let k = 0; k < n; k++) {
+      pts.push([ax + ((bx - ax) * k) / n, ay + ((by - ay) * k) / n]);
+      const f = (k + 0.5) / n;
+      pts.push([ax + (bx - ax) * f + nx * depth, ay + (by - ay) * f + ny * depth]);
+    }
+  }
+  return pts.map(([px, py]) => [r1(px), r1(py)]);
+}
+// 吹き出し型（FR-032）を選んでいるとき、感情語（FR-004 の辞書）を含むトピックに属するシーンの id。吹き出し型でなければ空。
+// トピック（FR-025）に属さないシーンは、そのシーンだけを 1 つのトピックとして扱う（layoutkinds.js の吹き出し型と同じ）。
+export function emotionBalloonSceneIds(api, scenes) {
+  const out = new Set();
+  const info = api?.getLayoutInfo?.();
+  if (!info?.applied || !(info.selected ?? []).includes('bubble')) return out;
+  const byId = new Map((scenes ?? []).map((s) => [s.id, s]));
+  const groups = []; const seen = new Set();
+  for (const tp of api.getTopics?.() ?? []) { const ids = (tp.sceneIds ?? []).filter((id) => byId.has(id)); ids.forEach((id) => seen.add(id)); groups.push(ids); }
+  for (const s of scenes ?? []) if (!seen.has(s.id)) groups.push([s.id]);
+  for (const ids of groups) if (ids.some((id) => sceneEmotions(byId.get(id)).length > 0)) ids.forEach((id) => out.add(id));
+  return out;
+}
+
 // 文字（直下の背景の色 data-back と外接矩形 data-box を持つ）
 function textEl(x, y, s, { size = FS, weight, fill, back, anchor = 'start', extra = '', dy = 0, boxes }) {
   const str = String(s ?? '');
@@ -246,12 +278,15 @@ export function renderPresetDiagram(scenes, opts, look) {
     // 吹き出しの中身: その場の様子の語（従来の絵記号の語）。なければ主な要点の種類の文字。
     const words = emos.length ? emos.map((e) => e.word) : main ? [kindLabelOf(main, opts.lang)] : [];
     const lineH = 20; const tw = Math.max(0, ...words.map((wd) => textWidth(wd, FS)));
-    const cloudy = pr.balloon === 'cloud';
+    // FR-076 AC-467: 吹き出し型で感情語を含むトピックの吹き出しは、どの風でも通常の形と異なるギザギザ（歯の分だけ外に広がる）
+    const emoBalloon = !!opts.emotionScenes?.has(s.id); const JAG = 7;
+    const cloudy = !emoBalloon && pr.balloon === 'cloud';
     const bw = Math.ceil(cloudy ? tw * 1.45 + 34 : tw + 34); const bh = Math.ceil(words.length * lineH + (cloudy ? 26 : 16));
+    const jagPad = emoBalloon ? JAG : 0;
     const figX = pr.figures ? FIG_W + 22 : 0;
     const w = Math.ceil(Math.max(250, textWidth(`${status}${s.heading}`, FS_HEAD) + 72,
       ...s.points.map((p, i) => 42 + textWidth(p.text, FS) + 16 + textWidth(kindLabelOf(kinds[i], opts.lang), FS_LABEL) + 14),
-      figX + bw + 28));
+      figX + bw + 28 + jagPad * 2));
     const sb = [];
     sb.push(headingSvg(look, s.id, x, MARGIN, w, status, s.heading, isSel, boxes));
     sb.push(`<line data-style-role="divider" x1="${x + 6}" y1="${MARGIN + HEAD_H + 11}" x2="${x + w - 6}" y2="${MARGIN + HEAD_H + 11}" fill="none" stroke="${look.divider}" stroke-width="${r1(Math.max(1, W0 * 0.5))}" stroke-dasharray="${amp > 0 ? '2 5' : '1 0'}" stroke-linecap="round"/>`);
@@ -298,11 +333,19 @@ export function renderPresetDiagram(scenes, opts, look) {
     const yb = y - PT_GAP + 18;
     if (pr.figures) sb.push(figureEl(look, s.id, x + 6, yb + 6, blocked));
     if (words.length) {
-      const bx = x + 8 + figX; const by = yb + (cloudy ? 6 : 2);
+      const bx = x + 8 + figX + jagPad; const by = yb + (cloudy ? 6 : 2) + jagPad;
       const fill = look.balloonFill; const stroke = look.balloonStroke; const bsw = r1(Math.max(1.2, W0 * 0.8));
       const dashB = pr.paper === 'grid' ? ' stroke-dasharray="6 4"' : '';
-      if (look.pr.paper !== 'chalkboard' && fill !== 'none') sb.push(`<path data-style-role="shadow" d="${cloudy ? cloud(bx + 4, by + 4, bw, bh, `${s.id}:bl`).d : `M${bx + 4} ${by + 4}h${bw}v${bh}h${-bw}Z`}" fill="${look.shadow}" fill-opacity="0.5" stroke="none"/>`);
-      if (cloudy) {
+      const jag = emoBalloon ? jaggedPoints(bx, by, bw, bh, JAG) : null;
+      const ptsAttr = (pts, dx = 0) => pts.map(([px, py]) => `${r1(px + dx)},${r1(py + dx)}`).join(' ');
+      if (look.pr.paper !== 'chalkboard' && fill !== 'none') {
+        if (jag) sb.push(`<polygon data-style-role="shadow" points="${ptsAttr(jag, 4)}" fill="${look.shadow}" fill-opacity="0.5" stroke="none"/>`);
+        else sb.push(`<path data-style-role="shadow" d="${cloudy ? cloud(bx + 4, by + 4, bw, bh, `${s.id}:bl`).d : `M${bx + 4} ${by + 4}h${bw}v${bh}h${-bw}Z`}" fill="${look.shadow}" fill-opacity="0.5" stroke="none"/>`);
+      }
+      if (jag) {
+        sb.push(`<polygon data-style-role="balloon" data-shape="jagged" data-balloon-kind="emotion" data-box="${box(bx - JAG, by - JAG, bw + JAG * 2, bh + JAG * 2)}" points="${ptsAttr(jag)}" fill="${fill}" stroke="${stroke}" stroke-width="${bsw}" stroke-linejoin="miter"${dashB}/>`);
+        if (pr.figures) sb.push(`<path data-style-role="balloon-tail" d="M${r1(bx - JAG + 2)} ${r1(by + bh * 0.5)}L${r1(bx - JAG - 9)} ${r1(by + bh * 0.85)}L${r1(bx - JAG + 3)} ${r1(by + bh * 0.75)}" fill="${fill}" stroke="${stroke}" stroke-width="${r1(bsw * 0.8)}" stroke-linejoin="round"/>`);
+      } else if (cloudy) {
         const c = cloud(bx, by, bw, bh, `${s.id}:bl`);
         sb.push(`<path data-style-role="balloon" data-shape="cloud" data-box="${box(...c.box)}" d="${c.d}" fill="${fill}" stroke="${stroke}" stroke-width="${bsw}" stroke-linejoin="round"${dashB}/>`);
         if (pr.figures) sb.push(`<circle data-style-role="balloon-tail" cx="${r1(bx - 6)}" cy="${r1(by + bh * 0.72)}" r="4" fill="${fill}" stroke="${stroke}" stroke-width="${r1(bsw * 0.8)}"/><circle data-style-role="balloon-tail" cx="${r1(bx - 13)}" cy="${r1(by + bh * 0.9)}" r="2.4" fill="${fill}" stroke="${stroke}" stroke-width="${r1(bsw * 0.8)}"/>`);
@@ -315,7 +358,7 @@ export function renderPresetDiagram(scenes, opts, look) {
       const back = fill === 'none' ? look.bg : fill;
       const ty0 = by + bh / 2 - ((words.length - 1) * lineH) / 2 + 5;
       words.forEach((wd, i) => sb.push(textEl(bx + bw / 2, ty0 + i * lineH, wd, { size: FS, weight: Math.max(700, look.weight), fill: look.textOn(back), back, anchor: 'middle', boxes, extra: emos[i] ? ` data-emotion="${attr(emos[i].id)}"` : '' })));
-      y = Math.max(by + bh + (cloudy ? 10 : 4), pr.figures ? yb + 6 + FIG_H : 0) + 16;
+      y = Math.max(by + bh + (cloudy ? 10 : 4) + jagPad, pr.figures ? yb + 6 + FIG_H : 0) + 16;
     } else y = (pr.figures ? yb + 6 + FIG_H : yb) + 16;
     // FR-064: 同梱部品（語の辞書で対応づけた汎用の物体）
     const objs = matchParts([s.heading, ...s.points.map((p) => p.text)].join('\n'), 4);
@@ -579,7 +622,7 @@ export function renderPresetSvg(ctx, spec, forced, legacyBase) {
   const api = ctx.api;
   const look = forced ? forcedLook(spec) : buildLook(spec);
   if (ctx.state.displayMode === 'arrange' && api.getArrangement) return finishPresetSvg(restyleLegacy(legacyBase(), look, spec), look);
-  const o = { lang: ctx.state.lang, relations: api.getDiagramRelations?.() ?? [], selectedSceneId: ctx.state.selectedSceneId, highlightPointId: api.getHighlight?.()?.pointId ?? null, t: ctx.t };
+  const o = { lang: ctx.state.lang, relations: api.getDiagramRelations?.() ?? [], selectedSceneId: ctx.state.selectedSceneId, highlightPointId: api.getHighlight?.()?.pointId ?? null, t: ctx.t, emotionScenes: emotionBalloonSceneIds(api, ctx.state.scenes) };
   const level = api.getDetailLevel?.() ?? 'detail';
   const main = level !== 'detail' && ctx.state.scenes.length
     ? renderPresetTopics(api.getTopics(), api.getTopicRelations(), ctx.state.scenes, { ...o, level }, look)

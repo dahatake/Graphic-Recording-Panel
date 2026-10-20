@@ -32,7 +32,7 @@
     "AC-054": "sha256:23866f76e1a10949",
     "AC-057": "sha256:ac812e004e7762a3",
     "AC-060": "sha256:906295de64a708e1",
-    "AC-061": "sha256:8db6810b81b3aaf9",
+    "AC-061": "sha256:a53d20561fde87e2",
     "AC-063": "sha256:52e3d2400f012178",
     "AC-064": "sha256:cea138c713e4e5e4",
     "AC-065": "sha256:47f67d016cc7606d",
@@ -170,16 +170,16 @@
     "AC-422": "sha256:f2fc47d36321cc4a",
     "AC-423": "sha256:4ac7dbc0de97712e",
     "AC-424": "sha256:2926e2da14f072c2",
-    "AC-408": "sha256:19444ae34417a94d",
-    "AC-409": "sha256:013a0382e6646415",
+    "AC-408": "sha256:2e8f7f82256fc6e1",
+    "AC-409": "sha256:23864ec115eee3ea",
     "AC-410": "sha256:3f2aedf5c15167a4",
     "AC-411": "sha256:56066efff0855d9a",
     "AC-412": "sha256:6768b137333b3db8",
     "AC-413": "sha256:7e5ab20ec94f8377",
     "AC-425": "sha256:a17ed59fca40e738",
     "AC-456": "sha256:07048b4b24fb00fc",
-    "AC-406": "sha256:bb3394d2d1b9d7c4",
-    "AC-407": "sha256:e5cf05cc95241fad",
+    "AC-406": "sha256:2c6af23dff268b81",
+    "AC-407": "sha256:0486275ce33b62c1",
     "AC-395": "sha256:df11b58880ba98a3",
     "AC-396": "sha256:87a01467359171f3",
     "AC-397": "sha256:c01a818784e12058",
@@ -216,7 +216,12 @@
     "AC-457": "sha256:f364dd8ae3b34916",
     "AC-470": "sha256:d6e97474844edc0f",
     "AC-471": "sha256:623f82d3e64396ce",
-    "AC-473": "sha256:f3cae654f124d117"
+    "AC-473": "sha256:f3cae654f124d117",
+    "AC-465": "sha256:4130464cf2fb240b",
+    "AC-466": "sha256:237a9758ed5c6c34",
+    "AC-467": "sha256:c4226d7de46cdab0",
+    "AC-468": "sha256:f80e054d2adb4c3d",
+    "AC-469": "sha256:6fe4e419ca2b590c"
   },
   "cases": [
     {
@@ -232,9 +237,9 @@
       "command": "node --test --test-name-pattern=\"AC-017\" tests/system/i18n.test.js",
       "canary": true,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-001-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-001-202610201449.log",
       "history": [
         {
           "at": "2026-10-14T03:15:36+09:00",
@@ -257,9 +262,9 @@
       "command": "node --test --test-name-pattern=\"AC-001\" tests/system/input.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-002-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-002-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:15:53+09:00",
@@ -282,9 +287,9 @@
       "command": "node --test --test-name-pattern=\"AC-004\" tests/system/input.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-003-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-003-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:15:54+09:00",
@@ -307,9 +312,9 @@
       "command": "node --test --test-name-pattern=\"AC-005\" tests/system/input.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-004-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-004-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:15:56+09:00",
@@ -338,9 +343,9 @@
       "command": "node --test --test-name-pattern=\"AC-009\" tests/system/scenes.test.js tests/system/detail.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-005-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-005-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:15:57+09:00",
@@ -369,9 +374,9 @@
       "command": "node --test --test-name-pattern=\"AC-010\" tests/system/scenes.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-006-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-006-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:15:59+09:00",
@@ -400,9 +405,9 @@
       "command": "node --test --test-name-pattern=\"AC-013\" tests/system/export.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-007-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-007-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:16:01+09:00",
@@ -425,9 +430,9 @@
       "command": "node --test --test-name-pattern=\"AC-015\" tests/system/export.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-008-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-008-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:16:02+09:00",
@@ -450,9 +455,9 @@
       "command": "node --test --test-name-pattern=\"AC-016\" tests/system/export.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-009-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-009-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:16:04+09:00",
@@ -475,9 +480,9 @@
       "command": "node --test --test-name-pattern=\"AC-018\" tests/system/i18n.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-010-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-010-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:16:05+09:00",
@@ -500,9 +505,9 @@
       "command": "node --test --test-name-pattern=\"AC-019\" tests/system/i18n.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-011-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-011-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:16:07+09:00",
@@ -525,9 +530,9 @@
       "command": "node --test --test-name-pattern=\"AC-020\" tests/system/view.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-012-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-012-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:16:08+09:00",
@@ -550,9 +555,9 @@
       "command": "node --test --test-name-pattern=\"AC-022\" tests/system/view.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-013-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-013-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:16:10+09:00",
@@ -575,9 +580,9 @@
       "command": "node --test --test-name-pattern=\"AC-023\" tests/system/view.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-014-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-014-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:16:11+09:00",
@@ -600,9 +605,9 @@
       "command": "node --test --test-name-pattern=\"AC-025\" tests/system/layout.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-015-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-015-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:16:13+09:00",
@@ -625,9 +630,9 @@
       "command": "node --test --test-name-pattern=\"AC-026\" tests/system/layout.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-016-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-016-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:16:14+09:00",
@@ -650,9 +655,9 @@
       "command": "node --test --test-name-pattern=\"AC-027\" tests/system/layout.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-017-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-017-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:16:16+09:00",
@@ -675,9 +680,9 @@
       "command": "node --test --test-name-pattern=\"AC-029\" tests/system/persist.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-018-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-018-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:16:17+09:00",
@@ -700,9 +705,9 @@
       "command": "node --test --test-name-pattern=\"AC-043\" tests/system/persist.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-019-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-019-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:16:19+09:00",
@@ -725,9 +730,9 @@
       "command": "node --test --test-name-pattern=\"AC-030\" tests/system/persist.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-020-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-020-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:16:20+09:00",
@@ -750,9 +755,9 @@
       "command": "node --test --test-name-pattern=\"AC-031\" tests/system/offline.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-021-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-021-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:16:22+09:00",
@@ -781,9 +786,9 @@
       "command": "node --test --test-name-pattern=\"AC-032\" tests/system/offline.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-022-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-022-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:16:24+09:00",
@@ -806,9 +811,9 @@
       "command": "node --test --test-name-pattern=\"AC-036\" tests/system/view.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-023-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-023-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:16:25+09:00",
@@ -831,9 +836,9 @@
       "command": "node --test --test-name-pattern=\"AC-038\" tests/system/scenes.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-024-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-024-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T03:16:27+09:00",
@@ -856,9 +861,9 @@
       "command": "node --test --test-name-pattern=\"AC-049\" tests/system/rightpanel.test.js",
       "canary": true,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-025-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-025-202610201449.log",
       "history": [
         {
           "at": "2026-10-14T04:54:45+09:00",
@@ -881,9 +886,9 @@
       "command": "node --test --test-name-pattern=\"AC-050\" tests/system/rightpanel.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-026-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-026-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T04:54:46+09:00",
@@ -918,9 +923,9 @@
       "command": "node --test --test-name-pattern=\"AC-052\" tests/system/rightpanel.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-027-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-027-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T04:54:47+09:00",
@@ -943,9 +948,9 @@
       "command": "node --test --test-name-pattern=\"AC-053\" tests/system/rightpanel.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-028-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-028-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T04:54:49+09:00",
@@ -968,9 +973,9 @@
       "command": "node --test --test-name-pattern=\"AC-054\" tests/system/rightpanel.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-029-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-029-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T04:54:50+09:00",
@@ -1005,9 +1010,9 @@
       "command": "node --test --test-name-pattern=\"AC-057\" tests/system/ux.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-030-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-030-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T04:54:52+09:00",
@@ -1030,9 +1035,9 @@
       "command": "node --test --test-name-pattern=\"AC-060\" tests/system/ux.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-031-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-031-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T04:54:53+09:00",
@@ -1061,9 +1066,9 @@
       "command": "node --test --test-name-pattern=\"AC-061\" tests/system/ux.test.js tests/system/stylepreset.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-032-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-032-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T04:54:55+09:00",
@@ -1082,6 +1087,12 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "テストを AC の文面の変更（run 202610200356、FR-075/076）に合わせて見直したため、再実行まで not_run"
+        },
+        {
+          "at": "2026-10-20T13:59:04+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC-061 の変更（日本語の字形の書体は NFR-UX-012 に従う旨の追記）。テストの期待値は変わらない（Segoe UI を含む並びの先頭）ので再実行で確かめる"
         }
       ]
     },
@@ -1098,9 +1109,9 @@
       "command": "node --test --test-name-pattern=\"AC-063\" tests/system/background.test.js",
       "canary": true,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-033-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-033-202610201449.log",
       "history": [
         {
           "at": "2026-10-14T06:06:02+09:00",
@@ -1154,9 +1165,9 @@
       "command": "node --test --test-name-pattern=\"AC-065\" tests/system/background.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-035-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-035-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T06:06:11+09:00",
@@ -1389,9 +1400,9 @@
       "command": "node --test --test-name-pattern=\"AC-031\" tests/system/speech.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-042-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-042-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T07:36:22+09:00",
@@ -1457,9 +1468,9 @@
       "command": "node --test --test-name-pattern=\"AC-071\" tests/system/tooltip.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-044-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-044-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T08:16:52+09:00",
@@ -1482,9 +1493,9 @@
       "command": "node --test --test-name-pattern=\"AC-072\" tests/system/tooltip.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-045-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-045-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T08:16:55+09:00",
@@ -1507,9 +1518,9 @@
       "command": "node --test --test-name-pattern=\"AC-073\" tests/system/tooltip.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-046-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-046-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T08:16:57+09:00",
@@ -1532,9 +1543,9 @@
       "command": "node --test --test-name-pattern=\"AC-074\" tests/system/decoration.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-047-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-047-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T08:34:08+09:00",
@@ -1557,9 +1568,9 @@
       "command": "node --test --test-name-pattern=\"AC-076\" tests/system/decoration.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-048-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-048-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T08:34:10+09:00",
@@ -1582,9 +1593,9 @@
       "command": "node --test --test-name-pattern=\"AC-078\" tests/system/arrange.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-049-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-049-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T08:34:12+09:00",
@@ -1613,9 +1624,9 @@
       "command": "node --test --test-name-pattern=\"AC-079\" tests/system/arrange.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-050-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-050-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T08:34:14+09:00",
@@ -1644,9 +1655,9 @@
       "command": "node --test --test-name-pattern=\"AC-080\" tests/system/arrange.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-051-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-051-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T08:34:17+09:00",
@@ -1675,9 +1686,9 @@
       "command": "node --test --test-name-pattern=\"AC-081\" tests/system/arrange.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-052-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-052-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T08:34:20+09:00",
@@ -1706,9 +1717,9 @@
       "command": "node --test --test-name-pattern=\"AC-083\" tests/system/tile.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-053-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-053-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T08:34:23+09:00",
@@ -1731,9 +1742,9 @@
       "command": "node --test --test-name-pattern=\"AC-084\" tests/system/tile.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-054-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-054-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T08:34:26+09:00",
@@ -1756,9 +1767,9 @@
       "command": "node --test --test-name-pattern=\"AC-085\" tests/system/tile.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-055-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-055-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T08:34:28+09:00",
@@ -1781,9 +1792,9 @@
       "command": "node --test --test-name-pattern=\"AC-086\" tests/system/tile.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-056-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-056-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T08:34:30+09:00",
@@ -1806,9 +1817,9 @@
       "command": "node --test --test-name-pattern=\"AC-090\" tests/system/cmdlabel.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-057-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-057-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T11:47:19+09:00",
@@ -1837,9 +1848,9 @@
       "command": "node --test --test-name-pattern=\"AC-091\" tests/system/cmdlabel.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-058-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-058-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T11:47:21+09:00",
@@ -1868,9 +1879,9 @@
       "command": "node --test --test-name-pattern=\"AC-093\" tests/system/reset.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-059-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-059-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T11:47:23+09:00",
@@ -1899,9 +1910,9 @@
       "command": "node --test --test-name-pattern=\"AC-094\" tests/system/reset.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-060-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-060-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T11:47:25+09:00",
@@ -1948,9 +1959,9 @@
       "command": "node --test --test-name-pattern=\"AC-095\" tests/system/reset.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-061-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-061-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T11:47:27+09:00",
@@ -1979,9 +1990,9 @@
       "command": "node --test --test-name-pattern=\"AC-096\" tests/system/reset.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-062-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-062-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T11:47:29+09:00",
@@ -2010,9 +2021,9 @@
       "command": "node --test --test-name-pattern=\"AC-097\" tests/system/sessionfile.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-063-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-063-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T11:47:31+09:00",
@@ -2041,9 +2052,9 @@
       "command": "node --test --test-name-pattern=\"AC-098\" tests/system/sessionfile.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-064-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-064-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T11:47:33+09:00",
@@ -2072,9 +2083,9 @@
       "command": "node --test --test-name-pattern=\"AC-099\" tests/system/sessionfile.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-065-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-065-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T11:47:35+09:00",
@@ -2103,9 +2114,9 @@
       "command": "node --test --test-name-pattern=\"AC-100\" tests/system/sessionfile.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-066-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-066-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T11:47:37+09:00",
@@ -2134,9 +2145,9 @@
       "command": "node --test --test-name-pattern=\"AC-102\" tests/system/sessionfile.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-067-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-067-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T11:47:39+09:00",
@@ -2171,9 +2182,9 @@
       "command": "node --test --test-name-pattern=\"AC-103\" tests/system/axes3d.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-068-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-068-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T11:47:41+09:00",
@@ -2202,9 +2213,9 @@
       "command": "node --test --test-name-pattern=\"AC-104\" tests/system/axes3d.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-069-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-069-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T11:47:43+09:00",
@@ -2233,9 +2244,9 @@
       "command": "node --test --test-name-pattern=\"AC-106\" tests/system/axes3d.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-070-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-070-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T11:47:45+09:00",
@@ -2264,9 +2275,9 @@
       "command": "node --test --test-name-pattern=\"AC-108\" tests/system/view3dhelp.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-071-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-071-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T11:47:47+09:00",
@@ -2295,9 +2306,9 @@
       "command": "node --test --test-name-pattern=\"AC-109\" tests/system/view3dhelp.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-072-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-072-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T11:47:50+09:00",
@@ -2326,9 +2337,9 @@
       "command": "node --test --test-name-pattern=\"既定の軸のうち\" tests/system/axes3d.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-073-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-073-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T12:51:29+09:00",
@@ -2351,9 +2362,9 @@
       "command": "node --test --test-name-pattern=\"認識文字列\" tests/system/sessionfile.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-074-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-074-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T12:51:32+09:00",
@@ -2376,9 +2387,9 @@
       "command": "node --test --test-name-pattern=\"AC-113\" tests/system/vtt.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-075-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-075-202610201450.log",
       "history": [
         {
           "at": "2026-10-14T23:38:41+09:00",
@@ -2413,9 +2424,9 @@
       "command": "node --test --test-name-pattern=\"AC-118\" tests/system/importstatus.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-076-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-076-202610201450.log",
       "history": [
         {
           "at": "2026-10-15T22:37:53+09:00",
@@ -2444,9 +2455,9 @@
       "command": "node --test --test-name-pattern=\"AC-119\" tests/system/importstatus.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-077-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-077-202610201450.log",
       "history": [
         {
           "at": "2026-10-15T22:37:56+09:00",
@@ -2475,9 +2486,9 @@
       "command": "node --test --test-name-pattern=\"AC-120\" tests/system/importstatus.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-078-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-078-202610201450.log",
       "history": [
         {
           "at": "2026-10-15T22:37:59+09:00",
@@ -2506,9 +2517,9 @@
       "command": "node --test --test-name-pattern=\"AC-122\" tests/system/importstatus.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-079-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-079-202610201450.log",
       "history": [
         {
           "at": "2026-10-15T22:38:03+09:00",
@@ -2531,9 +2542,9 @@
       "command": "node --test --test-name-pattern=\"AC-123\" tests/system/scenepopup.test.js tests/system/detail.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-080-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-080-202610201450.log",
       "history": [
         {
           "at": "2026-10-15T22:38:06+09:00",
@@ -2562,9 +2573,9 @@
       "command": "node --test --test-name-pattern=\"AC-124\" tests/system/scenepopup.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-081-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-081-202610201450.log",
       "history": [
         {
           "at": "2026-10-15T22:38:09+09:00",
@@ -2587,9 +2598,9 @@
       "command": "node --test --test-name-pattern=\"AC-125\" tests/system/scenepopup.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-082-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-082-202610201450.log",
       "history": [
         {
           "at": "2026-10-15T22:38:12+09:00",
@@ -2612,9 +2623,9 @@
       "command": "node --test --test-name-pattern=\"AC-130\" tests/system/detail.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-083-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-083-202610201450.log",
       "history": [
         {
           "at": "2026-10-15T23:30:32+09:00",
@@ -2637,9 +2648,9 @@
       "command": "node --test --test-name-pattern=\"AC-131\" tests/system/detail.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-084-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-084-202610201450.log",
       "history": [
         {
           "at": "2026-10-15T23:30:34+09:00",
@@ -2662,9 +2673,9 @@
       "command": "node --test --test-name-pattern=\"AC-133\" tests/system/detail.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-085-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-085-202610201450.log",
       "history": [
         {
           "at": "2026-10-15T23:30:36+09:00",
@@ -2687,9 +2698,9 @@
       "command": "node --test --test-name-pattern=\"AC-137\" tests/system/detail.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-086-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-086-202610201450.log",
       "history": [
         {
           "at": "2026-10-15T23:30:38+09:00",
@@ -2712,9 +2723,9 @@
       "command": "node --test --test-name-pattern=\"AC-139\" tests/system/layouttype.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-087-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-087-202610201450.log",
       "history": [
         {
           "at": "2026-10-16T05:16:30+09:00",
@@ -2737,9 +2748,9 @@
       "command": "node --test --test-name-pattern=\"AC-140\" tests/system/layouttype.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-088-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-088-202610201450.log",
       "history": [
         {
           "at": "2026-10-16T05:16:33+09:00",
@@ -2762,9 +2773,9 @@
       "command": "node --test --test-name-pattern=\"AC-145\" tests/system/layouttype.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-089-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-089-202610201450.log",
       "history": [
         {
           "at": "2026-10-16T05:16:36+09:00",
@@ -2787,9 +2798,9 @@
       "command": "node --test --test-name-pattern=\"AC-146\" tests/system/drawstyle.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-090-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-090-202610201450.log",
       "history": [
         {
           "at": "2026-10-16T05:16:38+09:00",
@@ -2830,9 +2841,9 @@
       "command": "node --test --test-name-pattern=\"AC-149\" tests/system/settings.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-091-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-091-202610201450.log",
       "history": [
         {
           "at": "2026-10-16T05:16:41+09:00",
@@ -2873,9 +2884,9 @@
       "command": "node --test --test-name-pattern=\"AC-151\" tests/system/settings.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-092-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-092-202610201450.log",
       "history": [
         {
           "at": "2026-10-16T05:16:44+09:00",
@@ -2904,9 +2915,9 @@
       "command": "node --test --test-name-pattern=\"AC-152\" tests/system/layouttype.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-093-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-093-202610201450.log",
       "history": [
         {
           "at": "2026-10-16T05:16:47+09:00",
@@ -2929,9 +2940,9 @@
       "command": "node --test --test-name-pattern=\"AC-167\" tests/system/layouttype.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-094-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-094-202610201450.log",
       "history": [
         {
           "at": "2026-10-16T05:16:50+09:00",
@@ -2954,9 +2965,9 @@
       "command": "node --test --test-name-pattern=\"AC-180\" tests/system/importanystate.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-095-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-095-202610201450.log",
       "history": [
         {
           "at": "2026-10-16T23:46:02+09:00",
@@ -2979,9 +2990,9 @@
       "command": "node --test --test-name-pattern=\"AC-181\" tests/system/importanystate.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-096-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-096-202610201450.log",
       "history": [
         {
           "at": "2026-10-16T23:46:06+09:00",
@@ -3004,9 +3015,9 @@
       "command": "node --test --test-name-pattern=\"AC-214\" tests/system/rpg.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-097-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-097-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T15:05:18+09:00",
@@ -3035,9 +3046,9 @@
       "command": "node --test --test-name-pattern=\"AC-217\" tests/system/rpg.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-099-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-099-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T15:05:25+09:00",
@@ -3060,9 +3071,9 @@
       "command": "node --test --test-name-pattern=\"AC-219\" tests/system/rpg.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-101-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-101-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T15:05:31+09:00",
@@ -3085,9 +3096,9 @@
       "command": "node --test --test-name-pattern=\"AC-221\" tests/system/rpg.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-103-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-103-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T15:05:36+09:00",
@@ -3110,9 +3121,9 @@
       "command": "node --test --test-name-pattern=\"AC-223\" tests/system/rpginput.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-105-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-105-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T15:05:41+09:00",
@@ -3135,9 +3146,9 @@
       "command": "node --test --test-name-pattern=\"AC-224\" tests/system/rpginput.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-107-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-107-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T15:05:47+09:00",
@@ -3160,9 +3171,9 @@
       "command": "node --test --test-name-pattern=\"AC-225\" tests/system/rpginput.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-109-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-109-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T15:05:52+09:00",
@@ -3185,9 +3196,9 @@
       "command": "node --test --test-name-pattern=\"AC-226\" tests/system/rpg.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-111-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-111-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T15:05:58+09:00",
@@ -3210,9 +3221,9 @@
       "command": "node --test --test-name-pattern=\"AC-309\" tests/system/llm-consent.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-146-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-146-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T16:50:01+09:00",
@@ -3241,9 +3252,9 @@
       "command": "node --test --test-name-pattern=\"AC-310\" tests/system/llm-consent.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-147-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-147-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T16:50:05+09:00",
@@ -3266,9 +3277,9 @@
       "command": "node --test --test-name-pattern=\"AC-313\" tests/system/llm-consent.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-148-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-148-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T16:50:08+09:00",
@@ -3291,9 +3302,9 @@
       "command": "node --test --test-name-pattern=\"AC-314\" tests/system/llm-consent.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-149-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-149-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T16:50:11+09:00",
@@ -3316,9 +3327,9 @@
       "command": "node --test --test-name-pattern=\"AC-315\" tests/system/llm-consent.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-150-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-150-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T16:50:14+09:00",
@@ -3341,9 +3352,9 @@
       "command": "node --test --test-name-pattern=\"AC-316\" tests/system/llm-consent.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-151-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-151-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T16:50:19+09:00",
@@ -3366,9 +3377,9 @@
       "command": "node --test --test-name-pattern=\"AC-353\" tests/system/llm-consent.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-152-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-152-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T16:50:24+09:00",
@@ -3391,9 +3402,9 @@
       "command": "node --test --test-name-pattern=\"AC-355\" tests/system/llm-consent.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-153-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-153-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T16:50:29+09:00",
@@ -3422,9 +3433,9 @@
       "command": "node --test --test-name-pattern=\"AC-356\" tests/system/llm-consent.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-154-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-154-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T16:50:33+09:00",
@@ -3447,9 +3458,9 @@
       "command": "node --test --test-name-pattern=AC-339 tests/system/llmrelay.test.js",
       "canary": true,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/IT-001-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/IT-001-202610201449.log",
       "history": [
         {
           "at": "2026-10-17T16:50:44+09:00",
@@ -3472,9 +3483,9 @@
       "command": "node --test --test-name-pattern=\"FR-063 AC-319 同じ入力\" tests/system/llm-draw.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-155-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-155-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T16:50:48+09:00",
@@ -3528,9 +3539,9 @@
       "command": "node --test --test-name-pattern=\"FR-063 AC-319 不正な部品キー\" tests/system/llm-draw.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-156-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-156-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T16:50:55+09:00",
@@ -3584,9 +3595,9 @@
       "command": "node --test --test-name-pattern=\"FR-063 AC-321 対応づけられた絵\" tests/system/llm-draw.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-157-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-157-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T16:50:59+09:00",
@@ -3640,9 +3651,9 @@
       "command": "node --test --test-name-pattern=\"FR-063 AC-321 形式に合わない\" tests/system/llm-draw.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-158-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-158-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T16:51:06+09:00",
@@ -3696,9 +3707,9 @@
       "command": "node --test --test-name-pattern=\"FR-063 AC-323 LLM の応答を待たずに\" tests/system/llm-draw.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-159-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-159-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T16:51:13+09:00",
@@ -3752,9 +3763,9 @@
       "command": "node --test --test-name-pattern=\"FR-063 AC-323 LLM の要求が失敗\" tests/system/llm-draw.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-160-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-160-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T16:51:21+09:00",
@@ -3808,9 +3819,9 @@
       "command": "node --test --test-name-pattern=\"FR-065 AC-330 方式2 は既定\" tests/system/llm-draw.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-161-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-161-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T16:51:28+09:00",
@@ -3864,9 +3875,9 @@
       "command": "node --test --test-name-pattern=\"FR-065 AC-330 方式2 をオンにした\" tests/system/llm-draw.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-162-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-162-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T16:51:35+09:00",
@@ -4185,9 +4196,9 @@
       "command": "node --test --test-name-pattern=AC-311 tests/system/llm-consent-persist.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-173-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-173-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T21:05:09+09:00",
@@ -4210,9 +4221,9 @@
       "command": "node --test --test-name-pattern=AC-312 tests/system/llm-consent-persist.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-174-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-174-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T21:05:14+09:00",
@@ -4235,9 +4246,9 @@
       "command": "node --test --test-name-pattern=AC-334 tests/system/llm-consent-persist.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-175-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-175-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T21:05:19+09:00",
@@ -4260,9 +4271,9 @@
       "command": "node --test --test-name-pattern=AC-358 tests/system/llm-consent-persist.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-176-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-176-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T21:05:25+09:00",
@@ -4316,9 +4327,9 @@
       "command": "node --test --test-name-pattern=AC-360 tests/system/llm-consent-persist.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-178-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-178-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T21:05:35+09:00",
@@ -4341,9 +4352,9 @@
       "command": "node --test --test-name-pattern=AC-366 tests/system/llm-consent-persist.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-179-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-179-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T21:05:38+09:00",
@@ -4366,9 +4377,9 @@
       "command": "node --test --test-name-pattern=AC-367 tests/system/llm-consent-persist.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-180-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-180-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T21:05:42+09:00",
@@ -4670,9 +4681,9 @@
       "command": "node --test --test-name-pattern=\"AC-236\" tests/system/emphasis.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-172-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-172-202610201450.log",
       "history": [
         {
           "at": "2026-10-17T17:54:18+09:00",
@@ -4695,9 +4706,9 @@
       "command": "node --test --test-name-pattern=\"AC-384\" tests/system/startbar.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-181-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-181-202610201450.log",
       "history": [
         {
           "at": "2026-10-19T22:42:19+09:00",
@@ -4720,9 +4731,9 @@
       "command": "node --test --test-name-pattern=\"AC-385\" tests/system/startbar.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-182-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-182-202610201450.log",
       "history": [
         {
           "at": "2026-10-19T22:42:24+09:00",
@@ -4745,9 +4756,9 @@
       "command": "node --test --test-name-pattern=\"AC-386\" tests/system/startbar.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-183-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-183-202610201450.log",
       "history": [
         {
           "at": "2026-10-19T22:42:26+09:00",
@@ -4832,9 +4843,9 @@
       "command": "node --test --test-name-pattern=\"AC-388\" tests/system/startbar.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-186-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-186-202610201450.log",
       "history": [
         {
           "at": "2026-10-19T22:42:36+09:00",
@@ -4857,9 +4868,9 @@
       "command": "node --test --test-name-pattern=\"AC-389\" tests/system/startbar.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-187-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-187-202610201450.log",
       "history": [
         {
           "at": "2026-10-19T22:42:39+09:00",
@@ -4882,9 +4893,9 @@
       "command": "node --test --test-name-pattern=\"AC-390\" tests/system/startbar.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-188-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-188-202610201450.log",
       "history": [
         {
           "at": "2026-10-19T22:42:41+09:00",
@@ -4969,9 +4980,9 @@
       "command": "node --test --test-name-pattern=\"AC-393\" tests/system/startbar.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-191-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-191-202610201450.log",
       "history": [
         {
           "at": "2026-10-19T22:42:49+09:00",
@@ -4994,9 +5005,9 @@
       "command": "node --test --test-name-pattern=\"AC-414\" tests/system/stylepicker.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-199-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-199-202610201450.log",
       "history": [
         {
           "at": "2026-10-20T05:12:37+09:00",
@@ -5019,9 +5030,9 @@
       "command": "node --test --test-name-pattern=\"AC-415\" tests/system/stylepicker.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-200-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-200-202610201450.log",
       "history": [
         {
           "at": "2026-10-20T05:12:40+09:00",
@@ -5044,9 +5055,9 @@
       "command": "node --test --test-name-pattern=\"AC-416\" tests/system/stylepicker.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-201-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-201-202610201450.log",
       "history": [
         {
           "at": "2026-10-20T05:12:45+09:00",
@@ -5069,9 +5080,9 @@
       "command": "node --test --test-name-pattern=\"AC-417\" tests/system/stylepicker.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-202-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-202-202610201450.log",
       "history": [
         {
           "at": "2026-10-20T05:12:49+09:00",
@@ -5306,14 +5317,14 @@
       "ac_ids": [
         "AC-408"
       ],
-      "title": "黄黒手書き風: 白い紙面・黒の文字と枠・黄の塗り（黒かグレーの輪郭線）・黒い帯の白抜き見出し・通常の吹き出しは黄の雲形（感情語のトピックは異なる形）・線画人物・太めの文字と書体の並び（異常系: 手書き風の書体なし）",
+      "title": "黄黒手書き風: 白い紙面・黒の文字と枠・黄の塗り（黒かグレーの輪郭線）・黒い帯の白抜き見出し・通常の吹き出しは黄の雲形（感情語のトピックは異なる形）・線画人物・太めの文字と書体の並び（日本語は Yu Gothic UI を先に）（異常系: 手書き風の書体なし）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-408\" tests/system/stylepreset.test.js",
       "canary": true,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-210-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-210-202610201449.log",
       "history": [
         {
           "at": "2026-10-20T05:23:14+09:00",
@@ -5326,6 +5337,12 @@
           "by": "test-designer",
           "change": "title: '黄黒手書き風: 白い紙面・黒の文字と枠・黄の塗り（黒かグレーの輪郭線）・黒帯の白抜き見出し・黄の雲形の吹き出し・線画人物・太めの文字と書体の並び（異常系: 手書き風の書体なし）' -> '黄黒手書き風: 白い紙面・黒の文字と枠・黄の塗り（黒かグレーの輪郭線）・黒い帯の白抜き見出し・通常の吹き出しは黄の雲形（感情語のトピックは異なる形）・線画人物・太めの文字と書体の並び（異常系: 手書き風の書体なし）'",
           "reason": "AC-408 の変更（Q-026 A。run 202610201309）: 雲形は通常の吹き出しに限り、感情語を含むトピックの吹き出し（AC-156。data-emotional）は通常と異なる形を求めるよう見直し"
+        },
+        {
+          "at": "2026-10-20T13:59:03+09:00",
+          "by": "test-designer",
+          "change": "title: '黄黒手書き風: 白い紙面・黒の文字と枠・黄の塗り（黒かグレーの輪郭線）・黒帯の白抜き見出し・黄の雲形の吹き出し・線画人物・太めの文字と書体の並び（異常系: 手書き風の書体なし）' -> '黄黒手書き風: 白い紙面・黒の文字と枠・黄の塗り（黒かグレーの輪郭線）・黒帯の白抜き見出し・通常の吹き出しは黄の雲形・線画人物・太めの文字と書体の並び（日本語は Yu Gothic UI を先に）（異常系: 手書き風の書体なし）'",
+          "reason": "AC-408 の変更（NFR-UX-012 の書体の並び・感情語の吹き出しは AC-467）に合わせる"
         }
       ]
     },
@@ -5337,7 +5354,7 @@
       "ac_ids": [
         "AC-409"
       ],
-      "title": "描画スタイルの選択肢 13 と、9 つの風の紙面・書体・見出しの飾り・吹き出し・線・線画人物が 3.6 の表と一致し図に反映（異常系: 未知の ID）",
+      "title": "描画スタイルの選択肢 13 と、9 つの風の紙面・書体・見出しの飾り・通常の吹き出し・線・線画人物が 3.6 の表と一致し図に反映（異常系: 未知の ID）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-409\" tests/system/stylepreset.test.js",
       "canary": false,
@@ -5357,6 +5374,18 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "参考として blocked: AC-409 は検証レベル=integration で System Test の台帳の対象外（CHK-10）。受入基準だけから作ったテストは tests/system/stylepreset.test.js（契約 CONTRACT-STYLE-PRESET.md）にあり、implementer の結合テストのゲートで command を実行して確かめる"
+        },
+        {
+          "at": "2026-10-20T13:59:06+09:00",
+          "by": "test-designer",
+          "change": "title: '描画スタイルの選択肢 13 と、9 つの風の紙面・書体・見出しの飾り・吹き出し・線・線画人物が 3.6 の表と一致し図に反映（異常系: 未知の ID）' -> '描画スタイルの選択肢 13 と、9 つの風の紙面・書体・見出しの飾り・通常の吹き出し・線・線画人物が 3.6 の表と一致し図に反映（異常系: 未知の ID）'",
+          "reason": "AC-409 の変更（通常の吹き出しの形。感情語の吹き出しは AC-467）に合わせ、通常の吹き出しだけを比べる"
+        },
+        {
+          "at": "2026-10-20T13:59:13+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートで --test-name-pattern で実行できる"
         }
       ]
     },
@@ -5554,7 +5583,7 @@
       "ac_ids": [
         "AC-406"
       ],
-      "title": "既存の 4 つの描画スタイルは拡張の前（91a15b8）と同じ図（異常系: 風から戻す）",
+      "title": "既存の 4 つの描画スタイルは、同じ版のコードで画風プリセットの機能がない場合（golden: main 6d28c28）と同じ図。書体の指定の並び（NFR-UX-012）と文字幅による枠の幅・折り返しだけを許す（異常系: 風から戻す）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-406\" tests/system/stylepreset.test.js",
       "canary": false,
@@ -5574,6 +5603,30 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "参考として blocked: AC-406 は検証レベル=integration で System Test の台帳の対象外（CHK-10）。受入基準だけから作ったテストは tests/system/stylepreset.test.js（契約 CONTRACT-STYLE-PRESET.md）にあり、implementer の結合テストのゲートで command を実行して確かめる"
+        },
+        {
+          "at": "2026-10-20T13:59:06+09:00",
+          "by": "test-designer",
+          "change": "title: '既存の 4 つの描画スタイルは拡張の前（91a15b8）と同じ図（異常系: 風から戻す）' -> '既存の 4 つの描画スタイルは拡張の前（91a15b8）と同じ図。書体の指定の並び（NFR-UX-012）と文字幅による枠の幅・折り返しだけを許す（異常系: 風から戻す）'",
+          "reason": "AC-406 の変更（書体の並びと日本語の字形・文字幅の変化だけを許す）に合わせ、golden との比較を直す"
+        },
+        {
+          "at": "2026-10-20T13:59:14+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートで --test-name-pattern で実行できる"
+        },
+        {
+          "at": "2026-10-20T15:48:47+09:00",
+          "by": "test-designer",
+          "change": "title: '既存の 4 つの描画スタイルは拡張の前（91a15b8）と同じ図。書体の指定の並び（NFR-UX-012）と文字幅による枠の幅・折り返しだけを許す（異常系: 風から戻す）' -> '既存の 4 つの描画スタイルは、同じ版のコードで画風プリセットの機能がない場合（golden: main 6d28c28）と同じ図。書体の指定の並び（NFR-UX-012）と文字幅による枠の幅・折り返しだけを許す（異常系: 風から戻す）'",
+          "reason": "AC-406 の改訂（比較の基準を同じ版のコードで FR-075・FR-076 がない場合の出力に）に合わせ、golden を main 6d28c28 で記録し直し、FR-079・FR-080 の 4 属性の除外を外す"
+        },
+        {
+          "at": "2026-10-20T15:48:58+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルは integration（System Test の対象外。CHK-10）。implementer の結合テストで確かめる。この System 側のテストは参考で、ゲートは --test-name-pattern で実行できる"
         }
       ]
     },
@@ -5585,7 +5638,7 @@
       "ac_ids": [
         "AC-407"
       ],
-      "title": "画風プリセットの表示・PNG/SVG/PDF 保存で外部リクエスト 0・紙面は図形・書体の並び・UI の書体は不変（異常系: 書体なし・判定失敗）",
+      "title": "画風プリセットの表示・PNG/SVG/PDF 保存で外部リクエスト 0・紙面は図形・書体の並び（欧文専用→Yu Gothic UI→残り）・UI の書体は不変（異常系: 書体なし・判定失敗）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-407\" tests/system/stylepreset.test.js",
       "canary": false,
@@ -5605,6 +5658,18 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "参考として blocked: AC-407 は検証レベル=integration で System Test の台帳の対象外（CHK-10）。受入基準だけから作ったテストは tests/system/stylepreset.test.js（契約 CONTRACT-STYLE-PRESET.md）にあり、implementer の結合テストのゲートで command を実行して確かめる"
+        },
+        {
+          "at": "2026-10-20T13:59:07+09:00",
+          "by": "test-designer",
+          "change": "title: '画風プリセットの表示・PNG/SVG/PDF 保存で外部リクエスト 0・紙面は図形・書体の並び・UI の書体は不変（異常系: 書体なし・判定失敗）' -> '画風プリセットの表示・PNG/SVG/PDF 保存で外部リクエスト 0・紙面は図形・書体の並び（欧文専用→Yu Gothic UI→残り）・UI の書体は不変（異常系: 書体なし・判定失敗）'",
+          "reason": "AC-407 の変更（日本語の字形は欧文専用の書体の次に Yu Gothic UI）に合わせる"
+        },
+        {
+          "at": "2026-10-20T13:59:15+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートで --test-name-pattern で実行できる"
         }
       ]
     },
@@ -5621,9 +5686,9 @@
       "command": "node --test --test-name-pattern=\"AC-395\" tests/system/perf.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-192-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-192-202610201450.log",
       "history": [
         {
           "at": "2026-10-20T03:50:03+09:00",
@@ -5646,9 +5711,9 @@
       "command": "node --test --test-name-pattern=\"AC-396\" tests/system/perf.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-193-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-193-202610201450.log",
       "history": [
         {
           "at": "2026-10-20T03:50:06+09:00",
@@ -5671,9 +5736,9 @@
       "command": "node --test --test-name-pattern=\"AC-397\" tests/system/perf.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-194-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-194-202610201450.log",
       "history": [
         {
           "at": "2026-10-20T03:50:09+09:00",
@@ -5696,9 +5761,9 @@
       "command": "node --test --test-name-pattern=\"AC-398\" tests/system/perf.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-195-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-195-202610201450.log",
       "history": [
         {
           "at": "2026-10-20T03:50:12+09:00",
@@ -5721,9 +5786,9 @@
       "command": "node --test --test-name-pattern=\"AC-399\" tests/system/perf.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:41:39+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-196-202610201441.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-196-202610201450.log",
       "history": [
         {
           "at": "2026-10-20T03:50:15+09:00",
@@ -5746,9 +5811,9 @@
       "command": "node --test --test-name-pattern=\"AC-401\" tests/system/perf.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-197-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-197-202610201450.log",
       "history": [
         {
           "at": "2026-10-20T03:50:18+09:00",
@@ -5771,9 +5836,9 @@
       "command": "node --test --test-name-pattern=\"AC-402\" tests/system/perf.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-198-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-198-202610201450.log",
       "history": [
         {
           "at": "2026-10-20T03:50:22+09:00",
@@ -5796,9 +5861,9 @@
       "command": "node --test --test-name-pattern=\"AC-459\" tests/system/cmdgroups.test.js",
       "canary": true,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-225-202610201424.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-225-202610201449.log",
       "history": [
         {
           "at": "2026-10-20T05:37:47+09:00",
@@ -5827,9 +5892,9 @@
       "command": "node --test --test-name-pattern=\"AC-460\" tests/system/cmdgroups.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-226-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-226-202610201450.log",
       "history": [
         {
           "at": "2026-10-20T05:37:50+09:00",
@@ -5852,9 +5917,9 @@
       "command": "node --test --test-name-pattern=\"AC-461\" tests/system/cmdgroups.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-227-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-227-202610201450.log",
       "history": [
         {
           "at": "2026-10-20T05:37:55+09:00",
@@ -5877,9 +5942,9 @@
       "command": "node --test --test-name-pattern=\"AC-462\" tests/system/cmdgroups.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "877652f",
-      "last_run_at": "2026-10-20T14:25:45+09:00",
-      "evidence": "work/runs/202610201309/logs/system-test/E2E-229-202610201425.log",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-229-202610201450.log",
       "history": [
         {
           "at": "2026-10-20T05:38:02+09:00",
@@ -6646,6 +6711,161 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "run 202610201309: AC-473（Q-027 A）の System Test を追加。AC-474 の外部へのリクエスト 0 件も同じケースで確かめる"
+        }
+      ]
+    },
+    {
+      "id": "E2E-241",
+      "requirement_ids": [
+        "NFR-UX-012"
+      ],
+      "ac_ids": [
+        "AC-465"
+      ],
+      "title": "画面の書体の指定は 欧文専用の書体（Segoe UI）→ Yu Gothic UI → 日本語の字形を持ち得る書体、表示言語で不変（異常系: Yu Gothic UI なし・判定失敗で不変、書体の外部取得 0・同梱なし）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-465\" tests/system/jpfont.test.js",
+      "canary": false,
+      "status": "pass",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-241-202610201450.log",
+      "history": [
+        {
+          "at": "2026-10-20T13:58:23+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "NFR-UX-012 新設（run 202610201234）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-242",
+      "requirement_ids": [
+        "NFR-UX-012"
+      ],
+      "ac_ids": [
+        "AC-466"
+      ],
+      "title": "13 の描画スタイル・追加した画風プリセットの図（SVG）・PNG/SVG/PDF 保存・RPG の Canvas の書体の指定が NFR-UX-012 の並び（異常系: Yu Gothic UI なし・判定失敗）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-466\" tests/system/jpfont.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T13:58:26+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "NFR-UX-012 新設（run 202610201234）"
+        },
+        {
+          "at": "2026-10-20T13:59:00+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートで --test-name-pattern で実行できる"
+        }
+      ]
+    },
+    {
+      "id": "E2E-243",
+      "requirement_ids": [
+        "FR-076"
+      ],
+      "ac_ids": [
+        "AC-467"
+      ],
+      "title": "吹き出し型で感情語を含むトピックの吹き出しは 9 つの風・追加した定義のすべてで通常と異なる形、色なしでも形で区別、配色・輪郭線の規定、保存でも同じ（異常系: 強制カラー・感情語なし）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-467\" tests/system/emotionballoon.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T13:58:29+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "Q-026 A（AC-467 新設。run 202610201234）"
+        },
+        {
+          "at": "2026-10-20T13:59:01+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートで --test-name-pattern で実行できる"
+        }
+      ]
+    },
+    {
+      "id": "E2E-244",
+      "requirement_ids": [
+        "FR-078"
+      ],
+      "ac_ids": [
+        "AC-468"
+      ],
+      "title": "コピーの前に注意（外部サービスへ渡る・簡易マスキングの選択は初期で適用・コピー・取りやめ）、キーボードだけで操作・読み上げ・表示言語（異常系: Esc・取りやめで不変とフォーカスの復帰、シーン 0 は注意なし、不正な指定）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-468\" tests/system/imageprompt.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": "7bead23",
+      "last_run_at": "2026-10-20T14:50:54+09:00",
+      "evidence": "work/runs/202610201234/logs/system-test/E2E-244-202610201450.log",
+      "history": [
+        {
+          "at": "2026-10-20T13:58:32+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "Q-027 A（AC-468 新設。run 202610201234）"
+        },
+        {
+          "at": "2026-10-20T15:29:38+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-468 は廃止（main の run 202610201309 の AC-470・AC-471 に統合。Q-027 A）。代わりに E2E-238・E2E-239 で確かめる"
+        }
+      ]
+    },
+    {
+      "id": "E2E-245",
+      "requirement_ids": [
+        "FR-078"
+      ],
+      "ac_ids": [
+        "AC-469"
+      ],
+      "title": "注意で簡易マスキングを適用すると内容の登録語・敬称付き人名・メール・電話が伏せ字、保証しない旨、適用しないと従来の文章、図・一覧・ファイルは不変、同じ入力で同じ、切り詰めは伏せ字の後（異常系: クリップボードなし、LLM・設定に依存しない）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-469\" tests/system/imageprompt.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T13:58:35+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "Q-027 A（AC-469 新設。run 202610201234）"
+        },
+        {
+          "at": "2026-10-20T13:59:02+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートで --test-name-pattern で実行できる"
+        },
+        {
+          "at": "2026-10-20T15:29:39+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-469 は廃止（main の run 202610201309 の AC-470・AC-471 に統合。Q-027 A）。代わりに E2E-239 で確かめる"
         }
       ]
     }
