@@ -1,7 +1,7 @@
 // NFR-OFFLINE-001: app shell をキャッシュして、ネットワークなしでも起動できるようにする。
 // 外部へのリクエストは一切しない（キャッシュにある同一オリジンの資産だけを返す）。
 // 後続の項目が資産（ファイル）を足したら SHELL に追加し、VERSION を上げる。
-const VERSION = 'grp-shell-v23';
+const VERSION = 'grp-shell-v24';
 const SHELL = [
   './', './index.html', './styles/tokens.css', './styles/app.css',
   './src/main.js', './src/app.js', './src/ui.js', './src/i18n.js', './src/layout.js',
