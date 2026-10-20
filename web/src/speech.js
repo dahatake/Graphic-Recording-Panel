@@ -139,10 +139,12 @@ export async function speechModule(ctx) {
     const key = state === 'unavailable' ? reason : state;
     return { method: 'browser', state, reason, startEnabled, alternative: state === 'unavailable', text: ctx.t(`speech.status.${key}`) };
   };
+  // FR-081 AC-441 AC-442: 送信先のホスト名を中継サーバーから取得できていない間は、示すホストがないので同意できず、開始しない
+  const azHostName = () => ctx.api.getAzureSpeechSettings?.().endpointHost || null;
   // FR-081 AC-444 AC-445: Azure Speech の状態（使えます・同意待ち・使えません（理由））。失敗のときは 1 回の操作の候補を添える
   const azureStatus = () => {
     let state, reason;
-    if (azFailed) { state = 'unavailable'; reason = azFailed; } else if (!azSource) { state = 'unavailable'; reason = 'unconfigured'; } else if (!consent) { state = 'consent'; reason = 'consent'; } else { state = 'available'; reason = null; }
+    if (azFailed) { state = 'unavailable'; reason = azFailed; } else if (!azSource) { state = 'unavailable'; reason = 'unconfigured'; } else if (!consent || !azHostName()) { state = 'consent'; reason = 'consent'; } else { state = 'available'; reason = null; }
     const st = { method: 'azure', state, reason, startEnabled: state === 'available', alternative: state === 'unavailable',
       text: ctx.t(`speech.status.azure.${state === 'unavailable' ? reason : state}`) };
     if (state === 'unavailable') {
@@ -155,12 +157,14 @@ export async function speechModule(ctx) {
   ctx.api.isSpeechAvailable = available;
   ctx.api.getSpeechStatus = () => (isAzure() ? azureStatus() : statusNow());
   ctx.api.getSpeechConsent = () => consent;
-  const azHost = () => ctx.api.getAzureSpeechSettings?.().endpointHost || ctx.t('speech.azure.host.unset');
   ctx.api.getConsentUi = () => (isAzure() ? {
-    // FR-081 AC-442: Azure Speech では、デバイス内処理の可否によらず [記録開始] の直近に同意と送信先のホスト名を示す
+    // FR-081 AC-442: Azure Speech では、デバイス内処理の可否によらず [記録開始] の直近に同意と送信先のホスト名を示す。
+    // ホスト名が未取得の間は、同意のチェックを選べない（disabled）と、その理由を示す
     visible: true, noticeVisible: true,
     region: 'top', nearCommand: 'session.start', role: 'checkbox', checked: consent, tabbable: true,
-    label: ctx.t('speech.azure.consent.label'), notice: ctx.t('speech.azure.consent.notice').replace('{host}', azHost()),
+    disabled: !azHostName(), reason: azHostName() ? null : ctx.t('speech.azure.consent.noHost'),
+    label: ctx.t('speech.azure.consent.label'),
+    notice: azHostName() ? ctx.t('speech.azure.consent.notice').replace('{host}', azHostName()) : ctx.t('speech.azure.consent.noHost'),
     stateText: ctx.t(consent ? 'speech.consent.on' : 'speech.consent.off'), colorOnly: false,
   } : {
     // FR-072 AC-385: 同意のチェックと説明は最上部の [記録開始] の直近に、セッションの状態によらず（外部送信の可能性があるとき）常に見える。
@@ -240,7 +244,7 @@ export async function speechModule(ctx) {
   let azTimer = null;
   const cancelAzRestart = () => { if (azTimer != null) { sched.clearTimeout(azTimer); azTimer = null; } };
   const azRunning = () => speech.active && engine === 'azure';
-  const azCanRestart = () => azRunning() && isAzure() && consent && !azFailed && ctx.state.session === 'recording';
+  const azCanRestart = () => azRunning() && isAzure() && consent && !azFailed && !!azHostName() && ctx.state.session === 'recording';
   const azBegin = () => azSource.start({ lang: curLang() });
   if (azSource) {
     azSource.onresult = (e) => { if (azRunning() && isAzure()) accept(e); }; // 未同意・停止中に届いた結果は使わない
@@ -260,6 +264,7 @@ export async function speechModule(ctx) {
   const startAzure = () => {
     azFailed = null;
     if (!azSource) { azFailed = 'unconfigured'; return fail('unconfigured', 'msg.azureFail.unconfigured'); }
+    if (!azHostName()) { consent = false; return fail('consent_required', 'msg.azureHostUnknown'); } // 示していないホストへは送らない
     if (!consent) return fail('consent_required', 'msg.azureConsent');
     if (!speech.active) { speech.active = true; engine = 'azure'; azBegin(); ctx.emit('speech:started'); }
     if (!keepMessage) ctx.change(() => ctx.setMessage(null));
@@ -296,6 +301,13 @@ export async function speechModule(ctx) {
   };
   let pendingResume = false; // 再開したが同意がなく開始できなかった（同意後に始める）
   ctx.api.setSpeechConsent = (v) => {
+    // FR-081 AC-442: Azure Speech で送信先のホスト名が未取得の間は同意できない（未同意のまま）
+    if (v && isAzure() && !azHostName()) {
+      consent = false;
+      void ctx.api.refreshAzureSpeechStatus?.(); // ホスト名を取り直す（取得できたら改めて同意できる）
+      ctx.change(() => ctx.setMessage('msg.azureHostUnknown'));
+      return;
+    }
     consent = !!v; micDenied = false;
     if (!consent && speech.active) stopEngines(false); // 同意を外すと送信を止める（AC-442・AC-458 (c)）
     ctx.change(() => { if (!consent) { speech.active = false; speech.interim = ''; } });
@@ -346,6 +358,7 @@ export async function speechModule(ctx) {
   ctx.registerCommand('speech.retryAzure', () => {
     if (!isAzure()) return { ok: false, reason: 'not_azure' };
     azFailed = null;
+    if (!azHostName()) void ctx.api.refreshAzureSpeechStatus?.(); // 未取得なら取り直す（開始は同意の後: startAzure）
     if (ctx.state.session !== 'recording') { ctx.change(() => ctx.setMessage(null)); return { ok: true }; }
     if (speech.active) return { ok: true };
     pendingResume = false;

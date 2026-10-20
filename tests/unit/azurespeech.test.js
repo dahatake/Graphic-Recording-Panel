@@ -342,6 +342,90 @@ test('FR-081 AC-444: 画面は状態表示の actions を #speech-actions のボ
   assert.match(css, /\.speech-actions \{[^}]*gap: var\(--space-2\)/);
 });
 
+// ---------------- 結合: 送信先のホスト名が未取得のとき（レビューの差し戻し: AC-441 AC-442） ----------------
+// 方式が Azure Speech のまま、中継サーバーが応答しない状態で起動し直す（ホスト名は未取得）
+async function rebootOffline() {
+  const ctx = await bootApp();
+  assert.equal(ctx.app.setSpeechMethod('azure').ok, true);
+  ctx.relay.mode = 'offline';
+  const azure = new FakeAzureSpeech();
+  const app = await ctx.createApp({ ...ctx.env.options, azureSpeechSource: azure });
+  const hosts = [];
+  app.on('speech:endpointHost', (e) => hosts.push(e));
+  await app.refreshAzureSpeechStatus(); await flush();
+  return { ...ctx, app, azure, hosts };
+}
+
+// FR-081 AC-442 異常系: ホスト名が未取得の間は、同意のチェックを選べず、同意しても未同意のまま、開始・再試行でも送らない
+test('FR-081 AC-442 異常系: 送信先のホスト名が未取得の間は同意できず、記録開始・再試行でも Azure Speech を開始しない', async () => {
+  const { app, azure } = await rebootOffline();
+  assert.equal(app.getSpeechMethod(), 'azure');
+  assert.equal(app.getAzureSpeechSettings().endpointHost, null);
+  const cu = app.getConsentUi();
+  assert.equal(cu.visible, true);
+  assert.equal(cu.disabled, true, '同意のチェックを選べない');
+  assert.ok(cu.reason && cu.reason.trim().length > 0, '選べない理由を示す');
+  assert.ok(!cu.notice.includes(DUMMY_HOST));
+  assert.match(cu.notice, /ホスト名/);
+  app.setSpeechConsent(true); await flush();
+  assert.equal(app.getSpeechConsent(), false, '同意しても未同意のまま');
+  assert.match(app.getState().message.text, /ホスト名/);
+  app.commands['speech.consent'](); await flush();
+  assert.equal(app.getSpeechConsent(), false, 'キー操作の切替でも同意できない');
+  app.commands['session.start'](); await flush();
+  assert.equal(app.getState().session, 'recording');
+  assert.equal(azure.startCalls.length, 0, '開始しない（送信 0 件）');
+  assert.equal(app.getSpeechStatus().state, 'consent', '同意待ち');
+  assert.equal(app.getSpeechStatus().startEnabled, false);
+  app.commands['speech.retryAzure'](); await flush();
+  assert.equal(azure.startCalls.length, 0, '再試行でも開始しない');
+});
+
+// FR-081 AC-441 異常系: 未取得→取得はホストの変更として扱い、未同意のまま。改めてホスト名を示して同意したときだけ開始する
+test('FR-081 AC-441 異常系: ホスト名の未取得→取得はホストの変更として通知され、同意は未同意のまま、ホスト名を示して改めて同意すると開始する', async () => {
+  const { app, azure, relay, hosts } = await rebootOffline();
+  app.commands['session.start'](); app.setSpeechConsent(true); await flush();
+  relay.mode = 'ok';
+  await app.refreshAzureSpeechStatus(); await flush();
+  assert.deepEqual(hosts, [{ host: DUMMY_HOST, prev: null }], '未取得→取得を speech:endpointHost で通知');
+  assert.equal(app.getSpeechConsent(), false, '未同意のまま');
+  assert.equal(azure.startCalls.length, 0, '取得しただけでは開始しない');
+  app.commands['speech.retryAzure'](); await flush();
+  assert.equal(azure.startCalls.length, 0, '再試行でも、同意の前は開始しない');
+  const cu = app.getConsentUi();
+  assert.equal(cu.disabled, false);
+  assert.ok(cu.notice.includes(DUMMY_HOST), '取得したホスト名を示す');
+  app.setSpeechConsent(true); await flush();
+  assert.equal(azure.startCalls.length, 1, '改めて同意すると開始');
+});
+
+// FR-081 AC-441 異常系: 認識中に中継サーバーが応答しなくなり、ホスト名が未取得に戻ったら、送信を止めて未同意に戻す
+test('FR-081 AC-441 異常系: 認識中にホスト名が未取得に戻ると送信を止めて未同意に戻り、再び取得しても再試行・自動の再開では送らない', async () => {
+  const { app, env, azure, relay } = await bootApp();
+  const hosts = [];
+  app.on('speech:endpointHost', (e) => hosts.push(e));
+  await recordAzure(app);
+  assert.equal(azure.startCalls.length, 1);
+  relay.mode = 'offline';
+  await app.refreshAzureSpeechStatus(); await flush();
+  assert.deepEqual(hosts, [{ host: null, prev: DUMMY_HOST }]);
+  assert.equal(azure.active, false, '送信を止める');
+  assert.equal(app.getSpeechConsent(), false);
+  assert.equal(app.getState().session, 'recording');
+  azure.end('upstream_end'); env.scheduler.advance(10_000);
+  relay.mode = 'ok';
+  await app.refreshAzureSpeechStatus(); await flush();
+  app.commands['speech.retryAzure'](); await flush();
+  env.scheduler.advance(10_000);
+  assert.equal(azure.startCalls.length, 1, '改めて同意するまで送らない');
+});
+
+// FR-081 AC-442: 画面の同意のチェックは、未取得の間は選べない（disabled を DOM に反映する）
+test('FR-081 AC-442: 画面は getConsentUi().disabled を同意のチェックの disabled に反映する', () => {
+  const ui = fs.readFileSync(path.join(ROOT, 'web', 'src', 'ui.js'), 'utf8');
+  assert.match(ui, /box\.disabled = !!cu\.disabled/);
+});
+
 // ---------------- 結合: 実ブラウザ用の AzureSpeechSource → 中継サーバー（実プロセス）→ 上流モック ----------------
 // relay は ブラウザの relayRequest と同じ形（{method, path, body, contentType} → {status, body}）で、同一オリジンの中継サーバーへ送る
 function relayOver(relay) {
@@ -418,5 +502,38 @@ test('FR-081 AC-444 異常系: 上流が認証を拒むと、音声認識は止�
     const n = up.calls.length;
     st.utter(); await new Promise((r) => setTimeout(r, 200));
     assert.equal(up.calls.length, n, '失敗の後は自動で送り直さない');
+  });
+});
+
+test('FR-081 AC-441 AC-442 異常系: 起動時に中継サーバーが応答しないと同意できず音声を送らず、応答した後はホスト名を示して同意したときだけ設定されたホストへ送る', { timeout: 60_000 }, async () => {
+  await withStack(async ({ key, up, relay }) => {
+    assert.equal((await saveSettings(relay, { endpoint: DUMMY_ENDPOINT, key })).status, 200);
+    const real = relayOver(relay);
+    let down = false;
+    const rf = async (req) => { if (down) throw new TypeError('Failed to fetch'); return real(req); };
+    const first = await newApp({ speech: new FakeSpeech(LOCAL), options: { relay: rf, azureSpeechSource: new FakeAzureSpeech() } });
+    await first.app.refreshAzureSpeechStatus();
+    assert.equal(first.app.setSpeechMethod('azure').ok, true);
+    down = true; // 再読込の時点で中継サーバーが応答しない
+    const { g, st } = fakeAudio();
+    const azure = createRelayAzureSpeechSource({ relay: rf, g });
+    const app = await first.createApp({ ...first.env.options, azureSpeechSource: azure });
+    await app.refreshAzureSpeechStatus();
+    assert.equal(app.getSpeechMethod(), 'azure');
+    assert.equal(app.getConsentUi().disabled, true);
+    app.commands['session.start'](); app.setSpeechConsent(true); await flush();
+    app.commands['speech.retryAzure'](); await flush();
+    assert.equal(app.getSpeechConsent(), false);
+    assert.equal(st.gum, 0, 'マイクを開かない');
+    down = false;
+    await app.refreshAzureSpeechStatus(); await flush();
+    assert.equal(app.getSpeechConsent(), false, '取得しても未同意のまま');
+    assert.equal(st.gum, 0);
+    assert.ok(app.getConsentUi().notice.includes(DUMMY_HOST));
+    app.setSpeechConsent(true); await until(() => st.nodes.length > 0);
+    st.utter();
+    assert.ok(await until(() => app.getState().utterances.length === 1));
+    assert.ok(up.calls.length > 0 && up.calls.every((c) => c.host === DUMMY_HOST), '設定されたホストだけへ送る');
+    app.commands['session.stop'](); await flush();
   });
 });

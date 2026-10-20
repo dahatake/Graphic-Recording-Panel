@@ -172,6 +172,7 @@ export function mountUI(app, doc = document) {
     if (box) {
       $('#speech-consent-box').hidden = !cu.visible;
       box.checked = cu.checked;
+      box.disabled = !!cu.disabled; // FR-081 AC-442: 送信先のホスト名が未取得の間は選べない
       $('#speech-consent-label').textContent = cu.label;
       $('#speech-consent-notice').textContent = cu.notice;
       $('#speech-consent-state').textContent = cu.stateText;
