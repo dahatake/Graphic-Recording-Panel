@@ -99,7 +99,9 @@ test('FR-076 AC-409: 組込みは既存の 4 つの後に 9 つの風が並び�
     assert.ok([...p.label.ja].length <= 6 && p.label.en.length <= 12, `${p.id}: 名前の長さ`);
   }
   for (const k of FONT_KINDS) assert.equal(FONT_STACKS[k].at(-1).kind, 'generic');
-  assert.equal(fontFamilyOf('handwriting').split(',')[0], "'Klee One'");
+  // FR-075 AC-407 / NFR-UX-012 AC-466: 手書き風の系統は欧文専用の書体（手書き風→丸ゴシック）→ Yu Gothic UI → 日本語の字形を持ち得る書体
+  assert.equal(fontFamilyOf('handwriting').split(',')[0], "'Segoe Print'");
+  assert.ok(fontFamilyOf('handwriting').split(', ').indexOf("'Yu Gothic UI'") < fontFamilyOf('handwriting').split(', ').indexOf("'Klee One'"));
   assert.ok(!fontFamilyOf('gothic').includes('url('));
 });
 

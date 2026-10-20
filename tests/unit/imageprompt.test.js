@@ -173,10 +173,10 @@ test('FR-078 AC-468: 注意が開いている間は Tab で巡回し、ほかの
   await app.commands['prompt.copy']();
   const n = app.getPromptCopyNotice();
   assert.equal(n.active, 'mask'); assert.equal(n.role, 'alertdialog'); assert.equal(n.modal, true);
-  assert.deepEqual(n.controls.map((x) => x.id), ['mask', 'copy', 'cancel']);
-  assert.equal(app.handleKey({ key: 'Tab' }), 'prompt.copy.focus'); assert.equal(app.getPromptCopyNotice().active, 'copy');
+  assert.deepEqual(n.controls.map((x) => x.id), ['mask', 'cancel', 'copy']);
+  assert.equal(app.handleKey({ key: 'Tab' }), 'prompt.copy.focus'); assert.equal(app.getPromptCopyNotice().active, 'cancel');
   app.handleKey({ key: 'Tab' }); app.handleKey({ key: 'Tab' }); assert.equal(app.getPromptCopyNotice().active, 'mask', '末尾の次は先頭');
-  app.handleKey({ key: 'Tab', shiftKey: true }); assert.equal(app.getPromptCopyNotice().active, 'cancel', '先頭の前は末尾');
+  app.handleKey({ key: 'Tab', shiftKey: true }); assert.equal(app.getPromptCopyNotice().active, 'copy', '先頭の前は末尾');
   assert.equal(app.setPromptCopyActive('copy').ok, true); assert.equal(app.getPromptCopyNotice().active, 'copy');
   assert.equal(app.setPromptCopyActive('nosuch').ok, false);
   const draft = app.getState().input.draft;
@@ -253,10 +253,32 @@ test('FR-078 AC-468: 注意の画面は役割・名前・文言を描き、現�
   app.handleKey({ key: ' ' });
   assert.equal(cb.checked, false, 'Space の切り替えが画面に反映される');
   app.handleKey({ key: 'Tab' });
+  assert.equal(doc.activeElement, doc.querySelector('[data-control="cancel"]'));
+  app.handleKey({ key: 'Tab' });
   assert.equal(doc.activeElement, doc.querySelector('[data-control="copy"]'));
   app.setLang('en');
   assert.equal(doc.querySelector('[data-control="cancel"]').textContent, STRINGS.en['prompt.notice.cancel'], '表示言語の切替に追従');
   for (const f of doc.querySelector('[data-control="cancel"]').listeners.click) f();
   assert.equal(doc.querySelector('.prompt-notice'), null, '取りやめで閉じる');
   assert.equal(doc.activeElement, btn, 'フォーカスはコピーのボタンへ戻る');
+});
+
+// FR-078 AC-468（WCAG 2.4.3 フォーカスの順序）: 注意の Tab の順序は、画面に置いた操作の並び（文書の順）と同じ
+test('FR-078 AC-468: 注意の Tab・Shift+Tab の順序は画面の並び（簡易マスキング → 取りやめ → コピー）と一致する', async () => {
+  const { app } = await seeded({ clipboard: clip() });
+  const doc = fakeDom();
+  mountPromptCopyNotice(app, doc);
+  await app.commands['prompt.copy']();
+  const order = [];
+  const walk = (e) => { for (const c of e.children) { if (c.dataset.control) order.push(c.dataset.control); walk(c); } };
+  walk(doc.querySelector('.prompt-notice'));
+  assert.deepEqual(order, ['mask', 'cancel', 'copy'], '画面の並び');
+  assert.deepEqual(app.getPromptCopyNotice().controls.map((c) => c.id), order, 'controls は画面の並びと同じ順');
+  const forward = [app.getPromptCopyNotice().active];
+  for (let i = 0; i < order.length - 1; i++) { app.handleKey({ key: 'Tab' }); forward.push(app.getPromptCopyNotice().active); }
+  assert.deepEqual(forward, order, 'Tab は画面の並びの順に進む');
+  assert.equal(doc.activeElement.dataset.control, 'copy', 'DOM のフォーカスも同じ順に移る');
+  const back = [app.getPromptCopyNotice().active];
+  for (let i = 0; i < order.length - 1; i++) { app.handleKey({ key: 'Tab', shiftKey: true }); back.push(app.getPromptCopyNotice().active); }
+  assert.deepEqual(back, [...order].reverse(), 'Shift+Tab は逆の順に戻る');
 });

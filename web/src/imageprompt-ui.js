@@ -82,7 +82,9 @@ export function mountPromptCopyNotice(app, doc = globalThis.document) {
       cancel.addEventListener('click', () => { app.cancelPromptCopy(); });
       const copy = doc.createElement('button'); copy.type = 'button'; copy.className = 'btn btn-primary'; copy.dataset.control = 'copy';
       copy.addEventListener('click', () => { void app.confirmPromptCopy(); });
-      row.append(cancel, copy);
+      // ボタンは app の controls の順（＝Tab の順序）に置き、画面の並びとフォーカスの順序をそろえる（WCAG 2.4.3）
+      const buttons = { cancel, copy };
+      for (const c of app.getPromptCopyNotice().controls) if (buttons[c.id]) row.append(buttons[c.id]);
       box.append(h, p, maskWrap, note, row);
       // クリック・支援技術でフォーカスが移ったら、app の現在の操作を合わせる
       box.addEventListener('focusin', (e) => { const id = e.target?.dataset?.control; if (id) app.setPromptCopyActive?.(id); });

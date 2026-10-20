@@ -180,7 +180,8 @@ export function imagePromptModule(ctx) {
   const notify = () => ctx.emit('change', api);
 
   // ---- コピー前の注意（AC-468）。状態は app が持ち、画面（imageprompt-ui.js）は描くだけ ----
-  const CONTROL_IDS = ['mask', 'copy', 'cancel'];
+  // Tab の順序は画面の並び（簡易マスキング → 取りやめ → コピー。imageprompt-ui.js はこの順に置く）と同じにする（WCAG 2.4.3）
+  const CONTROL_IDS = ['mask', 'cancel', 'copy'];
   let notice = null; // { mask:boolean, active:'mask'|'copy'|'cancel' } | null
   let focusAfter = null; // 閉じた後のフォーカス: 'button'（コピーの操作のボタン）。開いたことがなければ null
   api.getPromptCopyNotice = () => {
@@ -189,8 +190,8 @@ export function imagePromptModule(ctx) {
   };
   const controls = (mask) => [
     { id: 'mask', kind: 'checkbox', label: t('prompt.notice.mask'), checked: mask },
-    { id: 'copy', kind: 'button', label: t('prompt.notice.copy') },
     { id: 'cancel', kind: 'button', label: t('prompt.notice.cancel') },
+    { id: 'copy', kind: 'button', label: t('prompt.notice.copy') },
   ];
   const closeNotice = () => { notice = null; focusAfter = 'button'; };
   api.setPromptCopyMask = (v) => {
