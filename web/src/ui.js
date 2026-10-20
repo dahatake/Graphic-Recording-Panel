@@ -349,6 +349,19 @@ export function mountUI(app, doc = document) {
       const vol = doc.createElement('input'); vol.type = 'range'; vol.min = '0'; vol.max = '100'; vol.step = '1';
       vol.addEventListener('input', () => app.setRpgVolume(Number(vol.value)));
       row('rpg.volume', app.t('rpg.audio.volume'), vol);
+      // FR-080 AC-436・AC-440: 再配置の周期（0〜300 の整数・秒。0 は自動＝会話の区切り）。判定・保存・メッセージは app が行う
+      const af = d.fields.find((f) => f.id === 'arrange.interval');
+      if (af) {
+        const num = doc.createElement('input'); num.type = 'number'; num.min = String(af.min); num.max = String(af.max); num.step = String(af.step); num.inputMode = 'numeric';
+        num.setAttribute('aria-describedby', 'settings-arrange-current');
+        num.addEventListener('focus', () => app.focusSettingsField?.('arrange.interval'));
+        num.addEventListener('blur', () => app.focusSettingsField?.(null));
+        num.addEventListener('input', () => app.setSettingsFieldDraft('arrange.interval', num.value));
+        num.addEventListener('change', () => app.setArrangeInterval(num.value));
+        row('arrange.interval', af.label, num);
+        const cur = doc.createElement('p'); cur.id = 'settings-arrange-current'; cur.className = 'settings-status';
+        form.append(cur);
+      }
       // FR-068: LLM 連携の切替・状態・認証情報の有無（入力欄なし）・接続テスト。状態は色だけでなく文字とアイコンで示す
       const llmSw = doc.createElement('input'); llmSw.type = 'checkbox'; llmSw.setAttribute('role', 'switch');
       llmSw.addEventListener('click', (e) => { e.preventDefault(); void app.toggleLlm(); });
@@ -383,6 +396,15 @@ export function mountUI(app, doc = document) {
     syncAzureSpeech(d);
     const wasHidden = setEl.hidden; setEl.hidden = false;
     if (wasHidden) setEl.querySelector('select')?.focus();
+    { // FR-080: 再配置の周期の表示（現在の周期・入力中の文字列）と、コマンドから開いたときのフォーカス
+      const af = d.fields.find((f) => f.id === 'arrange.interval');
+      const num = setEl.querySelector('#settings-arrange\\.interval');
+      if (af && num) {
+        if (num.value !== af.input.value) num.value = af.input.value;
+        setEl.querySelector('#settings-arrange-current').textContent = `${af.label}: ${af.text}`;
+        if (d.focusedField === 'arrange.interval' && doc.activeElement !== num) num.focus();
+      }
+    }
   }
   app.on('change', syncSettings);
 
