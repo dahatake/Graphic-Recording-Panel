@@ -5378,7 +5378,8 @@
     {
       "id": "E2E-236",
       "requirement_ids": [
-        "NFR-SEC-005"
+        "NFR-SEC-005",
+        "FR-081"
       ],
       "ac_ids": [
         "AC-452"
@@ -5397,6 +5398,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610200407 part 2/2）"
+        },
+        {
+          "at": "2026-10-20T09:27:28+09:00",
+          "by": "test-designer",
+          "change": "requirement_ids: ['NFR-SEC-005'] -> ['NFR-SEC-005', 'FR-081']",
+          "reason": "AC-452 のテストは Azure Speech の認識（FR-081）で発話を加えてからエクスポートを確かめるため FR-081 の実装が前提。FR-081 の統合まで選ばれないよう要求を追加（テストの中身・AC は不変）"
         }
       ]
     },
