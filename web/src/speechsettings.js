@@ -97,9 +97,10 @@ export function speechSettingsModule(ctx) {
     if (!METHODS.includes(id)) return { ok: false, reason: 'unknown' };
     if (id === 'azure' && !configured()) { say('azs.methodUnconfigured'); return { ok: false, reason: 'unconfigured' }; }
     if (id !== method) {
-      applyMethod(id, 'select');
+      // 切替の旨を先に出す。方式の切替を購読する音声認識（speech.js）が、同意待ちなどの表示で上書きできるようにする（FR-081 AC-441）
       msg = 'azs.methodChanged';
-      ctx.change((s) => { s.message = { key: 'azs.methodChanged', text: `${t('azs.methodChanged')}${t(`azs.method.${method}`)}` }; });
+      ctx.change((s) => { s.message = { key: 'azs.methodChanged', text: `${t('azs.methodChanged')}${t(`azs.method.${id}`)}` }; });
+      applyMethod(id, 'select');
     }
     return { ok: true };
   };
@@ -127,14 +128,21 @@ export function speechSettingsModule(ctx) {
     status = next;
     // キーが消えた（ほかの画面・中継サーバー側の削除を含む）ときはブラウザ標準に戻す
     if (method === 'azure' && status.reachable && !configured()) applyMethod('browser', 'unconfigured');
-    else if (prevHost && status.endpointHost && prevHost !== status.endpointHost) ctx.emit('speech:endpointHost', { host: status.endpointHost, prev: prevHost });
+    // 未取得→取得も「ホストの変更」とする（取得前に示していないホストへの同意を残さない: FR-081 AC-441 AC-442）
+    else if (status.endpointHost && prevHost !== status.endpointHost) ctx.emit('speech:endpointHost', { host: status.endpointHost, prev: prevHost });
+  };
+  // 中継サーバーが応答しない: 送信先のホストは未取得に戻る。取得済みだったなら、そのホストへの同意を残さない
+  const unreachable = () => {
+    const prevHost = status.endpointHost;
+    status = { reachable: false, endpointHost: null, keyConfigured: false };
+    if (prevHost) ctx.emit('speech:endpointHost', { host: null, prev: prevHost });
   };
 
   api.refreshAzureSpeechStatus = async () => {
     const r = await send('GET', '/api/speech/status');
     checked = true;
     if (ok2xx(r)) adopt(pickStatus(r.body));
-    else status = { reachable: false, endpointHost: null, keyConfigured: false };
+    else unreachable();
     notify();
     return { ...status };
   };
@@ -167,7 +175,7 @@ export function speechSettingsModule(ctx) {
       if ('key' in body && configured()) { applyMethod('azure', 'key-saved'); say('azs.switched'); } else say('azs.saved'); // Q-025 A
       return { ok: true, result: 'saved' };
     }
-    if (r.error === 'unavailable') { status = { reachable: false, endpointHost: null, keyConfigured: false }; say('azs.unavailable'); return { ok: false, result: 'unavailable' }; }
+    if (r.error === 'unavailable') { unreachable(); say('azs.unavailable'); return { ok: false, result: 'unavailable' }; }
     if (r.status === 400 || r.body?.result === 'invalid') { say('azs.invalid'); return { ok: false, result: 'invalid' }; }
     say('azs.failed');
     return { ok: false, result: r.error === 'timeout' ? 'timeout' : 'error' };
@@ -193,7 +201,7 @@ export function speechSettingsModule(ctx) {
       say(wasAzure ? 'azs.deleted' : 'azs.deletedOnly');
       return { ok: true };
     }
-    if (r.error === 'unavailable') { status = { reachable: false, endpointHost: null, keyConfigured: false }; say('azs.unavailable'); } else say('azs.deleteFailed');
+    if (r.error === 'unavailable') { unreachable(); say('azs.unavailable'); } else say('azs.deleteFailed');
     return { ok: false, reason: 'failed' };
   };
   ctx.registerCommand('azureSpeech.deleteKey', () => {

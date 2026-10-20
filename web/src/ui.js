@@ -150,11 +150,29 @@ export function mountUI(app, doc = document) {
     }
     const interim = $('#interim');
     if (interim) { const ss = app.getSpeechStatus(); interim.textContent = ss.state === 'unavailable' ? ss.text : ''; }
+    // FR-081 AC-444: Azure Speech の失敗では、状態表示の直後に 1 回の操作（再試行・ブラウザ標準への切替）を置く
+    const actEl = $('#speech-actions');
+    if (actEl) {
+      const acts = app.getSpeechStatus().actions ?? [];
+      const sig = acts.map((a) => `${a.command}:${a.label}`).join('|');
+      if (actEl.dataset.sig !== sig) {
+        actEl.dataset.sig = sig; actEl.textContent = '';
+        for (const a of acts) {
+          const b = doc.createElement('button');
+          b.type = 'button'; b.className = 'btn'; b.dataset.command = a.command; b.textContent = a.label;
+          const kl = keyLabel(a.command); if (kl) b.setAttribute('aria-keyshortcuts', kl);
+          b.addEventListener('click', () => { void app.commands[a.command]?.(); });
+          actEl.append(b);
+        }
+      }
+      actEl.hidden = acts.length === 0;
+    }
     const cu = app.getConsentUi();
     const box = $('#speech-consent');
     if (box) {
       $('#speech-consent-box').hidden = !cu.visible;
       box.checked = cu.checked;
+      box.disabled = !!cu.disabled; // FR-081 AC-442: 送信先のホスト名が未取得の間は選べない
       $('#speech-consent-label').textContent = cu.label;
       $('#speech-consent-notice').textContent = cu.notice;
       $('#speech-consent-state').textContent = cu.stateText;
