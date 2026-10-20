@@ -261,7 +261,17 @@ test('FR-068 AC-355: 設定画面は API キー・トークンの値を表示せ
     assert.ok(cred, '認証情報の状態の行がある');
     assert.equal(cred.status.text, credential ? '設定済み' : '未設定');
     assert.equal(cred.input, undefined, '入力欄がない');
-    assert.ok(dlg.fields.every((f) => !/^(password|secret)$/.test(String(f.type ?? '')) && !/key|token/i.test(String(f.id).replace('credential', ''))), '鍵・トークン用の入力項目がない');
+    // AC-355 の「入力欄がない」は LLM 連携のキー・トークンの規定。Azure Speech のキーの書き込み専用の入力欄
+    // （FR-082 AC-448。tests/system/CONTRACT-AZURE-SPEECH.md の azureSpeech.*）には適用しないので、検査の対象から外す。
+    const isSecretInput = (f) => /^(password|secret)$/i.test(String(f.type ?? '')) || /^(password|secret)$/i.test(String(f.input?.type ?? ''));
+    const llmFields = dlg.fields.filter((f) => String(f.id).startsWith('llm.'));
+    assert.ok(llmFields.length > 0, 'LLM 連携の項目がある');
+    for (const f of llmFields) {
+      assert.ok(!isSecretInput(f), `LLM 連携の項目 ${f.id} に鍵・トークン用の入力欄がない`);
+      if (/key|token|credential|secret/i.test(String(f.id))) assert.equal(f.input, undefined, `LLM 連携の項目 ${f.id} は状態だけで入力欄がない`);
+    }
+    const nonSpeech = dlg.fields.filter((f) => !String(f.id).startsWith('azureSpeech.'));
+    assert.ok(nonSpeech.every((f) => !isSecretInput(f) && !/key|token/i.test(String(f.id).replace('credential', ''))), 'Azure Speech 以外に鍵・トークン用の入力項目がない（LLM のキーを別名の欄で受けない）');
     const everything = JSON.stringify([app.getSettingsDialog(), app.getSettingsView?.({ viewportWidth: 1280 }), app.getState(), app.getStrings(), env.storage.dump(), app.renderSvg()]);
     assert.ok(!everything.includes(LEAK_PROBE), 'キーの値が画面・状態・保存領域のどこにもない');
   }
