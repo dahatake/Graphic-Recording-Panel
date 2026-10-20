@@ -5,9 +5,50 @@
 // 手修正（編集・削除・結合・分割、トピックの手修正、整理の割り当て）は状態そのものにあるので、再配置で戻らない（AC-432(a)）。
 import { sceneTree, provisionalTree, topicChunks, GROUP_MAX, KIND_ORDER, TYPE_SCALE, leaves } from './infodesign.js';
 import { detailGeometry, topicsGeometry } from './diagram.js';
+import { readJson, writeJson } from './persist.js';
 
 export const INTERVAL_DEFAULT_SEC = 10; // PARAM-084
+export const INTERVAL_MAX_SEC = 300; // PARAM-085
+export const SILENCE_SEC = 3; // PARAM-086（会話の区切りとみなす無音）
+export const HOLD_MAX_SEC = 30; // PARAM-087（周期 0 で再配置を保留する上限）
+export const INTERVAL_KEY = 'grp.arrangeInterval'; // 端末ごとの設定（初期化・セッションファイルの対象外。AC-436）
+const FIELD_ID = 'arrange.interval';
 const TRANSITION_MS = 300; // 再配置の移動のアニメーションの長さ（動きを減らす設定では 0）
+
+export const isValidSec = (v) => Number.isInteger(v) && v >= 0 && v <= INTERVAL_MAX_SEC;
+// 周期の入力（数値、または入力欄の文字列）の判定。AC-436: 空・整数でない・範囲外は受け付けない。
+export function parseIntervalInput(value) {
+  if (value == null) return { ok: false, reason: 'empty' };
+  let n;
+  if (typeof value === 'number') n = value;
+  else if (typeof value === 'string') {
+    const s = value.trim();
+    if (!s) return { ok: false, reason: 'empty' };
+    if (!/^[+-]?\d+$/.test(s)) return { ok: false, reason: 'not_integer' };
+    n = Number(s);
+  } else return { ok: false, reason: 'not_integer' };
+  if (!Number.isInteger(n)) return { ok: false, reason: 'not_integer' };
+  if (n < 0 || n > INTERVAL_MAX_SEC) return { ok: false, reason: 'range' };
+  return { ok: true, sec: n };
+}
+
+// 文言（ja・en は同一のキー集合。ラベルは PARAM-011 以内: ja 全角 6、en 半角 12）
+const ARRANGE_STRINGS = {
+  ja: {
+    'arrange.interval.sec': '{n} 秒ごと', 'arrange.interval.auto': '自動（会話の区切り）', 'arrange.interval.label': '再配置の周期', 'arrange.interval.unit': '秒（0 は自動）',
+    'arrange.interval.changed': '再配置の周期を変更しました',
+    'arrange.interval.invalid.empty': '再配置の周期を入力してください（0〜300 の整数）',
+    'arrange.interval.invalid.not_integer': '再配置の周期は整数の秒数で入力してください（0〜300）',
+    'arrange.interval.invalid.range': '再配置の周期は 0〜300 秒の範囲で入力してください',
+  },
+  en: {
+    'arrange.interval.sec': 'Every {n} s', 'arrange.interval.auto': 'Auto (conversation breaks)', 'arrange.interval.label': 'Rearrange', 'arrange.interval.unit': 's (0 = auto)',
+    'arrange.interval.changed': 'Rearrange interval changed',
+    'arrange.interval.invalid.empty': 'Enter a rearrange interval (a whole number from 0 to 300)',
+    'arrange.interval.invalid.not_integer': 'Enter the rearrange interval as a whole number of seconds (0 to 300)',
+    'arrange.interval.invalid.range': 'The rearrange interval must be from 0 to 300 seconds',
+  },
+};
 
 // 暫定のトピックの分け方: 前回の分け方を保ち、その後に加わったシーンは最後のまとまりの末尾へ
 export function provisionalChunks(sceneIds, snapChunks) {
@@ -49,32 +90,190 @@ export function relayoutModule(ctx) {
     return { trees, chunks };
   }
 
-  // 再配置（外部へのリクエストを発しない。表示の状態・選択・入力中の文字列・詳細度・型は変えない。AC-439）
+  // 再配置（外部へのリクエストを発しない。表示の状態・選択・入力中の文字列・詳細度・型・拡大率と表示位置・メッセージは変えない。AC-439・AC-440）
+  let inRearrange = false;
+  let onRearranged = () => {};
   function rearrange() {
     snap = canonical();
     count += 1;
     lastTransition = env.reducedMotion ? { animated: false, durationMs: 0 } : { animated: true, durationMs: TRANSITION_MS };
-    ctx.emit('change', api);
+    onRearranged();
+    inRearrange = true;
+    try { ctx.emit('change', api); } finally { inRearrange = false; }
   }
   // 復元したセッションは再配置済みとして始める（起動時の回数は数えない）
   if (state.scenes.length) snap = canonical();
 
-  // ---- 時点（FR-080 の周期。周期の設定・会話の区切り・画面の復帰は FR-080 の項目が足す） ----
-  ctx.i18n.addStrings({
-    ja: { 'arrange.interval.sec': '{n} 秒ごと', 'arrange.interval.auto': '自動（会話の区切り）' },
-    en: { 'arrange.interval.sec': 'Every {n} s', 'arrange.interval.auto': 'Auto (conversation breaks)' },
+  // ---- 時点（FR-080）: 周期 P>0 は起点（起動・周期の変更）から P 秒ごと。P=0 は会話の区切り（AC-437）と保留の上限（AC-438）。
+  // 時計は options.scheduler.setTimeout／clearTimeout と options.now だけを使う（テスト用の時計の注入。AC-435）。
+  // 画面が非表示の間に到来した再配置は、復帰したときに行う（AC-435。PARAM-008 以内）。再配置そのものはメッセージを出さない（AC-440）。
+  ctx.i18n.addStrings(ARRANGE_STRINGS);
+  const t = ctx.t;
+  const now = ctx.now ?? (() => 0);
+  let intervalSec = INTERVAL_DEFAULT_SEC;
+  { const raw = readJson(ctx.storage, INTERVAL_KEY); if (raw && isValidSec(raw.intervalSec)) intervalSec = raw.intervalSec; }
+  const intervalText = () => (intervalSec === 0 ? t('arrange.interval.auto') : t('arrange.interval.sec').replace('{n}', String(intervalSec)));
+  api.getArrangeInterval = () => ({ sec: intervalSec, auto: intervalSec === 0, text: intervalText() });
+
+  const timers = { period: null, silence: null, hold: null, soon: null };
+  const clear = (name) => { if (timers[name] != null) { sched.clearTimeout(timers[name]); timers[name] = null; } };
+  const arm = (name, ms, fn) => { clear(name); timers[name] = sched.setTimeout(() => { timers[name] = null; fn(); }, Math.max(0, ms)); };
+
+  // 画面の表示・非表示（options.visibility。なければ document）。speech.js の購読は保ったまま足す。
+  const vis = ctx.options.visibility ?? null;
+  const isHidden = () => Boolean(vis ? vis.hidden : globalThis.document?.hidden);
+  let deferred = false;
+  const request = () => {
+    if (!pending()) return;
+    if (isHidden()) { deferred = true; return; }
+    rearrange();
+  };
+  const onVisibility = () => {
+    if (isHidden() || !deferred) return;
+    deferred = false;
+    arm('soon', 0, request); // 復帰後すぐ（PARAM-008 以内）
+  };
+  if (vis) { const prev = vis.onchange; vis.onchange = (...a) => { if (typeof prev === 'function') prev(...a); onVisibility(); }; }
+  else globalThis.document?.addEventListener?.('visibilitychange', onVisibility);
+
+  // 周期（P>0）: 起点から P 秒ごとの時点で、前の時点以降に新しい要素が加わっていたときだけ再配置する
+  const startPeriod = () => {
+    clear('period');
+    if (intervalSec <= 0) return;
+    const periodMs = intervalSec * 1000;
+    const tick = () => { arm('period', periodMs, tick); request(); };
+    arm('period', periodMs, tick);
+  };
+
+  // 会話の区切り（P=0）: (a) 確定・暫定の結果が SILENCE_SEC 秒届かない、(b) シーンの確定、(c) 新しいトピックの発生。
+  // 保留の上限: 前の再配置以降の最初の追加から HOLD_MAX_SEC 秒を超えて保留しない。
+  let firstPendingAt = null;
+  let lastInterim = '';
+  let confirmedIds = new Set();
+  let topicIds = new Set();
+  const auto = () => intervalSec === 0;
+  const snapshotBreaks = () => {
+    confirmedIds = new Set(state.scenes.filter((s) => s.status === 'confirmed').map((s) => s.id));
+    topicIds = new Set(topics().map((tp) => tp.id));
+  };
+  const armSilence = () => { if (auto()) arm('silence', SILENCE_SEC * 1000, request); };
+  const armHold = () => {
+    if (!auto() || firstPendingAt == null) return;
+    arm('hold', firstPendingAt + HOLD_MAX_SEC * 1000 - now(), request);
+  };
+  onRearranged = () => { firstPendingAt = null; deferred = false; clear('silence'); clear('hold'); clear('soon'); };
+  const startAuto = () => {
+    clear('silence'); clear('hold'); clear('soon');
+    if (!auto()) return;
+    snapshotBreaks();
+    if (pending()) { if (firstPendingAt == null) firstPendingAt = now(); armHold(); armSilence(); }
+  };
+
+  ctx.on('change', () => {
+    if (inRearrange) return;
+    const p = pending();
+    if (!p) { firstPendingAt = null; clear('hold'); }
+    else if (firstPendingAt == null) { firstPendingAt = now(); armHold(); }
+    const im = String(state.speech?.interim ?? '');
+    if (im && im !== lastInterim) armSilence(); // 暫定結果が届いている間（発話の途中）は無音の区切りにしない
+    lastInterim = im;
+    if (!auto()) return;
+    const prevConfirmed = confirmedIds; const prevTopics = topicIds;
+    snapshotBreaks();
+    const sceneConfirmed = [...confirmedIds].some((id) => !prevConfirmed.has(id));
+    const newTopic = [...topicIds].some((id) => !prevTopics.has(id));
+    if (p && (sceneConfirmed || newTopic)) arm('soon', 0, request); // 状態の変更が終わってから再配置する
   });
-  const intervalSec = INTERVAL_DEFAULT_SEC;
-  api.getArrangeInterval = () => ({ sec: intervalSec, auto: intervalSec === 0, text: intervalSec === 0 ? ctx.t('arrange.interval.auto') : ctx.t('arrange.interval.sec').replace('{n}', String(intervalSec)) });
-  const periodMs = () => intervalSec * 1000;
-  let timer = null;
-  const tick = () => { timer = sched.setTimeout(tick, periodMs()); if (pending()) rearrange(); };
-  timer = sched.setTimeout(tick, periodMs());
+  ctx.on('utterance', () => armSilence()); // 確定結果の受付から無音を数え直す
+
+  // 周期の変更（設定画面・コマンドの検索・キーボード・マウス。AC-436・AC-440）
+  let msgKey = null; let msgFn = null;
+  const say = (key, fn) => { msgKey = key; msgFn = fn; ctx.change((s) => { s.message = { key, text: fn() }; }); };
+  ctx.on('lang', () => { if (msgKey && state.message?.key === msgKey) ctx.change((s) => { s.message.text = msgFn(); }); });
+  let draft = null; // 入力欄の入力中の文字列（確定前）
+  api.setArrangeInterval = (value) => {
+    const r = parseIntervalInput(value);
+    if (!r.ok) {
+      say(`arrange.interval.invalid.${r.reason}`, () => t(`arrange.interval.invalid.${r.reason}`));
+      return { ok: false, reason: r.reason };
+    }
+    draft = null;
+    if (r.sec !== intervalSec) {
+      intervalSec = r.sec;
+      writeJson(ctx.storage, INTERVAL_KEY, { intervalSec });
+      startPeriod(); startAuto(); // 変更した時点から新しい周期で数え直す
+    }
+    say('arrange.interval.changed', () => `${t('arrange.interval.changed')}: ${intervalText()}`);
+    return { ok: true };
+  };
+  const step = (dir) => {
+    const next = intervalSec + (dir > 0 ? 1 : -1);
+    if (!isValidSec(next)) { say('arrange.interval.invalid.range', () => t('arrange.interval.invalid.range')); return { ok: false, reason: 'range' }; }
+    return api.setArrangeInterval(next);
+  };
+
+  // 設定画面の項目（既存の項目の後ろに足す）
+  let focused = false;
+  const dialogOpen = () => Boolean(baseDialog());
+  const baseDialog = api.getSettingsDialog;
+  const field = () => ({
+    id: FIELD_ID, label: t('arrange.interval.label'), value: intervalSec, text: intervalText(), min: 0, max: INTERVAL_MAX_SEC, step: 1,
+    role: 'spinbutton', focusable: true, input: { type: 'number', value: draft ?? String(intervalSec), inputmode: 'numeric' }, unit: t('arrange.interval.unit'),
+  });
+  api.getSettingsDialog = () => {
+    const d = baseDialog();
+    return d ? { ...d, fields: [...d.fields, field()], focusedField: focused ? FIELD_ID : (d.focusedField ?? null) } : null;
+  };
+  const baseView = api.getSettingsView;
+  api.getSettingsView = (...a) => { const v = baseView(...a); return { ...v, fields: [...v.fields, { id: FIELD_ID, visible: true }] }; };
+  const baseFocus = api.focusSettingsField;
+  api.focusSettingsField = (id) => {
+    if (id === FIELD_ID) { if (!dialogOpen()) return false; focused = true; ctx.emit('change', api); return true; }
+    focused = false; return baseFocus ? baseFocus(id) : false;
+  };
+  api.setSettingsFieldDraft = (id, text) => {
+    if (id !== FIELD_ID) return { ok: false, reason: 'not_found' };
+    draft = String(text ?? ''); ctx.emit('change', api);
+    return { ok: true };
+  };
+  api.settingsFieldStep = (id, dir) => (id === FIELD_ID ? step(dir) : { ok: false, reason: 'not_found' });
+  ctx.on('change', () => { if (!dialogOpen()) { focused = false; draft = null; } });
+  ctx.registerCommand('settings.arrangeInterval', () => {
+    ctx.api.commands['settings.open']();
+    api.focusSettingsField(FIELD_ID);
+  });
+  ctx.registerKey({ key: 'y', ctrl: true, alt: true, shift: true, command: 'settings.arrangeInterval' });
+  const baseKey = api.handleKey;
+  api.handleKey = (ev) => {
+    const k = String(ev?.key);
+    const plain = !ev?.ctrlKey && !ev?.altKey && !ev?.shiftKey;
+    if (focused && dialogOpen() && plain) {
+      if (k === 'Enter') { api.setArrangeInterval(draft ?? intervalSec); return 'settings.arrange.commit'; }
+      if (k === 'ArrowUp' || k === 'ArrowDown') { step(k === 'ArrowUp' ? 1 : -1); return 'settings.arrange.step'; }
+    }
+    return baseKey(ev);
+  };
+
+  // 起動時から数える
+  startPeriod(); startAuto();
 
   api.getArrangeView = () => view();
   api.getArrangeStatus = () => ({ count, pending: pending(), lastTransition: lastTransition ? { ...lastTransition } : null });
-  // 再配置をすぐ行う（新しい要素がなければ何もしない＝冪等。AC-432(c)）。FR-080 の時点の判定から呼ぶ。
+  // 再配置をすぐ行う（新しい要素がなければ何もしない＝冪等。AC-432(c)）。
   api.rearrangeNow = () => { if (!pending()) return false; rearrange(); return true; };
+
+  // ---- 図の拡大率と表示位置（2D。再配置の前後で変えない。AC-439） ----
+  let diagramView = { zoom: 1, scrollX: 0, scrollY: 0 };
+  api.getDiagramView = () => ({ ...diagramView });
+  api.setDiagramView = (v, opts = {}) => {
+    if (!v || typeof v !== 'object') return { ok: false };
+    const next = { ...diagramView };
+    if ('zoom' in v) { if (!(typeof v.zoom === 'number' && Number.isFinite(v.zoom) && v.zoom > 0)) return { ok: false }; next.zoom = v.zoom; }
+    for (const k of ['scrollX', 'scrollY']) if (k in v) { if (!(typeof v[k] === 'number' && Number.isFinite(v[k]))) return { ok: false }; next[k] = Math.max(0, v[k]); }
+    diagramView = next;
+    if (!opts.silent) ctx.emit('change', api);
+    return { ok: true };
+  };
 
   // ---- 図の要素の外枠（2D・時系列の表示。テキスト一覧・3D・ポップアップの位置は含まない） ----
   // 型の配置（タイトル欄 kind:'title'・まとまり kind:'group'・単位 kind:'unit'）と、その右のシーン・要点の詳細（scene・point・subgroup・topic）を含む。

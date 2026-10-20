@@ -484,6 +484,7 @@ export function mountDiagramPanel(host, app, doc = host.ownerDocument) {
       b.addEventListener('click', () => {
         host._fit = cmd !== 'reset';
         host._zoom = cmd === 'in' ? clampZoom(host._zoom * ZOOM_STEP) : cmd === 'out' ? clampZoom(host._zoom / ZOOM_STEP) : 1;
+        app.setDiagramView?.({ zoom: host._zoom }, { silent: true }); // FR-080 AC-439: 拡大率は app が持ち、再描画（再配置）で保つ
         paint(host, app);
       });
       tools.append(b);
@@ -511,8 +512,11 @@ export function mountDiagramPanel(host, app, doc = host.ownerDocument) {
       if (!ev.ctrlKey) return;
       ev.preventDefault();
       host._zoom = clampZoom(host._zoom * (ev.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP));
+      app.setDiagramView?.({ zoom: host._zoom }, { silent: true });
       paint(host, app);
     }, { passive: false });
+    // FR-080 AC-439: 表示位置も app が持ち、再描画（再配置）の後に戻す
+    canvas.addEventListener('scroll', () => { app.setDiagramView?.({ scrollX: canvas.scrollLeft, scrollY: canvas.scrollTop }, { silent: true }); }, { passive: true });
   }
   paint(host, app);
 }
@@ -525,6 +529,8 @@ function paint(host, app) {
   for (const b of tools.querySelectorAll('[data-zoom]')) { b.title = names[b.dataset.zoom]; b.setAttribute('aria-label', names[b.dataset.zoom]); }
   const canvas = host.querySelector('.diagram-canvas');
   canvas.setAttribute('aria-label', t('diagram.canvasLabel'));
+  const dv = app.getDiagramView?.() ?? null;
+  if (dv) host._zoom = clampZoom(dv.zoom);
   const svg = app.renderSvg();
   canvas.innerHTML = svg;
   const el = canvas.querySelector('svg');
@@ -541,6 +547,7 @@ function paint(host, app) {
     el.setAttribute('width', String(Math.round(cw))); el.setAttribute('height', String(Math.round(ch)));
     el.setAttribute('viewBox', `0 0 ${cw / z} ${ch / z}`);
   }
+  if (dv && (canvas.scrollLeft !== dv.scrollX || canvas.scrollTop !== dv.scrollY)) { canvas.scrollLeft = dv.scrollX; canvas.scrollTop = dv.scrollY; }
 }
 
 // FR-035: 比喩の絵（SVG の図形だけ。色だけにせず、各要素に文字のラベル）

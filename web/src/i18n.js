@@ -99,6 +99,7 @@ const BASE = {
     'outline.empty': 'まだシーンがありません',
     'outline.groups': 'まとまりの小見出し',
     'diagram.empty': 'まだ図がありません。記録を開始して発話を入力してください',
+    'cmd.settings.arrangeInterval': '再配置の周期を設定', // FR-080 AC-440
   },
   en: {
     'app.title': 'Graphic Recording Panel',
@@ -192,6 +193,7 @@ const BASE = {
     'outline.empty': 'No scenes yet',
     'outline.groups': 'Group subheadings',
     'diagram.empty': 'No diagram yet. Start recording and enter an utterance',
+    'cmd.settings.arrangeInterval': 'Set the rearrange interval', // FR-080 AC-440
   },
 };
 
