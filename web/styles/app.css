@@ -74,6 +74,9 @@ h1 { font-size: var(--font-size-title); } h2 { font-size: var(--font-size-subtit
 .workspace[data-mode="stacked"] .resize-grip { display: none; }
 
 .draft-form { display: flex; flex-direction: column; gap: var(--space-2); }
+/* FR-081 AC-444: 音声認識の失敗の状態表示に続く 1 回の操作（再試行・ブラウザ標準への切替） */
+.speech-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-1); }
+.speech-actions[hidden] { display: none; }
 textarea { font: inherit; color: var(--color-text); background: var(--color-surface); border: var(--stroke) solid var(--color-border); border-bottom-width: 2px; border-radius: var(--radius-control); padding: var(--space-2); width: 100%; resize: vertical; }
 textarea:focus { border-bottom-color: var(--color-primary); }
 .message { min-height: 1.5em; margin: var(--space-2) 0 0; color: var(--color-warn); font-weight: var(--font-weight-semibold); }
@@ -159,13 +162,35 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .prompt-fallback { max-width: min(40rem, 100%); max-height: calc(100vh - 2 * var(--space-4)); display: flex; flex-direction: column; gap: var(--space-3); overflow: auto; }
 .prompt-fallback .prompt-fallback-title { margin: 0; font-size: var(--font-size-subtitle); font-weight: var(--font-weight-semibold); }
 .prompt-fallback p { margin: 0; }
-.prompt-fallback-text { width: 100%; box-sizing: border-box; min-height: 12rem; resize: vertical; padding: var(--space-2); font: inherit; font-size: var(--font-size-body); color: var(--color-text); background: var(--color-surface); border: var(--stroke) solid var(--color-border); border-radius: var(--radius); white-space: pre-wrap; overflow-wrap: anywhere; }/* FR-030 ［設定］画面。狭い画面でも縦に並べ、項目を欠かさない。FR-027 選択中の型は枠とチェック印でも示す */
+.prompt-fallback-text { width: 100%; box-sizing: border-box; min-height: 12rem; resize: vertical; padding: var(--space-2); font: inherit; font-size: var(--font-size-body); color: var(--color-text); background: var(--color-surface); border: var(--stroke) solid var(--color-border); border-radius: var(--radius); white-space: pre-wrap; overflow-wrap: anywhere; }
+/* FR-078 AC-470〜473 コピーの前の注意（デザイン基盤の .dialog を使う。伏せ字の選択は 32px 以上の操作領域） */
+.prompt-notice { max-height: calc(100vh - 2 * var(--space-4)); overflow: auto; }
+.prompt-notice .prompt-notice-title { margin: 0 0 var(--space-3); font-size: var(--font-size-subtitle); font-weight: var(--font-weight-semibold); }
+.prompt-notice-mask { display: flex; align-items: flex-start; gap: var(--space-2); min-height: var(--target-size); margin: 0 0 var(--space-4); padding: var(--space-2); border: var(--stroke) solid var(--color-border-subtle); border-radius: var(--radius); cursor: pointer; }
+.prompt-notice-mask input { width: 20px; height: 20px; margin: 2px 0 0; flex: none; accent-color: var(--color-primary); }
+.dialog .prompt-notice-error { color: var(--color-danger); font-weight: var(--font-weight-semibold); }
+.dialog .prompt-notice-error[hidden] { display: none; }
+/* FR-030 ［設定］画面。狭い画面でも縦に並べ、項目を欠かさない。FR-027 選択中の型は枠とチェック印でも示す */
 .settings-dialog { position: fixed; z-index: 190; top: var(--space-5); right: var(--space-4); max-width: min(32rem, calc(100vw - 2 * var(--space-4))); max-height: calc(100vh - 2 * var(--space-5)); overflow: auto; }
 .settings-dialog[hidden] { display: none; }
 .settings-form { display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-4); }
 .settings-row { display: flex; flex-direction: column; gap: var(--space-1); }
+/* FR-080 再配置の周期（数値の入力欄）。デザイン基盤のトークンだけを使う */
+.settings-row input[type="number"] { font: inherit; color: var(--color-text); background: var(--color-surface); border: var(--stroke) solid var(--color-border); border-bottom-width: 2px; border-radius: var(--radius-control); padding: var(--space-1) var(--space-2); min-height: var(--target-size); width: 8rem; max-width: 100%; box-sizing: border-box; }
+.settings-row input[type="number"]:focus { border-bottom-color: var(--color-primary); }
 .settings-check { display: inline-flex; align-items: center; gap: var(--space-1); margin-right: var(--space-3); }
 .settings-status { margin: 0; font-size: var(--font-size-300, 0.875rem); }
+/* FR-082 Azure Speech の設定（グループ・方式のラジオ・入力欄・操作の並び）。デザイン基盤のトークンだけを使う */
+.settings-group { display: flex; flex-direction: column; gap: var(--space-3); margin: 0; padding: var(--space-3); border: var(--stroke) solid var(--color-border-subtle); border-radius: var(--radius); min-width: 0; }
+.settings-group > legend { padding: 0 var(--space-1); font-weight: 600; }
+.settings-radios { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; padding: 0; border: 0; min-width: 0; }
+.settings-radios > legend { padding: 0; margin-bottom: var(--space-1); }
+.settings-radios input, .settings-check input { min-width: 20px; min-height: 20px; }
+.settings-group input[type="text"], .settings-group input[type="password"] { font: inherit; color: var(--color-text); background: var(--color-surface); border: var(--stroke) solid var(--color-border); border-bottom-width: 2px; border-radius: var(--radius-control); padding: var(--space-1) var(--space-2); min-height: var(--target-size); width: 100%; box-sizing: border-box; }
+.settings-group input[type="text"]:focus, .settings-group input[type="password"]:focus { border-bottom-color: var(--color-primary); }
+.settings-group input:disabled, .settings-group button:disabled { opacity: 0.6; cursor: not-allowed; }
+.settings-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.settings-note { flex-basis: 100%; }
 .btn[data-selected-mark] { outline: 2px solid currentColor; outline-offset: -3px; }
 .btn[data-selected-mark="frame"] { outline-width: 3px; }
 .sel-mark { margin-left: 2px; font-weight: 700; }

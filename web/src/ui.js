@@ -169,11 +169,29 @@ export function mountUI(app, doc = document) {
     }
     const interim = $('#interim');
     if (interim) { const ss = app.getSpeechStatus(); interim.textContent = ss.state === 'unavailable' ? ss.text : ''; }
+    // FR-081 AC-444: Azure Speech の失敗では、状態表示の直後に 1 回の操作（再試行・ブラウザ標準への切替）を置く
+    const actEl = $('#speech-actions');
+    if (actEl) {
+      const acts = app.getSpeechStatus().actions ?? [];
+      const sig = acts.map((a) => `${a.command}:${a.label}`).join('|');
+      if (actEl.dataset.sig !== sig) {
+        actEl.dataset.sig = sig; actEl.textContent = '';
+        for (const a of acts) {
+          const b = doc.createElement('button');
+          b.type = 'button'; b.className = 'btn'; b.dataset.command = a.command; b.textContent = a.label;
+          const kl = keyLabel(a.command); if (kl) b.setAttribute('aria-keyshortcuts', kl);
+          b.addEventListener('click', () => { void app.commands[a.command]?.(); });
+          actEl.append(b);
+        }
+      }
+      actEl.hidden = acts.length === 0;
+    }
     const cu = app.getConsentUi();
     const box = $('#speech-consent');
     if (box) {
       $('#speech-consent-box').hidden = !cu.visible;
       box.checked = cu.checked;
+      box.disabled = !!cu.disabled; // FR-081 AC-442: 送信先のホスト名が未取得の間は選べない
       $('#speech-consent-label').textContent = cu.label;
       $('#speech-consent-notice').textContent = cu.notice;
       $('#speech-consent-state').textContent = cu.stateText;
@@ -372,6 +390,19 @@ export function mountUI(app, doc = document) {
       const vol = doc.createElement('input'); vol.type = 'range'; vol.min = '0'; vol.max = '100'; vol.step = '1';
       vol.addEventListener('input', () => app.setRpgVolume(Number(vol.value)));
       row('rpg.volume', app.t('rpg.audio.volume'), vol);
+      // FR-080 AC-436・AC-440: 再配置の周期（0〜300 の整数・秒。0 は自動＝会話の区切り）。判定・保存・メッセージは app が行う
+      const af = d.fields.find((f) => f.id === 'arrange.interval');
+      if (af) {
+        const num = doc.createElement('input'); num.type = 'number'; num.min = String(af.min); num.max = String(af.max); num.step = String(af.step); num.inputMode = 'numeric';
+        num.setAttribute('aria-describedby', 'settings-arrange-current');
+        num.addEventListener('focus', () => app.focusSettingsField?.('arrange.interval'));
+        num.addEventListener('blur', () => app.focusSettingsField?.(null));
+        num.addEventListener('input', () => app.setSettingsFieldDraft('arrange.interval', num.value));
+        num.addEventListener('change', () => app.setArrangeInterval(num.value));
+        row('arrange.interval', af.label, num);
+        const cur = doc.createElement('p'); cur.id = 'settings-arrange-current'; cur.className = 'settings-status';
+        form.append(cur);
+      }
       // FR-068: LLM 連携の切替・状態・認証情報の有無（入力欄なし）・接続テスト。状態は色だけでなく文字とアイコンで示す
       const llmSw = doc.createElement('input'); llmSw.type = 'checkbox'; llmSw.setAttribute('role', 'switch');
       llmSw.addEventListener('click', (e) => { e.preventDefault(); void app.toggleLlm(); });
@@ -383,7 +414,8 @@ export function mountUI(app, doc = document) {
       const llmTestRes = doc.createElement('p'); llmTestRes.id = 'settings-llm-test-result'; llmTestRes.setAttribute('role', 'status'); llmTestRes.className = 'settings-status';
       row('llm.test', d.fields.find((f) => f.id === 'llm.test').label, llmTest);
       form.append(llmSt, llmCred, llmTestRes);
-      const close = doc.createElement('button'); close.type = 'button'; close.className = 'btn btn-primary'; close.textContent = o.closeLabel; close.dataset.action = 'settings-close';
+      buildAzureSpeech(form, d);
+      const close =  doc.createElement('button'); close.type = 'button'; close.className = 'btn btn-primary'; close.textContent = o.closeLabel; close.dataset.action = 'settings-close';
       close.addEventListener('click', () => app.commands['settings.close']());
       setEl.append(h, form, close);
     }
@@ -402,11 +434,105 @@ export function mountUI(app, doc = document) {
       const tb = setEl.querySelector('#settings-llm\\.test'); tb.textContent = f['llm.test'].label;
       const tr = f['llm.test'].status; setEl.querySelector('#settings-llm-test-result').textContent = tr.text ? `${tr.icon} ${tr.text}` : '';
     }
+    syncAzureSpeech(d);
     const wasHidden = setEl.hidden; setEl.hidden = false;
     if (wasHidden) setEl.querySelector('select')?.focus();
+    { // FR-080: 再配置の周期の表示（現在の周期・入力中の文字列）と、コマンドから開いたときのフォーカス
+      const af = d.fields.find((f) => f.id === 'arrange.interval');
+      const num = setEl.querySelector('#settings-arrange\\.interval');
+      if (af && num) {
+        if (num.value !== af.input.value) num.value = af.input.value;
+        setEl.querySelector('#settings-arrange-current').textContent = `${af.label}: ${af.text}`;
+        if (d.focusedField === 'arrange.interval' && doc.activeElement !== num) num.focus();
+      }
+    }
   }
   app.on('change', syncSettings);
 
+  // FR-082・NFR-SEC-005: Azure Speech の設定（方式・接続先・書き込み専用のキー・状態・保存・削除・接続テスト）。
+  // キーの欄は <form> に入れず、ユーザー名の欄と組にしない（ブラウザのパスワードの保存・自動補完の対象外: AC-457）。
+  // 保存の操作では、送る前に DOM の値を空にする。戻る・再読込（bfcache）でも値が復元されないよう pagehide / pageshow でも空にする。
+  let azKeyEl = null; let azEndpointEl = null;
+  const clearAzureKey = () => { if (azKeyEl) azKeyEl.value = ''; app.setAzureSpeechKeyInput?.(''); };
+  globalThis.addEventListener?.('pagehide', clearAzureKey);
+  globalThis.addEventListener?.('pageshow', clearAzureKey);
+  function buildAzureSpeech(form, d) {
+    const fx = Object.fromEntries(d.fields.map((x) => [x.id, x]));
+    if (!fx['azureSpeech.key']) return;
+    const box = doc.createElement('fieldset'); box.className = 'settings-group'; box.id = 'settings-azure-speech';
+    const legend = doc.createElement('legend'); legend.textContent = app.t('azs.section'); box.append(legend);
+    const row = (id, control, labelText) => {
+      const w = doc.createElement('div'); w.className = 'settings-row'; w.dataset.field = id;
+      const l = doc.createElement('label'); l.textContent = labelText; l.htmlFor = `settings-${id}`; control.id = `settings-${id}`;
+      w.append(l, control); box.append(w); return w;
+    };
+    // 認識方式（ラジオボタン）。選べないときは理由を文字で示す
+    const m = fx['speech.method'];
+    const group = doc.createElement('fieldset'); group.className = 'settings-radios'; group.id = 'settings-speech.method';
+    const gl = doc.createElement('legend'); gl.textContent = m.label; group.append(gl);
+    for (const o of m.options) {
+      const lab = doc.createElement('label'); lab.className = 'settings-check';
+      const r = doc.createElement('input'); r.type = 'radio'; r.name = 'speech-method'; r.value = o.id; r.dataset.method = o.id;
+      r.addEventListener('change', () => { if (r.checked) app.setSpeechMethod(o.id); });
+      const span = doc.createElement('span'); span.textContent = ` ${o.label}`;
+      lab.append(r, span); group.append(lab);
+    }
+    const why = doc.createElement('p'); why.id = 'settings-speech-method-reason'; why.className = 'settings-status settings-note';
+    group.append(why); box.append(group);
+    // 接続先（エンドポイントかリージョン名）
+    azEndpointEl = doc.createElement('input'); azEndpointEl.type = 'text';
+    for (const [k, v] of [['autocomplete', 'off'], ['spellcheck', 'false'], ['autocapitalize', 'off'], ['inputmode', 'url']]) azEndpointEl.setAttribute(k, v);
+    azEndpointEl.placeholder = fx['azureSpeech.endpoint'].input.placeholder;
+    azEndpointEl.addEventListener('input', () => app.setAzureSpeechEndpointInput(azEndpointEl.value));
+    row('azureSpeech.endpoint', azEndpointEl, fx['azureSpeech.endpoint'].label);
+    // キー（書き込み専用・伏せ字・自動補完なし）
+    azKeyEl = doc.createElement('input'); azKeyEl.type = 'password';
+    for (const [k, v] of [['autocomplete', 'new-password'], ['spellcheck', 'false'], ['autocapitalize', 'off'], ['data-lpignore', 'true'], ['data-1p-ignore', 'true']]) azKeyEl.setAttribute(k, v);
+    azKeyEl.placeholder = fx['azureSpeech.key'].input.placeholder;
+    azKeyEl.addEventListener('input', () => app.setAzureSpeechKeyInput(azKeyEl.value));
+    const keyRow = row('azureSpeech.key', azKeyEl, fx['azureSpeech.key'].label);
+    const keySt = doc.createElement('p'); keySt.id = 'settings-azure-key-status'; keySt.className = 'settings-status'; keyRow.append(keySt);
+    azKeyEl.setAttribute('aria-describedby', keySt.id);
+    // saveAzureSpeech は送る値を読んだ直後（最初の await の前）に app 側の値を空にする。続けて DOM の値も空にする
+    const save = () => { const p = app.saveAzureSpeech(); if (azKeyEl) azKeyEl.value = ''; void p.then((r) => { if (r?.ok && azEndpointEl) azEndpointEl.value = ''; }); };
+    for (const el of [azEndpointEl, azKeyEl]) el.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.ctrlKey && !e.altKey && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); save(); } });
+    // 状態（ホスト名・設定済み／未設定。色だけでなくアイコンと文字で示す）
+    const st = doc.createElement('p'); st.id = 'settings-azure-status'; st.className = 'settings-status'; st.setAttribute('role', 'status'); box.append(st);
+    // 保存・削除・接続テスト
+    const actions = doc.createElement('div'); actions.className = 'settings-actions';
+    const btn = (id, primary, fn) => {
+      const b = doc.createElement('button'); b.type = 'button'; b.className = primary ? 'btn btn-primary' : 'btn'; b.id = `settings-${id}`; b.dataset.field = id;
+      b.addEventListener('click', fn); actions.append(b); return b;
+    };
+    btn('azureSpeech.save', true, save);
+    btn('azureSpeech.delete', false, () => { app.commands['azureSpeech.deleteKey'](); });
+    btn('azureSpeech.test', false, () => { void app.testAzureSpeech(); });
+    box.append(actions);
+    const testRes = doc.createElement('p'); testRes.id = 'settings-azure-test-result'; testRes.className = 'settings-status'; testRes.setAttribute('role', 'status'); box.append(testRes);
+    form.append(box);
+  }
+  function syncAzureSpeech(d) {
+    const fx = Object.fromEntries(d.fields.map((x) => [x.id, x]));
+    if (!fx['azureSpeech.key'] || !setEl.querySelector('#settings-azure-speech')) return;
+    const m = fx['speech.method'];
+    for (const r of setEl.querySelectorAll('input[name="speech-method"]')) {
+      const o = m.options.find((x) => x.id === r.value);
+      r.checked = m.value === r.value; r.disabled = !o?.enabled;
+    }
+    const reason = m.options.find((x) => !x.enabled)?.reason ?? '';
+    const whyEl = setEl.querySelector('#settings-speech-method-reason'); whyEl.textContent = reason; whyEl.hidden = !reason;
+    for (const id of ['azureSpeech.endpoint', 'azureSpeech.key', 'azureSpeech.save', 'azureSpeech.delete', 'azureSpeech.test']) {
+      const el = setEl.querySelector(`#settings-${id.replace('.', '\\.')}`);
+      if (!el) continue;
+      el.disabled = !!fx[id].disabled;
+      el.setAttribute('aria-label', fx[id].accessibleName);
+      if (el.tagName === 'BUTTON') el.textContent = fx[id].label;
+    }
+    if (fx['azureSpeech.key'].input.value === '' && azKeyEl && azKeyEl.value !== '' && doc.activeElement !== azKeyEl) azKeyEl.value = '';
+    const ks = fx['azureSpeech.key'].status; setEl.querySelector('#settings-azure-key-status').textContent = `${ks.icon} ${ks.text}`;
+    const s = fx['azureSpeech.status'].status; setEl.querySelector('#settings-azure-status').textContent = `${s.icon} ${fx['azureSpeech.status'].label}: ${s.text}`;
+    const tr = fx['azureSpeech.test'].status; setEl.querySelector('#settings-azure-test-result').textContent = tr.text ? `${tr.icon} ${tr.text}` : '';
+  }
   // FR-077: 画風の一覧（role=listbox。ボタンの下に出す）。状態（開閉・候補・現在値）は app が持ち、ここは描くだけ。
   // キー（↑↓ Home End Enter Space Esc）は document の keydown → app.handleKey が扱う。項目のクリックは pickDrawStyle。
   let dsEl = null; let dsWasOpen = false;

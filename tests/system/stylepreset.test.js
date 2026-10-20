@@ -14,8 +14,10 @@ import {
 import { YU, TRADITIONAL, expectedStack, assertJpOrder } from './jpfont-util.js';
 
 const YB = '黄黒手書き風';
-// 通常の吹き出し（感情語を含むトピックの吹き出し data-balloon-kind="emotion" は AC-467 で確かめる）
-const normalBalloons = (doc) => doc.role('balloon').filter((b) => b.attrs['data-balloon-kind'] !== 'emotion');
+// 感情語を含むトピックの吹き出し（data-balloon-kind="emotion"。AC-467 で詳しく確かめる。Q-026 A の data-emotional="true" も同じ扱い）と通常の吹き出し
+const isEmotionBalloon = (b) => b.attrs['data-balloon-kind'] === 'emotion' || b.attrs['data-emotional'] === 'true';
+const emotionBalloons = (doc) => doc.role('balloon').filter(isEmotionBalloon);
+const normalBalloons = (doc) => doc.role('balloon').filter((b) => !isEmotionBalloon(b));
 // 書体の系統の並び（AC-407・AC-408）: Yu Gothic UI の前（欧文専用の書体）と後（日本語の字形を持ち得る書体）のそれぞれで系統の順を保つ（AC-466）
 function assertKindOrder(stack, family, where) {
   const i = assertJpOrder(stack.map((f) => f.name), where);
@@ -107,7 +109,7 @@ test('FR-076 AC-408: 黄黒手書き風は白い紙面に黒の文字と枠、�
   }
 });
 
-test('FR-076 AC-408: 黄黒手書き風の見出しは黒い帯に白抜き、吹き出しは黒の輪郭線の黄色の雲形、各シーンに丸い頭と細い線の線画人物', async () => {
+test('FR-076 AC-408: 黄黒手書き風の見出しは黒い帯に白抜き、通常の吹き出しは黒の輪郭線の黄色の雲形（感情語のトピックは異なる形）、各シーンに丸い頭と細い線の線画人物', async () => {
   const { app, ids } = await seededApp();
   const { doc } = usePreset(app, ids, YB);
   const scenes = app.getState().scenes;
@@ -122,9 +124,12 @@ test('FR-076 AC-408: 黄黒手書き風の見出しは黒い帯に白抜き、�
   }
   const balloons = doc.role('balloon');
   assert.ok(balloons.length >= scenes.length, '各シーンに吹き出し');
+  // Q-026 A: 通常の吹き出しは雲形。感情語を含むトピックの吹き出し（AC-467・AC-156）は通常と異なる形
   assert.ok(normalBalloons(doc).length >= 1, '通常の吹き出しがある');
-  for (const b of normalBalloons(doc)) {
-    assert.equal(b.attrs['data-shape'], 'cloud', '雲形');
+  for (const b of normalBalloons(doc)) assert.equal(b.attrs['data-shape'], 'cloud', '通常の吹き出しは雲形');
+  for (const b of emotionBalloons(doc)) assert.notEqual(b.attrs['data-shape'], 'cloud', '感情語を含むトピックの吹き出しは通常（雲形）と異なる形');
+  // 黄の塗りの面（吹き出し）にはすべて黒の輪郭線（感情語の吹き出しを含む。AC-408・AC-467）
+  for (const b of balloons) {
     assert.ok(isYellow(b.attrs.fill), '黄色');
     assert.ok(isBlack(b.attrs.stroke), '黒の輪郭線');
   }
@@ -230,8 +235,10 @@ test('FR-076 AC-409: 9 つの風を選ぶと、図がその紙面・配色・書
     }
     const balloons = doc.role('balloon');
     assert.ok(balloons.length >= scenes.length, `${p.ja} 各シーンに吹き出し`);
+    // Q-026 A: 通常の吹き出しは 3.6 の表の形。感情語を含むトピックの吹き出し（AC-467・AC-156）は通常と異なる形
     assert.ok(normalBalloons(doc).length >= 1, `${p.ja} 通常の吹き出しがある`);
     for (const b of normalBalloons(doc)) assert.equal(b.attrs['data-shape'], p.balloon, `${p.ja} 通常の吹き出しの形`);
+    for (const b of emotionBalloons(doc)) assert.notEqual(b.attrs['data-shape'], p.balloon, `${p.ja} 感情語の吹き出しは通常と異なる形`);
     const figs = doc.role('figure');
     if (p.figures) for (const s of scenes) assert.ok(figs.some((g) => g.attrs['data-scene-id'] === s.id), `${p.ja} シーン ${s.id} に線画人物`);
     else assert.equal(figs.length, 0, `${p.ja} は線画人物なし`);
@@ -605,6 +612,8 @@ async function legacySvg(style, c) {
 // 文字幅から決まる文字を囲む枠の幅・文字の折り返しの位置だけ。配色・線・図形の種類・配置の規則・文字の内容は同じ。
 // （欧文の字形が参照の環境で変わらないことは、書体の並びで欧文専用の書体を足さないことで確かめる。10.3 の [ASSUMPTION] NFR-UX-012）
 const GEOM = new Set(['x', 'y', 'width', 'height', 'd', 'points', 'x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'rx', 'ry', 'r', 'transform', 'viewBox', 'data-box', 'textLength', 'dx', 'dy']);
+// 比較の基準（golden）は、同じ版のコードで画風プリセットの機能（FR-075・FR-076）がない場合の出力（AC-406 の改訂）。
+// 後から承認された要求（AC-431 の TYPE_SCALE、FR-079・FR-080 の data 属性など）は golden に含め、属性の除外はしない。
 function assertSameAsLegacy(actual, golden, where) {
   const want = expectedStack(TRADITIONAL.legacy);
   const fams = parseSvg(actual).all.filter((n) => n.attrs['font-family'] !== undefined);

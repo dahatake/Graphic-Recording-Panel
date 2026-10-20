@@ -48,6 +48,7 @@ const BASE = {
     // FR-027・FR-030: レイアウト型・設定のコマンド（コマンドの検索に使う名称）
     ...Object.fromEntries(LAYOUT_TYPE_IDS.flatMap((id) => [[`cmd.layoutType.${id}`, LAYOUT_TYPE_META[id].ja.cmd], [`cmd.layoutType.add.${id}`, `${LAYOUT_TYPE_META[id].ja.label}型を併用に加える／外す`]])),
     'cmd.layoutType.clear': 'レイアウト型の手動選択を解除', 'cmd.settings.open': '設定を開く', 'cmd.settings.close': '設定を閉じる', 'cmd.llm.toggle': 'LLM 連携の有効/無効を切り替え', 'cmd.llm.test': 'LLM 連携の接続テスト',
+    'cmd.azureSpeech.save': 'Azure Speech の設定を保存', 'cmd.azureSpeech.deleteKey': 'Azure Speech のキーを削除', 'cmd.azureSpeech.test': 'Azure Speech の接続テスト',
     // FR-077: 画風（描画スタイル）の一覧を開く。個々の画風を選ぶコマンド（drawStyle.select.<id>）の名称は登録簿の名前から作る（stylepicker.js）
     'cmd.drawStyle.pick': '画風（描画スタイル）を選ぶ一覧を開く',
     'cmd.detail.major': '詳細度: 大項目', 'cmd.detail.middle': '詳細度: 中項目', 'cmd.detail.detail': '詳細度: 詳細', 'cmd.detail.next': '詳細度を次へ切り替え',
@@ -62,6 +63,7 @@ const BASE = {
     'layout.kind.free': '自由配置',
     'panel.focus': 'メインにする',
     'cmd.speech.consent': '外部送信の同意を切り替え',
+    'cmd.speech.retryAzure': 'Azure Speech で再試行', 'cmd.speech.useBrowser': '音声認識をブラウザ標準に切り替え',
     'cmd.scene.next': '次のシーンを選択', 'cmd.scene.prev': '前のシーンを選択',
     'cmd.popup.open': 'シーンのポップアップを開く', 'cmd.popup.focusContent': 'ポップアップの内容へ移る', 'cmd.popup.close': 'ポップアップを閉じる',
     'cmd.prompt.copy': '画像生成 AI 向けのプロンプトをコピー', // FR-078
@@ -98,6 +100,7 @@ const BASE = {
     'outline.empty': 'まだシーンがありません',
     'outline.groups': 'まとまりの小見出し',
     'diagram.empty': 'まだ図がありません。記録を開始して発話を入力してください',
+    'cmd.settings.arrangeInterval': '再配置の周期を設定', // FR-080 AC-440
   },
   en: {
     'app.title': 'Graphic Recording Panel',
@@ -140,6 +143,7 @@ const BASE = {
     'cmd.view.timeline': 'Timeline layout', 'cmd.view.arrange': 'Arranged layout (axes and sections)', 'cmd.rpg.bgmToggle': 'Stop / resume BGM (RPG style)',
     ...Object.fromEntries(LAYOUT_TYPE_IDS.flatMap((id) => [[`cmd.layoutType.${id}`, LAYOUT_TYPE_META[id].en.cmd], [`cmd.layoutType.add.${id}`, `Add or remove the ${LAYOUT_TYPE_META[id].en.label.toLowerCase()} layout in the combination`]])),
     'cmd.layoutType.clear': 'Clear the manual layout choice', 'cmd.settings.open': 'Open settings', 'cmd.settings.close': 'Close settings', 'cmd.llm.toggle': 'Toggle LLM integration', 'cmd.llm.test': 'Test the LLM connection',
+    'cmd.azureSpeech.save': 'Save the Azure Speech settings', 'cmd.azureSpeech.deleteKey': 'Delete the Azure Speech key', 'cmd.azureSpeech.test': 'Test the Azure Speech connection',
     'cmd.drawStyle.pick': 'Open the art style (draw style) list',
     'cmd.detail.major': 'Detail: topics', 'cmd.detail.middle': 'Detail: scenes', 'cmd.detail.detail': 'Detail: full', 'cmd.detail.next': 'Switch to the next detail level',
     'cmd.topic.movePrev': 'Move the selected scene to the previous topic', 'cmd.topic.moveNext': 'Move the selected scene to the next topic', 'cmd.topic.moveNew': 'Make the selected scene a new topic',
@@ -153,6 +157,7 @@ const BASE = {
     'layout.kind.free': 'Free',
     'panel.focus': 'Make main',
     'cmd.speech.consent': 'Toggle consent to external transmission',
+    'cmd.speech.retryAzure': 'Retry Azure Speech', 'cmd.speech.useBrowser': 'Switch speech recognition to the browser',
     'cmd.scene.next': 'Select next scene', 'cmd.scene.prev': 'Select previous scene',
     'cmd.popup.open': 'Open scene popup', 'cmd.popup.focusContent': 'Move to popup content', 'cmd.popup.close': 'Close popup',
     'cmd.prompt.copy': 'Copy prompt for image-generation AI', // FR-078
@@ -189,6 +194,7 @@ const BASE = {
     'outline.empty': 'No scenes yet',
     'outline.groups': 'Group subheadings',
     'diagram.empty': 'No diagram yet. Start recording and enter an utterance',
+    'cmd.settings.arrangeInterval': 'Set the rearrange interval', // FR-080 AC-440
   },
 };
 

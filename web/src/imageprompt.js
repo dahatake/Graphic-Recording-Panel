@@ -3,10 +3,11 @@
 //   配色〜雰囲気 = 選んでいる描画スタイルの画風の記述（drawstyles.js・stylepresets.js の description）
 //   構成 = 現在のレイアウト型（FR-027）の名称と説明 ／ 内容 = トピック・シーンの見出し・要点（テキスト一覧と同じ順序。手修正後の文字）
 // 文章は外部へ送らず、保存もしない（クリップボードへ書くだけ。書けないときは画面に表示して手でコピーしてもらう）。
-// コピーの前に注意（AC-468）を開き、会議の内容が貼り付け先の外部サービスへ渡ることを示す。簡易マスキング（AC-469）は
-// NFR-PRIV-003（AC-359）と同じ規則（llmdraw.js の maskText）で、内容の部分の利用者の文字（トピックの題名・見出し・要点）だけに掛ける。
+// Q-027 A（AC-470〜474）: コピーの操作はまず注意（モーダルのダイアログ）を開き、注意で「コピー」を選んだときだけ書き込む。
+//   注意の中で、内容の部分に簡易マスキング（NFR-PRIV-003 と同じ対象・伏せ字。api.applyLlmMask）を適用するかを選べる。
+//   伏せ字の選択は注意を開くたびに簡易マスキングの設定（getLlmMasking）から始まり、設定は変えず、保存もしない。
 import { LAYOUT_TYPE_META } from './layouttypes.js';
-import { maskText } from './llmdraw.js';
+import { matchKey } from './keymap.js';
 
 export const MAX_CONTENT_CHARS = 2000; // PARAM-082
 export const SECTION_KEYS = ['purpose', 'palette', 'typography', 'illustration', 'mood', 'composition', 'content'];
@@ -54,12 +55,18 @@ export const STRINGS = {
     'prompt.fallback.close': '閉じる',
     'label.prompt.copy': 'プロンプト',
     'tooltip.prompt.copy': '図の内容・画風・構成から、画像生成 AI に貼り付けて使うプロンプトの文章をクリップボードにコピーします',
-    'prompt.notice.label': 'プロンプトをコピーする前の確認',
-    'prompt.notice.text': 'コピーする文章には、会議の内容（トピック・見出し・要点。人名などを含むことがあります）が入ります。画像生成 AI などの外部サービスに貼り付けると、その内容は貼り付け先のサービスへ渡ります。',
-    'prompt.notice.mask': '簡易マスキングを適用する',
-    'prompt.notice.maskNote': '内容の部分の登録語・敬称付きの人名らしい語・メールアドレス・電話番号を伏せ字にします。検出は簡易で、完全な除去は保証しません。図・テキスト一覧・セッションファイルは変わりません。',
-    'prompt.notice.copy': 'コピーする',
-    'prompt.notice.cancel': '取りやめる',
+    // コピーの前の注意（AC-470・471）
+    'prompt.notice.label': '画像生成 AI 向けのプロンプトをコピーする前に',
+    'prompt.notice.content': 'コピーする文章には、図の内容（トピック・シーンの見出しと要点）がそのまま入ります。人名・連絡先などの個人情報を含むことがあります。',
+    'prompt.notice.external': '文章を貼り付けると、貼り付けた先の外部サービス（画像生成 AI など）にその内容が渡ります。',
+    'prompt.notice.local': 'このアプリ自身は、この文章を外部へ送信せず、保存もしません。',
+    'prompt.notice.maskLimit': '伏せ字の検出は簡易なもので、個人情報を完全に取り除くことは保証しません。',
+    'prompt.notice.mask': '内容の部分に伏せ字を適用する（登録した語・敬称付きの人名・メールアドレス・電話番号）',
+    'prompt.notice.copy': 'コピー',
+    'prompt.notice.cancel': 'キャンセル',
+    'prompt.maskedSuffix': '（内容の部分に伏せ字を適用しました）',
+    'prompt.unmaskedSuffix': '（伏せ字は適用していません）',
+    'prompt.maskFailed': '伏せ字を適用できなかったため、コピーしていません。伏せ字を適用せずにコピーするか、キャンセルしてください',
   },
   en: {
     'prompt.head.purpose': 'Purpose', 'prompt.head.palette': 'Color palette', 'prompt.head.typography': 'Typography', 'prompt.head.illustration': 'Illustration',
@@ -77,20 +84,25 @@ export const STRINGS = {
     'prompt.fallback.close': 'Close',
     'label.prompt.copy': 'Copy prompt',
     'tooltip.prompt.copy': 'Copy a prompt built from the diagram content, art style and layout, ready to paste into an image-generation AI',
-    'prompt.notice.label': 'Before you copy the prompt',
-    'prompt.notice.text': 'The text you copy contains the content of the meeting (topics, headings and points, which may include people\'s names). If you paste it into an image-generation AI or another external service, that content is passed to the service.',
-    'prompt.notice.mask': 'Apply simple masking',
-    'prompt.notice.maskNote': 'Registered words, name-like words with honorifics, email addresses and phone numbers in the content are replaced with a mask. Detection is simple and does not guarantee complete removal. The diagram, text outline and session file are not changed.',
+    'prompt.notice.label': 'Before you copy the prompt for image-generation AI',
+    'prompt.notice.content': 'The copied text contains the diagram content (topics, scene headings and points) as is. It may include personal information such as names or contact details.',
+    'prompt.notice.external': 'When you paste the text, that content is passed to the external service you paste it into (such as an image-generation AI).',
+    'prompt.notice.local': 'This app itself does not send this text anywhere and does not save it.',
+    'prompt.notice.maskLimit': 'Masking uses simple detection and does not guarantee complete removal of personal information.',
+    'prompt.notice.mask': 'Mask the content part (registered words, names with honorifics, email addresses, phone numbers)',
     'prompt.notice.copy': 'Copy',
     'prompt.notice.cancel': 'Cancel',
+    'prompt.maskedSuffix': ' (masking was applied to the content)',
+    'prompt.unmaskedSuffix': ' (no masking was applied)',
+    'prompt.maskFailed': 'Masking could not be applied, so nothing was copied. Copy without masking, or cancel',
   },
 };
 
 const len = (s) => [...s].length;
 
 // 内容（トピック → シーンの見出し → 要点）。シーンの区切りで PARAM-082 以内に切り詰める（途中のシーンの一部だけは入れない）。
-// fix は利用者の文字（トピックの題名・見出し・要点）に掛ける変換（簡易マスキング）。上限の判定は変換した後の文字で行う（AC-469）。
-export function buildContent(scenes, topics, t, max = MAX_CONTENT_CHARS, fix = (s) => s) {
+// tf: トピックの題名・見出し・要点の文字に適用する変換（伏せ字。AC-472: 切り詰めの前に適用し、文字数は変換後で数える）。
+export function buildContent(scenes, topics, t, max = MAX_CONTENT_CHARS, tf = (s) => s) {
   const topicOf = new Map();
   for (const tp of topics ?? []) for (const id of tp.sceneIds ?? []) topicOf.set(id, tp);
   const chunks = [];
@@ -98,10 +110,10 @@ export function buildContent(scenes, topics, t, max = MAX_CONTENT_CHARS, fix = (
   for (const s of scenes) {
     const lines = [];
     const tp = topicOf.get(s.id) ?? null;
-    if (tp && tp !== prevTopic) lines.push(`${t('prompt.topic')}: ${fix(tp.title)}`);
+    if (tp && tp !== prevTopic) lines.push(`${t('prompt.topic')}: ${tf(tp.title)}`);
     prevTopic = tp;
-    lines.push(`- ${t('prompt.scene')}: ${fix(s.heading)}`);
-    for (const p of s.points) lines.push(`  - ${fix(p.text)}`);
+    lines.push(`- ${t('prompt.scene')}: ${tf(s.heading)}`);
+    for (const p of s.points) lines.push(`  - ${tf(p.text)}`);
     chunks.push(lines.join('\n'));
   }
   let body = '';
@@ -153,15 +165,17 @@ export function imagePromptModule(ctx) {
     return { typeIds: [...ids], body: [t('prompt.compositionLead'), ...lines].join('\n') };
   };
 
-  // 簡易マスキング（AC-469）: NFR-PRIV-003 と同じ規則・同じ登録語。LLM 連携の有効・無効と AC-360 の設定には関係しない。
-  const maskFix = () => { const words = api.getLlmMaskWords?.() ?? []; return (s) => maskText(s, words); };
-
-  api.getImagePrompt = (opts) => {
+  // mask: 内容の部分（トピックの題名・見出し・要点）に簡易マスキングを適用する（AC-471）。適用できないときは例外（AC-472）。
+  const maskFn = () => {
+    const f = api.applyLlmMask;
+    if (typeof f !== 'function') throw new Error('mask unavailable');
+    return (s) => { const r = f(s); if (typeof r !== 'string') throw new Error('mask failed'); return r; };
+  };
+  const build = (mask) => {
     if (!state.scenes.length) return null;
-    const mask = opts?.mask === true;
     const styles = styleBodies();
     const comp = composition();
-    const content = buildContent(state.scenes, api.getTopics?.() ?? [], t, MAX_CONTENT_CHARS, mask ? maskFix() : undefined);
+    const content = buildContent(state.scenes, api.getTopics?.() ?? [], t, MAX_CONTENT_CHARS, mask ? maskFn() : undefined);
     const bodies = { purpose: t('prompt.purpose'), ...styles, composition: comp.body, content: content.body };
     const sections = SECTION_KEYS.map((key) => {
       const s = { key, heading: t(`prompt.head.${key}`), body: bodies[key] };
@@ -172,103 +186,138 @@ export function imagePromptModule(ctx) {
     if (content.truncated) text += `\n\n${t('prompt.truncatedNote')}`;
     return { text: `${text}\n`, truncated: content.truncated, sections };
   };
+  api.getImagePrompt = (opts = {}) => build(opts?.mask === true);
 
   api.getPromptFallback = () => (fallback ? { open: true, text: fallback.text, selectable: true, role: 'dialog', label: t('prompt.fallback.label') } : null);
   api.closePromptFallback = () => { if (!fallback) return false; fallback = null; ctx.emit('change', api); return true; };
 
   const say = (key) => ctx.change(() => ctx.setMessage(key));
+  // コピーの結果のメッセージ（読み上げ対象）。伏せ字を適用したかも示す（AC-471）。
+  const messageText = (key, masked) => `${t(key)}${t(masked ? 'prompt.maskedSuffix' : 'prompt.unmaskedSuffix')}`;
+  const sayCopy = (key, masked) => ctx.change((s) => { ctx.setMessage(key); s.message.masked = masked; s.message.text = messageText(key, masked); });
+  // 表示言語を切り替えたら、伏せ字の有無を含むメッセージも訳し直す（app.setLang は key だけから訳すため）
+  ctx.on('lang', () => {
+    const m = state.message;
+    if (m && typeof m.masked === 'boolean' && m.text !== messageText(m.key, m.masked)) ctx.change(() => { m.text = messageText(m.key, m.masked); });
+  });
+
+  // ---- フォーカスの位置（AC-473。コマンドバーのボタンは 'command:<command>'、注意の中は 'notice:<id>'） ----
+  const NOTICE_FOCUS = ['mask', 'copy', 'cancel']; // 画面の並び順（Tab の巡回順）
+  let focus = 'none';
+  let notice = null; // { mask:boolean, focus:'mask'|'copy'|'cancel', error:string|null } | null（開いている注意）
+  api.getFocus = () => (notice ? `notice:${notice.focus}` : focus);
+  api.focusCommand = (command) => {
+    if (notice) return { ok: false, reason: 'modal' }; // 注意が開いている間は注意の外へ移さない
+    if (!(api.getCommandBar?.().items ?? []).some((i) => i.command === command)) return { ok: false, reason: 'unknown' };
+    focus = `command:${command}`;
+    return { ok: true };
+  };
+  // 画面（imageprompt-ui.js）が、コマンドバーの外へフォーカスが移ったことを伝える
+  api.noteFocus = (where) => { if (notice) return false; focus = String(where ?? 'none'); return true; };
+
+  // ---- コピーの前の注意（AC-470・471・473） ----
+  const STATEMENTS = ['content', 'external', 'local', 'maskLimit'];
+  api.getPromptNotice = () => {
+    if (!notice) return null;
+    const statements = STATEMENTS.map((key) => ({ key, text: t(`prompt.notice.${key}`) }));
+    return {
+      open: true, role: 'dialog', modal: true, label: t('prompt.notice.label'),
+      description: statements.map((s) => s.text).join(' '), statements,
+      mask: { role: 'checkbox', label: t('prompt.notice.mask'), checked: notice.mask },
+      buttons: [{ id: 'copy', label: t('prompt.notice.copy') }, { id: 'cancel', label: t('prompt.notice.cancel') }],
+      focus: notice.focus, error: notice.error ? t(notice.error) : null,
+    };
+  };
   const notify = () => ctx.emit('change', api);
-
-  // ---- コピー前の注意（AC-468）。状態は app が持ち、画面（imageprompt-ui.js）は描くだけ ----
-  // Tab の順序は画面の並び（簡易マスキング → 取りやめ → コピー。imageprompt-ui.js はこの順に置く）と同じにする（WCAG 2.4.3）
-  const CONTROL_IDS = ['mask', 'cancel', 'copy'];
-  let notice = null; // { mask:boolean, active:'mask'|'copy'|'cancel' } | null
-  let focusAfter = null; // 閉じた後のフォーカス: 'button'（コピーの操作のボタン）。開いたことがなければ null
-  api.getPromptCopyNotice = () => {
-    if (!notice) return { open: false, focus: focusAfter, role: 'alertdialog', modal: true, label: t('prompt.notice.label'), text: t('prompt.notice.text'), live: 'assertive', mask: true, maskNote: t('prompt.notice.maskNote'), controls: controls(true), active: null };
-    return { open: true, focus: 'notice', role: 'alertdialog', modal: true, label: t('prompt.notice.label'), text: t('prompt.notice.text'), live: 'assertive', mask: notice.mask, maskNote: t('prompt.notice.maskNote'), controls: controls(notice.mask), active: notice.active };
+  const openNotice = () => {
+    fallback = null; // 前回の手でコピーする表示は閉じる
+    api.closeDrawStylePicker?.(null);
+    notice = { mask: api.getLlmMasking?.() !== false, focus: 'mask', error: null }; // 初期値は簡易マスキングの設定（AC-472）
+    notify();
   };
-  const controls = (mask) => [
-    { id: 'mask', kind: 'checkbox', label: t('prompt.notice.mask'), checked: mask },
-    { id: 'cancel', kind: 'button', label: t('prompt.notice.cancel') },
-    { id: 'copy', kind: 'button', label: t('prompt.notice.copy') },
-  ];
-  const closeNotice = () => { notice = null; focusAfter = 'button'; };
-  api.setPromptCopyMask = (v) => {
-    if (!notice || typeof v !== 'boolean') return { ok: false };
-    notice.mask = v; notify();
-    return { ok: true };
+  // 閉じると、フォーカスは開く前の位置（focus はそのまま残っている）に戻る
+  const closeNotice = () => { notice = null; notify(); };
+  api.setPromptNoticeMask = (v) => {
+    if (!notice) return false;
+    notice.mask = v === true; notice.error = null; // 設定（getLlmMasking）は変えない
+    notify();
+    return true;
   };
-  // 画面でフォーカスが移った（クリック・支援技術）ときに、注意の中の現在の操作を合わせる
-  api.setPromptCopyActive = (id) => {
-    if (!notice || !CONTROL_IDS.includes(id)) return { ok: false };
-    if (notice.active !== id) { notice.active = id; notify(); }
-    return { ok: true };
-  };
-  api.cancelPromptCopy = () => {
-    if (notice) { closeNotice(); notify(); }
-    return { ok: true };
+  api.setPromptNoticeFocus = (id) => {
+    if (!notice || !NOTICE_FOCUS.includes(id)) return false;
+    if (notice.focus !== id) { notice.focus = id; notify(); }
+    return true;
   };
 
-  // 注意の「コピー」: 注意で選んだ簡易マスキングの適用の有無で文章を作り、クリップボードへ書く。外部へは何も送らない。
-  api.confirmPromptCopy = async () => {
-    if (!notice) return { ok: false, reason: 'notice' };
-    const mask = notice.mask;
-    closeNotice(); notify();
-    const pr = api.getImagePrompt({ mask });
-    if (!pr) { fallback = null; say('prompt.empty'); return { ok: false, reason: 'empty' }; }
-    const clip = 'clipboard' in ctx.options ? ctx.options.clipboard : (globalThis.navigator?.clipboard ?? null);
+  const clipboard = () => ('clipboard' in ctx.options ? ctx.options.clipboard : (globalThis.navigator?.clipboard ?? null));
+  const copy = async () => {
+    if (!notice) return { ok: false, reason: 'closed' };
+    const masked = notice.mask;
+    let pr;
+    try { pr = build(masked); } catch {
+      // AC-472: 伏せ字を適用できなかった。伏せ字のない文章は書き込まず・表示もせず、注意に戻る（読み上げ対象のメッセージで示す）
+      notice.error = 'prompt.maskFailed';
+      say('prompt.maskFailed');
+      return { ok: false, reason: 'mask' };
+    }
+    if (!pr) { closeNotice(); fallback = null; say('prompt.empty'); return { ok: false, reason: 'empty' }; }
+    closeNotice(); // 書き込みを待つ前に閉じる（二重の書き込みを防ぐ）
+    const clip = clipboard();
     let ok = false;
     if (clip && typeof clip.writeText === 'function') {
       try { await clip.writeText(pr.text); ok = true; } catch { ok = false; }
     }
     if (!ok) {
-      fallback = { text: pr.text };
-      say('prompt.clipboardFailed');
+      fallback = { text: pr.text }; // 選んだ伏せ字の選択を反映した文章（AC-472）
+      sayCopy('prompt.clipboardFailed', masked);
       return { ok: false, reason: 'clipboard' };
     }
     fallback = null;
-    say(pr.truncated ? 'prompt.truncated' : 'prompt.copied');
-    return { ok: true, truncated: pr.truncated, masked: mask };
+    sayCopy(pr.truncated ? 'prompt.truncated' : 'prompt.copied', masked);
+    return { ok: true, truncated: pr.truncated, masked };
+  };
+  api.promptNoticeAction = async (id) => {
+    if (!notice) return { ok: false, reason: 'closed' };
+    if (id === 'copy') return copy();
+    if (id === 'cancel') { closeNotice(); return { ok: true }; }
+    return { ok: false, reason: 'invalid' };
   };
 
-  // コピーの操作（ボタン・キー・コマンドの検索で共通）。シーンがあれば、書き込む前に注意を開く。
+  // コピーの操作（ボタン・キー・コマンドの検索で共通）。注意を開くだけで、書き込みは注意の「コピー」で行う。外部へは何も送らない。
   ctx.registerCommand('prompt.copy', async () => {
-    if (!state.scenes.length) { fallback = null; say('prompt.empty'); return { ok: false, reason: 'empty' }; }
-    if (!notice) {
-      // 初期は「適用する」（LLM 連携の有効・無効と AC-360 の設定に関係しない）。最初の操作は簡易マスキングの選択
-      notice = { mask: true, active: 'mask' };
-      fallback = null;
-      notify();
-    }
-    return { ok: true, pending: 'notice' };
+    if (notice) return { ok: true, pending: true };
+    if (!state.scenes.length) { fallback = null; say('prompt.empty'); return { ok: false, reason: 'empty' }; } // シーン 0 は注意を開かない
+    openNotice(); // 同期で開く（handleKey から呼ばれても、戻った時点で開いている）
+    return { ok: true, pending: true };
   });
   // Ctrl+Alt+Shift+C（Copy）。Alt+Shift の 1 文字・数字・F キーは割り当て済みのため Ctrl を加える。
   ctx.registerKey({ key: 'c', ctrl: true, alt: true, shift: true, command: 'prompt.copy' });
 
-  // 注意が開いている間のキー（モーダル。注意の外のキー操作は働かせない）
+  // ---- キー: 注意が開いている間は、Tab・Shift+Tab は注意の中を巡回し、Space・Enter・Esc は注意で使う。ほかのショートカットは働かせない ----
   const baseKey = api.handleKey;
   api.handleKey = (ev) => {
     if (!notice) return baseKey(ev);
     const key = String(ev?.key ?? '');
-    const plain = !ev.ctrlKey && !ev.altKey;
-    if (key === 'Escape' && plain) { api.cancelPromptCopy(); return 'prompt.copy.cancel'; }
-    if (key === 'Tab' && plain) {
-      const i = CONTROL_IDS.indexOf(notice.active);
-      const n = CONTROL_IDS.length;
-      notice.active = CONTROL_IDS[(i + (ev.shiftKey ? n - 1 : 1)) % n]; notify();
-      return 'prompt.copy.focus';
+    const mod = !!ev?.ctrlKey || !!ev?.altKey;
+    if (!mod && key === 'Escape') { closeNotice(); return 'prompt.notice.cancel'; }
+    if (!mod && key === 'Tab') {
+      const i = NOTICE_FOCUS.indexOf(notice.focus);
+      const n = NOTICE_FOCUS.length;
+      notice.focus = NOTICE_FOCUS[(i + (ev.shiftKey ? n - 1 : 1)) % n];
+      notify();
+      return ev.shiftKey ? 'prompt.notice.prev' : 'prompt.notice.next';
     }
-    if ((key === ' ' || key === 'Spacebar') && plain && notice.active === 'mask') { api.setPromptCopyMask(!notice.mask); return 'prompt.copy.mask'; }
-    if (key === 'Enter' && plain) {
-      if (notice.active === 'mask') { api.setPromptCopyMask(!notice.mask); return 'prompt.copy.mask'; }
-      if (notice.active === 'cancel') { api.cancelPromptCopy(); return 'prompt.copy.cancel'; }
-      void api.confirmPromptCopy(); return 'prompt.copy.confirm';
+    if (!mod && !ev?.shiftKey && (key === ' ' || key === 'Spacebar' || key === 'Enter')) {
+      const f = notice.focus;
+      if (f === 'mask') {
+        if (key === 'Enter') return 'prompt.notice.none'; // チェックボックスは Enter では切り替えない
+        api.setPromptNoticeMask(!notice.mask);
+        return 'prompt.notice.mask';
+      }
+      if (f === 'copy') { void api.promptNoticeAction('copy'); return 'prompt.notice.copy'; }
+      closeNotice();
+      return 'prompt.notice.cancel';
     }
-    if ((key === ' ' || key === 'Spacebar') && plain) {
-      if (notice.active === 'cancel') { api.cancelPromptCopy(); return 'prompt.copy.cancel'; }
-      void api.confirmPromptCopy(); return 'prompt.copy.confirm';
-    }
-    return null;
+    return matchKey(api.keymap, ev) ? 'prompt.notice.blocked' : null;
   };
 }

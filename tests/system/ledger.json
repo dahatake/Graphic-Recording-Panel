@@ -165,8 +165,8 @@
     "AC-417": "sha256:a118cbbb63a602be",
     "AC-418": "sha256:02f6cc4a1725a831",
     "AC-419": "sha256:781fa2ea3b8415ac",
-    "AC-420": "sha256:01815dd2df7778ad",
-    "AC-421": "sha256:f30b1ebe4a67fd0a",
+    "AC-420": "sha256:b7932ea93d8b0d02",
+    "AC-421": "sha256:f545c43493b3d563",
     "AC-422": "sha256:f2fc47d36321cc4a",
     "AC-423": "sha256:4ac7dbc0de97712e",
     "AC-424": "sha256:2926e2da14f072c2",
@@ -178,7 +178,7 @@
     "AC-413": "sha256:7e5ab20ec94f8377",
     "AC-425": "sha256:a17ed59fca40e738",
     "AC-456": "sha256:07048b4b24fb00fc",
-    "AC-406": "sha256:9d3005815b13a847",
+    "AC-406": "sha256:2c6af23dff268b81",
     "AC-407": "sha256:0486275ce33b62c1",
     "AC-395": "sha256:df11b58880ba98a3",
     "AC-396": "sha256:87a01467359171f3",
@@ -193,11 +193,35 @@
     "AC-462": "sha256:788240e79830f31d",
     "AC-463": "sha256:6e96cc8c51660daa",
     "AC-464": "sha256:dfdd92720d94b458",
+    "AC-435": "sha256:27e165388494d9c1",
+    "AC-436": "sha256:1d5cad323ac8017b",
+    "AC-439": "sha256:f1a7a0c6fd121fc0",
+    "AC-440": "sha256:ca69a4ca1c024d77",
+    "AC-441": "sha256:ddcf84e7836a7356",
+    "AC-442": "sha256:b1e8061479fe4c17",
+    "AC-443": "sha256:84c669163bb31405",
+    "AC-444": "sha256:f7a142b56de4daa7",
+    "AC-445": "sha256:87a81fd881bb1431",
+    "AC-446": "sha256:f08ee7021136078c",
+    "AC-447": "sha256:c92e26857181b5d2",
+    "AC-458": "sha256:6694b7a583a518d3",
+    "AC-448": "sha256:4e6022fa4976c90a",
+    "AC-449": "sha256:1f1409d60fe1a2d3",
+    "AC-450": "sha256:dbbc9e255333122b",
+    "AC-451": "sha256:158fa760061cd76c",
+    "AC-452": "sha256:d4377673f19664ee",
+    "AC-453": "sha256:5eae349c2810e0e2",
+    "AC-454": "sha256:fdd07092e09a81c9",
+    "AC-455": "sha256:e58a7305e4b75fc0",
+    "AC-457": "sha256:f364dd8ae3b34916",
+    "AC-470": "sha256:d6e97474844edc0f",
+    "AC-471": "sha256:623f82d3e64396ce",
+    "AC-473": "sha256:f3cae654f124d117",
     "AC-465": "sha256:4130464cf2fb240b",
     "AC-466": "sha256:237a9758ed5c6c34",
     "AC-467": "sha256:c4226d7de46cdab0",
-    "AC-468": "sha256:11abdfd5d72af43e",
-    "AC-469": "sha256:3e46dede760c9bdb"
+    "AC-468": "sha256:f80e054d2adb4c3d",
+    "AC-469": "sha256:6fe4e419ca2b590c"
   },
   "cases": [
     {
@@ -2812,7 +2836,7 @@
       "ac_ids": [
         "AC-149"
       ],
-      "title": "設定画面の既定レイアウト・描画スタイル（9 つの風を含む）の選択と反映、現在の描画スタイルは後から操作した方が決める（異常系含む）",
+      "title": "設定画面の既定レイアウト・描画スタイル（9 つの風を含む）の選択と反映、現在の描画スタイルは後から操作した方が決める（異常系含む。後の要求の追加項目を許容）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-149\" tests/system/settings.test.js",
       "canary": false,
@@ -2838,6 +2862,12 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "テストを AC の文面の変更（run 202610200356、FR-075/076）に合わせて見直したため、再実行まで not_run"
+        },
+        {
+          "at": "2026-10-20T05:32:49+09:00",
+          "by": "test-designer",
+          "change": "title: '設定画面の既定レイアウト・描画スタイル選択と反映（異常系含む）' -> '設定画面の既定レイアウト・描画スタイル選択と反映（異常系含む。後の要求の追加項目を許容）'",
+          "reason": "FR-080（arrange.interval）・FR-081/082 で設定画面に項目が正当に加わるため、FR-030 の 3 項目の存在の検査に改め、追加項目を許す（期待値は弱めない: 3 項目の存在・ラベル長・狭い画面の欠けなしは維持）"
         }
       ]
     },
@@ -2849,7 +2879,7 @@
       "ac_ids": [
         "AC-151"
       ],
-      "title": "設定画面のキーボード・コマンド検索・ラベル・読み上げ・狭い画面（異常系含む）",
+      "title": "設定画面のキーボード・コマンド検索・ラベル・読み上げ・狭い画面（異常系含む。後の要求の追加項目を許容）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-151\" tests/system/settings.test.js",
       "canary": false,
@@ -2863,6 +2893,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-20T05:32:50+09:00",
+          "by": "test-designer",
+          "change": "title: '設定画面のキーボード・コマンド検索・ラベル・読み上げ・狭い画面（異常系含む）' -> '設定画面のキーボード・コマンド検索・ラベル・読み上げ・狭い画面（異常系含む。後の要求の追加項目を許容）'",
+          "reason": "FR-080（arrange.interval）・FR-081/082 で設定画面に項目が正当に加わるため、FR-030 の 3 項目の存在の検査に改め、追加項目を許す（期待値は弱めない: 3 項目の存在・ラベル長・狭い画面の欠けなしは維持）"
         }
       ]
     },
@@ -3361,7 +3397,7 @@
       "ac_ids": [
         "AC-355"
       ],
-      "title": "キー値を表示せず設定済み/未設定のみ・入力欄なし・DOM/保存領域にキーなし",
+      "title": "LLM のキー値を表示せず設定済み/未設定のみ・LLM 連携（llm.*）にキー・トークンの入力欄なし（Azure Speech の azureSpeech.* は FR-082 AC-448 により除外）・DOM/保存領域にキーなし",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-355\" tests/system/llm-consent.test.js",
       "canary": false,
@@ -3375,6 +3411,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-20T09:22:03+09:00",
+          "by": "test-designer",
+          "change": "title: 'キー値を表示せず設定済み/未設定のみ・入力欄なし・DOM/保存領域にキーなし' -> 'LLM のキー値を表示せず設定済み/未設定のみ・LLM 連携（llm.*）にキー・トークンの入力欄なし（Azure Speech の azureSpeech.* は FR-082 AC-448 により除外）・DOM/保存領域にキーなし'",
+          "reason": "FR-082（AC-448）が AC-355 を Azure Speech のキーに適用しないと明記したため、入力欄なしの検査を LLM 連携の項目に限定し azureSpeech.* を除外。キー値が DOM・保存領域にない検査は維持"
         }
       ]
     },
@@ -5120,14 +5162,14 @@
       "ac_ids": [
         "AC-420"
       ],
-      "title": "コピーの操作（ボタン・キー・検索）→ 注意（AC-468）でコピーを選ぶと 7 つの見出しの文章がクリップボードに入り、画風の記述・型・内容が入る（キーボードだけ: 注意の中の Tab・Enter）",
+      "title": "画像生成プロンプトのコピー（ボタン・キー・検索）→注意で「コピー」を選ぶと 7 の見出しの文章がクリップボードに入り、画風の記述・型・内容が入る（異常系: 注意を閉じると入らない）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-420\" tests/system/imageprompt.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "7bead23",
-      "last_run_at": "2026-10-20T14:50:54+09:00",
-      "evidence": "work/runs/202610201234/logs/system-test/E2E-205-202610201450.log",
+      "last_commit": "877652f",
+      "last_run_at": "2026-10-20T14:25:45+09:00",
+      "evidence": "work/runs/202610201309/logs/system-test/E2E-205-202610201424.log",
       "history": [
         {
           "at": "2026-10-20T05:13:09+09:00",
@@ -5136,10 +5178,10 @@
           "reason": "run 202610200356 part 2/2: AC-420 の System Test を追加"
         },
         {
-          "at": "2026-10-20T13:59:03+09:00",
+          "at": "2026-10-20T13:54:35+09:00",
           "by": "test-designer",
-          "change": "title: '画像生成プロンプトのコピー（ボタン・キー・検索）で 7 つの見出しの文章がクリップボードに入り、画風の記述・型・内容が入る' -> 'コピーの操作（ボタン・キー・検索）→ 注意（AC-468）でコピーを選ぶと 7 つの見出しの文章がクリップボードに入り、画風の記述・型・内容が入る（キーボードだけ: 注意の中の Tab・Enter）'",
-          "reason": "AC-420 の変更（Q-027 A: 注意でコピーを選ぶ）に合わせ、コピーを注意経由に直す"
+          "change": "title: '画像生成プロンプトのコピー（ボタン・キー・検索）で 7 つの見出しの文章がクリップボードに入り、画風の記述・型・内容が入る' -> '画像生成プロンプトのコピー（ボタン・キー・検索）→注意で「コピー」を選ぶと 7 の見出しの文章がクリップボードに入り、画風の記述・型・内容が入る（異常系: 注意を閉じると入らない）'",
+          "reason": "AC-420 の変更（Q-027 A。run 202610201309）: コピーの操作は注意（AC-470）を経て「コピー」の選択で書き込むように見直し"
         }
       ]
     },
@@ -5151,7 +5193,7 @@
       "ac_ids": [
         "AC-421"
       ],
-      "title": "同じ入力（簡易マスキングの適用の有無を含む）で同じ文章・表示言語で作られる・テキスト一覧と同じ順序・手修正後の文字・記述のない描画スタイルは名前だけ（異常系）",
+      "title": "同じ入力で同じ文章・表示言語で作られる・テキスト一覧と同じ順序・手修正後の文字・記述のない描画スタイルは名前だけ（異常系）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-421\" tests/system/imageprompt.test.js",
       "canary": false,
@@ -5171,18 +5213,6 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "AC-421 の検証レベルは integration（System Test の対象外）。テストは tests/system/imageprompt.test.js に参考として残し、担保は実装者の結合テストで行う。契約は CONTRACT-FR077-078.md"
-        },
-        {
-          "at": "2026-10-20T13:59:05+09:00",
-          "by": "test-designer",
-          "change": "title: '同じ入力で同じ文章・表示言語で作られる・テキスト一覧と同じ順序・手修正後の文字・記述のない描画スタイルは名前だけ（異常系）' -> '同じ入力（簡易マスキングの適用の有無を含む）で同じ文章・表示言語で作られる・テキスト一覧と同じ順序・手修正後の文字・記述のない描画スタイルは名前だけ（異常系）'",
-          "reason": "AC-421 の変更（適用の有無が入力に加わる）とコピーの注意経由（AC-468）に合わせる"
-        },
-        {
-          "at": "2026-10-20T13:59:10+09:00",
-          "by": "test-designer",
-          "change": "blocked",
-          "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートで --test-name-pattern で実行できる"
         }
       ]
     },
@@ -5194,7 +5224,7 @@
       "ac_ids": [
         "AC-422"
       ],
-      "title": "内容が 2000 文字を超えるとシーンの区切りで切り詰め、文章の末尾とメッセージで示す（コピーは注意経由）",
+      "title": "内容が 2000 文字を超えるとシーンの区切りで切り詰め、文章の末尾とメッセージで示す",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-422\" tests/system/imageprompt.test.js",
       "canary": false,
@@ -5214,18 +5244,6 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "AC-422 の検証レベルは integration（System Test の対象外）。テストは tests/system/imageprompt.test.js に参考として残し、担保は実装者の結合テストで行う。契約は CONTRACT-FR077-078.md"
-        },
-        {
-          "at": "2026-10-20T13:59:08+09:00",
-          "by": "test-designer",
-          "change": "title: '内容が 2000 文字を超えるとシーンの区切りで切り詰め、文章の末尾とメッセージで示す' -> '内容が 2000 文字を超えるとシーンの区切りで切り詰め、文章の末尾とメッセージで示す（コピーは注意経由）'",
-          "reason": "コピーの操作が注意（AC-468）でコピーを選ぶ流れになったため、テストの操作を直す（期待値は不変）"
-        },
-        {
-          "at": "2026-10-20T13:59:11+09:00",
-          "by": "test-designer",
-          "change": "blocked",
-          "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートで --test-name-pattern で実行できる"
         }
       ]
     },
@@ -5237,7 +5255,7 @@
       "ac_ids": [
         "AC-423"
       ],
-      "title": "シーン 0 ではコピーされず注意も出ない、クリップボードの拒否・使えないときは選んだ文章を選択できる形で表示し、入力・選択は失われない（異常系）",
+      "title": "シーン 0 ではコピーされない、クリップボードの拒否・使えないときは選択できる文章を表示し、入力・選択は失われない（異常系）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-423\" tests/system/imageprompt.test.js",
       "canary": false,
@@ -5257,18 +5275,6 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "AC-423 の検証レベルは integration（System Test の対象外）。テストは tests/system/imageprompt.test.js に参考として残し、担保は実装者の結合テストで行う。契約は CONTRACT-FR077-078.md"
-        },
-        {
-          "at": "2026-10-20T13:59:09+09:00",
-          "by": "test-designer",
-          "change": "title: 'シーン 0 ではコピーされない、クリップボードの拒否・使えないときは選択できる文章を表示し、入力・選択は失われない（異常系）' -> 'シーン 0 ではコピーされず注意も出ない、クリップボードの拒否・使えないときは選んだ文章を選択できる形で表示し、入力・選択は失われない（異常系）'",
-          "reason": "コピーの操作が注意（AC-468）でコピーを選ぶ流れになったため、テストの操作を直す（期待値は不変）"
-        },
-        {
-          "at": "2026-10-20T13:59:12+09:00",
-          "by": "test-designer",
-          "change": "blocked",
-          "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートで --test-name-pattern で実行できる"
         }
       ]
     },
@@ -5280,7 +5286,7 @@
       "ac_ids": [
         "AC-424"
       ],
-      "title": "コピー（注意経由）で外部へのリクエスト 0 件、文章はセッションファイル・ブラウザ内の保存・LLM 連携の送信に含まれず、有効・無効で変わらない",
+      "title": "コピーで外部へのリクエスト 0 件、文章はセッションファイル・ブラウザ内の保存・LLM 連携の送信に含まれず、有効・無効で変わらない",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-424\" tests/system/imageprompt.test.js",
       "canary": false,
@@ -5300,18 +5306,6 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "AC-424 の検証レベルは integration（System Test の対象外）。テストは tests/system/imageprompt.test.js に参考として残し、担保は実装者の結合テストで行う。契約は CONTRACT-FR077-078.md"
-        },
-        {
-          "at": "2026-10-20T13:59:09+09:00",
-          "by": "test-designer",
-          "change": "title: 'コピーで外部へのリクエスト 0 件、文章はセッションファイル・ブラウザ内の保存・LLM 連携の送信に含まれず、有効・無効で変わらない' -> 'コピー（注意経由）で外部へのリクエスト 0 件、文章はセッションファイル・ブラウザ内の保存・LLM 連携の送信に含まれず、有効・無効で変わらない'",
-          "reason": "コピーの操作が注意（AC-468）でコピーを選ぶ流れになったため、テストの操作を直す（期待値は不変）"
-        },
-        {
-          "at": "2026-10-20T13:59:12+09:00",
-          "by": "test-designer",
-          "change": "blocked",
-          "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートで --test-name-pattern で実行できる"
         }
       ]
     },
@@ -5323,7 +5317,7 @@
       "ac_ids": [
         "AC-408"
       ],
-      "title": "黄黒手書き風: 白い紙面・黒の文字と枠・黄の塗り（黒かグレーの輪郭線）・黒帯の白抜き見出し・通常の吹き出しは黄の雲形・線画人物・太めの文字と書体の並び（日本語は Yu Gothic UI を先に）（異常系: 手書き風の書体なし）",
+      "title": "黄黒手書き風: 白い紙面・黒の文字と枠・黄の塗り（黒かグレーの輪郭線）・黒い帯の白抜き見出し・通常の吹き出しは黄の雲形（感情語のトピックは異なる形）・線画人物・太めの文字と書体の並び（日本語は Yu Gothic UI を先に）（異常系: 手書き風の書体なし）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-408\" tests/system/stylepreset.test.js",
       "canary": true,
@@ -5337,6 +5331,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610200356 part 1/2）"
+        },
+        {
+          "at": "2026-10-20T13:54:36+09:00",
+          "by": "test-designer",
+          "change": "title: '黄黒手書き風: 白い紙面・黒の文字と枠・黄の塗り（黒かグレーの輪郭線）・黒帯の白抜き見出し・黄の雲形の吹き出し・線画人物・太めの文字と書体の並び（異常系: 手書き風の書体なし）' -> '黄黒手書き風: 白い紙面・黒の文字と枠・黄の塗り（黒かグレーの輪郭線）・黒い帯の白抜き見出し・通常の吹き出しは黄の雲形（感情語のトピックは異なる形）・線画人物・太めの文字と書体の並び（異常系: 手書き風の書体なし）'",
+          "reason": "AC-408 の変更（Q-026 A。run 202610201309）: 雲形は通常の吹き出しに限り、感情語を含むトピックの吹き出し（AC-156。data-emotional）は通常と異なる形を求めるよう見直し"
         },
         {
           "at": "2026-10-20T13:59:03+09:00",
@@ -5583,7 +5583,7 @@
       "ac_ids": [
         "AC-406"
       ],
-      "title": "既存の 4 つの描画スタイルは拡張の前（91a15b8）と同じ図。書体の指定の並び（NFR-UX-012）と文字幅による枠の幅・折り返しだけを許す（異常系: 風から戻す）",
+      "title": "既存の 4 つの描画スタイルは、同じ版のコードで画風プリセットの機能がない場合（golden: main 6d28c28）と同じ図。書体の指定の並び（NFR-UX-012）と文字幅による枠の幅・折り返しだけを許す（異常系: 風から戻す）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-406\" tests/system/stylepreset.test.js",
       "canary": false,
@@ -5615,6 +5615,18 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートで --test-name-pattern で実行できる"
+        },
+        {
+          "at": "2026-10-20T15:48:47+09:00",
+          "by": "test-designer",
+          "change": "title: '既存の 4 つの描画スタイルは拡張の前（91a15b8）と同じ図。書体の指定の並び（NFR-UX-012）と文字幅による枠の幅・折り返しだけを許す（異常系: 風から戻す）' -> '既存の 4 つの描画スタイルは、同じ版のコードで画風プリセットの機能がない場合（golden: main 6d28c28）と同じ図。書体の指定の並び（NFR-UX-012）と文字幅による枠の幅・折り返しだけを許す（異常系: 風から戻す）'",
+          "reason": "AC-406 の改訂（比較の基準を同じ版のコードで FR-075・FR-076 がない場合の出力に）に合わせ、golden を main 6d28c28 で記録し直し、FR-079・FR-080 の 4 属性の除外を外す"
+        },
+        {
+          "at": "2026-10-20T15:48:58+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルは integration（System Test の対象外。CHK-10）。implementer の結合テストで確かめる。この System 側のテストは参考で、ゲートは --test-name-pattern で実行できる"
         }
       ]
     },
@@ -6005,6 +6017,704 @@
       ]
     },
     {
+      "id": "E2E-220",
+      "requirement_ids": [
+        "FR-080"
+      ],
+      "ac_ids": [
+        "AC-435"
+      ],
+      "title": "再配置の周期: 起動から10秒ごと・暫定位置の即時表示・前の要素不動・追加なしは再配置しない・非表示中は復帰後（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-435(:| [^F])\" tests/system/rearrange.test.js",
+      "canary": false,
+      "status": "pass",
+      "last_commit": "877652f",
+      "last_run_at": "2026-10-20T14:25:45+09:00",
+      "evidence": "work/runs/202610201309/logs/system-test/E2E-220-202610201425.log",
+      "history": [
+        {
+          "at": "2026-10-20T05:32:14+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "test-designer System Test 設計（run 202610200407 part 1/2）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-221",
+      "requirement_ids": [
+        "FR-080"
+      ],
+      "ac_ids": [
+        "AC-435"
+      ],
+      "title": "周期の再配置がFR-079の規則に従う: 結論の昇格と種類順・整列・近接・重なりなし・下位のまとまり・決定性",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-435 FR-079\" tests/system/rearrange.test.js",
+      "canary": false,
+      "status": "pass",
+      "last_commit": "877652f",
+      "last_run_at": "2026-10-20T14:25:45+09:00",
+      "evidence": "work/runs/202610201309/logs/system-test/E2E-221-202610201425.log",
+      "history": [
+        {
+          "at": "2026-10-20T05:32:21+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "test-designer System Test 設計（run 202610200407 part 1/2）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-222",
+      "requirement_ids": [
+        "FR-080"
+      ],
+      "ac_ids": [
+        "AC-436"
+      ],
+      "title": "設定画面で周期を0〜300の整数に変更・数え直し・初期値10・保存と復元・初期化/セッションファイル対象外（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-436\" tests/system/rearrange-settings.test.js",
+      "canary": false,
+      "status": "pass",
+      "last_commit": "877652f",
+      "last_run_at": "2026-10-20T14:25:45+09:00",
+      "evidence": "work/runs/202610201309/logs/system-test/E2E-222-202610201425.log",
+      "history": [
+        {
+          "at": "2026-10-20T05:32:26+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "test-designer System Test 設計（run 202610200407 part 1/2）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-223",
+      "requirement_ids": [
+        "FR-080"
+      ],
+      "ac_ids": [
+        "AC-439"
+      ],
+      "title": "再配置の前後で記録・選択・ポップアップ・入力中・詳細度・型・表示・拡大率が保たれ、動きを減らす設定でアニメーションなし",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-439\" tests/system/rearrange.test.js",
+      "canary": false,
+      "status": "pass",
+      "last_commit": "877652f",
+      "last_run_at": "2026-10-20T14:25:45+09:00",
+      "evidence": "work/runs/202610201309/logs/system-test/E2E-223-202610201425.log",
+      "history": [
+        {
+          "at": "2026-10-20T05:32:32+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "test-designer System Test 設計（run 202610200407 part 1/2）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-224",
+      "requirement_ids": [
+        "FR-080"
+      ],
+      "ac_ids": [
+        "AC-440"
+      ],
+      "title": "周期の設定をコマンド検索・キーボードだけ・マウスで変更、ラベル6文字以内・表示言語、結果の読み上げ・再配置は無通知（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-440\" tests/system/rearrange-settings.test.js",
+      "canary": false,
+      "status": "pass",
+      "last_commit": "877652f",
+      "last_run_at": "2026-10-20T14:25:45+09:00",
+      "evidence": "work/runs/202610201309/logs/system-test/E2E-224-202610201425.log",
+      "history": [
+        {
+          "at": "2026-10-20T05:32:36+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "test-designer System Test 設計（run 202610200407 part 1/2）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-228",
+      "requirement_ids": [
+        "FR-081"
+      ],
+      "ac_ids": [
+        "AC-441"
+      ],
+      "title": "方式の選択（初期値ブラウザ標準・未設定では選べず理由）、保存・復元・初期化・セッションファイル、キー保存で自動切替・削除で戻り、記録中の切替と同意の非引継ぎ（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-441\" tests/system/azurespeech.test.js",
+      "canary": false,
+      "status": "pass",
+      "last_commit": "877652f",
+      "last_run_at": "2026-10-20T14:25:45+09:00",
+      "evidence": "work/runs/202610201309/logs/system-test/E2E-228-202610201425.log",
+      "history": [
+        {
+          "at": "2026-10-20T05:37:58+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200407 part 2/2）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-230",
+      "requirement_ids": [
+        "FR-081"
+      ],
+      "ac_ids": [
+        "AC-442"
+      ],
+      "title": "Azure Speech では記録開始の直近に同意とホスト名の説明。未同意は送信 0 件で同意待ち、同意後に確定結果が発話になり PARAM-001 秒以内に図へ。同意は保存しない",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-442\" tests/system/azurespeech.test.js",
+      "canary": false,
+      "status": "pass",
+      "last_commit": "877652f",
+      "last_run_at": "2026-10-20T14:25:45+09:00",
+      "evidence": "work/runs/202610201309/logs/system-test/E2E-230-202610201425.log",
+      "history": [
+        {
+          "at": "2026-10-20T05:38:05+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200407 part 2/2）"
+        }
+      ]
+    },
+    {
+      "id": "IT-017",
+      "requirement_ids": [
+        "FR-081"
+      ],
+      "ac_ids": [
+        "AC-443"
+      ],
+      "title": "要求は同一オリジンの中継サーバーだけ、音声は設定されたホスト（リージョンでは認識のホスト）だけへ。ブラウザ標準・未同意・記録中以外は送信 0 件",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=\"AC-443\" tests/system/azurespeech.test.js tests/system/azurespeech-relay.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:38:11+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200407 part 2/2）"
+        },
+        {
+          "at": "2026-10-20T05:39:50+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（implementer が単体・結合テストで担保）。テストは tests/system/azurespeech*.test.js に参考として残す"
+        }
+      ]
+    },
+    {
+      "id": "E2E-233",
+      "requirement_ids": [
+        "FR-081"
+      ],
+      "ac_ids": [
+        "AC-444"
+      ],
+      "title": "未設定・認証・接続の失敗で停止し理由を表示、記録中・発話・図・入力中は保たれ、自動で方式を変えず、1 操作で再試行・ブラウザ標準へ切替",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-444\" tests/system/azurespeech.test.js",
+      "canary": false,
+      "status": "pass",
+      "last_commit": "877652f",
+      "last_run_at": "2026-10-20T14:25:45+09:00",
+      "evidence": "work/runs/202610201309/logs/system-test/E2E-233-202610201425.log",
+      "history": [
+        {
+          "at": "2026-10-20T05:38:18+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200407 part 2/2）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-234",
+      "requirement_ids": [
+        "FR-081"
+      ],
+      "ac_ids": [
+        "AC-445"
+      ],
+      "title": "認識の言語は表示言語に一致し切替後は次の認識から。暫定と確定の区別。状態表示は方式と 使えます/同意待ち/使えません（理由）を文字で区別",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-445\" tests/system/azurespeech.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:38:27+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200407 part 2/2）"
+        },
+        {
+          "at": "2026-10-20T05:39:48+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（implementer が単体・結合テストで担保）。テストは tests/system/azurespeech*.test.js に参考として残す"
+        }
+      ]
+    },
+    {
+      "id": "IT-018",
+      "requirement_ids": [
+        "FR-081"
+      ],
+      "ac_ids": [
+        "AC-446"
+      ],
+      "title": "音声を保存せず保存物・エクスポートに含めない、中継サーバーのログに音声・認識文字列を出さない、非表示でも認識は続く",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=\"AC-446\" tests/system/azurespeech.test.js tests/system/azurespeech-relay.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:38:32+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200407 part 2/2）"
+        },
+        {
+          "at": "2026-10-20T05:39:52+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（implementer が単体・結合テストで担保）。テストは tests/system/azurespeech*.test.js に参考として残す"
+        }
+      ]
+    },
+    {
+      "id": "IT-019",
+      "requirement_ids": [
+        "FR-081"
+      ],
+      "ac_ids": [
+        "AC-447"
+      ],
+      "title": "Azure Speech のテストは上流モックだけで決定的に実行でき、ダミーのキー・エンドポイントだけを使う",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=\"AC-447\" tests/system/azurespeech.test.js tests/system/azurespeech-relay.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:38:35+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200407 part 2/2）"
+        },
+        {
+          "at": "2026-10-20T05:39:55+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（implementer が単体・結合テストで担保）。テストは tests/system/azurespeech*.test.js に参考として残す"
+        }
+      ]
+    },
+    {
+      "id": "IT-020",
+      "requirement_ids": [
+        "FR-081"
+      ],
+      "ac_ids": [
+        "AC-458"
+      ],
+      "title": "上流の正常な終了・トークン期限切れでは停止表示なしに PARAM-008 秒以内に自動再開（トークンは中継が取り直す）。失敗・停止・同意解除・方式切替の後は再開しない",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=\"AC-458\" tests/system/azurespeech.test.js tests/system/azurespeech-relay.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:38:41+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200407 part 2/2）"
+        },
+        {
+          "at": "2026-10-20T05:39:57+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（implementer が単体・結合テストで担保）。テストは tests/system/azurespeech*.test.js に参考として残す"
+        }
+      ]
+    },
+    {
+      "id": "E2E-235",
+      "requirement_ids": [
+        "FR-082"
+      ],
+      "ac_ids": [
+        "AC-448"
+      ],
+      "title": "設定画面のエンドポイント・書き込み専用キー・状態・保存・確認つき削除。保存でキー欄が空・値は再表示されない、初期化で消えない、中継無応答で操作不可、キーボード・ラベル長・言語",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-448\" tests/system/azurespeech.test.js",
+      "canary": false,
+      "status": "pass",
+      "last_commit": "877652f",
+      "last_run_at": "2026-10-20T14:25:45+09:00",
+      "evidence": "work/runs/202610201309/logs/system-test/E2E-235-202610201425.log",
+      "history": [
+        {
+          "at": "2026-10-20T05:38:46+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200407 part 2/2）"
+        }
+      ]
+    },
+    {
+      "id": "IT-021",
+      "requirement_ids": [
+        "FR-082"
+      ],
+      "ac_ids": [
+        "AC-449"
+      ],
+      "title": "エンドポイントは https の Azure Speech のドメインとリージョン名だけ受け付け、http・他ドメイン・IP・ループバック等は理由つきで拒否し設定不変。ループバックのモックはテスト専用フラグのときだけ",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=\"AC-449\" tests/system/azurespeech.test.js tests/system/azurespeech-relay.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:38:49+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200407 part 2/2）"
+        },
+        {
+          "at": "2026-10-20T05:39:59+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（implementer が単体・結合テストで担保）。テストは tests/system/azurespeech*.test.js に参考として残す"
+        }
+      ]
+    },
+    {
+      "id": "IT-022",
+      "requirement_ids": [
+        "FR-082"
+      ],
+      "ac_ids": [
+        "AC-450"
+      ],
+      "title": "接続テストは本文なしのキー検証だけを送り PARAM-074 秒以内に成功／未設定（送信 0 件）・認証・接続・タイムアウトを表示し、方式・同意・図を変えない",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=\"AC-450\" tests/system/azurespeech.test.js tests/system/azurespeech-relay.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:38:53+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200407 part 2/2）"
+        },
+        {
+          "at": "2026-10-20T05:40:02+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（implementer が単体・結合テストで担保）。テストは tests/system/azurespeech*.test.js に参考として残す"
+        }
+      ]
+    },
+    {
+      "id": "IT-023",
+      "requirement_ids": [
+        "FR-082"
+      ],
+      "ac_ids": [
+        "AC-451"
+      ],
+      "title": "users-guide に Azure Speech の設定・接続テスト・方式・同意・失敗時の対処・再配置の周期が日本語で書かれ、キー・エンドポイントの実値を含まない",
+      "layer": "contract",
+      "command": "node --test --test-name-pattern=\"AC-451\" tests/system/azurespeech-guide.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:38:57+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200407 part 2/2）"
+        },
+        {
+          "at": "2026-10-20T05:40:03+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが unit のため System Test の対象外（implementer が単体・結合テストで担保）。テストは tests/system/azurespeech*.test.js に参考として残す"
+        }
+      ]
+    },
+    {
+      "id": "E2E-236",
+      "requirement_ids": [
+        "NFR-SEC-005",
+        "FR-081"
+      ],
+      "ac_ids": [
+        "AC-452"
+      ],
+      "title": "ダミーのキーを保存して認識・接続テストの後、画面・ブラウザ内の保存・URL・セッションファイル・PNG・SVG・PDF・コンソール・中継の応答にキーが含まれない",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-452\" tests/system/azurespeech.test.js tests/system/azurespeech-relay.test.js",
+      "canary": false,
+      "status": "pass",
+      "last_commit": "877652f",
+      "last_run_at": "2026-10-20T14:25:45+09:00",
+      "evidence": "work/runs/202610201309/logs/system-test/E2E-236-202610201425.log",
+      "history": [
+        {
+          "at": "2026-10-20T05:39:02+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200407 part 2/2）"
+        },
+        {
+          "at": "2026-10-20T09:27:28+09:00",
+          "by": "test-designer",
+          "change": "requirement_ids: ['NFR-SEC-005'] -> ['NFR-SEC-005', 'FR-081']",
+          "reason": "AC-452 のテストは Azure Speech の認識（FR-081）で発話を加えてからエクスポートを確かめるため FR-081 の実装が前提。FR-081 の統合まで選ばれないよう要求を追加（テストの中身・AC は不変）"
+        }
+      ]
+    },
+    {
+      "id": "IT-024",
+      "requirement_ids": [
+        "NFR-SEC-005"
+      ],
+      "ac_ids": [
+        "AC-453"
+      ],
+      "title": "中継サーバーの応答（成功・失敗）とログに、キー・上流への認証ヘッダ・アクセストークンが含まれない",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=\"AC-453\" tests/system/azurespeech-relay.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:39:09+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200407 part 2/2）"
+        },
+        {
+          "at": "2026-10-20T05:40:05+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（implementer が単体・結合テストで担保）。テストは tests/system/azurespeech*.test.js に参考として残す"
+        }
+      ]
+    },
+    {
+      "id": "IT-025",
+      "requirement_ids": [
+        "NFR-SEC-005"
+      ],
+      "ac_ids": [
+        "AC-454"
+      ],
+      "title": "キーは git 管理外の保管先に DPAPI（Windows）/0600 で保存され平文を含まず、再起動後も設定済み",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=\"AC-454\" tests/system/azurespeech-relay.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:39:14+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200407 part 2/2）"
+        },
+        {
+          "at": "2026-10-20T05:40:07+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（implementer が単体・結合テストで担保）。テストは tests/system/azurespeech*.test.js に参考として残す"
+        }
+      ]
+    },
+    {
+      "id": "IT-026",
+      "requirement_ids": [
+        "NFR-SEC-005"
+      ],
+      "ac_ids": [
+        "AC-455"
+      ],
+      "title": "保存・削除・接続テスト・音声の中継は同一オリジンだけ（ほかは 403・設定不変・上流 0 件）。キーは許可されたホストだけ、認識のホストにはトークンだけ。リポジトリに実値 0 件",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=\"AC-455\" tests/system/azurespeech-relay.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T05:39:21+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200407 part 2/2）"
+        },
+        {
+          "at": "2026-10-20T05:40:08+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration のため System Test の対象外（implementer が単体・結合テストで担保）。テストは tests/system/azurespeech*.test.js に参考として残す"
+        }
+      ]
+    },
+    {
+      "id": "E2E-237",
+      "requirement_ids": [
+        "NFR-SEC-005"
+      ],
+      "ac_ids": [
+        "AC-457"
+      ],
+      "title": "キーの入力欄は自動補完を無効にしログインフォームにならない。保存の操作の後は成功・失敗によらず空に戻り、再読込でも復元されない",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-457\" tests/system/azurespeech.test.js",
+      "canary": false,
+      "status": "pass",
+      "last_commit": "877652f",
+      "last_run_at": "2026-10-20T14:25:45+09:00",
+      "evidence": "work/runs/202610201309/logs/system-test/E2E-237-202610201425.log",
+      "history": [
+        {
+          "at": "2026-10-20T05:39:27+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610200407 part 2/2）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-238",
+      "requirement_ids": [
+        "FR-078"
+      ],
+      "ac_ids": [
+        "AC-470"
+      ],
+      "title": "コピーの操作で書き込む前に注意（図の内容・外部サービスへ渡る・送信保存しない）が毎回開き、「コピー」を選ぶまで書き換えない。文言は表示言語に従う（異常系: 書き込み拒否）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-470\" tests/system/imageprompt.test.js",
+      "canary": false,
+      "status": "pass",
+      "last_commit": "877652f",
+      "last_run_at": "2026-10-20T14:25:45+09:00",
+      "evidence": "work/runs/202610201309/logs/system-test/E2E-238-202610201424.log",
+      "history": [
+        {
+          "at": "2026-10-20T13:54:39+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "run 202610201309: AC-470（Q-027 A）の System Test を追加"
+        }
+      ]
+    },
+    {
+      "id": "E2E-239",
+      "requirement_ids": [
+        "FR-078"
+      ],
+      "ac_ids": [
+        "AC-471"
+      ],
+      "title": "注意で伏せ字を選ぶと内容の部分の登録語・敬称付き人名・メール・電話が AC-359 と同じ伏せ字になり他の部分は同じ。選ばないと元の文字。保証しない旨とメッセージ（異常系: 対象なし・LLM 無効）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-471\" tests/system/imageprompt.test.js",
+      "canary": false,
+      "status": "pass",
+      "last_commit": "877652f",
+      "last_run_at": "2026-10-20T14:25:45+09:00",
+      "evidence": "work/runs/202610201309/logs/system-test/E2E-239-202610201424.log",
+      "history": [
+        {
+          "at": "2026-10-20T13:54:41+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "run 202610201309: AC-471（Q-027 A）の System Test を追加"
+        }
+      ]
+    },
+    {
+      "id": "E2E-240",
+      "requirement_ids": [
+        "FR-078"
+      ],
+      "ac_ids": [
+        "AC-473"
+      ],
+      "title": "注意のキャンセル・Esc で閉じ、書き換えずメッセージなし、フォーカスが戻り内容・選択を保つ。フォーカスは注意の外に出ずキーボードで操作でき、ダイアログとして伝わる。外部へのリクエスト 0 件（異常系: シーン 0 では注意なし）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-473\" tests/system/imageprompt.test.js",
+      "canary": false,
+      "status": "pass",
+      "last_commit": "877652f",
+      "last_run_at": "2026-10-20T14:25:45+09:00",
+      "evidence": "work/runs/202610201309/logs/system-test/E2E-240-202610201424.log",
+      "history": [
+        {
+          "at": "2026-10-20T13:54:44+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "run 202610201309: AC-473（Q-027 A）の System Test を追加。AC-474 の外部へのリクエスト 0 件も同じケースで確かめる"
+        }
+      ]
+    },
+    {
       "id": "E2E-241",
       "requirement_ids": [
         "NFR-UX-012"
@@ -6103,7 +6813,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-468\" tests/system/imageprompt.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "blocked",
       "last_commit": "7bead23",
       "last_run_at": "2026-10-20T14:50:54+09:00",
       "evidence": "work/runs/202610201234/logs/system-test/E2E-244-202610201450.log",
@@ -6113,6 +6823,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "Q-027 A（AC-468 新設。run 202610201234）"
+        },
+        {
+          "at": "2026-10-20T15:29:38+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-468 は廃止（main の run 202610201309 の AC-470・AC-471 に統合。Q-027 A）。代わりに E2E-238・E2E-239 で確かめる"
         }
       ]
     },
@@ -6144,6 +6860,12 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートで --test-name-pattern で実行できる"
+        },
+        {
+          "at": "2026-10-20T15:29:39+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-469 は廃止（main の run 202610201309 の AC-470・AC-471 に統合。Q-027 A）。代わりに E2E-239 で確かめる"
         }
       ]
     }

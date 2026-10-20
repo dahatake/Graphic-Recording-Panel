@@ -1,6 +1,6 @@
 # System Test 契約: 画面上部での画風の選択（FR-077）・画像生成プロンプトのコピー（FR-078）
 
-`tests/system/stylepicker.test.js`（FR-077 AC-414〜419）と `tests/system/imageprompt.test.js`（FR-078 AC-420〜424・AC-468・AC-469）が前提にする、`web/src/app.js` の公開 API の追記。
+`tests/system/stylepicker.test.js`（FR-077 AC-414〜419）と `tests/system/imageprompt.test.js`（FR-078 AC-420〜424・AC-470〜474）が前提にする、`web/src/app.js` の公開 API の追記。
 既存の契約（`CONTRACT.md`）は変えない。期待値は要求定義書の受入基準だけから決めており、この契約は「テストが何を呼ぶか」だけを定める（内部構造は自由）。
 描画スタイルの ID は、既存の 4 つ（`handwritten`・`anime`・`simple`・`rpg`）以外は `getDrawStyles()` から得る（FR-076 の 9 つの風の ID はテストが固定しない）。
 
@@ -50,26 +50,34 @@
 |---|---|---|
 | `clipboard` | `{ writeText(text) => Promise }` か `null` | クリップボード。`writeText` の Promise が reject されたら「拒否」、`null`（または `writeText` がない）なら「使えない」。省略時は実ブラウザの `navigator.clipboard` |
 
-### 操作（AC-420・423・468）
-- `getCommandBar().items` に `command:'prompt.copy'`（`label` は PARAM-011 以内、`labelVisible:true`、`accessibleName`、`tooltip:{id,text}`、`describedBy`、`tabbable:true`）。`keymap` に `prompt.copy` の割り当てを持ち、`searchCommands(label)` で見つかる。`handleKey` からの実行は、マイクロタスク・`setImmediate` 1 回の後に注意が開いている（コピーは注意でコピーを選んでから）。
-- `await app.commands['prompt.copy']()` → シーンが 1 つ以上: クリップボードに書き込まずに注意（下記）を開き `{ok:true, pending:'notice'}`。シーン 0: 注意を開かず `{ok:false, reason:'empty'}`。
-- `await app.confirmPromptCopy()`（注意の「コピー」）→ 成功 `{ok:true, truncated:boolean, masked:boolean}`、クリップボードの拒否・使えない `{ok:false, reason:'clipboard'}`、注意が開いていない `{ok:false, reason:'notice'}`（何もしない）。どの場合も注意を閉じる。
-  - 成功: `clipboard.writeText` を 1 回、`getImagePrompt({mask})`（`mask` は注意の選択）の `text` と同じ文字列で呼ぶ。`getState().message`（`key` は切り詰めなし `'prompt.copied'`、切り詰め `'prompt.truncated'`。`text` は非空）と `getCommandBar().status.role==='status'`。
+### 操作（AC-420・423）
+- `getCommandBar().items` に `command:'prompt.copy'`（`label` は PARAM-011 以内、`labelVisible:true`、`accessibleName`、`tooltip:{id,text}`、`describedBy`、`tabbable:true`）。`keymap` に `prompt.copy` の割り当てを持ち、`searchCommands(label)` で見つかる。
+- コピーの操作は、クリップボードへ書き込む前に注意（下記「コピーの前の注意」。AC-470）を開く。コピーするのは注意の「コピー」（`promptNoticeAction('copy')`）を選んだときだけ。
+- `await app.commands['prompt.copy']()` → シーン 1 以上は `{ok:true, pending:true}`（注意を開くだけ。`writeText` を呼ばない。注意が開いているときに呼んでも開いたまま同じ値）、シーン 0 は `{ok:false, reason:'empty'}`（注意を開かない）。`handleKey` からの実行は同期で注意を開く。
+- `await app.promptNoticeAction('copy')` → 成功 `{ok:true, truncated:boolean, masked:boolean}`、クリップボードの拒否・使えない `{ok:false, reason:'clipboard'}`、伏せ字を適用できない `{ok:false, reason:'mask'}`（AC-472。注意は開いたまま）。成功・`clipboard` のときは注意を閉じる。注意が開いていないときは `{ok:false, reason:'closed'}`。
+  - 成功: `clipboard.writeText` を 1 回、`getImagePrompt({mask})`（`mask` は注意の伏せ字の選択）の `text` と同じ文字列で呼ぶ。`getState().message`（`key` は切り詰めなし `'prompt.copied'`、切り詰め `'prompt.truncated'`。`text` は非空。`masked:boolean` は伏せ字を適用したか。伏せ字の適用の有無で `text` が異なる）と `getCommandBar().status.role==='status'`。
   - シーン 0: `writeText` を呼ばず、`message.text` に内容がないことを示す。
   - 拒否・使えない: `app.getPromptFallback()` → `{ open:true, text:string（コピーするはずだった文章。getImagePrompt({mask}).text と同じ）, selectable:true, role:'dialog'|'region', label:string }` を開き、`message.text`（非空）で手でコピーできることを示す。それ以外のときは `getPromptFallback()` は `null`。
   - どの場合も、発話・シーン・要点・`selectedSceneId`・`input.draft`・`session` は変えない。
 
-### コピー前の注意と簡易マスキング（AC-468・469）
-- `app.getPromptCopyNotice()` → `{ open:boolean, focus:'notice'|'button'|null, role:'dialog'|'alertdialog', modal:true, label:string, text:string, live:'polite'|'assertive', mask:boolean, maskNote:string, controls:[{ id:'mask'|'copy'|'cancel', kind:'checkbox'|'button', label:string, checked?:boolean }], active:'mask'|'copy'|'cancel'|null }`。
-  - 開いた直後: `open:true`・`focus:'notice'`・`mask:true`（初期は適用する。LLM 連携の有効・無効と `getLlmMasking()` に関係しない）・`active` は `controls` のどれか。`text` は会議の内容が含まれ貼り付け先の外部サービスへ渡ることの注意、`maskNote` は検出は簡易で完全な除去は保証しない旨（ja は「保証しない」か「保証しません」、en は "not guarantee" などを含む）。`label`・`text`・`maskNote`・`controls[].label` は表示言語。`controls` の `mask` は `kind:'checkbox'`・`checked`（`mask` と同じ）。
-  - 閉じているとき `open:false`。注意を閉じた直後は `focus:'button'`（コピーの操作のボタンに戻る）。開いたことがなければ `focus:null`。注意が開いている間に `prompt.copy` をもう一度実行しても、注意は 1 つで書き込まない。
-- `app.setPromptCopyMask(bool)` → `{ok}`（真偽値以外・注意が閉じているときは `ok:false` で不変）。`app.cancelPromptCopy()` → `{ok:true}`（取りやめ。注意を閉じる）。
-- 注意が開いている間の `app.handleKey({key, shiftKey?})`（返り値は非 null の名前）: `Tab`／`Shift+Tab` は `active` を `controls` の中で次／前へ巡らせる（注意の外へ出ない）。`' '`（Space）は `active==='mask'` のとき適用を切り替える。`Enter` は `active` の操作（`copy` はコピー、`cancel` は取りやめ、`mask` は切り替え）。`Escape` は取りやめ（返り値 `'prompt.copy.cancel'`）。Enter のコピーは、マイクロタスク・`setImmediate` 1 回の後に終わっている。
-- 取りやめでは `writeText` を呼ばず、`getPromptFallback()` は `null` のまま、発話・シーン・要点・`selectedSceneId`・`input.draft`・`session` を変えない。
-- 簡易マスキング（AC-469）: `app.getImagePrompt({ mask:true })` は、`content` の body の、`setLlmMaskWords()` で登録した語・敬称付きの人名らしい語（例: 「山田様」）・メールアドレス・電話番号を、AC-359 と同じ規則で伏せ字に置き換えた文章（元の語を含まない）。`content` 以外の `sections` は `mask:false` と同じ。`getImagePrompt()`・`getImagePrompt({mask:false})` は伏せ字なし。PARAM-082 の判定と切り詰めは伏せ字の後の `content` で行う。伏せ字は `renderSvg()`・`renderOutline()`・`getState()`・`file.save` の `data` に反映しない。
+### コピーの前の注意（AC-470・471・473。Q-027 A）
+- `app.getPromptNotice()` → 閉じているとき `null`。開いているとき `{ open:true, role:'dialog', modal:true, label:string, description:string, statements:[{ key, text }], mask:{ role:'checkbox'|'switch', label:string, checked:boolean }, buttons:[{ id:'copy'|'cancel', label:string }] }`。
+  - `label` は注意の名前、`description` は注意の文（支援技術に伝える説明。実 DOM では `role="dialog"`・`aria-modal="true"`・`aria-labelledby`・`aria-describedby`）。`description` はすべての `statements[i].text` を含む。
+  - `statements` の `key`: `'content'`（文章に図の内容＝トピック・シーンの見出しと要点が入り、人名・連絡先などを含み得る）・`'external'`（貼り付けた先の外部サービス＝画像生成 AI などへその内容が渡る）・`'local'`（アプリ自身は文章を送信・保存しない）・`'maskLimit'`（伏せ字の検出は簡易で、完全な個人情報の除去は保証しない）。4 つとも非空。
+  - `mask` は伏せ字を適用するかの選択（名前 `label` と選択の状態 `checked`）。開いたときの `checked` は `getLlmMasking()`（簡易マスキングの設定）。`buttons` は `copy`・`cancel` の 2 つ（名前は非空で互いに異なる）。
+  - 文言（`label`・`description`・`statements`・`mask.label`・`buttons[].label`）は開いた時点の表示言語。
+- `app.setPromptNoticeMask(bool)`（伏せ字の選択のクリック相当）。設定（`getLlmMasking()`）は変えない。
+- `await app.promptNoticeAction('cancel')` と、注意が開いている間の `handleKey({key:'Escape'})`（返り値 `'prompt.notice.cancel'`）は、注意を閉じる。`writeText` を呼ばず、`message.key` を `'prompt.copied'`・`'prompt.truncated'` にしない。
+- フォーカス: `app.getFocus()` → 現在のキーボードのフォーカスの位置を表す文字列。コマンドバーのボタンは `'command:<command>'`、注意の中は `'notice:mask'`・`'notice:copy'`・`'notice:cancel'`（そのほかは実装が決める文字列）。`app.focusCommand(command)` はそのボタンへフォーカスを移す（Tab・クリック相当。`{ok}`）。注意が開いている間は注意の外へ移さない（`{ok:false}`）。
+  - 注意を開くと `getFocus()` は `'notice:*'` のどれか。閉じる（キャンセル・Escape）と、開く前の `getFocus()` の値に戻る。
+  - 注意が開いている間の `handleKey`（返り値は非 null）: `{key:'Tab'}`／`{key:'Tab', shiftKey:true}` は `mask`・`copy`・`cancel` の間を巡回し（外へ出ない）、`{key:' '}` は `notice:mask` のとき伏せ字の選択を切り替え、`{key:'Enter'}` は `notice:copy` のときコピー（マイクロタスク・`setImmediate` 2 回の後に終わっている）、`notice:cancel` のときキャンセル。
+- 外部通信（AC-474）: 注意の表示・伏せ字の選択・コピー・キャンセルは `fetch`/`XMLHttpRequest`/`WebSocket`/`EventSource`/`sendBeacon`・`options.relay` を呼ばず、LLM 連携の同意（`getLlmConsent()`）を求めない。伏せ字の選択・伏せ字にした文章は `options.storage`・`file.save` の `data` に含めない。
+
+### 伏せ字（AC-471）
+- `app.getImagePrompt({mask:true})` は、`content` の `body`（トピックの題名・シーンの見出し・要点）に含まれる、登録した語（`setLlmMaskWords`）・敬称付きの人名らしい語・メールアドレス・電話番号を、LLM 連携の送信（AC-359）と同じ伏せ字に置き換えたもの。ほかの `sections` は `getImagePrompt()`（伏せ字なし。`{mask:false}` と同じ）と同じ。
 
 ### 文章（AC-420・421・422）
-- `app.getImagePrompt({ mask }?)` → シーン 0 は `null`。それ以外は `{ text:string, truncated:boolean, sections:[{ key, heading:string, body:string, typeIds?:[typeId] }] }`（`mask:true` は上の簡易マスキングを適用。省略・`false` は適用しない）。
+- `app.getImagePrompt()` → シーン 0 は `null`。それ以外は `{ text:string, truncated:boolean, sections:[{ key, heading:string, body:string, typeIds?:[typeId] }] }`。
   - `sections` の `key` は順に `'purpose'`（目的）・`'palette'`（配色）・`'typography'`（文字）・`'illustration'`（イラスト）・`'mood'`（雰囲気）・`'composition'`（構成）・`'content'`（内容）。`text` は各 `heading` と `body` をこの順に含む。`heading` は表示言語（ja は上の括弧の語を含む）。
   - 配色・文字・イラスト・雰囲気の `body` は、選んでいる描画スタイルの画風の記述のそれぞれ配色・書体・描画・雰囲気を含む。画風の記述を持たない描画スタイルでは、その 4 つの `body` は空かその描画スタイルの名前だけ（少なくとも 1 つは名前）。
   - `composition` は `typeIds`（`getLayoutInfo().selected` と同じ）を持ち、`body` は各型の名称（`getCommandBar()` の `layoutType.<id>` の `label`）と説明を含む。
