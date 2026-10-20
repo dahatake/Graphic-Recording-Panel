@@ -1,5 +1,5 @@
 import { paintRpgCanvas } from './rpgmap.js';
-import { buildLook } from './presetdiagram.js';
+import { buildLook, jaggedPoints, emotionBalloonSceneIds } from './presetdiagram.js';
 import { presetOf, fontFamilyOf, LEGACY_FONT_FAMILY } from './stylepresets.js';
 // FR-006（PNG・SVG 保存）/ FR-007（PDF 保存）。外部通信なし・依存なし（PDF は自前で生成する）。
 // 保存は「表示中のビュー」ではなく常に 2D の図の内容（全シーンの見出しと要点）を出力する。3D 表示中はその旨を表示する（AC-014）。
@@ -87,7 +87,9 @@ export function wrapLines(text, fs, width) {
 }
 
 const rgb = (v) => [1, 3, 5].map((i) => (parseInt(hex6(v).slice(i, i + 2), 16) / 255).toFixed(3)).join(' ');
-export function buildPdf(scenes, { title = '', arrange = null, parts = null, look = null } = {}) {
+const JAG_PX = 3; // 保存（PNG・PDF）の感情の吹き出しの歯の高さ（行の間隔に収める）
+// FR-076 AC-467: emotion（吹き出し型で感情語を含むトピックのシーンの id の集合）のシーンの要点は、ギザギザの吹き出し（jaggedPoints）で描く
+export function buildPdf(scenes, { title = '', arrange = null, parts = null, look = null, emotion = null } = {}) {
   const FS_H = 15; const FS_P = 11; const LH_H = 22; const LH_P = 16;
   const width = A4.w - A4.margin * 2;
   // FR-077 AC-419: 描画スタイルの紙面（背景色・方眼・罫線）を各ページの最初に描く
@@ -101,7 +103,7 @@ export function buildPdf(scenes, { title = '', arrange = null, parts = null, loo
   let y = A4.h - A4.margin; let page = 0;
   const need = (h) => { if (y - h < A4.margin) { pages.push(paper()); page++; y = A4.h - A4.margin; } };
   // 見出し・要点の飾り（look があるときだけ）。i はシーンの番号（付箋の色の巡回）
-  const deco = (kind, i, x, top, w, h) => {
+  const deco = (kind, i, x, top, w, h, emo = false) => {
     if (!look || (kind !== 'heading' && kind !== 'point')) return '';
     let g = 'q ';
     if (kind === 'heading') {
@@ -111,7 +113,11 @@ export function buildPdf(scenes, { title = '', arrange = null, parts = null, loo
       else if (d === 'sticky') g += `${rgb(look.headSticky)} rg ${rgb(look.pointStroke(look.headSticky))} RG ${look.lineWidth / 2} w ${x - 4} ${top - h} ${w + 8} ${h} re B\n`;
     } else {
       const f = look.pointFills[i % look.pointFills.length];
-      g += `${rgb(f)} rg ${rgb(look.pointStroke(f))} RG ${look.lineWidth / 2} w ${x - 6} ${top - h} ${w + 8} ${h} re B\n`;
+      g += `${rgb(f)} rg ${rgb(look.pointStroke(f))} RG ${look.lineWidth / 2} w `;
+      if (emo) { // 左上原点の矩形で作り、PDF の座標（下が原点）へ反転する
+        const pts = jaggedPoints(x - 6 + JAG_PX, JAG_PX, w + 8 - JAG_PX * 2, h - JAG_PX * 2, JAG_PX, 12);
+        g += `${pts.map(([px, py], k) => `${px} ${Math.round((top - py) * 10) / 10} ${k ? 'l' : 'm'}`).join(' ')} h B\n`;
+      } else g += `${x - 6} ${top - h} ${w + 8} ${h} re B\n`;
     }
     return `${g}Q\n`;
   };
@@ -122,10 +128,10 @@ export function buildPdf(scenes, { title = '', arrange = null, parts = null, loo
     return `${rgb(look.text)} rg `;
   };
   // 内容ストリームの 1 ブロック: 全文を ActualText にして、表示は折り返した行ごとに Tj。
-  const block = (text, fs, lh, indent, kind = null, i = 0) => {
+  const block = (text, fs, lh, indent, kind = null, i = 0, emo = false) => {
     const lines = wrapLines(text, fs, width - indent);
     need(lines.length * lh + 4);
-    let s = deco(kind, i, A4.margin + indent, y + 2, width - indent, lines.length * lh + 2);
+    let s = deco(kind, i, A4.margin + indent, y + 2, width - indent, lines.length * lh + 2, emo);
     s += `/Span <</ActualText <FEFF${utf16Hex(text)}>>> BDC\nBT ${look ? inkOf(kind, i) : ''}/F1 ${fs} Tf ${lh} TL ${A4.margin + indent} ${y - fs} Td\n`;
     lines.forEach((l, i) => { s += `${i ? 'T* ' : ''}<${utf16Hex(l, true)}> Tj\n`; });
     s += 'ET\nEMC\n';
@@ -151,7 +157,7 @@ export function buildPdf(scenes, { title = '', arrange = null, parts = null, loo
     scenes.forEach((sc, i) => {
       y -= i ? 10 : 0;
       block(sc.heading, FS_H, LH_H, 0, 'heading', i);
-      for (const p of sc.points) block(p.text, FS_P, LH_P, 16, 'point', i);
+      for (const p of sc.points) block(p.text, FS_P, LH_P, 16, 'point', i, !!emotion?.has(sc.id));
     });
   }
   // FR-063 AC-321: LLM が対応づけた絵（物の名前）を、PDF にも文字で含める
@@ -217,9 +223,9 @@ async function partsBand(items, width, imageFactory) {
 }
 
 // ---- PNG（canvasFactory に全シーンの見出しと要点を描く） ----
-export async function renderPng(scenes, canvasFactory, { title = '', arrange = null, parts = null, imageFactory = null, look = null } = {}) {
+export async function renderPng(scenes, canvasFactory, { title = '', arrange = null, parts = null, imageFactory = null, look = null, emotion = null } = {}) {
   if (arrange) return renderArrangedPng(scenes, arrange, canvasFactory, parts, imageFactory);
-  if (look) return renderStyledPng(scenes, canvasFactory, look, parts, imageFactory);
+  if (look) return renderStyledPng(scenes, canvasFactory, look, parts, imageFactory, emotion);
   const FS_H = 18; const FS_P = 15; const ROW_H = 30; const HEAD_H = 40; const GAP = 22;
   const font = (px, bold) => `${bold ? '700 ' : ''}${px}px ${LEGACY_FONT_FAMILY}`;
   const probe = canvasFactory(8, 8).getContext('2d');
@@ -256,7 +262,8 @@ export async function renderPng(scenes, canvasFactory, { title = '', arrange = n
 }
 
 // FR-075・FR-077 AC-419: 画風プリセットの見た目で描く PNG（紙面と質感・配色・見出しの飾り・吹き出し・線の太さ・書体の系統）。文字は fillText で全部描く
-async function renderStyledPng(scenes, canvasFactory, look, parts, imageFactory) {
+// FR-076 AC-467: emotion（吹き出し型で感情語を含むトピックのシーンの id の集合）のシーンの吹き出しは、画面の図と同じギザギザ（jaggedPoints）で描く
+async function renderStyledPng(scenes, canvasFactory, look, parts, imageFactory, emotion = null) {
   const FS_H = 18; const FS_P = 15; const ROW_H = 34; const HEAD_H = 44; const GAP = 22;
   const font = (px, weight) => `${weight ? `${weight} ` : ''}${px}px ${look.fontFamily}`;
   const probe = canvasFactory(8, 8).getContext('2d');
@@ -286,7 +293,10 @@ async function renderStyledPng(scenes, canvasFactory, look, parts, imageFactory)
     for (const p of sc.points) {
       const bx = MARGIN + 18; const by = y + 3; const bw = w - MARGIN * 2 - 18; const bh = ROW_H - 8;
       g.strokeStyle = look.pointStroke(fill); g.lineWidth = look.lineWidth; g.fillStyle = fill;
-      if (look.balloon === 'sticky') { g.fillRect(bx, by, bw, bh); g.strokeRect(bx, by, bw, bh); }
+      if (emotion?.has(sc.id)) { // 歯の分だけ内側に縮めて、外形が行の枠に収まるようにする
+        const pts = jaggedPoints(bx + JAG_PX, by + JAG_PX, bw - JAG_PX * 2, bh - JAG_PX * 2, JAG_PX, 12);
+        g.beginPath(); pts.forEach(([px, py], k) => (k ? g.lineTo(px, py) : g.moveTo(px, py))); g.closePath(); g.fill(); g.stroke();
+      } else if (look.balloon === 'sticky') { g.fillRect(bx, by, bw, bh); g.strokeRect(bx, by, bw, bh); }
       else { round(bx, by, bw, bh, look.balloon === 'cloud' ? bh / 2 : 8); g.fill(); g.stroke(); }
       g.fillStyle = look.pointTexts[i % look.pointTexts.length]; g.font = font(FS_P, look.weight);
       g.fillText(p.text, bx + 12, by + bh / 2);
@@ -395,10 +405,12 @@ export function exportModule(ctx) {
   const drawn = () => ctx.api.getLlmDrawItems?.() ?? null; // FR-063
   // FR-077 AC-419: 現在の描画スタイル（上部・［設定］で選んだもの）の見た目で保存する
   const look = () => exportLook(ctx.api.getDrawStyleSpec?.(ctx.api.getDrawStyle?.()) ?? null);
-  ctx.registerCommand('save.pdf', () => run('pdf', 'application/pdf', () => buildPdf(scenes(), { title: ctx.t('app.title'), arrange: arranged(), parts: drawn(), look: look() })));
+  // FR-076 AC-467: 吹き出し型で感情語を含むトピックの吹き出しは、保存でも画面の図と同じギザギザ
+  const emotion = () => emotionBalloonSceneIds(ctx.api, scenes());
+  ctx.registerCommand('save.pdf', () => run('pdf', 'application/pdf', () => buildPdf(scenes(), { title: ctx.t('app.title'), arrange: arranged(), parts: drawn(), look: look(), emotion: emotion() })));
   ctx.registerCommand('save.png', () => run('png', 'image/png', async () => {
     const factory = ctx.options.canvasFactory ?? browserCanvasFactory();
     if (!factory) throw new Error('no canvas');
-    return renderPng(scenes(), factory, { arrange: arranged(), rpg: ctx.api.getRpgMap?.() ?? null, parts: drawn(), imageFactory: ctx.options.imageFactory ?? null, look: look() });
+    return renderPng(scenes(), factory, { arrange: arranged(), rpg: ctx.api.getRpgMap?.() ?? null, parts: drawn(), imageFactory: ctx.options.imageFactory ?? null, look: look(), emotion: emotion() });
   }));
 }
