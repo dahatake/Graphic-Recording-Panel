@@ -1,6 +1,7 @@
 // FR-047 RPG風の描画スタイル: ドット絵の俯瞰マップ（トピック=街・城、要点=地点、関係線=道）。DOM に依存せず、同じ入力からは毎回同じ結果（決定的）。
 // 契約: tests/system/CONTRACT.md「RPG風の描画スタイル」（getRpgMap の形）。後続の項目（会話・音・操作）は、ここの map の形を変えずに足す。
 import { TILE, RPG_PALETTE, colorOf, spriteSvg, spritePaths, markPaths } from './rpgsprites.js';
+import { LEGACY_FONT_FAMILY } from './stylepresets.js';
 
 export { TILE, RPG_PALETTE };
 export const RPG_STYLE_ID = 'rpg';
@@ -154,7 +155,7 @@ export function paintRpgCanvas(g, map) {
   g.textBaseline = 'alphabetic';
   for (const p of map.places) {
     const fs = p.kind === 'spot' ? 12 : 14;
-    g.font = `700 ${fs}px system-ui, 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif`;
+    g.font = `700 ${fs}px ${LEGACY_FONT_FAMILY}`;
     const w = g.measureText ? g.measureText(p.label ?? '').width : 0;
     const x = p.x * TILE + TILE + 2; const y = p.y * TILE + 12;
     g.fillStyle = PAPER; g.fillRect(x - 2, y - fs, (w || 0) + 4, fs + 4);
