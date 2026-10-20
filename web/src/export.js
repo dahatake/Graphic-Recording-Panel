@@ -1,6 +1,6 @@
 import { paintRpgCanvas } from './rpgmap.js';
 import { buildLook } from './presetdiagram.js';
-import { presetOf, fontFamilyOf } from './stylepresets.js';
+import { presetOf, fontFamilyOf, LEGACY_FONT_FAMILY } from './stylepresets.js';
 // FR-006（PNG・SVG 保存）/ FR-007（PDF 保存）。外部通信なし・依存なし（PDF は自前で生成する）。
 // 保存は「表示中のビュー」ではなく常に 2D の図の内容（全シーンの見出しと要点）を出力する。3D 表示中はその旨を表示する（AC-014）。
 // シーンが 0 件のときは保存できず、理由を表示する（AC-046）。
@@ -209,7 +209,7 @@ async function partsBand(items, width, imageFactory) {
       items.forEach((it, i) => {
         const x = MARGIN + (i % per) * BAND_CELL; const y = top + Math.floor(i / per) * BAND_CELL;
         g.drawImage(imgs[i], x, y, 48, 48);
-        g.fillStyle = '#15191f'; g.font = "11px system-ui, 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif";
+        g.fillStyle = '#15191f'; g.font = `11px ${LEGACY_FONT_FAMILY}`;
         g.fillText(String(it.label).slice(0, 8), x, y + 54);
       });
     },
@@ -221,7 +221,7 @@ export async function renderPng(scenes, canvasFactory, { title = '', arrange = n
   if (arrange) return renderArrangedPng(scenes, arrange, canvasFactory, parts, imageFactory);
   if (look) return renderStyledPng(scenes, canvasFactory, look, parts, imageFactory);
   const FS_H = 18; const FS_P = 15; const ROW_H = 30; const HEAD_H = 40; const GAP = 22;
-  const font = (px, bold) => `${bold ? '700 ' : ''}${px}px system-ui, 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif`;
+  const font = (px, bold) => `${bold ? '700 ' : ''}${px}px ${LEGACY_FONT_FAMILY}`;
   const probe = canvasFactory(8, 8).getContext('2d');
   const measure = (s, px, bold) => { probe.font = font(px, bold); return probe.measureText(s).width; };
   let w = 320;
@@ -301,7 +301,7 @@ async function renderStyledPng(scenes, canvasFactory, look, parts, imageFactory)
 // FR-016 AC-089: 整理の表示の PNG（軸の名前・区分の見出し・未分類の領域・各オブジェクトを、整理の配置どおりに描く）
 async function renderArrangedPng(scenes, model, canvasFactory, parts = null, imageFactory = null) {
   const g = model.geometry;
-  const font = (px, bold) => `${bold ? '700 ' : ''}${px}px system-ui, 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif`;
+  const font = (px, bold) => `${bold ? '700 ' : ''}${px}px ${LEGACY_FONT_FAMILY}`;
   const band = await partsBand(parts, g.width, imageFactory);
   const canvas = canvasFactory(g.width, g.height + band.h);
   const c = canvas.getContext('2d');

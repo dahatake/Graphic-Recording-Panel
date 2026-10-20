@@ -18,13 +18,36 @@ export const VISUAL_KEYS = ['palette', 'paper', 'font', 'headingDecoration', 'ba
 export const MIN_TEXT_CONTRAST = 4.5;
 export const MIN_OUTLINE_CONTRAST = 3;
 
+// NFR-UX-012 日本語の文字の書体（Yu Gothic UI）。書体の指定の並びは、従来の並びにあった欧文専用の書体（PARAM-093。従来の順のまま）
+// → Yu Gothic UI → 従来の並びの残り（日本語の字形を持ち得る書体。従来の順のまま）。Yu Gothic UI より前に日本語の字形を持ち得る書体
+// （総称の書体・システムの書体のキーワード・日本語の書体）を置かない。書体は同梱せず外部からも取得しない（NFR-OFFLINE-001）。
+export const JP_FONT = 'Yu Gothic UI';
+// PARAM-093: 欧文専用の書体の一覧（書体の指定で Yu Gothic UI より前に置いてよい書体）
+export const LATIN_ONLY_FONTS = ['Segoe UI', 'Segoe UI Variable', 'Segoe Print', 'Ink Free', 'Arial Rounded MT Bold'];
+const LATIN_SET = new Set(LATIN_ONLY_FONTS.map((n) => n.toLowerCase()));
+export const isLatinOnlyFont = (name) => LATIN_SET.has(String(name).trim().toLowerCase());
+// 従来の並び（書体名の配列、または { name } の配列）を NFR-UX-012 の並びにする。jp は Yu Gothic UI の要素（既にあればそれを使う）。
+export function jpFontOrder(list, jp) {
+  const nameOf = (x) => (typeof x === 'string' ? x : x.name);
+  const yu = list.find((x) => nameOf(x) === JP_FONT) ?? jp ?? JP_FONT;
+  const rest = list.filter((x) => nameOf(x) !== JP_FONT);
+  return [...rest.filter((x) => isLatinOnlyFont(nameOf(x))), yu, ...rest.filter((x) => !isLatinOnlyFont(nameOf(x)))];
+}
+const quoteFont = (name) => (/\s/.test(name) ? `'${name}'` : name);
+// 書体名の並び → CSS・SVG・Canvas の書体の指定の値（空白を含む名前は引用符で囲む）
+export const fontFamilyValue = (names) => names.map(quoteFont).join(', ');
+// 既存の 4 つの描画スタイル（手書き調・アニメ調・シンプル・RPG風）の図（SVG）・PNG・PDF・RPG風の地図の文字の書体の指定（NFR-UX-012 AC-466）
+export const LEGACY_FONT_NAMES = jpFontOrder(['system-ui', 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', 'sans-serif']);
+export const LEGACY_FONT_FAMILY = fontFamilyValue(LEGACY_FONT_NAMES);
+
 // 書体の系統ごとの並び（端末に入っている書体の名前だけ。書体のファイルは同梱せず外部からも取得しない）。
 // 手書き風 → 丸ゴシック → 端末の標準の書体、丸ゴシック → 端末の標準の書体 の順に、ブラウザが最初に見つかったものを使う。
+// 日本語の字形は、欧文専用の書体の次の Yu Gothic UI が先に受け持つ（NFR-UX-012。系統の順は欧文専用の書体どうし・残りどうしで保つ）。
 const HAND = [['Klee One', 'handwriting'], ['Klee', 'handwriting'], ['Yomogi', 'handwriting'], ['Zen Kurenaido', 'handwriting'], ['Segoe Print', 'handwriting'], ['Ink Free', 'handwriting']];
 const ROUND = [['Zen Maru Gothic', 'roundGothic'], ['M PLUS Rounded 1c', 'roundGothic'], ['Kosugi Maru', 'roundGothic'], ['Hiragino Maru Gothic ProN', 'roundGothic'], ['Arial Rounded MT Bold', 'roundGothic']];
 const GOTHIC = [['BIZ UDPGothic', 'gothic'], ['Hiragino Sans', 'gothic'], ['Yu Gothic UI', 'gothic'], ['Meiryo', 'gothic'], ['Noto Sans JP', 'gothic']];
 const GENERIC = [['sans-serif', 'generic']];
-const toStack = (list) => list.map(([name, kind]) => ({ name, kind }));
+const toStack = (list) => jpFontOrder(list.map(([name, kind]) => ({ name, kind })), { name: JP_FONT, kind: 'gothic' });
 export const FONT_STACKS = {
   handwriting: toStack([...HAND, ...ROUND, ...GENERIC]),
   roundGothic: toStack([...ROUND, ...GENERIC]),
@@ -32,7 +55,7 @@ export const FONT_STACKS = {
 };
 export const fontStacks = () => JSON.parse(JSON.stringify(FONT_STACKS));
 // SVG の font-family 属性の値（空白を含む名前は引用符で囲む）
-export const fontFamilyOf = (kind) => (FONT_STACKS[kind] ?? FONT_STACKS.gothic).map((f) => (/\s/.test(f.name) ? `'${f.name}'` : f.name)).join(', ');
+export const fontFamilyOf = (kind) => fontFamilyValue((FONT_STACKS[kind] ?? FONT_STACKS.gothic).map((f) => f.name));
 
 // ---- 色 ----
 export function parseColor(c) {

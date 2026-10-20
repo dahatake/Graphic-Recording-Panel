@@ -26,8 +26,9 @@
   /* 角丸（Fluent: borderRadiusMedium 4 / borderRadiusLarge 8） */
   --radius-control: 4px; --radius: 8px; --radius-round: 999px;
   --stroke: 1px; --stroke-thick: 2px;
-  /* 書体と Type ramp（システムフォント。外部フォントなし） */
-  --font-sans: "Segoe UI", "Segoe UI Variable", system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+  /* 書体と Type ramp（システムフォント。外部フォントなし）
+     NFR-UX-012 AC-465: 欧文専用の書体（PARAM-093）→ Yu Gothic UI → 日本語の字形を持ち得る書体。欧文は Segoe UI、日本語は Yu Gothic UI */
+  --font-sans: "Segoe UI", "Segoe UI Variable", "Yu Gothic UI", system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Meiryo", sans-serif;
   --font-size: 14px;
   --font-size-caption: 12px; --font-size-body: 14px; --font-size-subtitle: 16px; --font-size-title: 20px;
   --font-weight-regular: 400; --font-weight-semibold: 600;
