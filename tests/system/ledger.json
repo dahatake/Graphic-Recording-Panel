@@ -165,13 +165,13 @@
     "AC-417": "sha256:a118cbbb63a602be",
     "AC-418": "sha256:02f6cc4a1725a831",
     "AC-419": "sha256:781fa2ea3b8415ac",
-    "AC-420": "sha256:09062126b098b50f",
-    "AC-421": "sha256:b2f8f19ed6d04d56",
+    "AC-420": "sha256:b7932ea93d8b0d02",
+    "AC-421": "sha256:f545c43493b3d563",
     "AC-422": "sha256:f2fc47d36321cc4a",
     "AC-423": "sha256:4ac7dbc0de97712e",
     "AC-424": "sha256:2926e2da14f072c2",
-    "AC-408": "sha256:81bd83b32cf6e0f1",
-    "AC-409": "sha256:c8f79b66910080b4",
+    "AC-408": "sha256:19444ae34417a94d",
+    "AC-409": "sha256:013a0382e6646415",
     "AC-410": "sha256:3f2aedf5c15167a4",
     "AC-411": "sha256:56066efff0855d9a",
     "AC-412": "sha256:6768b137333b3db8",
@@ -213,7 +213,10 @@
     "AC-453": "sha256:5eae349c2810e0e2",
     "AC-454": "sha256:fdd07092e09a81c9",
     "AC-455": "sha256:e58a7305e4b75fc0",
-    "AC-457": "sha256:f364dd8ae3b34916"
+    "AC-457": "sha256:f364dd8ae3b34916",
+    "AC-470": "sha256:d6e97474844edc0f",
+    "AC-471": "sha256:623f82d3e64396ce",
+    "AC-473": "sha256:f3cae654f124d117"
   },
   "cases": [
     {
@@ -5148,11 +5151,11 @@
       "ac_ids": [
         "AC-420"
       ],
-      "title": "画像生成プロンプトのコピー（ボタン・キー・検索）で 7 つの見出しの文章がクリップボードに入り、画風の記述・型・内容が入る",
+      "title": "画像生成プロンプトのコピー（ボタン・キー・検索）→注意で「コピー」を選ぶと 7 の見出しの文章がクリップボードに入り、画風の記述・型・内容が入る（異常系: 注意を閉じると入らない）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-420\" tests/system/imageprompt.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "e6f6ffa",
       "last_run_at": "2026-10-20T12:57:29+09:00",
       "evidence": "work/runs/adhoc-202610201256/logs/system-test/E2E-205-202610201257.log",
@@ -5162,6 +5165,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "run 202610200356 part 2/2: AC-420 の System Test を追加"
+        },
+        {
+          "at": "2026-10-20T13:54:35+09:00",
+          "by": "test-designer",
+          "change": "title: '画像生成プロンプトのコピー（ボタン・キー・検索）で 7 つの見出しの文章がクリップボードに入り、画風の記述・型・内容が入る' -> '画像生成プロンプトのコピー（ボタン・キー・検索）→注意で「コピー」を選ぶと 7 の見出しの文章がクリップボードに入り、画風の記述・型・内容が入る（異常系: 注意を閉じると入らない）'",
+          "reason": "AC-420 の変更（Q-027 A。run 202610201309）: コピーの操作は注意（AC-470）を経て「コピー」の選択で書き込むように見直し"
         }
       ]
     },
@@ -5297,11 +5306,11 @@
       "ac_ids": [
         "AC-408"
       ],
-      "title": "黄黒手書き風: 白い紙面・黒の文字と枠・黄の塗り（黒かグレーの輪郭線）・黒帯の白抜き見出し・黄の雲形の吹き出し・線画人物・太めの文字と書体の並び（異常系: 手書き風の書体なし）",
+      "title": "黄黒手書き風: 白い紙面・黒の文字と枠・黄の塗り（黒かグレーの輪郭線）・黒い帯の白抜き見出し・通常の吹き出しは黄の雲形（感情語のトピックは異なる形）・線画人物・太めの文字と書体の並び（異常系: 手書き風の書体なし）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-408\" tests/system/stylepreset.test.js",
       "canary": true,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "e6f6ffa",
       "last_run_at": "2026-10-20T12:57:29+09:00",
       "evidence": "work/runs/adhoc-202610201256/logs/system-test/E2E-210-202610201256.log",
@@ -5311,6 +5320,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610200356 part 1/2）"
+        },
+        {
+          "at": "2026-10-20T13:54:36+09:00",
+          "by": "test-designer",
+          "change": "title: '黄黒手書き風: 白い紙面・黒の文字と枠・黄の塗り（黒かグレーの輪郭線）・黒帯の白抜き見出し・黄の雲形の吹き出し・線画人物・太めの文字と書体の並び（異常系: 手書き風の書体なし）' -> '黄黒手書き風: 白い紙面・黒の文字と枠・黄の塗り（黒かグレーの輪郭線）・黒い帯の白抜き見出し・通常の吹き出しは黄の雲形（感情語のトピックは異なる形）・線画人物・太めの文字と書体の並び（異常系: 手書き風の書体なし）'",
+          "reason": "AC-408 の変更（Q-026 A。run 202610201309）: 雲形は通常の吹き出しに限り、感情語を含むトピックの吹き出し（AC-156。data-emotional）は通常と異なる形を求めるよう見直し"
         }
       ]
     },
@@ -6556,6 +6571,81 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610200407 part 2/2）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-238",
+      "requirement_ids": [
+        "FR-078"
+      ],
+      "ac_ids": [
+        "AC-470"
+      ],
+      "title": "コピーの操作で書き込む前に注意（図の内容・外部サービスへ渡る・送信保存しない）が毎回開き、「コピー」を選ぶまで書き換えない。文言は表示言語に従う（異常系: 書き込み拒否）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-470\" tests/system/imageprompt.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T13:54:39+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "run 202610201309: AC-470（Q-027 A）の System Test を追加"
+        }
+      ]
+    },
+    {
+      "id": "E2E-239",
+      "requirement_ids": [
+        "FR-078"
+      ],
+      "ac_ids": [
+        "AC-471"
+      ],
+      "title": "注意で伏せ字を選ぶと内容の部分の登録語・敬称付き人名・メール・電話が AC-359 と同じ伏せ字になり他の部分は同じ。選ばないと元の文字。保証しない旨とメッセージ（異常系: 対象なし・LLM 無効）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-471\" tests/system/imageprompt.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T13:54:41+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "run 202610201309: AC-471（Q-027 A）の System Test を追加"
+        }
+      ]
+    },
+    {
+      "id": "E2E-240",
+      "requirement_ids": [
+        "FR-078"
+      ],
+      "ac_ids": [
+        "AC-473"
+      ],
+      "title": "注意のキャンセル・Esc で閉じ、書き換えずメッセージなし、フォーカスが戻り内容・選択を保つ。フォーカスは注意の外に出ずキーボードで操作でき、ダイアログとして伝わる。外部へのリクエスト 0 件（異常系: シーン 0 では注意なし）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-473\" tests/system/imageprompt.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-20T13:54:44+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "run 202610201309: AC-473（Q-027 A）の System Test を追加。AC-474 の外部へのリクエスト 0 件も同じケースで確かめる"
         }
       ]
     }
