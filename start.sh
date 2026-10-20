@@ -19,6 +19,6 @@ if [ ! -f "$here/web/index.html" ]; then
     exit 1
 fi
 
-echo "Open http://localhost:8080/ in your browser after the server starts."
+echo "Open the URL (http://127.0.0.1:<port>/) printed by the server below in your browser. Pass --port N to fix the port."
 echo "Press Ctrl+C in this window to stop the server."
-exec "$python" "$here/server/relay.py" --web "$here/web" --port 8080
+exec "$python" "$here/server/relay.py" --web "$here/web" "$@"
