@@ -114,6 +114,7 @@ export function llmDrawModule(ctx) {
   api.getLlmMasking = () => masking;
   api.setLlmMasking = (v) => { masking = v === true; ctx.emit('change', api); return masking; };
   api.setLlmMaskWords = (list) => { maskWords = (Array.isArray(list) ? list : []).map((w) => String(w ?? '').trim()).filter(Boolean); return [...maskWords]; };
+  api.getLlmMaskWords = () => [...maskWords]; // FR-078 AC-469: プロンプトのコピーの簡易マスキングも同じ登録語を使う
 
   // ---- 抽出結果（メモリだけ）: シーン ID → { objects, metaphors, people, emotions } ----
   const drawn = new Map();
