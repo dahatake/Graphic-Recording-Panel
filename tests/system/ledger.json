@@ -3307,11 +3307,11 @@
       "ac_ids": [
         "AC-355"
       ],
-      "title": "キー値を表示せず設定済み/未設定のみ・入力欄なし・DOM/保存領域にキーなし",
+      "title": "LLM のキー値を表示せず設定済み/未設定のみ・LLM 連携（llm.*）にキー・トークンの入力欄なし（Azure Speech の azureSpeech.* は FR-082 AC-448 により除外）・DOM/保存領域にキーなし",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-355\" tests/system/llm-consent.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "f91ec5a",
       "last_run_at": "2026-10-19T23:22:42+09:00",
       "evidence": "work/runs/202610192220/logs/system-test/E2E-153-202610192322.log",
@@ -3321,6 +3321,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-20T09:22:03+09:00",
+          "by": "test-designer",
+          "change": "title: 'キー値を表示せず設定済み/未設定のみ・入力欄なし・DOM/保存領域にキーなし' -> 'LLM のキー値を表示せず設定済み/未設定のみ・LLM 連携（llm.*）にキー・トークンの入力欄なし（Azure Speech の azureSpeech.* は FR-082 AC-448 により除外）・DOM/保存領域にキーなし'",
+          "reason": "FR-082（AC-448）が AC-355 を Azure Speech のキーに適用しないと明記したため、入力欄なしの検査を LLM 連携の項目に限定し azureSpeech.* を除外。キー値が DOM・保存領域にない検査は維持"
         }
       ]
     },
