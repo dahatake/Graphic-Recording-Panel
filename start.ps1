@@ -25,8 +25,8 @@ if (-not (Test-Path (Join-Path $web "index.html") -PathType Leaf)) {
     exit 1
 }
 
-Write-Host "Open http://localhost:8080/ in your browser after the server starts."
+Write-Host "Open the URL (http://127.0.0.1:<port>/) printed by the server below in your browser. Pass --port N to fix the port."
 Write-Host "Press Ctrl+C in this window to stop the server."
 $relay = Join-Path $PSScriptRoot "server/relay.py"
-& $python.Source @pythonArgs $relay --web $web --port 8080
+& $python.Source @pythonArgs $relay --web $web @args
 exit $LASTEXITCODE

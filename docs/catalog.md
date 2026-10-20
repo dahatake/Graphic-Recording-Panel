@@ -91,7 +91,7 @@
 | FR-082 | Azure Speech の設定（エンドポイント・キーの設定・変更・削除と接続テスト） | 承認済み | web/src/speechsettings.js, web/src/ui.js, web/src/relayclient.js, web/src/main.js, web/src/app.js, web/styles/app.css, web/sw.js, server/relay_speech.py, server/relay.py, users-guide/09-azure-speech.md | tests/unit/speechsettings.test.js, tests/relay/test_relay_speech.py, tests/system/azurespeech.test.js, tests/system/azurespeech-relay.test.js, tests/system/azurespeech-guide.test.js | アプリ組立, デザイン基盤, i18n, 中継サーバー, Azure Speech の設定 |
 | NFR-SEC-005 | Azure Speech のキーの安全な保管と非露出 | 承認済み | server/relay_speech.py, server/relay.py, web/src/speechsettings.js, web/src/ui.js, .gitignore | tests/relay/test_relay_speech.py, tests/unit/speechsettings.test.js, tests/system/azurespeech-relay.test.js, tests/system/azurespeech.test.js | 中継サーバー, Azure Speech の設定 |
 | NFR-UX-012 | 日本語の文字の書体（Yu Gothic UI） | 承認済み | web/styles/tokens.css, web/src/stylepresets.js, web/src/diagram.js, web/src/export.js, web/src/rpgmap.js, web/src/presetdiagram.js | tests/unit/jpfont.test.js, tests/unit/stylepreset.test.js, tests/system/jpfont.test.js | デザイン基盤, 描画スタイルの登録, 画風プリセットの描画 |
-| FR-083 | 起動時の待ち受けポートの自動選択 | 承認済み | 未実装 | 未実装 | 中継サーバー |
+| FR-083 | 起動時の待ち受けポートの自動選択 | 承認済み | server/relay.py, start.ps1, start.sh, README.md, users-guide/01-getting-started.md, users-guide/06-troubleshooting.md | tests/relay/test_relay_port.py | 中継サーバー |
 
 ## API・イベント
 
