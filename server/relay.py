@@ -5,7 +5,8 @@
 - 127.0.0.1 だけで待ち受ける。静的ファイルの配信と LLM の中継を同じオリジンで行う。
 - Host・Origin が自分自身（127.0.0.1 / localhost の自分のポート）でない要求は 403。
 - API キー・トークンはこのプロセスだけが持ち、応答・ログには出さない。
-- 構成: relay_config（設定）・relay_security（入口の検証と応答の無害化）・relay_upstream（上流）。
+- 構成: relay_config（設定）・relay_security（入口の検証と応答の無害化）・relay_upstream（上流）・
+  relay_speech（Azure Speech の設定・キーの保管・接続テスト・音声の中継。FR-082 / NFR-SEC-005）。
 """
 import argparse
 import importlib
@@ -21,10 +22,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 cfg = importlib.import_module("relay_config")
 sec = importlib.import_module("relay_security")
 up = importlib.import_module("relay_upstream")
+speech = importlib.import_module("relay_speech")
 
 BIND_ADDRESS = "127.0.0.1"
 MAX_REQUEST_BYTES = 1024 * 1024
 LLM_PREFIX = "/api/llm/"
+SPEECH_PREFIX = "/api/speech/"
 
 
 def current_status():
@@ -90,7 +93,7 @@ class RelayHandler(SimpleHTTPRequestHandler):
         self._send_json(403, sec.error_body("forbidden", "この要求は許可されていません。"))
 
     def _guard(self, is_llm):
-        """Host（全要求）と Origin（LLM 向けの POST は必須）を検証する。通らなければ 403 を返して False。"""
+        """Host（全要求）と Origin（LLM・Azure Speech 向けの GET 以外は必須）を検証する。通らなければ 403 を返して False。"""
         port = self._port()
         if not sec.host_ok(self.headers.get("Host"), port):
             self._forbidden()
@@ -106,10 +109,15 @@ class RelayHandler(SimpleHTTPRequestHandler):
         SimpleHTTPRequestHandler.end_headers(self)
 
     # --- メソッド ---
+    def _is_api(self):
+        return self.path.startswith(LLM_PREFIX) or self.path.startswith(SPEECH_PREFIX)
+
     def do_GET(self):
-        is_llm = self.path.startswith(LLM_PREFIX)
+        is_llm = self._is_api()
         if not self._guard(is_llm):
             return
+        if self.path.startswith(SPEECH_PREFIX):
+            return self._speech()
         if is_llm:
             if self.path.split("?", 1)[0] == LLM_PREFIX + "status":
                 _, st = current_status()
@@ -118,7 +126,7 @@ class RelayHandler(SimpleHTTPRequestHandler):
         SimpleHTTPRequestHandler.do_GET(self)
 
     def do_HEAD(self):
-        is_llm = self.path.startswith(LLM_PREFIX)
+        is_llm = self._is_api()
         if not self._guard(is_llm):
             return
         if is_llm:
@@ -126,9 +134,11 @@ class RelayHandler(SimpleHTTPRequestHandler):
         SimpleHTTPRequestHandler.do_HEAD(self)
 
     def do_POST(self):
-        is_llm = self.path.startswith(LLM_PREFIX)
+        is_llm = self._is_api()
         if not self._guard(is_llm):
             return
+        if self.path.startswith(SPEECH_PREFIX):
+            return self._speech()
         # extract は FR-063 の抽出要求。responses と同じ中継（Responses 形式の本文）をする
         if self.command == "POST" and self.path.split("?", 1)[0] in (LLM_PREFIX + "responses", LLM_PREFIX + "extract", LLM_PREFIX + "svg"):
             return self._relay()
@@ -164,6 +174,37 @@ class RelayHandler(SimpleHTTPRequestHandler):
                 return None
             data += self.rfile.read(size)
             self.rfile.readline(4)
+
+    def _speech(self):
+        """Azure Speech（FR-082 / NFR-SEC-005）。応答はキー・トークンを含まない（念のため秘密を除いてから返す）。"""
+        route = (self.command, self.path.split("?", 1)[0][len(SPEECH_PREFIX):])
+        query = self.path.split("?", 1)[1] if "?" in self.path else ""
+        if route == ("GET", "status"):
+            status, payload = 200, speech.status_body(speech.load())
+        elif route == ("POST", "settings"):
+            raw = self._read_body()
+            try:
+                body = json.loads(raw.decode("utf-8")) if raw else None
+            except ValueError:
+                body = None
+            status, payload = speech.save_settings(body)
+        elif route == ("DELETE", "key"):
+            status, payload = speech.delete_key()
+        elif route == ("POST", "test"):
+            self._read_body()
+            status, payload = speech.connection_test()
+        elif route == ("POST", "recognize"):
+            n = self.headers.get("Content-Length") or "0"
+            if not n.isdigit() or int(n) > speech.MAX_AUDIO_BYTES:
+                return self._send_json(413, {"ok": False, "result": "invalid", "reason": "音声の大きさが不正です。"})
+            audio = self.rfile.read(int(n))
+            lang = dict(p.split("=", 1) for p in query.split("&") if "=" in p).get("language", "")
+            status, payload = speech.recognize(lang, audio)
+        else:
+            return self._send_json(404 if self.command in ("GET", "HEAD") else 405,
+                                   {"ok": False, "result": "not_found", "reason": "見つかりません。"})
+        out = sec.redact(json.dumps(payload, ensure_ascii=False), speech.secrets())
+        self._send_json(status, out.encode("utf-8"))
 
     def _relay(self):
         settings, st = current_status()
