@@ -40,11 +40,11 @@ def test_fr082_ac449_accepts_azure_speech_domains_and_regions(text, kind, host):
 # FR-082 AC-449 異常系
 @pytest.mark.parametrize("text", [
     "http://contoso-dummy.cognitiveservices.azure.com", "https://evil.example.com", "https://cognitiveservices.azure.com",
-    "https://x.cognitiveservices.azure.com.evil.example.com", "https://203.0.113.10", "https://127.0.0.1", "https://localhost",
+    "https://dummy-x.cognitiveservices.azure.com.evil.example.com", "https://203.0.113.10", "https://127.0.0.1", "https://localhost",
     "https://[::1]", "https://10.0.0.5", "https://169.254.169.254", "http://127.0.0.1:9", "Japan East", "JAPANEAST",
-    "japan-east", "japaneast.evil", "../etc", "", "   ", "ftp://x.cognitiveservices.azure.com",
-    "https://user:pw@x.cognitiveservices.azure.com", "https://x.cognitiveservices.azure.com:8443",
-    "https://x.cognitiveservices.azure.com/path", "https://x.cognitiveservices.azure.com/?q=1", "https://-x.cognitiveservices.azure.com",
+    "japan-east", "japaneast.evil", "../etc", "", "   ", "ftp://dummy-x.cognitiveservices.azure.com",
+    "https://user:pw@dummy-x.cognitiveservices.azure.com", "https://dummy-x.cognitiveservices.azure.com:8443",
+    "https://dummy-x.cognitiveservices.azure.com/path", "https://dummy-x.cognitiveservices.azure.com/?q=1", "https://-dummy.cognitiveservices.azure.com",
     "https://evil.example.api.cognitive.microsoft.com", None, 123,
 ])
 def test_fr082_ac449_rejects_other_endpoints(text):
