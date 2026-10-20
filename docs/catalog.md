@@ -80,8 +80,8 @@
 | FR-079 | 図の情報デザインによる自動再配置（何を・どこに） | 承認済み | web/src/infodesign.js, web/src/relayout.js, web/src/diagram.js, web/src/arrange.js, web/src/layoutkinds.js, web/src/layouttypes.js, web/src/settings.js, web/src/app.js | tests/unit/infodesign.test.js, tests/system/rearrange.test.js | アプリ組立, レイアウト型レジストリ, 型ごとの配置, 情報デザインの規則 |
 | FR-080 | 再配置の周期の設定と、周期 0 での会話の区切りの自動判定 | 承認済み | 未実装 | 未実装 | - |
 | FR-081 | Azure Speech による音声認識（方式の切替・同意・中継・失敗時の扱い） | 承認済み | 未実装 | 未実装 | - |
-| FR-082 | Azure Speech の設定（エンドポイント・キーの設定・変更・削除と接続テスト） | 承認済み | 未実装 | 未実装 | - |
-| NFR-SEC-005 | Azure Speech のキーの安全な保管と非露出 | 承認済み | 未実装 | 未実装 | - |
+| FR-082 | Azure Speech の設定（エンドポイント・キーの設定・変更・削除と接続テスト） | 承認済み | web/src/speechsettings.js, web/src/ui.js, web/src/relayclient.js, web/src/main.js, web/src/app.js, web/styles/app.css, web/sw.js, server/relay_speech.py, server/relay.py, users-guide/09-azure-speech.md | tests/unit/speechsettings.test.js, tests/relay/test_relay_speech.py, tests/system/azurespeech.test.js, tests/system/azurespeech-relay.test.js, tests/system/azurespeech-guide.test.js | アプリ組立, デザイン基盤, i18n, 中継サーバー, Azure Speech の設定 |
+| NFR-SEC-005 | Azure Speech のキーの安全な保管と非露出 | 承認済み | server/relay_speech.py, server/relay.py, web/src/speechsettings.js, web/src/ui.js, .gitignore | tests/relay/test_relay_speech.py, tests/unit/speechsettings.test.js, tests/system/azurespeech-relay.test.js, tests/system/azurespeech.test.js | 中継サーバー, Azure Speech の設定 |
 
 ## API・イベント
 
@@ -90,6 +90,11 @@
 | GET /api/llm/status | server/relay.py | FR-066, NFR-SEC-003 |
 | POST /api/llm/responses | server/relay.py | FR-066, NFR-SEC-003 |
 | POST /api/llm/svg | server/relay.py | FR-065, NFR-SEC-004 |
+| GET /api/speech/status | server/relay.py, server/relay_speech.py | FR-082, NFR-SEC-005 |
+| POST /api/speech/settings | server/relay.py, server/relay_speech.py | FR-082, NFR-SEC-005 |
+| DELETE /api/speech/key | server/relay.py, server/relay_speech.py | FR-082, NFR-SEC-005 |
+| POST /api/speech/test | server/relay.py, server/relay_speech.py | FR-082, NFR-SEC-005 |
+| POST /api/speech/recognize | server/relay.py, server/relay_speech.py | NFR-SEC-005 |
 
 ## テーブル
 
@@ -100,11 +105,12 @@
 
 | 部品名 | ファイル | 用途 | 使っている要求 ID |
 |---|---|---|---|
-| 中継サーバー | server/relay.py, server/relay_config.py, server/relay_security.py, server/relay_upstream.py | 127.0.0.1 だけの静的配信＋LLM 中継。設定は relay_config（環境変数>設定ファイル）、Host/Origin 検証と SVG サニタイズ・秘密の除去は relay_security、上流呼び出しと Entra トークンは relay_upstream。後続の設定・Entra の項目はここを拡張する | FR-063, FR-065, FR-066, FR-067, NFR-SEC-003 |
+| 中継サーバー | server/relay.py, server/relay_config.py, server/relay_security.py, server/relay_upstream.py, server/relay_speech.py | 127.0.0.1 だけの静的配信＋LLM 中継。設定は relay_config（環境変数>設定ファイル）、Host/Origin 検証と SVG サニタイズ・秘密の除去は relay_security、上流呼び出しと Entra トークンは relay_upstream。後続の設定・Entra の項目はここを拡張する。Azure Speech（/api/speech/...）の設定・キーの保管（DPAPI／0600）・接続テスト・音声の中継は relay_speech | FR-063, FR-065, FR-066, FR-067, FR-082, NFR-SEC-003, NFR-SEC-005 |
 | LLM 連携の制御 | web/src/llm.js, web/src/relayclient.js | 既定オフ・同意の表示と同意後だけ有効（同意の事実・版・日時だけを grp.llm.consent に保存し、版が違えば再同意・無効化で撤回）・失敗時のルールベース復帰と短い通知・接続テスト・設定画面の項目（getLlmState / requestLlmEnable / getLlmConsent / answerLlmConsent / disableLlm / flushLlm / llmCall / testLlmConnection / getLlmLastSent）。FR-063・FR-065 は api.llmCall と 'llm:result' を使う | FR-062, FR-063, FR-068, NFR-PRIV-003 |
-| アプリ組立 | web/src/app.js | 状態・コマンド・キー割り当て・パネル描画の拡張点（modules / registerCommand / registerPanelRenderer / addUtterance / addUtterances）。後続の機能はここへ足す | FR-001、FR-002、FR-003、FR-004、FR-005、FR-006、FR-007、FR-008、FR-009、FR-010、FR-011、FR-012、FR-013、FR-014、FR-015、FR-016、FR-017、FR-018、FR-019、FR-020、FR-021、FR-022、FR-023、FR-024、FR-025、FR-026、FR-027、FR-028、FR-029、FR-030、FR-031、FR-032、FR-033、FR-034、FR-035、FR-036、FR-039、FR-047、FR-048、FR-049、FR-050、FR-051、FR-062、FR-068、FR-072、FR-073、FR-074、FR-079、NFR-A11Y-001、NFR-BG-001、NFR-PERF-001、NFR-UX-001、NFR-UX-003 |
-| i18n | web/src/i18n.js | ja/en の UI 文言（addStrings で後続が追加） | FR-006、FR-008、FR-015、FR-016、FR-017、FR-018、FR-019、FR-020、FR-021、FR-025、FR-026、FR-027、FR-030、FR-036、FR-062、FR-068、FR-072、FR-073、NFR-UX-002、NFR-UX-003 |
-| デザイン基盤 | web/styles/tokens.css, web/styles/app.css, web/styles/view3d.css | Fluent 2 のトークン（colorNeutral/Brand 系・角丸 4/8・4px 余白・Type ramp・影・モーション）・ライト/ダーク/forced-colors・フォーカス 3px・積み重ね・カード風パネル・ボタン（primary/subtle） | FR-004、FR-011、FR-013、FR-017、FR-018、FR-020、FR-021、FR-024、FR-026、FR-027、FR-029、FR-030、FR-050、FR-051、FR-068、FR-073、NFR-A11Y-001、NFR-UX-001、NFR-UX-002、NFR-UX-003 |
+| Azure Speech の設定 | web/src/speechsettings.js | 設定画面の Azure Speech の項目（speech.method・azureSpeech.*）、書き込み専用のキーの一時入力（送信前に空にする）、状態の取得（refreshAzureSpeechStatus / getAzureSpeechSettings。endpointHost・keyConfigured だけを取り込む）、保存・確認つき削除・接続テスト（saveAzureSpeech / azureSpeech.deleteKey / testAzureSpeech）、認識の方式の保存（getSpeechMethod / setSpeechMethod、grp.speech.method、イベント speech:method・speech:endpointHost） | FR-082, NFR-SEC-005 |
+| アプリ組立 | web/src/app.js | 状態・コマンド・キー割り当て・パネル描画の拡張点（modules / registerCommand / registerPanelRenderer / addUtterance / addUtterances）。後続の機能はここへ足す | FR-001、FR-002、FR-003、FR-004、FR-005、FR-006、FR-007、FR-008、FR-009、FR-010、FR-011、FR-012、FR-013、FR-014、FR-015、FR-016、FR-017、FR-018、FR-019、FR-020、FR-021、FR-022、FR-023、FR-024、FR-025、FR-026、FR-027、FR-028、FR-029、FR-030、FR-031、FR-032、FR-033、FR-034、FR-035、FR-036、FR-039、FR-047、FR-048、FR-049、FR-050、FR-051、FR-062、FR-068、FR-072、FR-073、FR-074、FR-079、FR-082、NFR-A11Y-001、NFR-BG-001、NFR-PERF-001、NFR-UX-001、NFR-UX-003 |
+| i18n | web/src/i18n.js | ja/en の UI 文言（addStrings で後続が追加） | FR-006、FR-008、FR-015、FR-016、FR-017、FR-018、FR-019、FR-020、FR-021、FR-025、FR-026、FR-027、FR-030、FR-036、FR-062、FR-068、FR-072、FR-073、FR-082、NFR-UX-002、NFR-UX-003 |
+| デザイン基盤 | web/styles/tokens.css, web/styles/app.css, web/styles/view3d.css | Fluent 2 のトークン（colorNeutral/Brand 系・角丸 4/8・4px 余白・Type ramp・影・モーション）・ライト/ダーク/forced-colors・フォーカス 3px・積み重ね・カード風パネル・ボタン（primary/subtle） | FR-004、FR-011、FR-013、FR-017、FR-018、FR-020、FR-021、FR-024、FR-026、FR-027、FR-029、FR-030、FR-050、FR-051、FR-068、FR-073、FR-082、NFR-A11Y-001、NFR-UX-001、NFR-UX-002、NFR-UX-003 |
 | コマンドバー | web/src/commandbar.js | コマンドのグループ・インライン SVG アイコン・主要コマンド（getCommandBar / getCommandStatus）。ステータスバーの文言（記録状態・音声認識・言語・表示）。ボタンの簡易説明（showTooltip / hideTooltip / getTooltip、tooltip.<command>） | FR-016、FR-017、FR-018、FR-019、FR-026、FR-027、FR-030、FR-072、FR-073、NFR-UX-001、NFR-UX-002、NFR-UX-003 |
 | 認識文字列 | web/src/transcript.js | 右パネル（パネル ID input）の確定結果一覧・暫定結果の区別表示（getTranscript / renderTranscript） | FR-013, FR-014 |
 | キーマップ | web/src/keymap.js | 全操作の Alt+Shift+キー割り当て | NFR-A11Y-001, FR-015, FR-017, FR-021, FR-018, FR-019, FR-025, FR-026, FR-027, FR-030 |

@@ -21,6 +21,8 @@ const app = await createApp({
   },
 });
 const ui = mountUI(app);
+// FR-082: Azure Speech の設定状態（設定済み／未設定とホスト名だけ）を中継サーバーから読む。キーの値は受け取らない
+void app.refreshAzureSpeechStatus?.();
 mountEditUI(app);
 ui.measureWorkArea();
 globalThis.addEventListener('resize', () => { /* 幅の変化に合わせて再描画 */ app.setViewportWidth?.(globalThis.innerWidth); });
