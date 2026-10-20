@@ -66,7 +66,7 @@ function paperFor(color) {
 const decoIcon = (shape, x, y, color) => (ST.text.icons ? iconShape(shape, x, y, color) : '');
 
 // 決定的な手描き風の線: 文字列から種を作り、同じ入力なら必ず同じ揺らぎにする。
-function rng(seedStr) {
+export function rng(seedStr) {
   let h = 2166136261;
   for (const ch of String(seedStr)) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619); }
   return () => { h += 0x6d2b79f5; let t = h; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -91,7 +91,7 @@ function wobblyD(pts, seed, closed, amp0 = 1.2) {
   if (!closed) { const [lx, ly] = pts[n - 1]; out.push([lx + (rand() - 0.5) * amp, ly + (rand() - 0.5) * amp]); }
   return out.map(([x, y], i) => `${i ? 'L' : 'M'}${r1(x)} ${r1(y)}`).join('') + (closed ? 'Z' : '');
 }
-function outline(shape, x, y, w, h) {
+export function outline(shape, x, y, w, h) {
   switch (shape) {
     case 'banner': return [[x, y], [x + w - 14, y], [x + w, y + h / 2], [x + w - 14, y + h], [x, y + h]];
     case 'octagon': return [[x + 10, y], [x + w - 10, y], [x + w, y + 10], [x + w, y + h - 10], [x + w - 10, y + h], [x + 10, y + h], [x, y + h - 10], [x, y + 10]];
@@ -105,30 +105,31 @@ const PAD = 20; const HEAD_H = 44; const BUBBLE_H = 38; const GAP = 30; const SC
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const attr = (s) => esc(s).replace(/"/g, '&quot;');
-function textWidth(s, size) {
+export function textWidth(s, size) {
   let w = 0;
   for (const ch of String(s)) w += ch.codePointAt(0) >= 0x2e80 ? size : size * 0.56;
   return w;
 }
 
+// 絵記号の中身（24x24 の枠に収まる図形）。FR-075 の画風プリセットの絵記号も同じ図形を使う。
+export const ICON_GLYPHS = {
+  swirl: '<path d="M12 12m0-2a2 2 0 1 1-2 2 5 5 0 1 1 5 5 8 8 0 1 1-8-8"/>',
+  sweat: '<circle cx="12" cy="13" r="9"/><path d="M8 11v2M16 11v2M8 18q4-3 8 0"/><path d="M20 3q2 3 0 4q-2-1 0-4z"/>',
+  cloud: '<path d="M7 19a5 5 0 0 1-1-9.9A6 6 0 0 1 17.5 8 4.5 4.5 0 0 1 17 19z"/>',
+  bolt: '<path d="M13 2L5 14h6l-1 8 9-13h-6z"/>',
+  smile: '<circle cx="12" cy="12" r="10"/><path d="M8 10h.01M16 10h.01M7.5 14.5q4.5 5 9 0"/>',
+  bulb: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.3 1 2.1h5c0-.8.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>',
+  burst: '<path d="M12 2l2.5 6L21 7l-4 5 4 5-6.500-1L12 22l-2.500-6L3 17l4-5-4-5 6.500 1z"/>',
+  check: '<circle cx="12" cy="12" r="10"/><path d="M7 12.500l3.500 3.500 7-8"/>',
+  alert: '<path d="M12 3L22 20H2z"/><path d="M12 10v5M12 17.500v.5"/>',
+  note: '<path d="M5 3h10l4 4v14H5z"/><path d="M8 11h8M8 15h8"/>',
+  star: '<path d="M12 2l3 7 7 .5-5.500 4.500 2 7.500-6.500-4-6.500 4 2-7.500L2 9.500 9 9z"/>',
+  drop: '<path d="M12 2q7 8 7 13a7 7 0 0 1-14 0q0-5 7-13z"/>',
+};
+export const iconGlyph = (shape) => ICON_GLYPHS[shape] ?? '<circle cx="12" cy="12" r="9"/>';
 // 絵記号（24x24 の枠に収まる図形）。(x,y) は左上。
 function iconShape(shape, x, y, color) {
-  const g = (inner) => `<g transform="translate(${x} ${y})" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</g>`;
-  switch (shape) {
-    case 'swirl': return g('<path d="M12 12m0-2a2 2 0 1 1-2 2 5 5 0 1 1 5 5 8 8 0 1 1-8-8"/>');
-    case 'sweat': return g('<circle cx="12" cy="13" r="9"/><path d="M8 11v2M16 11v2M8 18q4-3 8 0"/><path d="M20 3q2 3 0 4q-2-1 0-4z"/>');
-    case 'cloud': return g('<path d="M7 19a5 5 0 0 1-1-9.9A6 6 0 0 1 17.5 8 4.5 4.5 0 0 1 17 19z"/>');
-    case 'bolt': return g('<path d="M13 2L5 14h6l-1 8 9-13h-6z"/>');
-    case 'smile': return g('<circle cx="12" cy="12" r="10"/><path d="M8 10h.01M16 10h.01M7.5 14.5q4.5 5 9 0"/>');
-    case 'bulb': return g('<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.3 1 2.1h5c0-.8.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>');
-    case 'burst': return g('<path d="M12 2l2.5 6L21 7l-4 5 4 5-6.500-1L12 22l-2.500-6L3 17l4-5-4-5 6.500 1z"/>');
-    case 'check': return g('<circle cx="12" cy="12" r="10"/><path d="M7 12.500l3.500 3.500 7-8"/>');
-    case 'alert': return g('<path d="M12 3L22 20H2z"/><path d="M12 10v5M12 17.500v.5"/>');
-    case 'note': return g('<path d="M5 3h10l4 4v14H5z"/><path d="M8 11h8M8 15h8"/>');
-    case 'star': return g('<path d="M12 2l3 7 7 .5-5.500 4.500 2 7.500-6.500-4-6.500 4 2-7.500L2 9.500 9 9z"/>');
-    case 'drop': return g('<path d="M12 2q7 8 7 13a7 7 0 0 1-14 0q0-5 7-13z"/>');
-    default: return g('<circle cx="12" cy="12" r="9"/>');
-  }
+  return `<g transform="translate(${x} ${y})" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${iconGlyph(shape)}</g>`;
 }
 
 // FR-079: 詳細度「詳細」の 2D の図の幾何（シーンは話順に左から右の列、列の中は見出し→要点（再配置の木の読み順）→絵記号→部品）。
@@ -532,10 +533,18 @@ function paint(host, app) {
   const dv = app.getDiagramView?.() ?? null;
   if (dv) host._zoom = clampZoom(dv.zoom);
   const svg = app.renderSvg();
-  canvas.innerHTML = svg;
-  const el = canvas.querySelector('svg');
+  // 同じ SVG・同じ拡大率・同じ幅なら、DOM を作り直さない（NFR-PERF-002/003: ドラッグ・ホバー中の全再構築を避ける）
+  const sig = `${host._zoom}|${host._fit}|${canvas.clientWidth}`;
+  if (host._lastSvg === svg && host._lastSig === sig) return;
+  // SVG が同じで幅・拡大率だけ変わったとき（パネルの大きさ変更中）は、図の DOM を作り直さず寸法だけ直す（長いタスクの回避）
+  const reuse = host._lastSvg === svg && host._base && host._svgEl && host._svgEl.isConnected;
+  host._lastSvg = svg; host._lastSig = sig;
+  if (!reuse) canvas.innerHTML = svg;
+  const el = reuse ? host._svgEl : canvas.querySelector('svg');
   if (el) {
-    const w = Number(el.getAttribute('width')); const h = Number(el.getAttribute('height'));
+    if (!reuse) { host._svgEl = el; host._base = { w: Number(el.getAttribute('width')), h: Number(el.getAttribute('height')), vb: el.getAttribute('viewBox') }; }
+    const { w, h, vb } = host._base;
+    if (vb === null) el.removeAttribute('viewBox'); else el.setAttribute('viewBox', vb);
     // 既定は「幅に合わせる」: パネルより広い図は縮めて、右にはみ出さない（ボタンで拡大・縮小すると解除）
     const avail = canvas.clientWidth - 2;
     const fit = host._fit !== false && avail > 0 && w > avail ? avail / w : 1;
@@ -549,7 +558,6 @@ function paint(host, app) {
   }
   if (dv && (canvas.scrollLeft !== dv.scrollX || canvas.scrollTop !== dv.scrollY)) { canvas.scrollLeft = dv.scrollX; canvas.scrollTop = dv.scrollY; }
 }
-
 // FR-035: 比喩の絵（SVG の図形だけ。色だけにせず、各要素に文字のラベル）
 function metaphorSvg(m) {
   const out = [];

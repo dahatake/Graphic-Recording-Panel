@@ -1,10 +1,60 @@
 import { paintRpgCanvas } from './rpgmap.js';
+import { buildLook } from './presetdiagram.js';
+import { presetOf, fontFamilyOf } from './stylepresets.js';
 // FR-006（PNG・SVG 保存）/ FR-007（PDF 保存）。外部通信なし・依存なし（PDF は自前で生成する）。
 // 保存は「表示中のビュー」ではなく常に 2D の図の内容（全シーンの見出しと要点）を出力する。3D 表示中はその旨を表示する（AC-014）。
 // シーンが 0 件のときは保存できず、理由を表示する（AC-046）。
 
 const MARGIN = 24;
 const PALETTE = ['#1346a8', '#0b5d2a', '#8a3c00', '#6b2a8f', '#9b1c1c', '#0b6070'];
+
+// ---- FR-075・FR-077 AC-419: 保存（PNG・PDF）に画風プリセットの見た目（紙面の質感・配色・見出しの飾り・吹き出し・線・書体の系統）を反映する ----
+// 定義は契約の getDrawStyleSpec(id) の形で受け取り、配色の役割は画面の図と同じ buildLook（presetdiagram.js。AC-410 のコントラストを満たす）から決める。
+// 画風プリセット（preset:true）だけに効かせ、既存の 4 つ（手書き調・アニメ調・シンプル・RPG風）は null（従来の出力のまま。AC-147・AC-227）。
+// 強制カラー（AC-456）は画面の表示だけの変換で、保存には使わない（常に風の配色）。紙面の質感はアプリが描く線分で、外部の素材は使わない（AC-407）。
+export const PAPERS = ['plain', 'grid', 'ruled', 'chalkboard', 'whiteboard', 'kraft'];
+const hex6 = (v) => (v.length === 4 ? `#${[...v.slice(1)].map((c) => c + c).join('')}` : v).toLowerCase();
+// 2 色の混色（t=0 で a、1 で b）。透明度を使わずに PNG と PDF で同じ色にする
+const mix = (a, b, t) => `#${[1, 3, 5].map((i) => Math.round(parseInt(hex6(a).slice(i, i + 2), 16) * (1 - t) + parseInt(hex6(b).slice(i, i + 2), 16) * t).toString(16).padStart(2, '0')).join('')}`;
+export function exportLook(spec) {
+  if (!spec || typeof spec !== 'object' || spec.preset !== true) return null;
+  const pr = presetOf(spec);
+  if (!pr) return null;
+  const L = buildLook(spec);
+  const fills = L.stickyFills ?? [L.frameFill];
+  return {
+    background: hex6(L.bg), text: hex6(L.ink), frame: hex6(L.frame), band: hex6(L.band), bandText: hex6(L.bandText),
+    marker: hex6(L.marker), headSticky: hex6(L.headSticky), headStickyText: hex6(L.textOn(L.headSticky)),
+    pointFills: fills.map(hex6), pointTexts: fills.map((f) => hex6(L.textOn(f))), pointStroke: (f) => hex6(L.outlineOf(f)),
+    texture: hex6(L.texture), accent: hex6(pr.palette.accent[0]),
+    lineWidth: Math.round(pr.stroke.width * 10) / 10, headingDecoration: pr.headingDecoration, balloon: pr.balloon,
+    headWeight: L.headWeight, weight: L.weight, paper: PAPERS.includes(pr.paper) ? pr.paper : 'plain', fontFamily: fontFamilyOf(pr.font),
+  };
+}
+const rnd = (i) => { const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }; // 決定的な擬似乱数（毎回同じ質感）
+// 紙面の質感の線分 [{x1,y1,x2,y2,width,color}]（左上原点。PNG・PDF で共通。PDF は上下を反転して描く）
+export function paperTexture(look, w, h) {
+  const out = [];
+  if (!look) return out;
+  const bg = look.background; const faint = mix(bg, look.texture, 0.35);
+  const L = (x1, y1, x2, y2, width = 1, color = faint) => out.push({ x1: Math.round(x1), y1: Math.round(y1), x2: Math.round(x2), y2: Math.round(y2), width, color });
+  const frame = (inset, width, color) => { L(inset, inset, w - inset, inset, width, color); L(w - inset, inset, w - inset, h - inset, width, color); L(w - inset, h - inset, inset, h - inset, width, color); L(inset, h - inset, inset, inset, width, color); };
+  if (look.paper === 'grid') { for (let y = 24; y < h; y += 24) L(0, y, w, y); for (let x = 24; x < w; x += 24) L(x, 0, x, h); }
+  else if (look.paper === 'ruled') { for (let y = 48; y < h; y += 28) L(0, y, w, y); L(40, 0, 40, h, 1, mix(bg, look.accent, 0.6)); } // 横罫と左の余白線
+  else if (look.paper === 'chalkboard') { // 黒板: チョークの粉のかすれと木の枠
+    const n = Math.max(12, Math.round((w * h) / 12000));
+    for (let i = 0; i < n; i++) { const x = rnd(i) * w; const y = rnd(i + 101) * h; const len = 20 + rnd(i + 202) * 60; const a = (rnd(i + 303) - 0.5) * 0.6; L(x, y, x + len * Math.cos(a), y + len * Math.sin(a), 2, mix(bg, look.text, 0.16)); }
+    frame(3, 6, mix(bg, '#8b5a2b', 0.75));
+  } else if (look.paper === 'kraft') { // クラフト紙: 短い繊維
+    const n = Math.max(40, Math.round((w * h) / 2500));
+    for (let i = 0; i < n; i++) { const x = rnd(i + 7) * w; const y = rnd(i + 409) * h; const len = 4 + rnd(i + 811) * 8; const a = rnd(i + 613) * Math.PI; L(x, y, x + len * Math.cos(a), y + len * Math.sin(a), 1, mix(bg, look.text, 0.15)); }
+  } else if (look.paper === 'whiteboard') { // ホワイトボード: 枠・下のトレイ・映り込み
+    frame(2, 4, mix(bg, look.text, 0.35));
+    L(8, h - 10, w - 8, h - 10, 3, mix(bg, look.text, 0.25));
+    L(w * 0.55, 8, w * 0.75, h * 0.35, 10, mix(bg, look.text, 0.05)); L(w * 0.62, 8, w * 0.82, h * 0.35, 4, mix(bg, look.text, 0.05));
+  }
+  return out;
+}
 
 const pad = (n) => String(n).padStart(2, '0');
 export function stampName(ms) {
@@ -36,23 +86,53 @@ export function wrapLines(text, fs, width) {
   return lines;
 }
 
-export function buildPdf(scenes, { title = '', arrange = null, parts = null } = {}) {
+const rgb = (v) => [1, 3, 5].map((i) => (parseInt(hex6(v).slice(i, i + 2), 16) / 255).toFixed(3)).join(' ');
+export function buildPdf(scenes, { title = '', arrange = null, parts = null, look = null } = {}) {
   const FS_H = 15; const FS_P = 11; const LH_H = 22; const LH_P = 16;
   const width = A4.w - A4.margin * 2;
-  const pages = [[]];
+  // FR-077 AC-419: 描画スタイルの紙面（背景色・方眼・罫線）を各ページの最初に描く
+  const paper = () => {
+    if (!look) return [];
+    let g = `q ${rgb(look.background)} rg 0 0 ${A4.w} ${A4.h} re f\n`;
+    for (const t of paperTexture(look, A4.w, A4.h)) g += `${rgb(t.color)} RG ${t.width} w ${t.x1} ${A4.h - t.y1} m ${t.x2} ${A4.h - t.y2} l S\n`;
+    return [`${g}Q\n`];
+  };
+  const pages = [paper()];
   let y = A4.h - A4.margin; let page = 0;
-  const need = (h) => { if (y - h < A4.margin) { pages.push([]); page++; y = A4.h - A4.margin; } };
+  const need = (h) => { if (y - h < A4.margin) { pages.push(paper()); page++; y = A4.h - A4.margin; } };
+  // 見出し・要点の飾り（look があるときだけ）。i はシーンの番号（付箋の色の巡回）
+  const deco = (kind, i, x, top, w, h) => {
+    if (!look || (kind !== 'heading' && kind !== 'point')) return '';
+    let g = 'q ';
+    if (kind === 'heading') {
+      const d = look.headingDecoration;
+      if (d === 'band') g += `${rgb(look.band)} rg ${x - 4} ${top - h} ${w + 8} ${h} re f\n`;
+      else if (d === 'marker') g += `${rgb(look.marker)} rg ${x - 2} ${top - h} ${w + 4} ${Math.max(4, h * 0.35)} re f\n`;
+      else if (d === 'sticky') g += `${rgb(look.headSticky)} rg ${rgb(look.pointStroke(look.headSticky))} RG ${look.lineWidth / 2} w ${x - 4} ${top - h} ${w + 8} ${h} re B\n`;
+    } else {
+      const f = look.pointFills[i % look.pointFills.length];
+      g += `${rgb(f)} rg ${rgb(look.pointStroke(f))} RG ${look.lineWidth / 2} w ${x - 6} ${top - h} ${w + 8} ${h} re B\n`;
+    }
+    return `${g}Q\n`;
+  };
+  const inkOf = (kind, i) => {
+    if (kind === 'heading' && look.headingDecoration === 'band') return `${rgb(look.bandText)} rg `;
+    if (kind === 'heading' && look.headingDecoration === 'sticky') return `${rgb(look.headStickyText)} rg `;
+    if (kind === 'point') return `${rgb(look.pointTexts[i % look.pointTexts.length])} rg `;
+    return `${rgb(look.text)} rg `;
+  };
   // 内容ストリームの 1 ブロック: 全文を ActualText にして、表示は折り返した行ごとに Tj。
-  const block = (text, fs, lh, indent) => {
+  const block = (text, fs, lh, indent, kind = null, i = 0) => {
     const lines = wrapLines(text, fs, width - indent);
     need(lines.length * lh + 4);
-    let s = `/Span <</ActualText <FEFF${utf16Hex(text)}>>> BDC\nBT /F1 ${fs} Tf ${lh} TL ${A4.margin + indent} ${y - fs} Td\n`;
+    let s = deco(kind, i, A4.margin + indent, y + 2, width - indent, lines.length * lh + 2);
+    s += `/Span <</ActualText <FEFF${utf16Hex(text)}>>> BDC\nBT ${look ? inkOf(kind, i) : ''}/F1 ${fs} Tf ${lh} TL ${A4.margin + indent} ${y - fs} Td\n`;
     lines.forEach((l, i) => { s += `${i ? 'T* ' : ''}<${utf16Hex(l, true)}> Tj\n`; });
     s += 'ET\nEMC\n';
     pages[page].push(s);
     y -= lines.length * lh + 4;
   };
-  if (title) block(title, 12, 18, 0);
+  if (title) block(title, 12, 18, 0, look ? 'title' : null);
   if (arrange) {
     // FR-016 AC-089: 整理の表示。軸の名前・区分の見出しと、区分（未分類を含む）ごとのオブジェクトを出力する。
     const g = arrange.geometry;
@@ -70,8 +150,8 @@ export function buildPdf(scenes, { title = '', arrange = null, parts = null } = 
   } else {
     scenes.forEach((sc, i) => {
       y -= i ? 10 : 0;
-      block(sc.heading, FS_H, LH_H, 0);
-      for (const p of sc.points) block(p.text, FS_P, LH_P, 16);
+      block(sc.heading, FS_H, LH_H, 0, 'heading', i);
+      for (const p of sc.points) block(p.text, FS_P, LH_P, 16, 'point', i);
     });
   }
   // FR-063 AC-321: LLM が対応づけた絵（物の名前）を、PDF にも文字で含める
@@ -137,8 +217,9 @@ async function partsBand(items, width, imageFactory) {
 }
 
 // ---- PNG（canvasFactory に全シーンの見出しと要点を描く） ----
-export async function renderPng(scenes, canvasFactory, { title = '', arrange = null, parts = null, imageFactory = null } = {}) {
+export async function renderPng(scenes, canvasFactory, { title = '', arrange = null, parts = null, imageFactory = null, look = null } = {}) {
   if (arrange) return renderArrangedPng(scenes, arrange, canvasFactory, parts, imageFactory);
+  if (look) return renderStyledPng(scenes, canvasFactory, look, parts, imageFactory);
   const FS_H = 18; const FS_P = 15; const ROW_H = 30; const HEAD_H = 40; const GAP = 22;
   const font = (px, bold) => `${bold ? '700 ' : ''}${px}px system-ui, 'Hiragino Sans', 'Yu Gothic UI', Meiryo, sans-serif`;
   const probe = canvasFactory(8, 8).getContext('2d');
@@ -171,6 +252,49 @@ export async function renderPng(scenes, canvasFactory, { title = '', arrange = n
   });
   band.draw(g, baseH - MARGIN);
   void title;
+  return canvas.toBytes();
+}
+
+// FR-075・FR-077 AC-419: 画風プリセットの見た目で描く PNG（紙面と質感・配色・見出しの飾り・吹き出し・線の太さ・書体の系統）。文字は fillText で全部描く
+async function renderStyledPng(scenes, canvasFactory, look, parts, imageFactory) {
+  const FS_H = 18; const FS_P = 15; const ROW_H = 34; const HEAD_H = 44; const GAP = 22;
+  const font = (px, weight) => `${weight ? `${weight} ` : ''}${px}px ${look.fontFamily}`;
+  const probe = canvasFactory(8, 8).getContext('2d');
+  const measure = (s, px, wt) => { probe.font = font(px, wt); return probe.measureText(s).width; };
+  let w = 320;
+  for (const sc of scenes) w = Math.max(w, measure(sc.heading, FS_H, look.headWeight) + 40, ...sc.points.map((p) => measure(p.text, FS_P, look.weight) + 64));
+  w = Math.ceil(w + MARGIN * 2);
+  const band = await partsBand(parts, w, imageFactory);
+  const baseH = Math.ceil(MARGIN * 2 + scenes.reduce((a, sc) => a + HEAD_H + sc.points.length * ROW_H + GAP, 0));
+  const h = baseH + band.h;
+  const canvas = canvasFactory(w, h);
+  const g = canvas.getContext('2d');
+  g.fillStyle = look.background; g.fillRect(0, 0, w, h);
+  for (const t of paperTexture(look, w, h)) { g.strokeStyle = t.color; g.lineWidth = t.width; g.beginPath(); g.moveTo(t.x1, t.y1); g.lineTo(t.x2, t.y2); g.stroke(); } // 紙面の質感
+  const round = (x, y, rw, rh, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + rw, y, x + rw, y + rh, r); g.arcTo(x + rw, y + rh, x, y + rh, r); g.arcTo(x, y + rh, x, y, r); g.arcTo(x, y, x + rw, y, r); g.closePath(); };
+  let y = MARGIN;
+  scenes.forEach((sc, i) => {
+    const hw = w - MARGIN * 2; const hh = HEAD_H - 6;
+    let ink = look.text;
+    if (look.headingDecoration === 'band') { g.fillStyle = look.band; g.fillRect(MARGIN, y, hw, hh); ink = look.bandText; }
+    else if (look.headingDecoration === 'sticky') { g.fillStyle = look.headSticky; g.fillRect(MARGIN, y, hw, hh); g.strokeStyle = look.pointStroke(look.headSticky); g.lineWidth = look.lineWidth; g.strokeRect(MARGIN, y, hw, hh); ink = look.headStickyText; }
+    else if (look.headingDecoration === 'marker') { g.fillStyle = look.marker; g.fillRect(MARGIN + 8, y + hh * 0.6, Math.min(hw - 8, measure(sc.heading, FS_H, look.headWeight) + 12), hh * 0.35); }
+    g.fillStyle = ink; g.font = font(FS_H, look.headWeight); g.textBaseline = 'middle';
+    g.fillText(sc.heading, MARGIN + 14, y + hh / 2);
+    y += HEAD_H;
+    const fill = look.pointFills[i % look.pointFills.length];
+    for (const p of sc.points) {
+      const bx = MARGIN + 18; const by = y + 3; const bw = w - MARGIN * 2 - 18; const bh = ROW_H - 8;
+      g.strokeStyle = look.pointStroke(fill); g.lineWidth = look.lineWidth; g.fillStyle = fill;
+      if (look.balloon === 'sticky') { g.fillRect(bx, by, bw, bh); g.strokeRect(bx, by, bw, bh); }
+      else { round(bx, by, bw, bh, look.balloon === 'cloud' ? bh / 2 : 8); g.fill(); g.stroke(); }
+      g.fillStyle = look.pointTexts[i % look.pointTexts.length]; g.font = font(FS_P, look.weight);
+      g.fillText(p.text, bx + 12, by + bh / 2);
+      y += ROW_H;
+    }
+    y += GAP;
+  });
+  band.draw(g, baseH - MARGIN);
   return canvas.toBytes();
 }
 
@@ -266,12 +390,15 @@ export function exportModule(ctx) {
   const scenes = () => ctx.state.scenes;
   // 整理の表示を選んでいるときは、その配置（軸・区分・未分類を含む）で出力する（AC-089）
   const arranged = () => (ctx.state.displayMode === 'arrange' && ctx.api.getArrangement ? ctx.api.getArrangement() : null);
-  ctx.registerCommand('save.svg', () => run('svg', 'image/svg+xml', () => ctx.api.renderSvg()));
+  // 保存する SVG は風の配色で出す（強制カラーのシステム色への変換は画面の表示だけ。AC-456 の指摘）
+  ctx.registerCommand('save.svg', () => run('svg', 'image/svg+xml', () => (ctx.api.renderSvgForSave ?? ctx.api.renderSvg)()));
   const drawn = () => ctx.api.getLlmDrawItems?.() ?? null; // FR-063
-  ctx.registerCommand('save.pdf', () => run('pdf', 'application/pdf', () => buildPdf(scenes(), { title: ctx.t('app.title'), arrange: arranged(), parts: drawn() })));
+  // FR-077 AC-419: 現在の描画スタイル（上部・［設定］で選んだもの）の見た目で保存する
+  const look = () => exportLook(ctx.api.getDrawStyleSpec?.(ctx.api.getDrawStyle?.()) ?? null);
+  ctx.registerCommand('save.pdf', () => run('pdf', 'application/pdf', () => buildPdf(scenes(), { title: ctx.t('app.title'), arrange: arranged(), parts: drawn(), look: look() })));
   ctx.registerCommand('save.png', () => run('png', 'image/png', async () => {
     const factory = ctx.options.canvasFactory ?? browserCanvasFactory();
     if (!factory) throw new Error('no canvas');
-    return renderPng(scenes(), factory, { arrange: arranged(), rpg: ctx.api.getRpgMap?.() ?? null, parts: drawn(), imageFactory: ctx.options.imageFactory ?? null });
+    return renderPng(scenes(), factory, { arrange: arranged(), rpg: ctx.api.getRpgMap?.() ?? null, parts: drawn(), imageFactory: ctx.options.imageFactory ?? null, look: look() });
   }));
 }

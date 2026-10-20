@@ -2,6 +2,7 @@
 import { createApp } from './app.js';
 import { mountUI } from './ui.js';
 import { mountEditUI } from './edit-ui.js';
+import { mountPromptFallback } from './imageprompt-ui.js';
 import { relayRequest } from './relayclient.js';
 
 const mq = (q) => (globalThis.matchMedia ? globalThis.matchMedia(q).matches : false);
@@ -18,13 +19,17 @@ const app = await createApp({
     reducedMotion: mq('(prefers-reduced-motion: reduce)'),
     viewportWidth: globalThis.innerWidth,
     prefersDark: mq('(prefers-color-scheme: dark)'),
+    forcedColors: mq('(forced-colors: active)'), // FR-076 AC-456: ハイコントラスト（強制カラー）
   },
 });
 const ui = mountUI(app);
 // FR-082: Azure Speech の設定状態（設定済み／未設定とホスト名だけ）を中継サーバーから読む。キーの値は受け取らない
 void app.refreshAzureSpeechStatus?.();
 mountEditUI(app);
+mountPromptFallback(app); // FR-078 AC-423: クリップボードに書けないときの手でコピーする表示
 ui.measureWorkArea();
+// FR-076 AC-456: 実行中にハイコントラストを切り替えたら、図の配色をシステム色と風の配色の間で切り替える
+globalThis.matchMedia?.('(forced-colors: active)').addEventListener?.('change', (e) => app.setForcedColors?.(e.matches));
 globalThis.addEventListener('resize', () => { /* 幅の変化に合わせて再描画 */ app.setViewportWidth?.(globalThis.innerWidth); });
 
 if ('serviceWorker' in navigator) {

@@ -1,19 +1,26 @@
-// FR-029 AC-146（System Test。契約: tests/system/CONTRACT.md「レイアウト型・描画スタイル・設定画面」）
+// FR-029 AC-146（System Test。契約: tests/system/CONTRACT.md「レイアウト型・描画スタイル・設定画面」、FR-076 の追加後の 13 択は CONTRACT-STYLE-PRESET.md）
 // 期待値は受入基準だけから決める。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp, seedThreeScenes, toDetail } from './helpers.js';
 
-const STYLES = ['anime', 'handwritten', 'simple', 'rpg'];
-const svgTexts = (svg) => [...svg.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((m) => m[1]).sort();
+const LEGACY = ['anime', 'handwritten', 'simple', 'rpg'];
+// FR-076 の 9 つの画風プリセット（3.6 の表の日本語名）
+const PRESET_LABELS = ['黄黒手書き風', '黒板風', '付箋ボード風', '色鉛筆風', 'ミント風', 'ビジネス風', 'ミニマル風', 'ポップ風', 'クラフト紙風'];
+const allIds = (app) => app.getDrawStyles().map((s) => s.id);
+const svgTexts = (svg) => [...new Set([...svg.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((m) => m[1]))].sort();
 const snap = (app) => { const s = app.getState(); return JSON.stringify([s.utterances.map((u) => u.text), s.scenes, s.selectedSceneId, s.session, s.input.draft, app.getDetailLevel(), s.viewMode, app.getDisplayMode()]); };
 
 // FR-029 AC-146
-test('FR-029 AC-146: 描画スタイルとしてアニメ調・手書き調・シンプルの 3 つに RPG風を加えた 4 つが選べ、初期は手書き調', async () => {
+test('FR-029 AC-146: 描画スタイルとしてアニメ調・手書き調・シンプル・RPG風の 4 つに 9 つの画風プリセットを加えた 13 が選べ、初期は手書き調', async () => {
   const { app } = await newApp();
-  assert.deepEqual(app.getDrawStyles().map((s) => s.id).sort(), [...STYLES].sort());
-  assert.ok(app.getDrawStyles().every((s) => s.label.trim()));
-  assert.equal(new Set(app.getDrawStyles().map((s) => s.label)).size, 4);
+  app.setLang('ja');
+  const list = app.getDrawStyles();
+  assert.equal(list.length, 13);
+  for (const id of LEGACY) assert.ok(list.some((s) => s.id === id), id);
+  assert.deepEqual(list.filter((s) => !LEGACY.includes(s.id)).map((s) => s.label).sort(), [...PRESET_LABELS].sort());
+  assert.ok(list.every((s) => s.label.trim()));
+  assert.equal(new Set(list.map((s) => s.label)).size, 13);
   assert.equal(app.getDrawStyle(), 'handwritten');
 });
 
@@ -25,7 +32,9 @@ test('FR-029 AC-146: 切り替えると図の見た目だけが変わり、文�
   app.setDraft('入力中の文字');
   const base = { svg: app.renderSvg(), layout: JSON.stringify(app.getDiagramLayout()), out: app.renderOutline(), snap: snap(app) };
   const seen = new Set([base.svg]);
-  for (const id of ['anime', 'simple', 'rpg', 'handwritten']) {
+  const order = [...allIds(app).filter((id) => id !== 'handwritten'), 'handwritten'];
+  assert.equal(order.length, 13);
+  for (const id of order) {
     assert.ok(app.setDrawStyle(id).ok, id);
     assert.equal(app.getDrawStyle(), id);
     const svg = app.renderSvg();
@@ -36,7 +45,7 @@ test('FR-029 AC-146: 切り替えると図の見た目だけが変わり、文�
     assert.equal(snap(app), base.snap, `${id}: 内容・選択・記録中の状態は保たれる`);
     seen.add(svg);
   }
-  assert.equal(seen.size, 4, '4 つのスタイルで図の見た目（SVG）が異なる');
+  assert.equal(seen.size, 13, '13 のスタイルで図の見た目（SVG）が異なる');
   assert.equal(app.renderSvg(), base.svg, '手書き調に戻すと元の図');
 });
 
@@ -44,7 +53,7 @@ test('FR-029 AC-146: どのスタイルでも文字が判読でき、白黒で�
   const { app, env } = await newApp();
   await seedThreeScenes(app, env);
   toDetail(app);
-  for (const id of STYLES) {
+  for (const id of allIds(app)) {
     app.setDrawStyle(id);
     const svg = app.renderSvg();
     for (const s of app.getState().scenes) { assert.ok(svg.includes(s.heading), `${id}: 見出し`); for (const p of s.points) assert.ok(svg.includes(p.text), `${id}: 要点「${p.text}」`); }
@@ -54,7 +63,8 @@ test('FR-029 AC-146: どのスタイルでも文字が判読でき、白黒で�
     assert.ok(kinds.size >= 2, '種類が 2 つ以上');
     const list = [...kinds.values()];
     for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
-      assert.notEqual(list[i].color, list[j].color, `${id}: 色が異なる`);
+      // 既存の 4 つは従来どおり色も異なる。画風プリセットは単色（ミニマル風）があるため色は問わない
+      if (LEGACY.includes(id)) assert.notEqual(list[i].color, list[j].color, `${id}: 色が異なる`);
       assert.ok(list[i].shape !== list[j].shape || list[i].icon !== list[j].icon, `${id}: 色以外（形・絵記号）でも異なる`);
     }
     for (const p of pts) assert.ok(p.fontSize > 0, `${id}: 文字の大きさ`);

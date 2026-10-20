@@ -1,6 +1,7 @@
 // DOM との結び付け（ブラウザ専用。app.js は DOM を知らない）。app の状態を描くだけで、状態は持たない。
 import { PANEL_IDS, PANEL_COMMANDS, MIN_H } from './layout.js';
 
+import { coalesceFrame } from './frame.js';
 import { GROUPS, ICONS, PRIMARY, tooltipId, labelKey } from './commandbar.js';
 
 function icon(doc, command) {
@@ -31,11 +32,14 @@ export function mountUI(app, doc = document) {
 
   function buildToolbar() {
     toolbar.textContent = '';
-    for (const [groupLabelKey, names] of GROUPS) {
-      const fs = doc.createElement('fieldset');
-      fs.className = 'toolbar-group';
-      const lg = doc.createElement('legend');
+    for (const [groupLabelKey, names, groupId] of GROUPS) {
+      // NFR-UX-011 AC-460: 見出し（常に表示）と、グループ要素のアクセシブルな名前（aria-label）は同じ文言
+      const fs = doc.createElement('div');
+      fs.className = 'toolbar-group'; fs.setAttribute('role', 'group'); fs.dataset.group = groupId;
+      const lg = doc.createElement('span');
+      lg.className = 'toolbar-group-heading';
       lg.textContent = app.t(groupLabelKey);
+      fs.setAttribute('aria-label', lg.textContent);
       fs.append(lg);
       for (const name of names) {
         const b = doc.createElement('button');
@@ -46,6 +50,12 @@ export function mountUI(app, doc = document) {
         if (name === 'import.file') {
           const d = doc.createElement('span'); d.className = 'btn-desc'; d.textContent = app.t('import.description'); b.append(d);
           d.id = 'import-desc'; b.className += ' btn-import';
+        }
+        // FR-077 AC-414: 画風のボタンは、ラベルの下に現在の画風の名前を常に出し、一覧（listbox）を開くことを示す
+        if (name === 'drawStyle.pick') {
+          const v = doc.createElement('span'); v.className = 'btn-value'; v.dataset.role = 'drawstyle-value'; b.append(v);
+          b.setAttribute('aria-haspopup', 'listbox'); b.setAttribute('aria-controls', 'drawstyle-list'); b.setAttribute('aria-expanded', 'false');
+          b.className += ' btn-drawstyle';
         }
         const kl = keyLabel(name);
         // NFR-UX-002: ツールチップ（role=tooltip）を aria-describedby で関連付ける。ホバー・フォーカスで表示
@@ -67,7 +77,7 @@ export function mountUI(app, doc = document) {
       toolbar.append(fs);
     }
     // 非表示のパネルを戻す操作
-    const fs = doc.createElement('fieldset'); fs.className = 'toolbar-group'; fs.dataset.role = 'panel-show';
+    const fs = doc.createElement('div'); fs.className = 'toolbar-group'; fs.dataset.role = 'panel-show';
     toolbar.append(fs);
     syncTooltip();
   }
@@ -108,6 +118,7 @@ export function mountUI(app, doc = document) {
     }
   }
 
+  let dragging = false; // ドラッグ中は文字列・アウトラインの再構築を止め、位置の更新だけにする（終了時に 1 回描く）
   function render() {
     const st = app.getState();
     if (builtLang !== st.lang) { applyStatic(); buildToolbar(); buildPanelMenus(); builtLang = st.lang; }
@@ -130,6 +141,14 @@ export function mountUI(app, doc = document) {
       let mk = b.querySelector('.sel-mark');
       if (!mk) { mk = doc.createElement('span'); mk.className = 'sel-mark'; mk.setAttribute('aria-hidden', 'true'); b.append(mk); }
       mk.textContent = it.selectedMark ? '✓' : '';
+    }
+    // FR-077: 画風のボタンの現在値と、一覧の開閉
+    for (const it of app.getCommandBar().items) {
+      if (!('valueLabel' in it)) continue;
+      const b = toolbar.querySelector(`[data-command="${it.command}"]`);
+      if (!b) continue;
+      const v = b.querySelector('.btn-value'); if (v) v.textContent = it.valueLabel;
+      if ('expanded' in it) b.setAttribute('aria-expanded', String(!!it.expanded));
     }
     // FR-074 AC-391: 狭い画面ではパネルをタブにまとめ、見える位置（選択中のタブ）のパネルだけを出す
     const pres = app.getPanelPresentation();
@@ -179,11 +198,14 @@ export function mountUI(app, doc = document) {
     }
     // FR-013/FR-014: 認識文字列。過去を読んでいる間はスクロール位置を奪わない（AC-051）
     const tr = $('#transcript');
-    if (tr) {
-      const atBottom = tr.scrollHeight - tr.scrollTop - tr.clientHeight <= 8;
-      const keep = tr.scrollTop;
-      tr.innerHTML = app.renderTranscript();
-      tr.scrollTop = atBottom ? tr.scrollHeight : keep;
+    if (tr && !dragging) {
+      const html = app.renderTranscript();
+      if (tr._html !== html) {
+        const atBottom = tr.scrollHeight - tr.scrollTop - tr.clientHeight <= 8;
+        const keep = tr.scrollTop;
+        tr.innerHTML = html; tr._html = html;
+        tr.scrollTop = atBottom ? tr.scrollHeight : keep;
+      }
     }
     if (doc.activeElement !== draft && draft.value !== st.input.draft) draft.value = st.input.draft;
     $('#message').textContent = st.message ? st.message.text : '';
@@ -192,7 +214,7 @@ export function mountUI(app, doc = document) {
       ise.textContent = is.text; ise.setAttribute('role', is.role); ise.setAttribute('aria-live', is.live);
       ise.dataset.state = is.state;
     }
-    $('#outline').innerHTML = app.renderOutline();
+    if (!dragging) { const o = $('#outline'); const html = app.renderOutline(); if (o._html !== html) { o.innerHTML = html; o._html = html; } }
 
     const layout = app.getLayout();
     const mode = app.getLayoutMode();
@@ -261,12 +283,13 @@ export function mountUI(app, doc = document) {
       const p = app.getLayout().panels[id];
       const sx = ev.clientX; const sy = ev.clientY;
       el.setPointerCapture?.(ev.pointerId);
+      dragging = true;
       const move = (e) => {
         const dx = e.clientX - sx; const dy = e.clientY - sy;
         if (kind === 'move') app.movePanel(id, { x: p.x + dx, y: p.y + dy });
         else app.resizePanel(id, { w: p.w + dx, h: p.h + dy });
       };
-      const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
+      const up = () => { dragging = false; renderSoon(); el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
       el.addEventListener('pointermove', move); el.addEventListener('pointerup', up);
     });
   }
@@ -336,7 +359,7 @@ export function mountUI(app, doc = document) {
     if (!setEl) return;
     const d = app.getSettingsDialog();
     if (!d) { setEl.hidden = true; setBuilt = null; return; }
-    const key = app.getState().lang;
+    const key = `${app.getState().lang}|${app.getDrawStyles().map((s) => s.id).join(',')}`; // 描画スタイルが登録されたら選択肢を作り直す（FR-077 AC-418）
     if (setBuilt !== key) {
       setBuilt = key; setEl.textContent = '';
       const o = app.getSettingsOptions();
@@ -510,6 +533,53 @@ export function mountUI(app, doc = document) {
     const s = fx['azureSpeech.status'].status; setEl.querySelector('#settings-azure-status').textContent = `${s.icon} ${fx['azureSpeech.status'].label}: ${s.text}`;
     const tr = fx['azureSpeech.test'].status; setEl.querySelector('#settings-azure-test-result').textContent = tr.text ? `${tr.icon} ${tr.text}` : '';
   }
+  // FR-077: 画風の一覧（role=listbox。ボタンの下に出す）。状態（開閉・候補・現在値）は app が持ち、ここは描くだけ。
+  // キー（↑↓ Home End Enter Space Esc）は document の keydown → app.handleKey が扱う。項目のクリックは pickDrawStyle。
+  let dsEl = null; let dsWasOpen = false;
+  function syncStylePicker() {
+    const p = app.getDrawStylePicker?.();
+    if (!p) return;
+    const btn = toolbar.querySelector('[data-command="drawStyle.pick"]');
+    if (!p.open) {
+      if (dsEl) { dsEl.remove(); dsEl = null; }
+      if (dsWasOpen && p.focus === 'button' && btn && doc.activeElement !== btn) btn.focus();
+      dsWasOpen = false;
+      return;
+    }
+    if (!dsEl) {
+      dsEl = doc.createElement('ul'); dsEl.id = 'drawstyle-list'; dsEl.className = 'drawstyle-list'; dsEl.tabIndex = -1;
+      dsEl.addEventListener('click', (e) => { const li = e.target.closest?.('[data-style-id]'); if (li) app.pickDrawStyle(li.dataset.styleId); });
+      dsEl.addEventListener('focusout', (e) => { if (!e.relatedTarget || (!dsEl?.contains(e.relatedTarget) && e.relatedTarget !== btn)) app.closeDrawStylePicker(null); });
+      doc.body.append(dsEl);
+    }
+    dsEl.setAttribute('role', p.role); dsEl.setAttribute('aria-label', p.label);
+    const vw = doc.documentElement.clientWidth || 1280; const vh = doc.defaultView?.innerHeight || doc.documentElement.clientHeight || 720;
+    const r = btn?.getBoundingClientRect?.();
+    // AC-417: 位置・高さの上限・上下どちらに開くかは app が画面の大きさとボタンの位置から決める（下に入りきらなければ上に開く）
+    const view = app.getDrawStylePickerView({ viewportWidth: vw, viewportHeight: vh, anchor: r ? { x: r.left, y: r.top, w: r.width, h: r.height } : undefined });
+    dsEl.dataset.placement = view.placement;
+    dsEl.style.cssText = `left:${view.left}px;top:${view.top}px;width:${view.width}px;max-height:${view.maxHeight}px;`;
+    const key = JSON.stringify(p.options);
+    if (dsEl.dataset.key !== key) {
+      dsEl.dataset.key = key; dsEl.textContent = '';
+      for (const o of p.options) {
+        const li = doc.createElement('li'); li.id = `drawstyle-opt-${o.id}`; li.setAttribute('role', 'option'); li.dataset.styleId = o.id;
+        li.setAttribute('aria-selected', String(o.selected)); li.className = 'drawstyle-option';
+        if (o.selectedMark) li.dataset.selectedMark = o.selectedMark;
+        const mk = doc.createElement('span'); mk.className = 'drawstyle-mark'; mk.setAttribute('aria-hidden', 'true'); mk.textContent = o.selected ? '✓' : '';
+        const nm = doc.createElement('span'); nm.className = 'drawstyle-name'; nm.textContent = o.label;
+        const ds = doc.createElement('span'); ds.className = 'drawstyle-desc'; ds.textContent = o.description;
+        li.append(mk, nm, ds); dsEl.append(li);
+      }
+    }
+    for (const li of dsEl.children) li.classList.toggle('is-active', li.dataset.styleId === p.activeId);
+    if (p.activeId) { dsEl.setAttribute('aria-activedescendant', `drawstyle-opt-${p.activeId}`); dsEl.querySelector(`[data-style-id="${p.activeId}"]`)?.scrollIntoView?.({ block: 'nearest' }); }
+    if (p.focus === 'list' && doc.activeElement !== dsEl) dsEl.focus();
+    dsWasOpen = true;
+  }
+  app.on('change', syncStylePicker);
+  for (const ev of ['resize', 'scroll']) doc.defaultView?.addEventListener?.(ev, () => { if (dsEl) syncStylePicker(); }, { passive: true, capture: true }); // 画面の大きさ・スクロールが変わったら置き直す
+  doc.addEventListener('pointerdown', (e) => { if (dsEl && !e.target.closest?.('#drawstyle-list, [data-command="drawStyle.pick"]')) app.closeDrawStylePicker(null); });
 
   // FR-062: LLM 連携の同意の表示（送る項目の種類・送信先ホスト名・送らないもの）。同意するまで有効にならない
   let consentEl = null;
@@ -598,7 +668,9 @@ export function mountUI(app, doc = document) {
   app.on('change', syncPopup);
   doc.addEventListener('pointerdown', (e) => { if (popEl && !e.target.closest?.('#scene-popup, [data-scene-id], [data-topic-id]')) app.popupOutside(); });
 
-  app.subscribe(render);
+  // 変更が続いても再構築は 1 フレームに 1 回（NFR-PERF-002/003）
+  const renderSoon = coalesceFrame(render, doc.defaultView?.requestAnimationFrame?.bind(doc.defaultView), doc.defaultView?.cancelAnimationFrame?.bind(doc.defaultView));
+  app.subscribe(renderSoon);
   render();
-  return { render, measureWorkArea };
+  return { render, renderSoon, measureWorkArea };
 }

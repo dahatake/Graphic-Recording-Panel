@@ -2,6 +2,7 @@
 
 System Test（`tests/system/*.test.js`、`node --test tests/system/`）が前提にする、`web/` の公開 API。実装者はこれに従う。
 期待値は要求定義書の受入基準だけから決めており、この契約は「テストが何を呼ぶか」だけを定める（内部構造は自由）。
+実ブラウザの性能テスト（perf-util.js）の前提: Node（npm 付き）、システムの Edge/Chrome（`PERF_BROWSER` で指定可）、初回に `tests/system` へ playwright-core を自動で `npm ci`（ブラウザはダウンロードしない）。
 アプリは静的 Web（ビルド不要、ES モジュール）。`web/index.html` が `web/src/app.js` を読み込んで DOM に結び付ける。
 `web/src/app.js` は DOM・グローバルに依存せずに import でき（Node で import できる）、副作用は注入された依存だけを通す。
 
@@ -224,6 +225,11 @@ export async function createApp(options) -> app   // await 可能（同期で返
 - `renderOutline()`（テキスト一覧）は、要点ごとに `data-point-id="<id>"` の要素の中に、図と同じ `kindLabel` を文字で含む。
 - `app.getDiagramRelations()` → 図に今描かれている関係線（現在の詳細度。`'detail'` 以外では要点どうしの関係線は無く空配列）: `[{ kind:'cause-effect'|'problem-proposal', kindLabel:string（ja「原因→結果」「課題→提案」）, from:pointId（原因・課題）, to:pointId（結果・提案）, basis:'explicit'|'inferred', basisLabel:string（ja「明示」「推測」）, evidence:null|{type:'word'|'kinds', text:string}（明示は非 null。word は原文の語、kinds は要点の種類の並び） }]`。`renderSvg()` の関係線（`<line>`/`<path>`）は `data-relation-kind` `data-relation-from` `data-relation-to` `data-relation-basis` を持ち、向きを示す `marker-end`（矢印）を持ち、種類のラベルを `<text data-relation-label>` で含む。推測の線のラベルは `basisLabel` を含む。
 - `app.getOutlineRelations()` → テキスト一覧が表示する関係情報。形は `getDiagramRelations()` と同じ（`evidence.text` は PARAM-033（`PARAM.EVIDENCE_MAX`=40）文字以内）。`renderOutline()` は関係ごとに `data-relation-from` `data-relation-to` `data-relation-kind` `data-relation-basis` を持つ要素で、種類・始点の要点の文字列・終点の要点の文字列・`basisLabel` を文字で含む。関係線がないとき、`renderOutline()` に `data-relation-from` は現れない。
+
+## コマンドバーの作業順グループ（NFR-UX-011 AC-459〜464、追記。既存の契約は変えない）
+- `getCommandBar().groups` → `[{ id, name, accessibleName, headingVisible:true, commands:[command…] }]`。`id` は順に `import`・`session`・`view`・`layoutType`・`presentation`・`export`・`data`・`environment`（取り込み・記録・表示・レイアウト型・プレゼンテーション・図の書き出し・データ・画面・環境）。`name` は表示言語の見出し（ja: 取り込み／記録／表示／レイアウト型／プレゼンテーション／図の書き出し／データ／画面・環境。en は ja と異なる非空の英語）。`accessibleName` は `name` と同じ。切替は再生成なしで追従する。1 グループは PARAM-092（7）個以内。
+- `getCommandBar().items` は DOM 順（`groups` の `commands` を順に連結したもの）で、各 `items[i]` に `group`（所属グループ ID）と `tabIndex`（0。正の値にしない）を加える。`getCommandBar().focusOrder` → Tab で巡る順の command 配列（DOM 順と一致）。
+- `getCommandBarLayout({viewportWidth})` に次を加える: `items[i].rect:{x,y,w,h}`（コマンドバー内の表示範囲）、`groups:[{id, headingRect:{x,y,w,h}}]`（グループ順）。`scrollsHorizontally` は PARAM-006（640px）以下でも false。
 
 ## 記録開始での音声開始の集約・最上部の取り込み・パネルの自動表示（FR-072〜074 AC-384〜394、追記。既存の契約は変えない）
 - 音声の開始操作は `session.start`（[記録開始]）・`session.resume` だけ。`getCommandBar().items`・`app.commands`・`app.keymap` に、音声認識の開始だけを行う操作（`speech.start`・マイクの開始）は無い。`session.start`/`session.resume` は、`app.startSpeech()` と同じ可否判定で `speechSource.start` を呼ぶ（`local`→同意なしで開始、`remote` 未同意→開始せず `getSpeechStatus()` は `reason:'consent'`、`getState().message.text` に同意待ちの理由と「同意すれば始まる」旨（ja は「同意」を含む））。`session.pause`・`session.stop` は `speechSource.stop()` を呼ぶ。同意状態は一時停止・停止・再開で保たれる（`setSpeechConsent(false)` か再読込で未同意）。

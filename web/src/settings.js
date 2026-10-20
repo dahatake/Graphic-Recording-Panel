@@ -128,7 +128,8 @@ export function settingsModule(ctx) {
   // ---- 描画スタイル ----
   api.getDrawStyles = () => styles.list(lang());
   api.getDrawStyle = () => manualStyle ?? settings.drawStyle;
-  api.getDrawStyleSpec = () => styles.get(api.getDrawStyle());
+  // FR-075: getDrawStyleSpec(id) は定義の写し（preset: 見た目の項目を持つか）。引数なしは現在の描画スタイル。未知の id は null。
+  api.getDrawStyleSpec = (...a) => styles.spec(a.length && a[0] !== undefined ? a[0] : api.getDrawStyle());
   api.setDrawStyle = (id) => {
     if (!styles.has(id)) return reject('drawStyle.invalid', 'invalid');
     manualStyle = id;
@@ -200,7 +201,9 @@ export function settingsModule(ctx) {
   const notify = () => ctx.emit('change', api);
   api.getSettingsDialog = () => (open ? {
     open: true, role: 'dialog', label: t('settings.title'), focused: true,
-    fields: FIELD_IDS.map((id) => ({ id, label: t(`settings.${id}`), value: id === 'layout.mode' ? settings.layout.mode : id === 'layout.types' ? [...settings.layout.types] : settings.drawStyle })),
+    fields: FIELD_IDS.map((id) => ({ id, label: t(`settings.${id}`), value: id === 'layout.mode' ? settings.layout.mode : id === 'layout.types' ? [...settings.layout.types] : settings.drawStyle,
+      // FR-077 AC-418: 既定の描画スタイルの選択肢は、上部の一覧と同じ登録簿（同じ ID・名前・並び）から作る
+      ...(id === 'drawStyle' ? { options: styles.list(lang()).map((s) => ({ value: s.id, label: s.label })) } : {}) })),
   } : null);
   // UI 用の選択肢（値と表示名）
   api.getSettingsOptions = () => ({

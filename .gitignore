@@ -10,3 +10,7 @@ config/.azure-speech-*.tmp
 
 __pycache__/
 *.pyc
+
+node_modules/
+tests/system/node_modules/
+tests/system/.npm-lock/
