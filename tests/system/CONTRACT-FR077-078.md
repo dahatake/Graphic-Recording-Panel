@@ -1,6 +1,6 @@
 # System Test 契約: 画面上部での画風の選択（FR-077）・画像生成プロンプトのコピー（FR-078）
 
-`tests/system/stylepicker.test.js`（FR-077 AC-414〜419）と `tests/system/imageprompt.test.js`（FR-078 AC-420〜424）が前提にする、`web/src/app.js` の公開 API の追記。
+`tests/system/stylepicker.test.js`（FR-077 AC-414〜419）と `tests/system/imageprompt.test.js`（FR-078 AC-420〜424・AC-468・AC-469）が前提にする、`web/src/app.js` の公開 API の追記。
 既存の契約（`CONTRACT.md`）は変えない。期待値は要求定義書の受入基準だけから決めており、この契約は「テストが何を呼ぶか」だけを定める（内部構造は自由）。
 描画スタイルの ID は、既存の 4 つ（`handwritten`・`anime`・`simple`・`rpg`）以外は `getDrawStyles()` から得る（FR-076 の 9 つの風の ID はテストが固定しない）。
 
@@ -50,16 +50,26 @@
 |---|---|---|
 | `clipboard` | `{ writeText(text) => Promise }` か `null` | クリップボード。`writeText` の Promise が reject されたら「拒否」、`null`（または `writeText` がない）なら「使えない」。省略時は実ブラウザの `navigator.clipboard` |
 
-### 操作（AC-420・423）
-- `getCommandBar().items` に `command:'prompt.copy'`（`label` は PARAM-011 以内、`labelVisible:true`、`accessibleName`、`tooltip:{id,text}`、`describedBy`、`tabbable:true`）。`keymap` に `prompt.copy` の割り当てを持ち、`searchCommands(label)` で見つかる。`handleKey` からの実行は、マイクロタスク・`setImmediate` 1 回の後にコピーが終わっている。
-- `await app.commands['prompt.copy']()` → 成功 `{ok:true, truncated:boolean}`、シーン 0 `{ok:false, reason:'empty'}`、クリップボードの拒否・使えない `{ok:false, reason:'clipboard'}`。
-  - 成功: `clipboard.writeText` を 1 回、`getImagePrompt().text` と同じ文字列で呼ぶ。`getState().message`（`key` は切り詰めなし `'prompt.copied'`、切り詰め `'prompt.truncated'`。`text` は非空）と `getCommandBar().status.role==='status'`。
+### 操作（AC-420・423・468）
+- `getCommandBar().items` に `command:'prompt.copy'`（`label` は PARAM-011 以内、`labelVisible:true`、`accessibleName`、`tooltip:{id,text}`、`describedBy`、`tabbable:true`）。`keymap` に `prompt.copy` の割り当てを持ち、`searchCommands(label)` で見つかる。`handleKey` からの実行は、マイクロタスク・`setImmediate` 1 回の後に注意が開いている（コピーは注意でコピーを選んでから）。
+- `await app.commands['prompt.copy']()` → シーンが 1 つ以上: クリップボードに書き込まずに注意（下記）を開き `{ok:true, pending:'notice'}`。シーン 0: 注意を開かず `{ok:false, reason:'empty'}`。
+- `await app.confirmPromptCopy()`（注意の「コピー」）→ 成功 `{ok:true, truncated:boolean, masked:boolean}`、クリップボードの拒否・使えない `{ok:false, reason:'clipboard'}`、注意が開いていない `{ok:false, reason:'notice'}`（何もしない）。どの場合も注意を閉じる。
+  - 成功: `clipboard.writeText` を 1 回、`getImagePrompt({mask})`（`mask` は注意の選択）の `text` と同じ文字列で呼ぶ。`getState().message`（`key` は切り詰めなし `'prompt.copied'`、切り詰め `'prompt.truncated'`。`text` は非空）と `getCommandBar().status.role==='status'`。
   - シーン 0: `writeText` を呼ばず、`message.text` に内容がないことを示す。
-  - 拒否・使えない: `app.getPromptFallback()` → `{ open:true, text:string（コピーするはずだった文章。getImagePrompt().text と同じ）, selectable:true, role:'dialog'|'region', label:string }` を開き、`message.text`（非空）で手でコピーできることを示す。それ以外のときは `getPromptFallback()` は `null`。
+  - 拒否・使えない: `app.getPromptFallback()` → `{ open:true, text:string（コピーするはずだった文章。getImagePrompt({mask}).text と同じ）, selectable:true, role:'dialog'|'region', label:string }` を開き、`message.text`（非空）で手でコピーできることを示す。それ以外のときは `getPromptFallback()` は `null`。
   - どの場合も、発話・シーン・要点・`selectedSceneId`・`input.draft`・`session` は変えない。
 
+### コピー前の注意と簡易マスキング（AC-468・469）
+- `app.getPromptCopyNotice()` → `{ open:boolean, focus:'notice'|'button'|null, role:'dialog'|'alertdialog', modal:true, label:string, text:string, live:'polite'|'assertive', mask:boolean, maskNote:string, controls:[{ id:'mask'|'copy'|'cancel', kind:'checkbox'|'button', label:string, checked?:boolean }], active:'mask'|'copy'|'cancel'|null }`。
+  - 開いた直後: `open:true`・`focus:'notice'`・`mask:true`（初期は適用する。LLM 連携の有効・無効と `getLlmMasking()` に関係しない）・`active` は `controls` のどれか。`text` は会議の内容が含まれ貼り付け先の外部サービスへ渡ることの注意、`maskNote` は検出は簡易で完全な除去は保証しない旨（ja は「保証しない」か「保証しません」、en は "not guarantee" などを含む）。`label`・`text`・`maskNote`・`controls[].label` は表示言語。`controls` の `mask` は `kind:'checkbox'`・`checked`（`mask` と同じ）。
+  - 閉じているとき `open:false`。注意を閉じた直後は `focus:'button'`（コピーの操作のボタンに戻る）。開いたことがなければ `focus:null`。注意が開いている間に `prompt.copy` をもう一度実行しても、注意は 1 つで書き込まない。
+- `app.setPromptCopyMask(bool)` → `{ok}`（真偽値以外・注意が閉じているときは `ok:false` で不変）。`app.cancelPromptCopy()` → `{ok:true}`（取りやめ。注意を閉じる）。
+- 注意が開いている間の `app.handleKey({key, shiftKey?})`（返り値は非 null の名前）: `Tab`／`Shift+Tab` は `active` を `controls` の中で次／前へ巡らせる（注意の外へ出ない）。`' '`（Space）は `active==='mask'` のとき適用を切り替える。`Enter` は `active` の操作（`copy` はコピー、`cancel` は取りやめ、`mask` は切り替え）。`Escape` は取りやめ（返り値 `'prompt.copy.cancel'`）。Enter のコピーは、マイクロタスク・`setImmediate` 1 回の後に終わっている。
+- 取りやめでは `writeText` を呼ばず、`getPromptFallback()` は `null` のまま、発話・シーン・要点・`selectedSceneId`・`input.draft`・`session` を変えない。
+- 簡易マスキング（AC-469）: `app.getImagePrompt({ mask:true })` は、`content` の body の、`setLlmMaskWords()` で登録した語・敬称付きの人名らしい語（例: 「山田様」）・メールアドレス・電話番号を、AC-359 と同じ規則で伏せ字に置き換えた文章（元の語を含まない）。`content` 以外の `sections` は `mask:false` と同じ。`getImagePrompt()`・`getImagePrompt({mask:false})` は伏せ字なし。PARAM-082 の判定と切り詰めは伏せ字の後の `content` で行う。伏せ字は `renderSvg()`・`renderOutline()`・`getState()`・`file.save` の `data` に反映しない。
+
 ### 文章（AC-420・421・422）
-- `app.getImagePrompt()` → シーン 0 は `null`。それ以外は `{ text:string, truncated:boolean, sections:[{ key, heading:string, body:string, typeIds?:[typeId] }] }`。
+- `app.getImagePrompt({ mask }?)` → シーン 0 は `null`。それ以外は `{ text:string, truncated:boolean, sections:[{ key, heading:string, body:string, typeIds?:[typeId] }] }`（`mask:true` は上の簡易マスキングを適用。省略・`false` は適用しない）。
   - `sections` の `key` は順に `'purpose'`（目的）・`'palette'`（配色）・`'typography'`（文字）・`'illustration'`（イラスト）・`'mood'`（雰囲気）・`'composition'`（構成）・`'content'`（内容）。`text` は各 `heading` と `body` をこの順に含む。`heading` は表示言語（ja は上の括弧の語を含む）。
   - 配色・文字・イラスト・雰囲気の `body` は、選んでいる描画スタイルの画風の記述のそれぞれ配色・書体・描画・雰囲気を含む。画風の記述を持たない描画スタイルでは、その 4 つの `body` は空かその描画スタイルの名前だけ（少なくとも 1 つは名前）。
   - `composition` は `typeIds`（`getLayoutInfo().selected` と同じ）を持ち、`body` は各型の名称（`getCommandBar()` の `layoutType.<id>` の `label`）と説明を含む。

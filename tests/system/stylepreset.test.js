@@ -11,8 +11,25 @@ import {
   rgb, lum, contrast, isYellow, isBlack, isGray, isBlackOrGray, isWhite, isNeutral,
   parseSvg, box, overlapArea, descendants, median, fontList, svgTextSet, presetIds, seededApp, usePreset, pointsOf, stateTexts,
 } from './stylepreset-util.js';
+import { YU, TRADITIONAL, expectedStack, assertJpOrder } from './jpfont-util.js';
 
 const YB = '黄黒手書き風';
+// 通常の吹き出し（感情語を含むトピックの吹き出し data-balloon-kind="emotion" は AC-467 で確かめる）
+const normalBalloons = (doc) => doc.role('balloon').filter((b) => b.attrs['data-balloon-kind'] !== 'emotion');
+// 書体の系統の並び（AC-407・AC-408）: Yu Gothic UI の前（欧文専用の書体）と後（日本語の字形を持ち得る書体）のそれぞれで系統の順を保つ（AC-466）
+function assertKindOrder(stack, family, where) {
+  const i = assertJpOrder(stack.map((f) => f.name), where);
+  const latin = stack.slice(0, i).map((f) => `${f.kind} `).join('');
+  const jp = stack.slice(i + 1).map((f) => f.kind).join(' ');
+  if (family === 'handwriting') {
+    assert.match(latin, /^(handwriting )*(roundGothic )*$/, `${where}: 欧文専用の書体の中で手書き風→丸ゴシック: ${latin}`);
+    assert.match(jp, /^(handwriting )+(roundGothic )+generic$/, `${where}: 手書き風→丸ゴシック→標準: ${jp}`);
+  } else if (family === 'roundGothic') {
+    assert.match(latin, /^(roundGothic )*$/, `${where}: 欧文専用の書体は丸ゴシック: ${latin}`);
+    assert.match(jp, /^(roundGothic )+generic$/, `${where}: 丸ゴシック→標準: ${jp}`);
+  }
+  assert.deepEqual(stack.map((f) => f.name), expectedStack(TRADITIONAL[family]), `${where}: 従来の並びの欧文専用の書体→Yu Gothic UI→残り（NFR-UX-012）`);
+}
 const GOLDEN = path.join(ROOT, 'tests', 'system', 'golden', 'fr075-legacy');
 const nl = (s) => String(s).replace(/\r\n/g, '\n');
 const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
@@ -105,7 +122,8 @@ test('FR-076 AC-408: 黄黒手書き風の見出しは黒い帯に白抜き、�
   }
   const balloons = doc.role('balloon');
   assert.ok(balloons.length >= scenes.length, '各シーンに吹き出し');
-  for (const b of balloons) {
+  assert.ok(normalBalloons(doc).length >= 1, '通常の吹き出しがある');
+  for (const b of normalBalloons(doc)) {
     assert.equal(b.attrs['data-shape'], 'cloud', '雲形');
     assert.ok(isYellow(b.attrs.fill), '黄色');
     assert.ok(isBlack(b.attrs.stroke), '黒の輪郭線');
@@ -122,13 +140,13 @@ test('FR-076 AC-408: 黄黒手書き風の見出しは黒い帯に白抜き、�
   }
 });
 
-test('FR-076 AC-408: 黄黒手書き風の文字は太めで、書体の指定は手書き風→丸ゴシック→端末の標準の書体の順の並び', async () => {
+test('FR-076 AC-408: 黄黒手書き風の文字は太めで、書体の指定は手書き風→丸ゴシック→端末の標準の書体の順の並び（日本語の字形は Yu Gothic UI を先に）', async () => {
   const { app, ids } = await seededApp();
   const { doc } = usePreset(app, ids, YB);
   for (const t of doc.texts()) assert.ok(weightOf(t) >= 600, `文字「${t.text}」は太め: ${t.attrs['font-weight']}`);
   const stack = app.getFontStacks().handwriting;
-  const kinds = stack.map((f) => f.kind).join(' ');
-  assert.match(kinds, /^(handwriting )+(roundGothic )+generic$/, `並び: ${kinds}`);
+  assertKindOrder(stack, 'handwriting', '黄黒手書き風の書体の並び');
+  assert.ok(stack.findIndex((f) => f.name === YU) < stack.findIndex((f) => f.kind === 'handwriting' && !['Segoe Print', 'Ink Free'].includes(f.name)), '日本語の字形は Yu Gothic UI が手書き風の日本語の書体より先');
   assert.equal(doc.root.attrs['data-font-kind'], 'handwriting');
   assert.deepEqual(fontList(doc.root.attrs['font-family']), stack.map((f) => f.name), '図の書体の指定はその並び');
 });
@@ -212,7 +230,8 @@ test('FR-076 AC-409: 9 つの風を選ぶと、図がその紙面・配色・書
     }
     const balloons = doc.role('balloon');
     assert.ok(balloons.length >= scenes.length, `${p.ja} 各シーンに吹き出し`);
-    for (const b of balloons) assert.equal(b.attrs['data-shape'], p.balloon, `${p.ja} 吹き出しの形`);
+    assert.ok(normalBalloons(doc).length >= 1, `${p.ja} 通常の吹き出しがある`);
+    for (const b of normalBalloons(doc)) assert.equal(b.attrs['data-shape'], p.balloon, `${p.ja} 通常の吹き出しの形`);
     const figs = doc.role('figure');
     if (p.figures) for (const s of scenes) assert.ok(figs.some((g) => g.attrs['data-scene-id'] === s.id), `${p.ja} シーン ${s.id} に線画人物`);
     else assert.equal(figs.length, 0, `${p.ja} は線画人物なし`);
@@ -582,8 +601,33 @@ async function legacySvg(style, c) {
   assert.equal(app.setDrawStyle(style).ok, true);
   return { app, svg: app.renderSvg() };
 }
+// FR-075 AC-406: 変わってよいのは書体の指定の並び（NFR-UX-012。AC-466）と、それによる日本語の字形・文字幅、
+// 文字幅から決まる文字を囲む枠の幅・文字の折り返しの位置だけ。配色・線・図形の種類・配置の規則・文字の内容は同じ。
+// （欧文の字形が参照の環境で変わらないことは、書体の並びで欧文専用の書体を足さないことで確かめる。10.3 の [ASSUMPTION] NFR-UX-012）
+const GEOM = new Set(['x', 'y', 'width', 'height', 'd', 'points', 'x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'rx', 'ry', 'r', 'transform', 'viewBox', 'data-box', 'textLength', 'dx', 'dy']);
+function assertSameAsLegacy(actual, golden, where) {
+  const want = expectedStack(TRADITIONAL.legacy);
+  const fams = parseSvg(actual).all.filter((n) => n.attrs['font-family'] !== undefined);
+  assert.ok(fams.length >= 1, `${where}: 書体の指定がある`);
+  for (const n of fams) assert.deepEqual(fontList(n.attrs['font-family']), want, `${where}: 書体の指定の並びは NFR-UX-012 のとおり`);
+  for (const n of parseSvg(golden).all.filter((x) => x.attrs['font-family'] !== undefined)) assert.deepEqual(fontList(n.attrs['font-family']), TRADITIONAL.legacy, `${where}: 記録の書体の指定は従来の並び`);
+  const strip = (s) => nl(s).replace(/\s+font-family="[^"]*"/g, '');
+  if (strip(actual) === strip(golden)) return; // 書体の指定の並び以外は同じ
+  // 文字幅の違いによる枠の幅・折り返しの位置の違いだけを許す
+  const a = parseSvg(actual); const g = parseSvg(golden);
+  const isText = (n) => n.tag === 'text' || n.tag === 'tspan' || a.within(n, ['text']);
+  const shapes = (d) => d.all.filter((n) => !isText(n) && n.tag !== 'title' && n.tag !== 'desc');
+  const sa = shapes(a); const sg = shapes(g);
+  assert.deepEqual(sa.map((n) => n.tag), sg.map((n) => n.tag), `${where}: 図形の種類と順序は同じ`);
+  const look = (n) => Object.fromEntries(Object.entries(n.attrs).filter(([k]) => !GEOM.has(k) && k !== 'font-family'));
+  sa.forEach((n, i) => assert.deepEqual(look(n), look(sg[i]), `${where}: ${n.tag}[${i}] の配色・線・役割は同じ`));
+  const flat = (d) => d.all.filter((n) => n.tag === 'text' && !d.within(n, ['text'])).map((n) => n.text).join('').replace(/\s+/g, '');
+  assert.equal(flat(a), flat(g), `${where}: 文字の内容と順序は同じ（折り返しの位置だけ違ってよい）`);
+  const textLook = (d) => [...new Set(d.all.filter((n) => n.tag === 'text').map((n) => JSON.stringify(look(n))))].sort();
+  assert.deepEqual(textLook(a), textLook(g), `${where}: 文字の色・大きさ・太さは同じ`);
+}
 // FR-075 AC-406
-test('FR-075 AC-406: 見た目の項目を持たない既存の 4 つ（手書き調・アニメ調・シンプル・RPG風）は、同じ入力に対して拡張の前と同じ図になる', async () => {
+test('FR-075 AC-406: 見た目の項目を持たない既存の 4 つ（手書き調・アニメ調・シンプル・RPG風）は、同じ入力に対して拡張の前と同じ図になる（書体の指定の並びと文字幅による違いだけを許す）', async () => {
   const files = fs.readdirSync(GOLDEN).filter((f) => f.endsWith('.svg'));
   assert.ok(files.length >= 10, '拡張の前の図の記録がある');
   for (const f of files) {
@@ -591,7 +635,7 @@ test('FR-075 AC-406: 見た目の項目を持たない既存の 4 つ（手書�
     const c = CONFIGS[rest.join('-')];
     assert.ok(LEGACY.includes(style) && c, f);
     const { svg } = await legacySvg(style, c);
-    assert.equal(nl(svg), nl(fs.readFileSync(path.join(GOLDEN, f), 'utf8')), `${f}: 図形・線・色・文字が拡張の前と同じ`);
+    assertSameAsLegacy(svg, fs.readFileSync(path.join(GOLDEN, f), 'utf8'), `${f}: 図形・線・色・文字が拡張の前と同じ`);
   }
 });
 
@@ -602,7 +646,7 @@ test('FR-075 AC-406 異常系: 風を選んでから既存の 4 つに戻して�
     for (const p of PRESETS) { assert.equal(app.setDrawStyle(ids[p.ja]).ok, true); app.renderSvg(); }
     assert.equal(app.setDrawStyle(style).ok, true);
     const svg = app.renderSvg();
-    assert.equal(nl(svg), nl(fs.readFileSync(path.join(GOLDEN, `${style}-timeline-detail.svg`), 'utf8')), `${style}: 戻すと拡張の前と同じ`);
+    assertSameAsLegacy(svg, fs.readFileSync(path.join(GOLDEN, `${style}-timeline-detail.svg`), 'utf8'), `${style}: 戻すと拡張の前と同じ`);
     assert.ok(!/data-style-role=|data-paper=|data-font-kind=/.test(svg), `${style}: 画風プリセットの観察点がない`);
     assert.equal(app.getDrawStyleSpec(style).preset, false);
   }
@@ -639,8 +683,9 @@ test('FR-075 AC-407: 図の文字の書体の指定は、手書き風は手書�
     assert.equal(st[k].filter((f) => f.kind === 'generic').length, 1);
     for (const f of st[k]) assert.ok(typeof f.name === 'string' && f.name.trim() && !/url\(|\/\//.test(f.name), `${k}: 書体名 ${f.name}`);
   }
-  assert.match(st.handwriting.map((f) => f.kind).join(' '), /^(handwriting )+(roundGothic )+generic$/, '手書き風→丸ゴシック→標準');
-  assert.match(st.roundGothic.map((f) => f.kind).join(' '), /^(roundGothic )+generic$/, '丸ゴシック→標準');
+  // 手書き風→丸ゴシック→標準、丸ゴシック→標準。日本語の字形は各並びの欧文専用の書体の次に Yu Gothic UI（AC-466）
+  assertKindOrder(st.handwriting, 'handwriting', '手書き風の系統');
+  assertKindOrder(st.roundGothic, 'roundGothic', '丸ゴシックの系統');
   for (const p of PRESETS) {
     const { doc } = usePreset(app, ids, p.ja);
     assert.deepEqual(fontList(doc.root.attrs['font-family']), st[p.font].map((f) => f.name), `${p.ja}: 図の書体の指定`);
