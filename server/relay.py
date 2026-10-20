@@ -1,6 +1,6 @@
 """ローカル中継サーバー（FR-066 / NFR-SEC-003）。標準ライブラリだけ。
 
-  python server/relay.py --port 8080 --web web
+  python server/relay.py --web web [--port N]   （省略で空きポートを自動選択。FR-083）
 
 - 127.0.0.1 だけで待ち受ける。静的ファイルの配信と LLM の中継を同じオリジンで行う。
 - Host・Origin が自分自身（127.0.0.1 / localhost の自分のポート）でない要求は 403。
@@ -12,6 +12,7 @@ import argparse
 import importlib
 import json
 import os
+import re
 import sys
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -245,6 +246,8 @@ class RelayHandler(SimpleHTTPRequestHandler):
 
 class RelayServer(ThreadingHTTPServer):
     daemon_threads = True
+    # Windows の SO_REUSEADDR は使用中のポートにも bind できてしまうため、そこでは使わない
+    allow_reuse_address = (os.name != "nt")
 
     def handle_error(self, request, client_address):
         # ブラウザー側が接続を切った（中断・リセット）場合はトレースバックを出さない
@@ -255,18 +258,103 @@ class RelayServer(ThreadingHTTPServer):
 
 
 def make_server(port, web_dir):
+    """127.0.0.1 の port に bind して待ち受ける（port=0 は OS が割り当てる）。
+    Host・Origin の検査は server_address の実ポートで行うため、bind が済んでから要求を受け付ける。"""
     handler = partial(RelayHandler, directory=web_dir)
-    return RelayServer((BIND_ADDRESS, port), handler)
+    server = RelayServer((BIND_ADDRESS, port), handler, bind_and_activate=False)
+    try:
+        server.server_bind()
+        server.server_activate()
+    except BaseException:
+        server.server_close()
+        raise
+    return server
+
+
+DEFAULT_PORT = 8080
+LAST_PORT_NAME = os.path.join(".graphic-recording-panel", "last-port")
+
+
+def _home_dir():
+    return os.environ.get("HOME") or os.environ.get("USERPROFILE") or os.path.expanduser("~")
+
+
+def last_port_path():
+    return os.path.join(_home_dir(), LAST_PORT_NAME)
+
+
+def read_last_port():
+    """前回のポート。ない・読めない・1〜65535 の整数でないときは None（未保存）。"""
+    try:
+        with open(last_port_path(), "r", encoding="utf-8") as f:
+            text = f.read().strip()
+    except (OSError, ValueError):
+        return None
+    if not re.fullmatch(r"[0-9]{1,5}", text):
+        return None
+    n = int(text)
+    return n if 1 <= n <= 65535 else None
+
+
+def write_last_port(port):
+    """失敗しても起動は続ける。"""
+    try:
+        path = last_port_path()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("%d\n" % port)
+    except (OSError, ValueError):
+        pass
+
+
+def parse_port(text):
+    """--port の値を検査する。1〜65535 は指定ポート、0 は自動選択。不正なら ValueError。"""
+    if not re.fullmatch(r"[0-9]+", text or "") or int(text) > 65535:
+        raise ValueError("--port は 0〜65535 の整数で指定してください（指定値: %r）。" % (text,))
+    return int(text)
+
+
+def start_server(port, web_dir):
+    """(server, 前回のポートと別のポートで起動したか) を返す。指定ポートが使えなければ OSError。"""
+    if port != 0:
+        return make_server(port, web_dir), False
+    first = read_last_port() or DEFAULT_PORT
+    try:
+        return make_server(first, web_dir), False
+    except OSError:
+        return make_server(0, web_dir), True
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="ローカル中継サーバー（127.0.0.1 のみ）")
-    ap.add_argument("--port", type=int, default=8080)
+    ap.add_argument("--port", default="0",
+                    help="待ち受けるポート（1〜65535）。省略または 0 で前回のポート（なければ 8080）、使用中なら空いているポートを自動選択")
     ap.add_argument("--web", default=os.path.join(cfg.ROOT, "web"))
     args = ap.parse_args(argv)
-    server = make_server(args.port, os.path.abspath(args.web))
-    sys.stderr.write("Serving on http://localhost:%d/ (127.0.0.1 only)\n" % args.port)
-    sys.stderr.flush()
+    for stream in (sys.stdout, sys.stderr):  # 案内の日本語を端末の既定コードページに依らず UTF-8 で出す
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+    try:
+        want = parse_port(args.port)
+    except ValueError as e:
+        sys.stderr.write(str(e) + "\n")
+        return 2
+    try:
+        server, moved = start_server(want, os.path.abspath(args.web))
+    except OSError as e:
+        sys.stderr.write("ポート %d で待ち受けられません（使用中の可能性があります）: %s\n"
+                         "別のポートを指定するか、--port を省略して自動選択にしてください。\n" % (want, e))
+        return 1
+    port = server.server_address[1]
+    if want == 0:
+        write_last_port(port)
+    print("http://127.0.0.1:%d/" % port)
+    if moved:
+        print("ポートが変わったため、前回までのブラウザ内の保存データ（セッション・レイアウト・LLM 利用の同意）は"
+              "この URL では引き継がれません。固定したいときは --port N を指定してください。")
+    sys.stdout.flush()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
