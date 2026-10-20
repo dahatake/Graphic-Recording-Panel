@@ -15,7 +15,11 @@ test('NFR-UX-011 AC-463: 再編後もボタンの集合が過不足なく同じ�
   assert.equal(new Set(names).size, names.length);
   const cmds = app.getCommandBar().items.map((i) => i.command);
   assert.deepEqual([...cmds].sort(), names.filter((n) => typeof app.commands[n] === 'function').sort());
-  assert.equal(cmds.length, 38);
+  // 再編時の 38 個に、FR-077 の画風の一覧（drawStyle.pick。表示の末尾）と FR-078 のプロンプトのコピー（prompt.copy。図の書き出しの末尾）を足した 40 個
+  assert.equal(cmds.length, 40);
+  const groupOf = (c) => app.getCommandBar().items.find((i) => i.command === c)?.group;
+  assert.equal(groupOf('drawStyle.pick'), 'view');
+  assert.equal(groupOf('prompt.copy'), 'export');
   for (const it of app.getCommandBar().items) {
     assert.ok(ICONS[it.command], `${it.command}: アイコン`);
     assert.equal(it.label, app.t(labelKey(it.command)));

@@ -13,7 +13,8 @@ test('FR-047 AC-214: 描画スタイルの選択肢に「RPG風」が現れ、�
   const rpg = app.getDrawStyles().find((s) => s.id === 'rpg');
   assert.ok(rpg, '選択肢に rpg');
   assert.match(rpg.label, /RPG/);
-  assert.equal(app.getDrawStyles().length, 4);
+  // 選択肢の総数は FR-029 AC-146（FR-076 の追加後は 13）で確かめる。ここでは既存の 3 つと並んで現れることだけを見る
+  for (const id of ['handwritten', 'anime', 'simple']) assert.ok(app.getDrawStyles().some((s) => s.id === id), id);
   assert.equal(app.getDrawStyle(), 'handwritten');
 });
 
