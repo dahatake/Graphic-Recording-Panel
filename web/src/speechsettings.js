@@ -97,9 +97,10 @@ export function speechSettingsModule(ctx) {
     if (!METHODS.includes(id)) return { ok: false, reason: 'unknown' };
     if (id === 'azure' && !configured()) { say('azs.methodUnconfigured'); return { ok: false, reason: 'unconfigured' }; }
     if (id !== method) {
-      applyMethod(id, 'select');
+      // 切替の旨を先に出す。方式の切替を購読する音声認識（speech.js）が、同意待ちなどの表示で上書きできるようにする（FR-081 AC-441）
       msg = 'azs.methodChanged';
-      ctx.change((s) => { s.message = { key: 'azs.methodChanged', text: `${t('azs.methodChanged')}${t(`azs.method.${method}`)}` }; });
+      ctx.change((s) => { s.message = { key: 'azs.methodChanged', text: `${t('azs.methodChanged')}${t(`azs.method.${id}`)}` }; });
+      applyMethod(id, 'select');
     }
     return { ok: true };
   };

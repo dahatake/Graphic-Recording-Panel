@@ -73,6 +73,9 @@ h1 { font-size: var(--font-size-title); } h2 { font-size: var(--font-size-subtit
 .workspace[data-mode="stacked"] .resize-grip { display: none; }
 
 .draft-form { display: flex; flex-direction: column; gap: var(--space-2); }
+/* FR-081 AC-444: 音声認識の失敗の状態表示に続く 1 回の操作（再試行・ブラウザ標準への切替） */
+.speech-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-1); }
+.speech-actions[hidden] { display: none; }
 textarea { font: inherit; color: var(--color-text); background: var(--color-surface); border: var(--stroke) solid var(--color-border); border-bottom-width: 2px; border-radius: var(--radius-control); padding: var(--space-2); width: 100%; resize: vertical; }
 textarea:focus { border-bottom-color: var(--color-primary); }
 .message { min-height: 1.5em; margin: var(--space-2) 0 0; color: var(--color-warn); font-weight: var(--font-weight-semibold); }
