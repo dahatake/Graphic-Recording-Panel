@@ -4,6 +4,10 @@
 # LLM 連携のローカル設定（API キーを含みうるため管理外）
 config/llm.local.json
 
+# Azure Speech のエンドポイントとキーの保管先（中継サーバーだけが書く。NFR-SEC-005）
+config/azure-speech.local.json
+config/.azure-speech-*.tmp
+
 __pycache__/
 *.pyc
 

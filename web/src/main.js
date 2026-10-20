@@ -23,6 +23,8 @@ const app = await createApp({
   },
 });
 const ui = mountUI(app);
+// FR-082: Azure Speech の設定状態（設定済み／未設定とホスト名だけ）を中継サーバーから読む。キーの値は受け取らない
+void app.refreshAzureSpeechStatus?.();
 mountEditUI(app);
 mountPromptFallback(app); // FR-078 AC-423: クリップボードに書けないときの手でコピーする表示
 ui.measureWorkArea();
