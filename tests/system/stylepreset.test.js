@@ -90,7 +90,7 @@ test('FR-076 AC-408: 黄黒手書き風は白い紙面に黒の文字と枠、�
   }
 });
 
-test('FR-076 AC-408: 黄黒手書き風の見出しは黒い帯に白抜き、吹き出しは黒の輪郭線の黄色の雲形、各シーンに丸い頭と細い線の線画人物', async () => {
+test('FR-076 AC-408: 黄黒手書き風の見出しは黒い帯に白抜き、通常の吹き出しは黒の輪郭線の黄色の雲形（感情語のトピックは異なる形）、各シーンに丸い頭と細い線の線画人物', async () => {
   const { app, ids } = await seededApp();
   const { doc } = usePreset(app, ids, YB);
   const scenes = app.getState().scenes;
@@ -105,8 +105,12 @@ test('FR-076 AC-408: 黄黒手書き風の見出しは黒い帯に白抜き、�
   }
   const balloons = doc.role('balloon');
   assert.ok(balloons.length >= scenes.length, '各シーンに吹き出し');
+  // Q-026 A: 通常の吹き出しは雲形。感情語を含むトピックの吹き出し（data-emotional="true"。AC-156）は通常と異なる形
+  const normal = balloons.filter((b) => b.attrs['data-emotional'] !== 'true');
+  assert.ok(normal.length > 0, '通常の吹き出しがある');
+  for (const b of normal) assert.equal(b.attrs['data-shape'], 'cloud', '通常の吹き出しは雲形');
+  for (const b of balloons.filter((x) => x.attrs['data-emotional'] === 'true')) assert.notEqual(b.attrs['data-shape'], 'cloud', '感情語を含むトピックの吹き出しは通常（雲形）と異なる形');
   for (const b of balloons) {
-    assert.equal(b.attrs['data-shape'], 'cloud', '雲形');
     assert.ok(isYellow(b.attrs.fill), '黄色');
     assert.ok(isBlack(b.attrs.stroke), '黒の輪郭線');
   }
@@ -212,7 +216,11 @@ test('FR-076 AC-409: 9 つの風を選ぶと、図がその紙面・配色・書
     }
     const balloons = doc.role('balloon');
     assert.ok(balloons.length >= scenes.length, `${p.ja} 各シーンに吹き出し`);
-    for (const b of balloons) assert.equal(b.attrs['data-shape'], p.balloon, `${p.ja} 吹き出しの形`);
+    // Q-026 A: 通常の吹き出しは 3.6 の表の形。感情語を含むトピックの吹き出し（data-emotional="true"。AC-156）は通常と異なる形
+    const normal = balloons.filter((b) => b.attrs['data-emotional'] !== 'true');
+    assert.ok(normal.length > 0, `${p.ja} 通常の吹き出しがある`);
+    for (const b of normal) assert.equal(b.attrs['data-shape'], p.balloon, `${p.ja} 通常の吹き出しの形`);
+    for (const b of balloons.filter((x) => x.attrs['data-emotional'] === 'true')) assert.notEqual(b.attrs['data-shape'], p.balloon, `${p.ja} 感情語の吹き出しは通常と異なる形`);
     const figs = doc.role('figure');
     if (p.figures) for (const s of scenes) assert.ok(figs.some((g) => g.attrs['data-scene-id'] === s.id), `${p.ja} シーン ${s.id} に線画人物`);
     else assert.equal(figs.length, 0, `${p.ja} は線画人物なし`);

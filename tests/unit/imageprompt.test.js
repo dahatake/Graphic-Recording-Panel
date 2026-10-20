@@ -22,6 +22,13 @@ async function seeded(options = {}) {
   return { app, storage };
 }
 const sec = (pr, key) => pr.sections.find((s) => s.key === key);
+// FR-078 AC-470: コピーの操作で注意を開き、注意の「コピー」を選ぶ（mask は伏せ字の選択。省略時は初期値のまま）
+async function copyVia(app, mask) {
+  const o = await app.commands['prompt.copy']();
+  if (o.pending !== true) return o;
+  if (mask !== undefined) app.setPromptNoticeMask(mask);
+  return app.promptNoticeAction('copy');
+}
 
 // FR-078 AC-420 AC-421: 組み込みの 13 の描画スタイルはすべて ja・en の画風の記述を持ち、既存の 4 つも見た目の項目は持たない（preset:false）
 test('FR-078 AC-420 AC-421: 組み込みの描画スタイルはすべて画風の記述（4 軸・ja/en）を持ち、既存 4 つの見た目は変えない', async () => {
@@ -80,7 +87,7 @@ test('FR-078 AC-420 AC-421: 文章は 7 つの節をこの順に持ち、英語�
 test('FR-078 AC-423: 手でコピーする表示は閉じられ、成功・シーン 0 のときは出さない', async () => {
   const deny = { writeText: async () => { throw new Error('denied'); } };
   const { app } = await seeded({ clipboard: deny });
-  assert.equal((await app.commands['prompt.copy']()).reason, 'clipboard');
+  assert.equal((await copyVia(app)).reason, 'clipboard');
   assert.equal(app.getPromptFallback().open, true);
   assert.equal(app.getState().message.key, 'prompt.clipboardFailed');
   assert.equal(app.closePromptFallback(), true);
@@ -96,10 +103,11 @@ test('FR-078 AC-423: 手でコピーする表示は閉じられ、成功・シ�
 test('FR-078 AC-420: コピーしたメッセージは表示言語の切替で訳される', async () => {
   const c = clip();
   const { app } = await seeded({ clipboard: c });
-  assert.deepEqual(await app.commands['prompt.copy'](), { ok: true, truncated: false });
-  assert.equal(app.getState().message.text, STRINGS.ja['prompt.copied']);
+  assert.deepEqual(await copyVia(app), { ok: true, truncated: false, masked: true }); // 伏せ字の選択の初期値は簡易マスキングの設定（有効）
+  assert.equal(app.getState().message.text, STRINGS.ja['prompt.copied'] + STRINGS.ja['prompt.maskedSuffix']);
   app.setLang('en');
-  assert.equal(app.getState().message.text, STRINGS.en['prompt.copied']);
+  assert.equal(app.getState().message.text, STRINGS.en['prompt.copied'] + STRINGS.en['prompt.maskedSuffix']);
+  assert.equal(app.getState().message.masked, true);
 });
 
 // FR-078 AC-420 と FR-077 AC-414: 画風の記述を足しても、画風の一覧（FR-077）の既存 4 つの短い説明は変わらない（ja・en）
@@ -125,7 +133,7 @@ test('FR-078 AC-420 / FR-077 AC-414: 既存 4 つの画風の一覧の短い説�
 // FR-078 AC-424: 文章はブラウザ内の保存（grp.*）に含まれない
 test('FR-078 AC-424: コピーの前後でブラウザ内の保存に文章が入らない', async () => {
   const { app, storage } = await seeded({ clipboard: clip() });
-  await app.commands['prompt.copy']();
+  await copyVia(app);
   const purpose = sec(app.getImagePrompt(), 'purpose').body;
   for (const [, v] of storage.dump()) assert.ok(!v.includes(purpose));
 });

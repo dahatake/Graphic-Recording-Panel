@@ -162,7 +162,15 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .prompt-fallback { max-width: min(40rem, 100%); max-height: calc(100vh - 2 * var(--space-4)); display: flex; flex-direction: column; gap: var(--space-3); overflow: auto; }
 .prompt-fallback .prompt-fallback-title { margin: 0; font-size: var(--font-size-subtitle); font-weight: var(--font-weight-semibold); }
 .prompt-fallback p { margin: 0; }
-.prompt-fallback-text { width: 100%; box-sizing: border-box; min-height: 12rem; resize: vertical; padding: var(--space-2); font: inherit; font-size: var(--font-size-body); color: var(--color-text); background: var(--color-surface); border: var(--stroke) solid var(--color-border); border-radius: var(--radius); white-space: pre-wrap; overflow-wrap: anywhere; }/* FR-030 ［設定］画面。狭い画面でも縦に並べ、項目を欠かさない。FR-027 選択中の型は枠とチェック印でも示す */
+.prompt-fallback-text { width: 100%; box-sizing: border-box; min-height: 12rem; resize: vertical; padding: var(--space-2); font: inherit; font-size: var(--font-size-body); color: var(--color-text); background: var(--color-surface); border: var(--stroke) solid var(--color-border); border-radius: var(--radius); white-space: pre-wrap; overflow-wrap: anywhere; }
+/* FR-078 AC-470〜473 コピーの前の注意（デザイン基盤の .dialog を使う。伏せ字の選択は 32px 以上の操作領域） */
+.prompt-notice { max-height: calc(100vh - 2 * var(--space-4)); overflow: auto; }
+.prompt-notice .prompt-notice-title { margin: 0 0 var(--space-3); font-size: var(--font-size-subtitle); font-weight: var(--font-weight-semibold); }
+.prompt-notice-mask { display: flex; align-items: flex-start; gap: var(--space-2); min-height: var(--target-size); margin: 0 0 var(--space-4); padding: var(--space-2); border: var(--stroke) solid var(--color-border-subtle); border-radius: var(--radius); cursor: pointer; }
+.prompt-notice-mask input { width: 20px; height: 20px; margin: 2px 0 0; flex: none; accent-color: var(--color-primary); }
+.dialog .prompt-notice-error { color: var(--color-danger); font-weight: var(--font-weight-semibold); }
+.dialog .prompt-notice-error[hidden] { display: none; }
+/* FR-030 ［設定］画面。狭い画面でも縦に並べ、項目を欠かさない。FR-027 選択中の型は枠とチェック印でも示す */
 .settings-dialog { position: fixed; z-index: 190; top: var(--space-5); right: var(--space-4); max-width: min(32rem, calc(100vw - 2 * var(--space-4))); max-height: calc(100vh - 2 * var(--space-5)); overflow: auto; }
 .settings-dialog[hidden] { display: none; }
 .settings-form { display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-4); }

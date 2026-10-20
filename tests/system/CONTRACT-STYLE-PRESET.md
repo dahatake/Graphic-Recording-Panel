@@ -26,7 +26,7 @@
 - 文字: `<defs>`・`<title>`・`<desc>` の外のすべての `<text>` は、`fill`（`#hex`）・`font-weight`（数値。「太め」は 600 以上）・`data-back`（その文字の直下の背景の色 `#hex`。紙面・帯・付箋・吹き出しの塗りのどれか）・`data-box="x y w h"`（文字の外接矩形）を持つ。
 - 面と線: 次の要素は `data-style-role` を持ち、`fill` と `stroke`（`none` 可）を明示し、`stroke` が `none` でなければ `stroke-width` を持つ。`heading-band`・`heading-marker`・`heading-sticky`・`balloon`・`sticky`・`icon` は `data-box="x y w h"`（外接矩形）も持つ。`point-frame`・`balloon`・`sticky` は輪郭（`stroke` が `none` でなく `stroke-width>0`）を必ず持つ。
   - `heading-band`（見出しの帯）・`heading-marker`（見出しのマーカー下線）・`heading-sticky`（見出しの付箋）: `headingDecoration` が `band`／`marker`／`sticky` のとき各シーンに 1 つ以上。`classic` のときはどれもない。
-  - `balloon`（吹き出し。`data-shape="cloud|rounded|sticky"` で `balloon` と同じ値）: 各シーンに 1 つ以上（どの要点・発言を吹き出しにするかは実装が決める）。
+  - `balloon`（吹き出し。通常の吹き出しは `data-shape="cloud|rounded|sticky"` で `balloon` と同じ値）: 各シーンに 1 つ以上（どの要点・発言を吹き出しにするかは実装が決める）。感情語を含むトピックの吹き出し（AC-156）を `balloon` として描くときは `data-emotional="true"` を付け、`data-shape` は通常の形と異なる値（例: `'jagged'`）にする（Q-026 A。AC-408・AC-409）。通常の吹き出しは `data-emotional` を持たないか `"false"`。
   - `point-frame`（要点の枠。各要点に 1 つ。付箋に載せる風でも、要点の輪郭は `point-frame` の要素にする）・`sticky`（付箋の面）・`icon`（絵記号）・`emphasis`（強調の塗り）・`divider`（区切り線）・`shadow`（影）。
   - 重なり: `heading-band`・`heading-marker`・`heading-sticky`・`balloon`・`sticky` は、重なる文字より文書順で前（下）にある。`figure`・`icon` の外接矩形は文字の外接矩形と重ならない。
   - 黄黒手書き風（AC-408）: `icon`・`emphasis`（結論の要点があるとき）を 1 つ以上、`divider` か `shadow` を 1 つ以上持つ。
