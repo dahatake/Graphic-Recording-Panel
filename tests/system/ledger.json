@@ -118,7 +118,7 @@
     "AC-315": "sha256:aed4e3eb34ec8cfb",
     "AC-316": "sha256:db9095b097c28f30",
     "AC-353": "sha256:559454a49d9740de",
-    "AC-355": "sha256:2622e76797701472",
+    "AC-355": "sha256:dac8ff0d33ef48a6",
     "AC-356": "sha256:4236124574ec4ec7",
     "AC-339": "sha256:a78bcb9b484b7155",
     "AC-319": "sha256:2438bf8370d73f1e",
@@ -221,7 +221,15 @@
     "AC-466": "sha256:237a9758ed5c6c34",
     "AC-467": "sha256:c4226d7de46cdab0",
     "AC-468": "sha256:f80e054d2adb4c3d",
-    "AC-469": "sha256:6fe4e419ca2b590c"
+    "AC-469": "sha256:6fe4e419ca2b590c",
+    "AC-482": "sha256:f4f93aad35707a33",
+    "AC-483": "sha256:5dcffa82eb79739e",
+    "AC-484": "sha256:c03029b79db89d22",
+    "AC-485": "sha256:c2c7510c7aeb2c63",
+    "AC-486": "sha256:1102b0f9b494e9ad",
+    "AC-487": "sha256:ee1c3e825c37eb17",
+    "AC-490": "sha256:b6b5a791aae42fef",
+    "AC-491": "sha256:8b0e5859c678cc64"
   },
   "cases": [
     {
@@ -6866,6 +6874,206 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "AC-469 は廃止（main の run 202610201309 の AC-470・AC-471 に統合。Q-027 A）。代わりに E2E-239 で確かめる"
+        }
+      ]
+    },
+    {
+      "id": "E2E-246",
+      "requirement_ids": [
+        "FR-084"
+      ],
+      "ac_ids": [
+        "AC-482"
+      ],
+      "title": "最上部の「接続キー」（アイコン・名称・常時表示の説明、［設定］と別、設定の語なし、日英切替）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=AC-482 tests/system/apikeys.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-22T22:47:55+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610222227）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-247",
+      "requirement_ids": [
+        "FR-084"
+      ],
+      "ac_ids": [
+        "AC-483"
+      ],
+      "title": "接続キー画面が中央のモーダルで開き背景は inert のオーバーレイ、2 分類、開いても入力・記録・図は失われない",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=AC-483 tests/system/apikeys.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-22T22:47:57+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610222227）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-248",
+      "requirement_ids": [
+        "FR-084"
+      ],
+      "ac_ids": [
+        "AC-484"
+      ],
+      "title": "閉じる操作（閉じる・Esc・ダイアログ内）で閉じフォーカスが戻る、オーバーレイでは閉じない、未保存の入力は破棄",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=AC-484 tests/system/apikeys.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-22T22:47:59+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610222227）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-249",
+      "requirement_ids": [
+        "FR-084"
+      ],
+      "ac_ids": [
+        "AC-485"
+      ],
+      "title": "キーボード操作（Tab の循環・矢印）、読み上げ、動きを減らす、狭い画面、forced-colors、ラベル長",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=AC-485 tests/system/apikeys.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-22T22:48:01+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610222227）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-250",
+      "requirement_ids": [
+        "FR-084"
+      ],
+      "ac_ids": [
+        "AC-486"
+      ],
+      "title": "Azure Speech の分類の操作と、設定画面（FR-082）との状態の一致、応答なしの異常系",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=AC-486 tests/system/apikeys.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-22T22:48:03+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610222227）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-251",
+      "requirement_ids": [
+        "FR-085"
+      ],
+      "ac_ids": [
+        "AC-487"
+      ],
+      "title": "Foundry の分類（書き込み専用の伏せ字・状態と出どころ・保存・確認つき削除・env/file は削除不可・不応答・形式の拒否）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=AC-487 tests/system/apikeys.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-22T22:48:05+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610222227）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-252",
+      "requirement_ids": [
+        "NFR-SEC-006"
+      ],
+      "ac_ids": [
+        "AC-490"
+      ],
+      "title": "ダミーの Foundry・Azure Speech キーが画面・保存・セッションファイル・PNG/SVG/PDF・コンソールに現れない",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=AC-490 tests/system/apikeys.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-22T22:48:08+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610222227）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-253",
+      "requirement_ids": [
+        "NFR-SEC-006"
+      ],
+      "ac_ids": [
+        "AC-491"
+      ],
+      "title": "キー欄の自動補完の無効化、保存・閉じる後は空で再読込でも復元されない",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=AC-491 tests/system/apikeys.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-22T22:48:10+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610222227）"
         }
       ]
     }
