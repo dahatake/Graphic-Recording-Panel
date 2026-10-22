@@ -6,6 +6,8 @@ import { LAYOUT_TYPE_IDS, LAYOUT_TYPE_META } from './layouttypes.js';
 // DOM 順＝フォーカス順＝視覚順。取り消せない data.reset はデータの末尾。
 export const GROUPS = [
   ['toolbar.import', ['import.file'], 'import'],
+  // FR-084: 画面最上部の「接続キー」（Foundry・Azure Speech のキー）。取り込みと同じ形（アイコン＋常時の説明文字列）
+  ['toolbar.apiKeys', ['apiKeys.open'], 'apiKeys'],
   ['toolbar.session', ['session.start', 'session.pause', 'session.resume', 'session.stop', 'session.nextScene', 'input.focus'], 'session'],
   // FR-077: 画風（描画スタイル。〇〇風）の一覧を開くボタンは「表示」の末尾（一覧・選択は stylepicker.js）
   ['toolbar.view', ['view.2d', 'view.3d', 'view.timeline', 'view.arrange', 'detail.next', 'drawStyle.pick'], 'view'],
@@ -21,7 +23,7 @@ export const GROUPS = [
 const LABELS = {
   'session.start': ['記録開始', 'Record'], 'session.pause': ['一時停止', 'Pause'], 'session.resume': ['再開', 'Resume'],
   'session.stop': ['記録終了', 'Stop'], 'session.nextScene': ['次シーン', 'Next scene'], 'input.focus': ['入力', 'Type'],
-  'import.file': ['取り込み', 'Import'],
+  'import.file': ['取り込み', 'Import'], 'apiKeys.open': ['接続キー', 'API Keys'],
   'save.png': ['PNG保存', 'Save PNG'], 'save.svg': ['SVG保存', 'Save SVG'], 'save.pdf': ['PDF保存', 'Save PDF'],
   'lang.ja': ['日本語', 'Japanese'], 'lang.en': ['英語', 'English'],
   'view.2d': ['2D表示', '2D view'], 'view.3d': ['3D表示', '3D view'], 'view.timeline': ['時系列', 'Timeline'], 'view.arrange': ['整理', 'Arrange'], 'detail.next': ['詳細度', 'Detail'],
@@ -62,11 +64,12 @@ const P = {
   trash: 'M4 6h12M8 6V4h4v2M6 6l1 11h6l1-11M9 9v5M11 9v5',
   fileSave: 'M4 3h8l4 4v10H4zM12 3v4h4M10 9v5M8 12l2 2 2-2',
   fileLoad: 'M4 3h8l4 4v10H4zM12 3v4h4M10 14V9M8 11l2-2 2 2',
+  key: 'M6.500 8a3.500 3.500 0 1 1 3.300 3.500L9 12.500H7.500V14H6v1.500H3.500V13L8.600 8.800A3.500 3.500 0 0 1 6.500 8ZM12.500 6.500h.01',
   palette: 'M10 2a8 8 0 1 0 0 16c1 0 1.5-.7 1.5-1.5 0-1-.8-1.4-.8-2.2 0-.8.7-1.3 1.5-1.3H14a4 4 0 0 0 4-4c0-3.900-3.600-7-8-7ZM5 9.500a1.200 1.200 0 1 0 2.400 0 1.200 1.200 0 1 0-2.400 0M7.800 5.800a1.200 1.200 0 1 0 2.400 0 1.200 1.200 0 1 0-2.400 0M11.800 5.800a1.200 1.200 0 1 0 2.400 0 1.200 1.200 0 1 0-2.400 0',
 };
 export const ICONS = {
   'session.start': P.rec, 'session.pause': P.pause, 'session.resume': P.play, 'session.stop': P.stop,
-  'session.nextScene': P.next, 'input.focus': P.edit, 'import.file': P.fileLoad,
+  'session.nextScene': P.next, 'input.focus': P.edit, 'import.file': P.fileLoad, 'apiKeys.open': P.key,
   'save.png': P.save, 'save.svg': P.save, 'save.pdf': P.save, 'lang.ja': P.lang, 'lang.en': P.lang,
   'view.2d': P.square, 'view.3d': P.cube, 'theme.toggle': P.theme, 'drawStyle.pick': P.palette, 'view.timeline': P.prev, 'view.arrange': P.tile, 'detail.next': P.detail,
   'presentation.start': P.present, 'presentation.pause': P.pause, 'presentation.resume': P.play,
@@ -89,6 +92,7 @@ const TIP = {
   'input.focus': ['テキスト入力欄に移動して文字で入力します', 'Jump to the text field to type input'],
   'import.file': ['テキスト・字幕のファイルを選んで、発話として取り込みます', 'Pick a text or caption file and import it as utterances'],
   'save.png': ['図を PNG 画像として保存します', 'Save the diagram as a PNG image'],
+  'apiKeys.open': ['Microsoft Foundry・Azure Speech のキーを登録・変更・削除する画面を開きます', 'Open the screen to register, change or delete the Microsoft Foundry and Azure Speech keys'],
   'save.svg': ['図を SVG ファイルとして保存します', 'Save the diagram as an SVG file'],
   'save.pdf': ['図を PDF として保存します', 'Save the diagram as a PDF'],
   'lang.ja': ['表示言語を日本語に切り替えます', 'Switch the display language to Japanese'],
@@ -130,8 +134,9 @@ export function commandBarModule(ctx) {
   });
   ctx.i18n.addStrings({
     ja: {
-      'toolbar.import': '取り込み', 'toolbar.export': '図の書き出し', 'toolbar.environment': '画面・環境',
+      'toolbar.import': '取り込み', 'toolbar.export': '図の書き出し', 'toolbar.environment': '画面・環境', 'toolbar.apiKeys': '接続キー',
       'import.description': 'テキストファイル（.txt）・字幕ファイル（.vtt）を取り込みます',
+      'apiKeys.description': 'Microsoft Foundry・Azure Speech のキーを登録します',
       'status.speech.label': '音声認識',
       'status.lang': '言語',
       'status.view': '表示',
@@ -140,8 +145,9 @@ export function commandBarModule(ctx) {
       'view.name.2d': '2D', 'view.name.3d': '3D',
     },
     en: {
-      'toolbar.import': 'Import', 'toolbar.export': 'Export diagram', 'toolbar.environment': 'Screen & environment',
+      'toolbar.import': 'Import', 'toolbar.export': 'Export diagram', 'toolbar.environment': 'Screen & environment', 'toolbar.apiKeys': 'API Keys',
       'import.description': 'Import a text file (.txt) or a caption file (.vtt)',
+      'apiKeys.description': 'Register the Microsoft Foundry and Azure Speech keys',
       'status.speech.label': 'Speech',
       'status.lang': 'Language',
       'status.view': 'View',
@@ -190,6 +196,8 @@ export function commandBarModule(ctx) {
       const it = { command, group: groupOfCommand.get(command), label, labelVisible: true, accessibleName: label, tabbable: true, tabIndex: 0, tooltip: tip(command), describedBy: tooltipId(command), icon: ICONS[command] ?? '' };
       // FR-073 AC-388: 取り込みは、何を取り込めるかの説明を常時表示する（ホバー・フォーカスを待たない）
       if (command === 'import.file') { it.description = ctx.t('import.description'); it.descriptionVisible = true; }
+      // FR-084 AC-482: 接続キーも同じ形（説明を常時表示。「設定」の語は使わない）
+      if (command === 'apiKeys.open') { it.description = ctx.t('apiKeys.description'); it.descriptionVisible = true; }
       return it;
     });
     return { position: 'top', groups, items, focusOrder: items.map((i) => i.command), status: api.getCommandStatus() };

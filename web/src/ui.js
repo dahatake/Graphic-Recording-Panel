@@ -47,9 +47,9 @@ export function mountUI(app, doc = document) {
         const lab = doc.createElement('span'); lab.className = 'btn-label'; lab.textContent = app.t(labelKey(name));
         b.append(icon(doc, name), lab);
         // FR-073 AC-388: 取り込みは、取り込めるファイルの説明を常に文字で見せる（アイコンだけに頼らない）
-        if (name === 'import.file') {
-          const d = doc.createElement('span'); d.className = 'btn-desc'; d.textContent = app.t('import.description'); b.append(d);
-          d.id = 'import-desc'; b.className += ' btn-import';
+        if (name === 'import.file' || name === 'apiKeys.open') {
+          const d = doc.createElement('span'); d.className = 'btn-desc'; d.textContent = app.t(name === 'import.file' ? 'import.description' : 'apiKeys.description'); b.append(d);
+          d.id = name === 'import.file' ? 'import-desc' : 'apikeys-desc'; b.className += name === 'import.file' ? ' btn-import' : ' btn-import btn-apikeys';
         }
         // FR-077 AC-414: 画風のボタンは、ラベルの下に現在の画風の名前を常に出し、一覧（listbox）を開くことを示す
         if (name === 'drawStyle.pick') {
@@ -347,7 +347,10 @@ export function mountUI(app, doc = document) {
       el.addEventListener('click', () => { void app.dialogAction(b.id); });
       row.append(el);
     }
-    box.append(p, row); dlgEl.append(box); doc.body.append(dlgEl);
+    box.append(p, row); dlgEl.append(box);
+    // FR-084: 接続キー画面（<dialog> のモーダル）が開いているときは、その中に出す（背景は inert なので、外に出すと操作できない）
+    const ak = doc.querySelector('#apikeys-dialog');
+    (ak?.open ? ak : doc.body).append(dlgEl);
     row.querySelector(`[data-action="${d.defaultFocus}"]`)?.focus();
   }
   app.on('change', syncDialog);
