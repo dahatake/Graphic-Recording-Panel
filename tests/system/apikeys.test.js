@@ -203,7 +203,7 @@ test('FR-084 AC-485: キーボードだけで操作でき、フォーカスは�
 
 test('FR-084 AC-485: 結果が読み上げ対象のメッセージで示され、状態は色だけでなく文字・アイコンで示され、ラベルは PARAM-011 以内で日英に従う', async () => {
   const { app } = await boot();
-  assert.ok(dlg(await open(app)));
+  assert.ok(await open(app));
   app.setFoundryKeyInput(dummyFoundryKey());
   assert.equal((await app.saveFoundryKey()).ok, true); await flush();
   const lm = dlg(app).liveMessage;
