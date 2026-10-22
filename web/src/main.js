@@ -3,6 +3,7 @@ import { createApp } from './app.js';
 import { mountUI } from './ui.js';
 import { mountEditUI } from './edit-ui.js';
 import { mountPromptFallback, mountPromptNotice } from './imageprompt-ui.js';
+import { mountApiKeysUI } from './apikeys-ui.js';
 import { relayRequest } from './relayclient.js';
 
 const mq = (q) => (globalThis.matchMedia ? globalThis.matchMedia(q).matches : false);
@@ -26,6 +27,7 @@ const ui = mountUI(app);
 // FR-082: Azure Speech の設定状態（設定済み／未設定とホスト名だけ）を中継サーバーから読む。キーの値は受け取らない
 void app.refreshAzureSpeechStatus?.();
 mountEditUI(app);
+mountApiKeysUI(app); // FR-084・FR-085: 接続キー画面（中央のモーダル）
 mountPromptNotice(app); // FR-078 AC-470〜473: コピーの前の注意（伏せ字の選択・コピー・キャンセル）
 mountPromptFallback(app); // FR-078 AC-423: クリップボードに書けないときの手でコピーする表示
 ui.measureWorkArea();

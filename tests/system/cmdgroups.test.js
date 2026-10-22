@@ -7,10 +7,11 @@ import { newApp, CJK } from './helpers.js';
 const NARROW = 640; // PARAM-006（以下で折り返す）
 const WIDE = 1280;
 const MAX_PER_GROUP = 7; // PARAM-092
-const ORDER = ['import', 'session', 'view', 'layoutType', 'presentation', 'export', 'data', 'environment'];
-const JA = ['取り込み', '記録', '表示', 'レイアウト型', 'プレゼンテーション', '図の書き出し', 'データ', '画面・環境'];
+const ORDER = ['import', 'apiKeys', 'session', 'view', 'layoutType', 'presentation', 'export', 'data', 'environment'];
+const JA = ['取り込み', '接続キー', '記録', '表示', 'レイアウト型', 'プレゼンテーション', '図の書き出し', 'データ', '画面・環境'];
 const MEMBERS = {
   import: ['import.file'],
+  apiKeys: ['apiKeys.open'], // FR-084 AC-482（画面最上部の「接続キー」）
   session: ['session.start', 'session.pause', 'session.resume', 'session.stop', 'session.nextScene', 'input.focus'],
   view: ['view.2d', 'view.3d', 'view.timeline', 'view.arrange', 'detail.next', 'drawStyle.pick'], // drawStyle.pick は末尾（FR-077）
   presentation: ['presentation.start', 'presentation.pause', 'presentation.resume', 'presentation.stop', 'presentation.prev', 'presentation.next'],
@@ -26,7 +27,7 @@ const intersects = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b
 const byLayout = (app, w) => app.getCommandBarLayout({ viewportWidth: w });
 
 // NFR-UX-011 AC-459
-test('NFR-UX-011 AC-459: グループは 取り込み→記録→表示→レイアウト型→プレゼンテーション→図の書き出し→データ→画面・環境 の 8 つで、各ボタンが定められたグループに属する', async () => {
+test('NFR-UX-011 AC-459: グループは 取り込み→接続キー→記録→表示→レイアウト型→プレゼンテーション→図の書き出し→データ→画面・環境 の 9 つで、各ボタンが定められたグループに属する', async () => {
   const { app } = await newApp();
   const groups = bar(app).groups;
   assert.deepEqual(groups.map((g) => g.id), ORDER);
@@ -84,7 +85,7 @@ test('NFR-UX-011 AC-459 異常系: 各グループは 7 個以内で、どのボ
   sameSet(all, bar(app).items.map((i) => i.command));
 });
 
-test('NFR-UX-011 AC-459 異常系: 折り返す幅でも（画面幅 640px 以下）グループの順序は上→下・左→右で 8 つのまま', async () => {
+test('NFR-UX-011 AC-459 異常系: 折り返す幅でも（画面幅 640px 以下）グループの順序は上→下・左→右で 9 つのまま', async () => {
   const { app } = await newApp();
   const lay = byLayout(app, NARROW);
   assert.deepEqual(lay.groups.map((g) => g.id), ORDER);

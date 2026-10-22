@@ -231,3 +231,36 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .rpg-window p { margin: 0; }
 .rpg-window-text { min-height: 3.2em; white-space: pre-wrap; }
 .rpg-window-hint { font-size: var(--font-size-caption); text-align: right; }
+
+/* FR-084・FR-085: 接続キー画面（画面中央のモーダル。VS Code の設定画面風: 左に分類、右に内容）。デザイン基盤のトークンだけを使う */
+.commandbar .btn-apikeys { height: auto; }
+.apikeys-dialog { padding: 0; border: var(--stroke) solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-8); width: min(44rem, calc(100vw - 2 * var(--space-4))); max-height: calc(100vh - 2 * var(--space-5)); overflow: hidden; margin: auto; }
+.apikeys-dialog[hidden] { display: none; }
+.apikeys-dialog[open] { display: flex; flex-direction: column; animation: apikeys-in 120ms ease-out; }
+.apikeys-dialog::backdrop { background: rgb(60 60 60 / 0.55); } /* 背後のグレーがかった半透明のオーバーレイ（クリックでは閉じない） */
+@keyframes apikeys-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.apikeys-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: var(--stroke) solid var(--color-border); }
+.apikeys-head h2 { margin: 0; font-size: var(--font-size-title, 1.25rem); }
+.apikeys-body { display: flex; gap: var(--space-4); padding: var(--space-4); overflow: auto; min-height: 14rem; }
+.apikeys-nav { display: flex; flex-direction: column; gap: var(--space-1); flex: 0 0 11rem; border-right: var(--stroke) solid var(--color-border); padding-right: var(--space-3); }
+.apikeys-cat { text-align: left; padding: var(--space-2) var(--space-3); background: transparent; color: inherit; border: var(--stroke) solid transparent; border-left: 3px solid transparent; border-radius: var(--radius); font: inherit; cursor: pointer; }
+.apikeys-cat[aria-selected="true"] { border-left-color: var(--color-brand, currentColor); font-weight: 600; background: var(--color-subtle-hover, rgb(127 127 127 / 0.15)); } /* 選択は太字と左の線でも示す（色だけに頼らない） */
+.apikeys-panel { flex: 1 1 auto; display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.apikeys-row { display: flex; flex-direction: column; gap: var(--space-1); }
+.apikeys-row input { padding: var(--space-2); font: inherit; background: var(--color-surface); color: inherit; border: var(--stroke) solid var(--color-border); border-radius: var(--radius); }
+.apikeys-status { margin: 0; }
+.apikeys-reason { margin: 0; font-size: var(--font-size-caption); }
+.apikeys-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-top: var(--stroke) solid var(--color-border); }
+.apikeys-live { margin: 0; font-size: var(--font-size-caption); }
+.apikeys-dialog .dialog-backdrop { position: fixed; }
+/* 狭い画面（NFR-UX-001）: 分類の一覧と内容を縦に並べ、項目を欠かさない */
+@media (max-width: 767px) { .apikeys-body { flex-direction: column; } .apikeys-nav { flex: 0 0 auto; flex-direction: row; border-right: 0; padding-right: 0; border-bottom: var(--stroke) solid var(--color-border); padding-bottom: var(--space-2); } }
+.apikeys-dialog[data-layout="stacked"] .apikeys-body { flex-direction: column; }
+.apikeys-dialog[data-layout="stacked"] .apikeys-nav { flex: 0 0 auto; flex-direction: row; border-right: 0; padding-right: 0; }
+@media (prefers-reduced-motion: reduce) { .apikeys-dialog[open] { animation: none; } }
+.apikeys-dialog[data-motion="none"][open] { animation: none; }
+@media (forced-colors: active) {
+  .apikeys-dialog { border-color: CanvasText; }
+  .apikeys-dialog::backdrop { background: Canvas; opacity: 0.7; }
+  .apikeys-cat[aria-selected="true"] { border-color: Highlight; outline: 2px solid Highlight; }
+}

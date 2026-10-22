@@ -262,6 +262,7 @@ export function speechSettingsModule(ctx) {
         status: tr ? { id: tr === 'success' ? 'ok' : tr, text: t(tr === 'success' ? 'azs.test.ok' : `azs.test.${tr}`), icon: tr === 'success' ? ICONS.ok : ICONS.fail } : { id: 'idle', text: '', icon: '' } }),
     ];
   };
+  api.getAzureSpeechFields = () => fields(); // FR-084: 接続キー画面の Azure Speech の分類が、同じ状態・同じ項目を使う（保管先は 1 つ）
   const baseDialog = api.getSettingsDialog;
   api.getSettingsDialog = () => {
     const d = baseDialog();
