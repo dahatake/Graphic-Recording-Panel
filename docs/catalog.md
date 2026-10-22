@@ -92,6 +92,9 @@
 | NFR-SEC-005 | Azure Speech のキーの安全な保管と非露出 | 承認済み | server/relay_speech.py, server/relay.py, web/src/speechsettings.js, web/src/ui.js, .gitignore | tests/relay/test_relay_speech.py, tests/unit/speechsettings.test.js, tests/system/azurespeech-relay.test.js, tests/system/azurespeech.test.js | 中継サーバー, Azure Speech の設定 |
 | NFR-UX-012 | 日本語の文字の書体（Yu Gothic UI） | 承認済み | web/styles/tokens.css, web/src/stylepresets.js, web/src/diagram.js, web/src/export.js, web/src/rpgmap.js, web/src/presetdiagram.js | tests/unit/jpfont.test.js, tests/unit/stylepreset.test.js, tests/system/jpfont.test.js | デザイン基盤, 描画スタイルの登録, 画風プリセットの描画 |
 | FR-083 | 起動時の待ち受けポートの自動選択 | 承認済み | server/relay.py, start.ps1, start.sh, README.md, users-guide/01-getting-started.md, users-guide/06-troubleshooting.md | tests/relay/test_relay_port.py | 中継サーバー |
+| FR-084 | 画面最上部の「接続キー」機能と、中央のモーダルの接続キー画面 | 承認済み | 未実装 | 未実装 | - |
+| FR-085 | Microsoft Foundry のキーの設定（接続キー画面） | 承認待ち | 未実装 | 未実装 | - |
+| NFR-SEC-006 | 接続キー画面のキー（Foundry・Azure Speech）の入力・保管・非露出 | 承認待ち | 未実装 | 未実装 | - |
 
 ## API・イベント
 
