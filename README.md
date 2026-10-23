@@ -39,6 +39,10 @@
 
 手動で起動する場合は、リポジトリのルートで `python server/relay.py --web web`（macOS では `python3`。ポートを固定するときは `--port N` を付けます）を実行できます。
 
+### GitHub Copilot を LLM 連携に使う場合（任意）
+中継サーバーは標準ライブラリだけで起動します。LLM のプロバイダーに GitHub Copilot を使う利用者だけが、Python 3.11 以上で GitHub Copilot SDK を追加で導入します（`pip install -r server/requirements-copilot.txt`。SDK が使う Copilot CLI は初回に SDK が用意します。事前に用意するときは `python -m copilot download-runtime`）。導入しなくても、静的配信と Microsoft Foundry の LLM 連携は従来どおり動きます。GitHub Copilot の利用権が必要です。
+中継サーバーは、GitHub Copilot のセッションで組み込みのツール（ファイルの読み書き・シェル・URL の取得・MCP）を使わせず、権限の要求はすべて拒否し、会議の要点だけを送ります。プロバイダーの選択・認証方式・モデル名・トークンは、環境変数 `LLM_PROVIDER`（`foundry`／`copilot`。既定 `foundry`）・`COPILOT_AUTH_METHOD`（`signin`／`token`。既定 `signin`）・`COPILOT_MODEL`（空のときは SDK の既定のモデル）・`COPILOT_GITHUB_TOKEN`、または `config/llm.local.json` の `provider` と `copilot.authMethod`・`copilot.model`・`copilot.token` でも指定できます（環境変数＞設定ファイル＞画面での保存の順）。
+
 ### file:// での起動
 `web/index.html` をダブルクリックして `file://` で開く方法は**使えません**。ブラウザが `file://` からの ES モジュールの読み込みと Service Worker の登録を拒否するためです。必ず上の静的サーバー（`localhost`）経由で開いてください。サーバーは Python 以外（`npx serve web` など）でもかまいません。
 

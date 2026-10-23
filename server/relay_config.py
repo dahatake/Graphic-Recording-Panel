@@ -58,21 +58,24 @@ def max_bytes():
     return _env_int("RELAY_MAX_BYTES", DEFAULT_MAX_BYTES)
 
 
+def _read_config_file():
+    """(設定ファイルの dict, 読めないときの理由) を返す。内容は理由に含めない。"""
+    path = os.environ.get("LLM_CONFIG_PATH") or DEFAULT_CONFIG_PATH
+    if not os.path.isfile(path):
+        return {}, None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            loaded = json.load(f)
+    except (OSError, ValueError):
+        return {}, "設定ファイルを読み込めません。"
+    if not isinstance(loaded, dict):
+        return {}, "設定ファイルの形式が不正です。"
+    return loaded, None
+
+
 def load_settings():
     """環境変数 > 設定ファイル の順で設定を読む。要求のたびに呼ぶ（変更が即反映される）。"""
-    path = os.environ.get("LLM_CONFIG_PATH") or DEFAULT_CONFIG_PATH
-    data = {}
-    file_error = None
-    if os.path.isfile(path):
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                loaded = json.load(f)
-            if isinstance(loaded, dict):
-                data = loaded
-            else:
-                file_error = "設定ファイルの形式が不正です。"
-        except (OSError, ValueError):
-            file_error = "設定ファイルを読み込めません。"  # 内容は出さない
+    data, file_error = _read_config_file()
     values = {}
     sources = {}
     saved = None  # 画面での保存（FR-086）。上位に値がない項目にだけ使う。必要なときだけ読む
@@ -102,6 +105,82 @@ def load_settings():
     )
     s.sources = sources  # 項目ごとの出どころ（ui / env / file / None）。秘密ではない
     return s
+
+
+# ---------------------------------------------------------------- LLM のプロバイダーと GitHub Copilot（FR-068 / FR-087 / FR-088）
+
+PROVIDERS = ("foundry", "copilot")
+DEFAULT_PROVIDER = "foundry"
+COPILOT_AUTH_METHODS = ("signin", "token")
+DEFAULT_COPILOT_AUTH_METHOD = "signin"
+
+
+class CopilotSettings(object):
+    """プロバイダーの選択と GitHub Copilot の設定。repr にトークンを出さない。"""
+
+    def __init__(self, provider, auth_method, model, token, sources):
+        self.provider = provider
+        self.auth_method = auth_method
+        self.model = model
+        self.token = token
+        self.sources = sources  # provider / authMethod / model / token の出どころ（ui / env / file / None）
+
+    def __repr__(self):
+        return "CopilotSettings(provider=%r, auth_method=%r, model=%r)" % (self.provider, self.auth_method, self.model)
+
+
+# (項目, 環境変数, 設定ファイルでの位置, 画面での保存の項目, 許す値)
+_COPILOT_FIELDS = (
+    ("provider", "LLM_PROVIDER", ("provider",), "provider", PROVIDERS),
+    ("authMethod", "COPILOT_AUTH_METHOD", ("copilot", "authMethod"), "copilotAuthMethod", COPILOT_AUTH_METHODS),
+    ("model", "COPILOT_MODEL", ("copilot", "model"), "copilotModel", None),
+    ("token", "COPILOT_GITHUB_TOKEN", ("copilot", "token"), "copilotToken", None),
+)
+
+
+def _dig(data, path):
+    for k in path:
+        if not isinstance(data, dict):
+            return None
+        data = data.get(k)
+    return data
+
+
+def _usable(v, allowed):
+    if not isinstance(v, str):
+        return None
+    v = v.strip()
+    if not v or any(ord(c) < 0x20 or ord(c) == 0x7F for c in v):
+        return None
+    if allowed is not None and v not in allowed:
+        return None
+    return v
+
+
+def load_copilot_settings():
+    """環境変数 > 設定ファイル > 画面での保存 の順に、プロバイダーと GitHub Copilot の設定を読む（要求のたびに呼ぶ）。
+    不正な値は無いものとして次の出どころへ進む。既定はプロバイダー foundry・認証方式 signin・モデル名 空（SDK の既定）。"""
+    data, _ = _read_config_file()
+    saved = None
+    values, sources = {}, {}
+    for key, env, path, store_key, allowed in _COPILOT_FIELDS:
+        v, src = _usable(os.environ.get(env), allowed), "env"
+        if v is None:
+            v, src = _usable(_dig(data, path), allowed), "file"
+        if v is None:
+            if saved is None:
+                import relay_llmstore  # 循環を避けるため遅延 import
+                saved = relay_llmstore.load()
+            v, src = _usable(saved.get(store_key), allowed), "ui"
+        values[key] = v
+        sources[key] = src if v is not None else None
+    return CopilotSettings(
+        provider=values["provider"] or DEFAULT_PROVIDER,
+        auth_method=values["authMethod"] or DEFAULT_COPILOT_AUTH_METHOD,
+        model=values["model"] or "",
+        token=values["token"],
+        sources=sources,
+    )
 
 
 def _is_loopback_host(host):
