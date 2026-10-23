@@ -33,21 +33,32 @@ export function mountApiKeysUI(app, doc = globalThis.document) {
     for (const f of d.fields) {
       const row = el('div', 'apikeys-row'); row.dataset.field = f.id;
       if (f.input) {
-        const l = el('label', null, f.label); const inp = doc.createElement('input'); inp.dataset.id = f.id; inp.id = `ak-${f.id}`; l.htmlFor = inp.id;
-        inp.type = f.input.type; inp.autocomplete = f.input.autocomplete; inp.placeholder = f.input.placeholder ?? ''; inp.spellcheck = false;
-        inp.setAttribute('autocapitalize', 'off'); inp.setAttribute('autocorrect', 'off'); inp.setAttribute('data-lpignore', 'true'); inp.setAttribute('data-1p-ignore', '');
+        const l = el('label', null, f.label);
+        const isSelect = f.input.type === 'select';
+        const inp = doc.createElement(isSelect ? 'select' : 'input'); inp.dataset.id = f.id; inp.id = `ak-${f.id}`; l.htmlFor = inp.id;
+        if (isSelect) {
+          for (const o of f.input.options) { const op = doc.createElement('option'); op.value = o.value; op.textContent = o.label ?? o.value; inp.append(op); }
+        } else {
+          inp.type = f.input.type; inp.autocomplete = f.input.autocomplete; inp.placeholder = f.input.placeholder ?? ''; inp.spellcheck = false;
+          inp.setAttribute('autocapitalize', 'off'); inp.setAttribute('autocorrect', 'off'); inp.setAttribute('data-lpignore', 'true'); inp.setAttribute('data-1p-ignore', '');
+        }
         if (f.id.endsWith('.foundry.key')) inp.addEventListener('input', () => app.setFoundryKeyInput(inp.value));
+        else if (f.id.endsWith('.foundry.endpoint')) inp.addEventListener('input', () => app.setFoundryEndpointInput(inp.value));
+        else if (f.id.endsWith('.foundry.deployment')) inp.addEventListener('input', () => app.setFoundryDeploymentInput(inp.value));
+        else if (f.id.endsWith('.foundry.authMethod')) inp.addEventListener('change', () => app.setFoundryAuthMethod(inp.value));
         else if (f.id.endsWith('.azureSpeech.key')) inp.addEventListener('input', () => app.setAzureSpeechKeyInput(inp.value));
         else if (f.id.endsWith('.azureSpeech.endpoint')) inp.addEventListener('input', () => app.setAzureSpeechEndpointInput(inp.value));
         row.append(l, inp);
+        if (f.status) { const sp = el('p', 'apikeys-status apikeys-field-status'); sp.dataset.statusFor = f.id; row.append(sp); }
       } else if (f.role === 'status') {
         const p = el('p', 'apikeys-status'); p.dataset.id = f.id; p.setAttribute('role', 'status');
         row.append(el('span', 'apikeys-status-label', f.label), p);
       } else {
-        const b = el('button', f.id.endsWith('.save') ? 'btn btn-primary' : 'btn', f.label); b.type = 'button'; b.dataset.id = f.id;
+        const b = el('button', f.id.endsWith('.save') || f.id.endsWith('.configSave') ? 'btn btn-primary' : 'btn', f.label); b.type = 'button'; b.dataset.id = f.id;
         b.setAttribute('aria-label', f.accessibleName);
         b.addEventListener('click', () => {
           if (f.id === 'apiKeys.foundry.save') { void app.saveFoundryKey(); } else if (f.id === 'apiKeys.foundry.delete') app.commands['foundry.deleteKey']();
+          else if (f.id === 'apiKeys.foundry.configSave') { void app.saveFoundryConfig(); } else if (f.id === 'apiKeys.foundry.configDelete') app.commands['foundry.deleteConfig']();
           else if (f.id === 'apiKeys.azureSpeech.save') { void app.saveAzureSpeech(); } else if (f.id === 'apiKeys.azureSpeech.delete') app.commands['azureSpeech.deleteKey']();
           else if (f.id === 'apiKeys.azureSpeech.test') void app.testAzureSpeech();
         });
@@ -91,6 +102,9 @@ export function mountApiKeysUI(app, doc = globalThis.document) {
       if (!node) continue;
       if (f.input) {
         node.disabled = f.disabled; node.setAttribute('aria-label', f.accessibleName);
+        if (f.input.placeholder != null && node.tagName === 'INPUT') node.placeholder = f.input.placeholder;
+        const sp = dlg.querySelector(`[data-status-for="${f.id}"]`);
+        if (sp && f.status) sp.textContent = `${f.status.icon ?? ''} ${f.status.text}`.trim();
         // 入力中の値は DOM と app が持つ。app 側が空（保存の操作の後・閉じた後）なら DOM も空にする
         if (f.input.type === 'password') { if (f.input.value === '' && node.value !== '') node.value = ''; } else if (node.value !== f.input.value) node.value = f.input.value;
       } else if (f.role === 'status') node.textContent = `${f.status.icon} ${f.status.text}`;
