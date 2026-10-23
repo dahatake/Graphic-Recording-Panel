@@ -141,7 +141,7 @@
     "AC-363": "sha256:fc56766f4c55fac5",
     "AC-364": "sha256:7afa5fbd86529df1",
     "AC-311": "sha256:282ba030d75fd483",
-    "AC-312": "sha256:c1c0b4d8b1af9fb2",
+    "AC-312": "sha256:ce4de635525bf80a",
     "AC-334": "sha256:b9d97452a5ca917d",
     "AC-358": "sha256:265da68e5120a5a4",
     "AC-359": "sha256:be22be9a12c869c3",
@@ -234,7 +234,7 @@
     "AC-506": "sha256:63d6b6771bb91acd",
     "AC-508": "sha256:a92396b443552fe3",
     "AC-509": "sha256:417f4966976fa7f4",
-    "AC-513": "sha256:aea439d0037c734c",
+    "AC-513": "sha256:854c341617196141",
     "AC-514": "sha256:0faa36632a862ea8"
   },
   "cases": [
@@ -4308,11 +4308,11 @@
       "ac_ids": [
         "AC-312"
       ],
-      "title": "同意の保存と再読込後の維持（異常系含む）",
+      "title": "同意の保存と再読込後の維持（Microsoft Foundry の同意の記録は版・同意日時だけ。異常系含む）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=AC-312 tests/system/llm-consent-persist.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "19eb475",
       "last_run_at": "2026-10-24T00:03:43+09:00",
       "evidence": "work/runs/202610232330/logs/system-test/E2E-174-202610240001.log",
@@ -4322,6 +4322,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-24T06:36:03+09:00",
+          "by": "test-designer",
+          "change": "title: '同意の保存と再読込後の維持（異常系含む）' -> '同意の保存と再読込後の維持（Microsoft Foundry の同意の記録は版・同意日時だけ。異常系含む）'",
+          "reason": "AC-312 の本文変更（393a7a5）: Foundry の同意の記録は版・同意日時だけ（プロバイダーの名前は AC-513 の他プロバイダーの記録だけ）を明記。期待値は従来どおり"
         }
       ]
     },
@@ -7254,7 +7260,7 @@
         "AC-513",
         "AC-514"
       ],
-      "title": "LLMのプロバイダー: 同意はプロバイダーごと・従来の同意は Foundry（AC-513）、［設定］のプロバイダーの選択・保持・接続テストの宛先（AC-514）。異常系含む",
+      "title": "LLMのプロバイダー: 同意はプロバイダーごとの別の記録（Foundry は版・日時だけ、Copilot は版・日時・プロバイダーの名前。一方の作成・削除は他方を変えない）・従来の同意は Foundry（AC-513）、［設定］のプロバイダーの選択・保持・接続テストの宛先（AC-514）。異常系含む",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-51[34]\" tests/system/copilot.test.js",
       "canary": false,
@@ -7268,6 +7274,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "FR-062・FR-068 の GitHub Copilot 対応（run 202610240526）"
+        },
+        {
+          "at": "2026-10-24T06:36:04+09:00",
+          "by": "test-designer",
+          "change": "title: 'LLMのプロバイダー: 同意はプロバイダーごと・従来の同意は Foundry（AC-513）、［設定］のプロバイダーの選択・保持・接続テストの宛先（AC-514）。異常系含む' -> 'LLMのプロバイダー: 同意はプロバイダーごとの別の記録（Foundry は版・日時だけ、Copilot は版・日時・プロバイダーの名前。一方の作成・削除は他方を変えない）・従来の同意は Foundry（AC-513）、［設定］のプロバイダーの選択・保持・接続テストの宛先（AC-514）。異常系含む'",
+          "reason": "AC-513 の本文変更（393a7a5）: 記録の項目をプロバイダーごとに検証し、一方の記録の作成・削除が他方を変えないこと、セッションファイルに同意を含めないことを追加"
         }
       ]
     }

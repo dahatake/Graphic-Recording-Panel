@@ -40,7 +40,7 @@ copilot: {
 - モックの LLM 向けの要求の失敗の形: 認証 `401 {ok:false, error:{code:'auth'}}`、利用の上限 `429 {ok:false, error:{code:'rate_limit'}}`、接続 `502 {ok:false, error:{code:'connection'}}`、タイムアウト（応答しない。PARAM-069=30 秒）、不正な応答 `200 '<<not json>>'`。
 
 ## 同意（AC-513）
-- 同意の記録は `options.storage` のキー `grp.llm.consent`（Microsoft Foundry。従来の `{version, at}`。2026-10-24 より前の記録＝`provider` なしも Foundry への同意）と、`grp.llm.consent.copilot`（GitHub Copilot。`{version, at, provider:'copilot'}`）に置く。値の項目は `version`・`at`・`provider` だけ。
+- 同意の記録は `options.storage` のキー `grp.llm.consent`（Microsoft Foundry。従来の `{version, at}`。2026-10-24 より前の記録＝`provider` なしも Foundry への同意）と、`grp.llm.consent.copilot`（GitHub Copilot。`{version, at, provider:'copilot'}`）に置く。Foundry の記録の項目は `version`・`at` だけ（`provider` を持たない）、GitHub Copilot の記録の項目は `version`・`at`・`provider` だけ。一方の記録の作成・削除（無効化 `disableLlm()` による取り消しを含む）は他方の記録を変えない。
 - `getLlmConsent()` はプロバイダーが `'copilot'` のとき `host` に「GitHub Copilot」を含む文字、`model` に使うモデル名（空のときは SDK の既定である旨の文字）を持つ。
 
 ## 接続キー画面の GitHub Copilot の分類（AC-508・AC-509。CONTRACT-API-KEYS.md に追加）
