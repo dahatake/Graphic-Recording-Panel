@@ -36,10 +36,11 @@ ENV_NAMES = ("LLM_ENDPOINT", "LLM_DEPLOYMENT", "LLM_AUTH_METHOD", "LLM_API_KEY",
 CLI_STUB = textwrap.dedent('''
     import os, sys, time
     flag = sys.argv[1]
-    print("To authenticate, visit https://github.com/login/device and enter code ABCD-1234", flush=True)
-    print("Waiting for authorization...", flush=True)
+    # 引数・環境変数の記録を先に書く（確認コードの出力の後だと、負荷時にテストが記録より先に読むことがある）
     with open(flag + ".argv", "w") as f:
         f.write(" ".join(sys.argv[2:]) + "\\n" + "\\n".join(k for k in os.environ if "TOKEN" in k))
+    print("To authenticate, visit https://github.com/login/device and enter code ABCD-1234", flush=True)
+    print("Waiting for authorization...", flush=True)
     for _ in range(600):
         if os.path.exists(flag):
             mode = open(flag).read().strip()
