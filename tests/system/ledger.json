@@ -7237,10 +7237,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-50[689]\" tests/system/copilot.test.js",
       "canary": false,
-      "status": "not_run",
-      "last_commit": null,
-      "last_run_at": null,
-      "evidence": null,
+      "status": "pass",
+      "last_commit": "15669c1",
+      "last_run_at": "2026-10-24T07:54:57+09:00",
+      "evidence": "work/runs/202610240526/logs/system-test/E2E-255-202610240754.log",
       "history": [
         {
           "at": "2026-10-24T05:55:10+09:00",
@@ -7264,10 +7264,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-51[34]\" tests/system/copilot.test.js",
       "canary": false,
-      "status": "not_run",
-      "last_commit": null,
-      "last_run_at": null,
-      "evidence": null,
+      "status": "pass",
+      "last_commit": "15669c1",
+      "last_run_at": "2026-10-24T07:54:57+09:00",
+      "evidence": "work/runs/202610240526/logs/system-test/E2E-256-202610240754.log",
       "history": [
         {
           "at": "2026-10-24T05:55:13+09:00",
