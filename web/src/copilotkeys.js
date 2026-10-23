@@ -152,9 +152,8 @@ export function copilotKeysModule(ctx) {
     notify();
     return api.getCopilotKeysStatus();
   };
-  // FR-068 側（プロバイダーの選択）が refreshCopilotStatus を持つときは、それも呼ぶ
-  const baseRefresh = api.refreshCopilotStatus;
-  api.refreshCopilotStatus = async (...a) => { const b = baseRefresh ? await baseRefresh(...a) : undefined; const s = await api.refreshCopilotKeysStatus(); return b ?? s; };
+  // FR-068 側（llm.js）の refreshCopilotStatus（= refreshLlmStatus）がこの状態も読み直す。llm.js がないときだけ自前で持つ
+  if (typeof api.refreshCopilotStatus !== 'function') api.refreshCopilotStatus = api.refreshCopilotKeysStatus;
   api.getCopilotKeysStatus = () => ({ ...cp });
 
   // ---- 入力 ----

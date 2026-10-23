@@ -25,7 +25,7 @@ import relay_copilot_signin as signin  # noqa: E402
 import relay_llmstore as store  # noqa: E402
 from test_relay_copilot import SdkStub  # noqa: E402
 
-DUMMY_TOKEN = "github_pat_DUMMY-FR088-not-a-real-token-0001"
+DUMMY_TOKEN = "github_pat_DUMMY.FR088.not-a-real-token"  # 実値らしく見えないよう「.」を含める（AC-341）
 CRED = "gho_DUMMYFR088CREDENTIAL0000notreal"
 WEB = os.path.join(os.path.dirname(__file__), "..", "..", "web")
 ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
