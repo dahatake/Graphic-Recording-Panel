@@ -1,7 +1,7 @@
-// FR-084 AC-482 AC-483 AC-484 AC-485 AC-486 / FR-085 AC-487 / NFR-SEC-006 AC-490 AC-491
+// FR-084 AC-482 AC-483 AC-484 AC-485 AC-486 / FR-085 AC-487 / FR-086 AC-496 / NFR-SEC-006 AC-490 AC-491
 // 接続キー画面の System Test。契約: tests/system/CONTRACT-API-KEYS.md。期待値は受入基準だけから決める。
 // 中継サーバーは注入したモック（Foundry のキーの API 付き）と、Azure Speech のモック（azurespeech-util.js）だけを使い、ネットワークに出ない。
-// AC-488・489・492・493・494 は検証レベル integration、AC-495 は unit のため、ここには置かない。
+// AC-488・489・492・493・494・497〜502 は検証レベル integration、AC-495 は unit のため、ここには置かない（System Test の台帳は system の AC だけ。FR-086 は AC-496 のみ）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -14,15 +14,40 @@ const dummyFoundryKey = () => `DUMMY-FOUNDRY-KEY-${Math.random().toString(36).sl
 const PARAM_011 = 6;
 
 // Foundry のキーの API を持つ中継サーバーのモック（Azure Speech の部分は makeSpeechRelay に委譲）。
-async function boot({ azureConfigured = false, foundry = { configured: false, source: null }, mode = 'ok', over = {} } = {}) {
-  const k = { calls: [], configured: foundry.configured, source: foundry.source, mode };
+// cfg: 項目ごとの出どころ（null=未設定）。FR-086 の接続設定（エンドポイント・デプロイ名・認証方式）。
+async function boot({ azureConfigured = false, foundry = { configured: false, source: null }, mode = 'ok', over = {}, cfg = {} } = {}) {
+  const k = { calls: [], configured: foundry.configured, source: foundry.source, mode, cfg: { endpoint: cfg.endpoint ?? null, deployment: cfg.deployment ?? null, authMethod: cfg.authMethod ?? null, authValue: cfg.authValue ?? 'apiKey' } };
+  const HOST = 'contoso-dummy.openai.azure.com';
+  const cfgStatus = () => ({
+    configured: { endpoint: !!k.cfg.endpoint, deployment: !!k.cfg.deployment, authMethod: !!k.cfg.authMethod, key: k.configured },
+    endpointHost: k.cfg.endpoint ? HOST : '', authMethod: k.cfg.authValue,
+    sources: { endpoint: k.cfg.endpoint, deployment: k.cfg.deployment, authMethod: k.cfg.authMethod, key: k.source },
+    keyConfigured: k.configured, keySource: k.source,
+  });
   const wrapped = (inner) => async (req) => {
     const p = req.path;
+    if (p === '/api/llm/config') {
+      k.calls.push({ method: req.method ?? 'GET', path: p, body: req.body === undefined ? undefined : JSON.parse(JSON.stringify(req.body)) });
+      if (k.mode === 'offline') throw new TypeError('Failed to fetch');
+      if (req.method === 'POST') {
+        const b = req.body ?? {};
+        if (!/^https:\/\//.test(String(b.endpoint ?? '')) || !String(b.deployment ?? '').trim() || !['apiKey', 'entra'].includes(b.authMethod)) return { status: 400, body: { ok: false, result: 'invalid' } };
+        if (['endpoint', 'deployment', 'authMethod'].some((n) => k.cfg[n] === 'env' || k.cfg[n] === 'file')) return { status: 409, body: { ok: false, result: 'env_managed', ...cfgStatus() } };
+        k.cfg = { endpoint: 'ui', deployment: 'ui', authMethod: 'ui', authValue: b.authMethod };
+        return { status: 200, body: { ok: true, result: 'saved', ...cfgStatus() } };
+      }
+      if (req.method === 'DELETE') {
+        const locked = ['endpoint', 'deployment', 'authMethod'].some((n) => k.cfg[n] === 'env' || k.cfg[n] === 'file');
+        for (const n of ['endpoint', 'deployment', 'authMethod']) if (k.cfg[n] === 'ui') k.cfg[n] = null;
+        if (k.cfg.authMethod === null) k.cfg.authValue = 'apiKey';
+        return locked ? { status: 409, body: { ok: false, result: 'env_managed', ...cfgStatus() } } : { status: 200, body: { ok: true, result: 'deleted', ...cfgStatus() } };
+      }
+    }
     if (p === '/api/llm/status' || p === '/api/llm/key') {
       k.calls.push({ method: req.method ?? 'GET', path: p, body: req.body === undefined ? undefined : JSON.parse(JSON.stringify(req.body)) });
       if (k.mode === 'offline') throw new TypeError('Failed to fetch');
       const st = () => ({ keyConfigured: k.configured, keySource: k.source });
-      if (p === '/api/llm/status') return { status: 200, body: { configured: { endpoint: true, deployment: true, credential: k.configured }, endpointHost: 'contoso-dummy.openai.azure.com', ...st() } };
+      if (p === '/api/llm/status') return { status: 200, body: cfgStatus() };
       if (req.method === 'POST') {
         if (k.mode === 'fail') return { status: 500, body: { ok: false, result: 'failed' } };
         k.configured = true; k.source = 'ui';
@@ -359,6 +384,108 @@ test('FR-085 AC-487 異常系: 環境変数・設定ファイルのキーは画�
   }
   assert.equal(k.calls.filter((c) => c.method === 'POST').length, 0, '拒否した値は送らない');
   assert.equal(app.getFoundryKeyStatus().keyConfigured, false);
+});
+
+// ======================= FR-086 =======================
+// FR-086 AC-496
+const CFG_BODY = () => ({ endpoint: 'https://contoso-dummy.openai.azure.com/openai/v1?api-version=dummy-secret-path', deployment: 'dummy-deploy', authMethod: 'apiKey' });
+const FULL_URL_PARTS = ['/openai/v1', 'dummy-secret-path', 'https://contoso-dummy'];
+test('FR-086 AC-496: Foundry の分類にエンドポイント・デプロイ名・認証方式があり、認証方式が Entra ID のときはキー欄が入力不可で理由が示される。保存後はホスト名だけを表示し、削除は確認つき', async () => {
+  const { app, k } = await boot();
+  await open(app);
+  for (const id of ['endpoint', 'deployment', 'authMethod', 'key', 'save', 'delete', 'status']) assert.ok(field(app, `apiKeys.foundry.${id}`), `apiKeys.foundry.${id} がある`);
+  for (const id of ['endpoint', 'deployment', 'authMethod']) {
+    const f = field(app, `apiKeys.foundry.${id}`);
+    assert.ok(f.label.trim() && f.accessibleName.trim());
+    assert.equal(f.status.id, 'unset', `${id}: 未設定`);
+    assert.ok(f.status.text.trim());
+  }
+  assert.deepEqual(field(app, 'apiKeys.foundry.authMethod').input.options.map((o) => o.value), ['apiKey', 'entra']);
+  assert.equal(field(app, 'apiKeys.foundry.authMethod').input.value, 'apiKey');
+  assert.equal(field(app, 'apiKeys.foundry.key').disabled, false, 'API キーのときはキーを入力できる');
+  app.setFoundryAuthMethod('entra'); await flush();
+  const kf = field(app, 'apiKeys.foundry.key');
+  assert.ok(kf.disabled === true || kf.hidden === true, 'Entra ID のときはキー欄は無効か非表示');
+  if (kf.disabled === true) assert.ok(String(kf.reason ?? '').trim(), '入力できない理由が示される');
+  app.setFoundryAuthMethod('apiKey'); await flush();
+  assert.equal(field(app, 'apiKeys.foundry.key').disabled, false);
+  // 保存
+  const b = CFG_BODY();
+  app.setFoundryEndpointInput(b.endpoint); app.setFoundryDeploymentInput(b.deployment); app.setFoundryAuthMethod(b.authMethod);
+  const r = await app.saveFoundryConfig(); await flush();
+  assert.equal(r.ok, true); assert.equal(r.result, 'saved');
+  assert.deepEqual(k.calls.filter((c) => c.path === '/api/llm/config' && c.method === 'POST').map((c) => c.body), [b]);
+  for (const id of ['endpoint', 'deployment', 'authMethod']) {
+    const f = field(app, `apiKeys.foundry.${id}`);
+    assert.equal(f.status.id, 'set', `${id}: 設定済み`); assert.equal(f.status.source, 'ui', `${id}: 出どころは画面で保存`);
+    assert.ok(/画面/.test(f.status.text), `${id}: 出どころが文字で示される`);
+  }
+  assert.ok(field(app, 'apiKeys.foundry.endpoint').status.text.includes('contoso-dummy.openai.azure.com'), 'ホスト名が表示される');
+  assert.equal(field(app, 'apiKeys.foundry.endpoint').input.value, '', '入力欄に全体の URL を残さない');
+  const s = surface(app);
+  for (const part of FULL_URL_PARTS) assert.ok(!s.includes(part), `エンドポイントの全体の URL（${part}）は再表示しない`);
+  // 保存・削除のラベル
+  const dd = dlg(app);
+  for (const id of ['save', 'delete']) assert.ok(weight(field(app, `apiKeys.foundry.${id}`).label) <= PARAM_011, `${id} のラベルは ${PARAM_011} 文字以内`);
+  assert.ok(dd.fields.every((f) => !('label' in f) || f.label.trim()));
+  // 削除は確認つき（キャンセルでは消えない）
+  app.commands['foundry.deleteConfig'](); await flush();
+  assert.equal(app.getDialog()?.kind, 'foundry-config-delete');
+  assert.deepEqual(app.getDialog().buttons.map((x) => x.id).sort(), ['cancel', 'confirm']);
+  await app.dialogAction('cancel'); await flush();
+  assert.equal(k.calls.filter((c) => c.path === '/api/llm/config' && c.method === 'DELETE').length, 0);
+  assert.equal(field(app, 'apiKeys.foundry.endpoint').status.id, 'set');
+  app.commands['foundry.deleteConfig'](); await app.dialogAction('confirm'); await flush();
+  assert.equal(k.calls.filter((c) => c.path === '/api/llm/config' && c.method === 'DELETE').length, 1);
+  for (const id of ['endpoint', 'deployment', 'authMethod']) assert.equal(field(app, `apiKeys.foundry.${id}`).status.id, 'unset', `${id}: 削除で未設定`);
+  assert.ok(!surface(app).includes('contoso-dummy'), '削除後はホスト名も残らない');
+});
+
+test('FR-086 AC-496 異常系: 不正なエンドポイント・デプロイ名・認証方式は送らず拒否し、環境変数・設定ファイル由来の項目は変更・削除できずその旨が示され、中継サーバーが応答しないときは操作できず理由が示され、英語に切り替わる', async () => {
+  const { app, k } = await boot();
+  await open(app);
+  const good = CFG_BODY();
+  const bads = [
+    { ...good, endpoint: 'http://contoso-dummy.openai.azure.com/' }, { ...good, endpoint: '' }, { ...good, endpoint: 'not a url' },
+    { ...good, deployment: '' }, { ...good, deployment: '   ' }, { ...good, deployment: 'a\u0000b' }, { ...good, authMethod: 'bogus' },
+  ];
+  for (const b of bads) {
+    app.setFoundryEndpointInput(b.endpoint); app.setFoundryDeploymentInput(b.deployment); app.setFoundryAuthMethod(b.authMethod);
+    const r = await app.saveFoundryConfig(); await flush();
+    assert.equal(r.ok, false, `拒否: ${JSON.stringify(b)}`); assert.equal(r.result, 'invalid');
+  }
+  assert.equal(k.calls.filter((c) => c.path === '/api/llm/config').length, 0, '拒否した値は送らない');
+  assert.equal(field(app, 'apiKeys.foundry.endpoint').status.id, 'unset');
+  // 環境変数・設定ファイル由来
+  const env = await boot({ cfg: { endpoint: 'env', deployment: 'file' } });
+  await open(env.app);
+  for (const [id, src] of [['endpoint', 'env'], ['deployment', 'file']]) {
+    const f = field(env.app, `apiKeys.foundry.${id}`);
+    assert.equal(f.disabled, true, `${id}: 画面から変更できない`);
+    assert.equal(f.status.id, 'set'); assert.equal(f.status.source, src);
+    assert.match(f.status.text, /環境変数|設定ファイル/); assert.match(f.status.text, /画面からは変更できない/);
+  }
+  assert.ok(field(env.app, 'apiKeys.foundry.authMethod').disabled !== true, '上位に値がない項目は画面で設定できる');
+  env.app.setFoundryEndpointInput(good.endpoint); env.app.setFoundryDeploymentInput(good.deployment); env.app.setFoundryAuthMethod('apiKey');
+  const rr = await env.app.saveFoundryConfig(); await flush();
+  assert.equal(rr.ok, false); assert.equal(rr.result, 'env_managed');
+  env.app.commands['foundry.deleteConfig'](); await flush();
+  if (env.app.getDialog()?.kind === 'foundry-config-delete') await env.app.dialogAction('confirm');
+  await flush();
+  assert.equal(env.k.cfg.endpoint, 'env', '上書きされない'); assert.equal(env.k.cfg.deployment, 'file', '削除で消えない');
+  assert.equal(env.k.calls.filter((c) => c.path === '/api/llm/config' && c.method === 'POST').length, 0, '上位の項目の変更は送らない');
+  assert.equal(field(env.app, 'apiKeys.foundry.endpoint').status.source, 'env');
+  // 中継サーバーが応答しない
+  const off = await boot({ mode: 'offline' });
+  await open(off.app);
+  for (const id of ['endpoint', 'deployment', 'authMethod', 'save', 'delete']) assert.equal(field(off.app, `apiKeys.foundry.${id}`).disabled, true, `${id} は操作できない`);
+  assert.ok(String(field(off.app, 'apiKeys.foundry.status').status.text).trim(), '理由が示される');
+  // 表示言語
+  app.setLang('en');
+  const ja = ['endpoint', 'deployment', 'authMethod', 'save', 'delete'].map((id) => field(app, `apiKeys.foundry.${id}`).label);
+  app.setLang('ja');
+  const jl = ['endpoint', 'deployment', 'authMethod', 'save', 'delete'].map((id) => field(app, `apiKeys.foundry.${id}`).label);
+  assert.notDeepEqual(ja, jl, 'ラベルは表示言語に従う');
 });
 
 // ======================= NFR-SEC-006 =======================

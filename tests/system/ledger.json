@@ -229,7 +229,8 @@
     "AC-486": "sha256:70093967bc480c0f",
     "AC-487": "sha256:ee1c3e825c37eb17",
     "AC-490": "sha256:b6b5a791aae42fef",
-    "AC-491": "sha256:8b0e5859c678cc64"
+    "AC-491": "sha256:8b0e5859c678cc64",
+    "AC-496": "sha256:fc9f8b4ac467a77a"
   },
   "cases": [
     {
@@ -7074,6 +7075,31 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610222227）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-254",
+      "requirement_ids": [
+        "FR-086"
+      ],
+      "ac_ids": [
+        "AC-496"
+      ],
+      "title": "Foundry の接続設定（エンドポイント・デプロイ名・認証方式の入力・Entra ID でキー欄無効・ホスト名のみ表示・確認つき削除・env/file 不変・不正入力の拒否・無応答）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=AC-496 tests/system/apikeys.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-23T23:37:38+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計（run 202610232330）"
         }
       ]
     }

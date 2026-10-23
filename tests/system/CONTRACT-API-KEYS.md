@@ -35,5 +35,14 @@ System Test（`tests/system/apikeys.test.js`）が前提にする、アプリ（
 - キーの保存・削除は LLM 連携の有効化・同意・送信に影響しない。データの初期化（`data.reset`）でもキーは消えない（`DELETE` を送らない）。
 - 中継サーバーが応答しない（`relay` が throw）とき、`apiKeys.foundry.*` の操作の項目は `disabled:true` で、理由の文がある。
 
+## Microsoft Foundry の接続設定（FR-086 AC-496）
+対象の AC: AC-496（system）。AC-497〜AC-502 は integration のため台帳（System Test）にはケースを追加しない。
+- `fields` に追加（Foundry の分類）: `apiKeys.foundry.endpoint`（`input:{type:'url', value}`）、`apiKeys.foundry.deployment`（`input:{type:'text', value}`）、`apiKeys.foundry.authMethod`（`input:{type:'select', value:'apiKey'|'entra', options:[{value:'apiKey'},{value:'entra'}]}`。未設定の既定は `'apiKey'`）。三つとも `label`・`accessibleName`（非空、表示言語に従う）、`disabled`、`status:{id:'set'|'unset', text, source:'ui'|'env'|'file'|null}` を持つ。`status.text` は設定の出どころを文字で含み、エンドポイントは保存後に**ホスト名だけ**（`endpointHost`）を含む。保存後の `input.value` は `''`（全体の URL・パス・クエリを画面のどこにも出さない）。`save`・`delete` のラベルは PARAM-011 以内。
+- キー欄（`apiKeys.foundry.key`）は認証方式が `'entra'` のとき `disabled:true`（理由 `reason` が非空）または `hidden:true`、`'apiKey'` のとき入力できる。
+- 操作: `app.setFoundryEndpointInput(text)`、`app.setFoundryDeploymentInput(text)`、`app.setFoundryAuthMethod('apiKey'|'entra')`、`await app.saveFoundryConfig()` → `{ok, result:'saved'|'invalid'|'unavailable'|'failed'|'env_managed'}`（`POST /api/llm/config` に `{endpoint, deployment, authMethod}`。https でない・空・空白だけ・制御文字のデプロイ名・apiKey/entra 以外はクライアントでも `invalid` とし要求を送らない。環境変数・設定ファイル由来の項目を含む変更は `env_managed` とし送らない）、`app.commands['foundry.deleteConfig']()` → 確認（`getDialog().kind==='foundry-config-delete'`、`confirm`・`cancel`）。`confirm` で `DELETE /api/llm/config`。
+- 環境変数・設定ファイル由来の項目は `disabled:true`、`status.source` が `'env'`・`'file'`、`status.text` に「環境変数／設定ファイルで設定されているため画面からは変更できない」旨（「環境変数」または「設定ファイル」と「画面からは変更できない」）。上位に値がない項目は引き続き設定できる。
+- 中継サーバーの応答（モック）: `GET /api/llm/status` → `{configured:{endpoint,deployment,authMethod,key}, endpointHost, authMethod, sources:{endpoint,deployment,authMethod,key}, keyConfigured, keySource}`、`POST /api/llm/config` → `{ok, result:'saved'|'invalid'|'env_managed', ...status}`、`DELETE /api/llm/config` → `{ok, result:'deleted'|'env_managed', ...status}`。
+- 中継サーバーが応答しないとき、`endpoint`・`deployment`・`authMethod`・`save`・`delete` は `disabled:true`、`apiKeys.foundry.status` に理由の文。
+
 ## 観察の範囲（NFR-SEC-006 AC-490・AC-491）
 画面の状態（`getState`・`getApiKeysDialog`・`getSettingsDialog`・`getDialog`・`getCommandBar`・`renderSvg`・`renderOutline`・`renderTranscript`・`getStrings`）、`options.storage` の全量、セッションファイル・PNG・SVG・PDF、`console.*`、`options.relay` に渡した要求（保存の要求の本体を除く）に、ダミーのキーの値を含まない。`web/` はキーを URL・sessionStorage・IndexedDB・Cookie・履歴に書く経路を持たない（AC-452 の静的検査と同じ）。実 DOM: `web/index.html` に `id="apikeys-dialog"`（`role="dialog"`・`aria-modal="true"` の `<dialog>` または同等）があり、キー欄に `autocomplete="off"`（または `new-password`）、`<form>` はログインの形（ユーザー名の欄との組）にしない。
