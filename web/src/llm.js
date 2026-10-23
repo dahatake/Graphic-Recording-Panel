@@ -10,6 +10,7 @@ const REQUEST_TIMEOUT_MS = 30_000; // PARAM-069
 const TEST_TIMEOUT_MS = 10_000; // PARAM-074
 const RESPONSES_PATH = '/api/llm/responses';
 const STATUS_PATH = '/api/llm/status';
+const PROVIDER_PATH = '/api/llm/provider';
 const MISSING_ALL = ['endpoint', 'deployment', 'credential'];
 const ICONS = { disabled: '○', enabled: '●', unconfigured: '▲', error: '✖' };
 
@@ -19,8 +20,29 @@ export const maskSecrets = (text) => String(text ?? '')
   .replace(/[A-Za-z0-9_+/=-]{32,}/g, '[masked]');
 
 // FR-062 AC-312・AC-367: 同意の記録（ブラウザのローカル設定だけ）。送信内容（種類・項目）を変えたら版を上げて再同意を求める。
+// FR-062 AC-513: 同意は LLMのプロバイダーごとに別の記録。Microsoft Foundry は従来のキーと形（{version, at}。provider を持たない）、
+// GitHub Copilot は CONSENT_KEY_COPILOT に {version, at, provider:'copilot'}。一方の作成・削除は他方を変えない。
 export const CONSENT_KEY = 'grp.llm.consent';
+export const CONSENT_KEY_COPILOT = 'grp.llm.consent.copilot';
 export const CONSENT_VERSION = 'send-v2:points+scene+drawStyle+partKeys';
+// FR-068 AC-514: LLMのプロバイダー（既定は Microsoft Foundry）。選択の保存先は中継サーバー（POST /api/llm/provider）
+export const PROVIDERS = ['foundry', 'copilot'];
+export const DEFAULT_PROVIDER = 'foundry';
+// FR-087 AC-506: GitHub Copilot を使えない原因（中継サーバーの relay_copilot.readiness と同じ順で 1 つだけ返す）
+export function copilotMissing(cp) {
+  if (!cp || typeof cp !== 'object' || cp.available !== true) return ['sdk'];
+  if (cp.authMethod === 'token') return cp.tokenConfigured === true ? [] : ['token'];
+  return cp.signedIn === true ? [] : ['signin'];
+}
+// FR-087 AC-506: LLM 向けの要求の失敗の原因の分類（秘密を含む本文は見ない）
+export function classifyLlmFailure(res) {
+  if (!res || res.error === 'timeout') return 'timeout';
+  const code = String(res.body?.error?.code ?? '');
+  if (res.status >= 200 && res.status < 300) return 'invalid';
+  if (res.status === 401 || res.status === 403 || code === 'auth' || [401, 403].includes(res.body?.error?.upstreamStatus)) return 'auth';
+  if (res.status === 429 || code === 'rate_limit' || res.body?.error?.upstreamStatus === 429) return 'rateLimit';
+  return 'connection';
+}
 
 export async function llmModule(ctx) {
   const { api, state } = ctx;
@@ -41,6 +63,17 @@ export async function llmModule(ctx) {
       'llm.test.ok': '接続テスト: 成功', 'llm.test.running': '接続テスト中', 'llm.test.fail.unconfigured': '接続テスト: 失敗（未設定）', 'llm.test.fail.consent': '先に同意が必要です（LLM 連携を有効にして同意してください）',
       'llm.test.fail.auth': '接続テスト: 失敗（認証）', 'llm.test.fail.connection': '接続テスト: 失敗（接続）', 'llm.test.fail.timeout': '接続テスト: 失敗（タイムアウト）',
       'llm.lastSent': '直近に送った内容',
+      'llm.provider': 'プロバイダー', 'llm.provider.foundry': 'Microsoft Foundry', 'llm.provider.copilot': 'GitHub Copilot',
+      'llm.provider.changed': 'LLM のプロバイダーを変更しました: ', 'llm.provider.failed': 'LLM のプロバイダーを変更できませんでした。中継サーバーを確認してください',
+      'llm.provider.envManaged': 'LLM のプロバイダーは環境変数／設定ファイルで指定されているため、画面からは変更できません',
+      'llm.missing.sdk': 'GitHub Copilot SDK が導入されていない', 'llm.missing.signin': 'GitHub にサインインしていない', 'llm.missing.token': 'トークンが未設定',
+      'llm.unconfigured.copilot': 'GitHub Copilot を使えません。原因: ',
+      'llm.action.installGuide': '導入の手順', 'llm.action.openApiKeys': '接続キーを開く',
+      'llm.installGuide.text': '中継サーバーの Python 環境で pip install -r server/requirements-copilot.txt を実行し、中継サーバーを起動し直してください',
+      'llm.consent.hostCopilot': 'GitHub Copilot（GitHub のサービス）', 'llm.consent.model': '使うモデル', 'llm.consent.modelDefault': 'GitHub Copilot SDK の既定のモデル',
+      'llm.failed.auth': 'LLM 連携に失敗しました（認証）。通常の描画で表示しています', 'llm.failed.rateLimit': 'LLM 連携に失敗しました（利用の上限）。通常の描画で表示しています',
+      'llm.failed.connection': 'LLM 連携に失敗しました（接続）。通常の描画で表示しています', 'llm.failed.timeout': 'LLM 連携に失敗しました（タイムアウト）。通常の描画で表示しています',
+      'llm.failed.invalid': 'LLM 連携に失敗しました（不正な応答）。通常の描画で表示しています',
     },
     en: {
       'llm.title': 'LLM integration', 'llm.enabled': 'Use LLM integration', 'llm.credential': 'Credential (API key / token)', 'llm.test': 'Connection test',
@@ -56,6 +89,17 @@ export async function llmModule(ctx) {
       'llm.test.ok': 'Connection test: succeeded', 'llm.test.running': 'Testing the connection', 'llm.test.fail.unconfigured': 'Connection test: failed (not configured)', 'llm.test.fail.consent': 'Consent is required first (enable LLM integration and agree)',
       'llm.test.fail.auth': 'Connection test: failed (authentication)', 'llm.test.fail.connection': 'Connection test: failed (connection)', 'llm.test.fail.timeout': 'Connection test: failed (timeout)',
       'llm.lastSent': 'Last content sent',
+      'llm.provider': 'Provider', 'llm.provider.foundry': 'Microsoft Foundry', 'llm.provider.copilot': 'GitHub Copilot',
+      'llm.provider.changed': 'LLM provider changed: ', 'llm.provider.failed': 'The LLM provider could not be changed. Check the relay server',
+      'llm.provider.envManaged': 'The LLM provider is set by an environment variable or config file, so it cannot be changed here',
+      'llm.missing.sdk': 'GitHub Copilot SDK is not installed', 'llm.missing.signin': 'Not signed in to GitHub', 'llm.missing.token': 'Token is not set',
+      'llm.unconfigured.copilot': 'GitHub Copilot cannot be used. Cause: ',
+      'llm.action.installGuide': 'Setup steps', 'llm.action.openApiKeys': 'Open API Keys',
+      'llm.installGuide.text': 'Run pip install -r server/requirements-copilot.txt in the relay server\'s Python environment, then restart the relay server',
+      'llm.consent.hostCopilot': 'GitHub Copilot (a GitHub service)', 'llm.consent.model': 'Model', 'llm.consent.modelDefault': 'The default model of GitHub Copilot SDK',
+      'llm.failed.auth': 'LLM integration failed (authentication); showing the normal drawing', 'llm.failed.rateLimit': 'LLM integration failed (usage limit); showing the normal drawing',
+      'llm.failed.connection': 'LLM integration failed (connection); showing the normal drawing', 'llm.failed.timeout': 'LLM integration failed (timeout); showing the normal drawing',
+      'llm.failed.invalid': 'LLM integration failed (invalid response); showing the normal drawing',
     },
   });
 
@@ -71,6 +115,9 @@ export async function llmModule(ctx) {
   let lastSent = null;
   let generation = 0;
   let testResult = null; // null | { ok, cause }
+  let provider = DEFAULT_PROVIDER; // FR-068 AC-514（中継サーバーの保存に従う）
+  let cp = null; // GitHub Copilot の状態（GET /api/llm/status の copilot。トークンの値は持たない）
+  let providerEpoch = 0; // 画面でプロバイダーを選ぶたびに増やす
   const pending = new Set();
   const track = (p) => { pending.add(p); const done = () => pending.delete(p); p.then(done, done); return p; };
 
@@ -90,57 +137,97 @@ export async function llmModule(ctx) {
   }
 
   // 状態の取得（LLM 向けの要求には数えない）。両方の形式（configured オブジェクト／missing 配列）を受け付ける。
+  // プロバイダーの選択（provider。無いときは foundry）と GitHub Copilot の状態（copilot）も読み、選ばれたプロバイダーの未設定の項目を返す。
+  const pickCopilot = (c) => (c && typeof c === 'object' ? {
+    available: c.available === true, unavailableReason: typeof c.unavailableReason === 'string' ? c.unavailableReason : null,
+    authMethod: c.authMethod === 'token' ? 'token' : 'signin', signedIn: c.signedIn === true,
+    account: typeof c.account === 'string' ? c.account : null, tokenConfigured: c.tokenConfigured === true,
+    model: typeof c.model === 'string' ? c.model : '',
+  } : null);
   async function readStatus() {
+    const epoch = providerEpoch;
     const res = await send('GET', STATUS_PATH, undefined, TEST_TIMEOUT_MS);
     const b = res.status >= 200 && res.status < 300 && res.body && typeof res.body === 'object' ? res.body : null;
-    if (!b) { credentialSet = false; return { missing: [...MISSING_ALL], host: '' }; }
+    if (!b) { credentialSet = false; return { missing: provider === 'copilot' ? copilotMissing(cp) : [...MISSING_ALL], host: '', provider }; }
     let missing;
     if (b.configured && typeof b.configured === 'object') missing = MISSING_ALL.filter((k) => !b.configured[k]);
     else if (Array.isArray(b.missing)) missing = [...new Set(b.missing.map((k) => (k === 'apiKey' ? 'credential' : k)).filter((k) => MISSING_ALL.includes(k)))];
     else missing = b.state === 'ready' ? [] : [...MISSING_ALL];
     credentialSet = !missing.includes('credential');
-    return { missing, host: typeof b.endpointHost === 'string' ? b.endpointHost : '', reason: b.state === 'error' ? 'error' : null };
+    if ('copilot' in b) cp = pickCopilot(b.copilot);
+    // 読んでいる間に画面で選択を変えたときは、古い応答のプロバイダーで上書きしない
+    const p = epoch !== providerEpoch ? provider : (PROVIDERS.includes(b.provider) ? b.provider : DEFAULT_PROVIDER);
+    const switched = p !== provider;
+    if (switched) switchTo(p);
+    const r = provider === 'copilot'
+      ? { missing: copilotMissing(cp), host: '', reason: null, provider }
+      : { missing, host: typeof b.endpointHost === 'string' ? b.endpointHost : '', reason: b.state === 'error' ? 'error' : null, provider };
+    if (switched) { enabled = consentValid(provider) && !r.missing.length && !r.reason; notify(); }
+    return r;
   }
 
-  // ---- 同意の保存（事実・版・日時だけ。AC-312・366・367） ----
-  const writeConsent = () => { try { ctx.storage.setItem(CONSENT_KEY, JSON.stringify({ version: CONSENT_VERSION, at: ctx.now() })); } catch { /* 保存できなくても動作は続ける */ } };
-  const clearConsent = () => { try { ctx.storage.removeItem(CONSENT_KEY); } catch { /* 同上 */ } };
-  const consentValid = () => {
+  // ---- 同意の保存（事実・版・日時だけ。AC-312・366・367。プロバイダーごとに別の記録: AC-513） ----
+  const consentKey = (p) => (p === 'copilot' ? CONSENT_KEY_COPILOT : CONSENT_KEY);
+  const writeConsent = (p) => {
+    const rec = p === 'copilot' ? { version: CONSENT_VERSION, at: ctx.now(), provider: 'copilot' } : { version: CONSENT_VERSION, at: ctx.now() };
+    try { ctx.storage.setItem(consentKey(p), JSON.stringify(rec)); } catch { /* 保存できなくても動作は続ける */ }
+  };
+  const clearConsent = (p) => { try { ctx.storage.removeItem(consentKey(p)); } catch { /* 同上 */ } };
+  // Foundry の記録は provider を持たない（2026-10-24 より前の記録も同じ形で Foundry への同意）。Copilot の記録は provider:'copilot' を持つ
+  const consentValid = (p = provider) => {
     try {
-      const r = JSON.parse(ctx.storage.getItem(CONSENT_KEY));
-      return !!r && typeof r === 'object' && typeof r.version === 'string' && r.version.length > 0 && r.version === CONSENT_VERSION;
+      const r = JSON.parse(ctx.storage.getItem(consentKey(p)));
+      if (!r || typeof r !== 'object' || typeof r.version !== 'string' || r.version !== CONSENT_VERSION) return false;
+      return p === 'copilot' ? r.provider === 'copilot' : (r.provider === undefined || r.provider === 'foundry');
     } catch { return false; }
   };
 
+  // ---- プロバイダーの切替（AC-513・AC-514）: 有効かどうかは、そのプロバイダーへの同意と設定で決まる ----
+  // 処理中の要求の結果は反映しない。状態を読み直すまでは、同意だけで仮に決め、読み直した後に設定でも確かめる。
+  function switchTo(p) {
+    provider = p; generation++;
+    failed = false; unconfigured = null; consent = null; testResult = null; lastSent = null;
+    enabled = consentValid(p) && (p !== 'copilot' || !copilotMissing(cp).length);
+  }
+
   // ---- 有効化・同意・無効化 ----
   api.getLlmState = () => ({ status: statusId(), enabled, missing: enabled ? [] : [...(unconfigured ?? [])] });
+  const missingText = (items) => items.map((k) => t(`llm.missing.${k}`)).join(' / ');
   api.requestLlmEnable = () => track((async () => {
     if (enabled) return { ok: true, enabled: true };
     const st = await readStatus();
     if (st.missing.length || st.reason) {
       unconfigured = st.missing.length ? st.missing : [];
       consent = null;
-      ctx.change(() => { state.message = { key: 'llm.unconfigured', text: `${t('llm.unconfigured')}${unconfigured.map((k) => t(`llm.missing.${k}`)).join(' / ') || t('llm.status.error')}` }; });
+      const head = st.provider === 'copilot' ? t('llm.unconfigured.copilot') : t('llm.unconfigured');
+      ctx.change(() => { state.message = { key: 'llm.unconfigured', text: `${head}${missingText(unconfigured) || t('llm.status.error')}` }; });
       return { ok: false, missing: [...unconfigured] };
     }
     unconfigured = null;
-    consent = { host: st.host };
+    if (consentValid(st.provider)) { // 同意済みのプロバイダー（AC-513: 再同意なしに有効）
+      enabled = true; failed = false; generation++;
+      say('llm.enabledMsg');
+      return { ok: true, enabled: true };
+    }
+    consent = { host: st.host, provider: st.provider, model: st.provider === 'copilot' ? (cp?.model ?? '') : null };
     notify();
     return { ok: true, pending: 'consent' };
   })());
   api.getLlmConsent = () => (consent ? {
     open: true, role: 'alertdialog', label: t('llm.consent.title'),
     kinds: [t('llm.consent.kind.points')],
-    host: consent.host || t('llm.consent.hostUnknown'),
+    host: consent.provider === 'copilot' ? t('llm.consent.hostCopilot') : (consent.host || t('llm.consent.hostUnknown')),
+    ...(consent.provider === 'copilot' ? { provider: 'copilot', model: consent.model || t('llm.consent.modelDefault') } : { provider: 'foundry' }),
     notSent: [t('llm.consent.notSent.audio'), t('llm.consent.notSent.secret'), t('llm.consent.notSent.other')],
     note: t('llm.consent.note'),
     actions: [{ id: 'decline', label: t('llm.consent.decline'), focusable: true }, { id: 'accept', label: t('llm.consent.accept'), focusable: true }],
   } : null);
   api.answerLlmConsent = async (accept) => {
     if (!consent) return { ok: false };
+    const forProvider = consent.provider ?? provider;
     consent = null;
-    if (accept === true) {
-      enabled = true; failed = false; unconfigured = null; generation++; writeConsent();
+    if (accept === true && forProvider === provider) {
+      enabled = true; failed = false; unconfigured = null; generation++; writeConsent(provider);
       say('llm.enabledMsg');
     }
     notify();
@@ -149,10 +236,40 @@ export async function llmModule(ctx) {
   api.disableLlm = async () => {
     generation++; // 処理中の要求の結果は反映しない（AC-315）
     const was = enabled;
-    enabled = false; failed = false; unconfigured = null; consent = null; lastSent = null; clearConsent();
+    enabled = false; failed = false; unconfigured = null; consent = null; lastSent = null; clearConsent(provider); // 選ばれたプロバイダーの記録だけを取り消す（AC-513）
     if (was) say('llm.disabledMsg'); else notify();
     return { ok: true };
   };
+
+  // ---- LLMのプロバイダー（FR-068 AC-514）。保存先は中継サーバー。もう一方の設定は消さない ----
+  api.getLlmProvider = () => provider;
+  api.setLlmProvider = (id) => track((async () => {
+    if (!PROVIDERS.includes(id)) return { ok: false, reason: 'invalid' };
+    if (!relay) { say('llm.provider.failed'); return { ok: false, reason: 'unavailable' }; }
+    const prev = provider;
+    providerEpoch++;
+    if (id !== prev) { switchTo(id); notify(); } // 画面はすぐに切り替える（保存に失敗したら戻す）
+    const res = await send('POST', PROVIDER_PATH, { provider: id }, TEST_TIMEOUT_MS);
+    const ok = res.status >= 200 && res.status < 300 && res.body?.ok !== false;
+    if (!ok) {
+      if (provider !== prev) switchTo(prev);
+      await readStatus();
+      const key = res.body?.result === 'env_managed' ? 'llm.provider.envManaged' : 'llm.provider.failed';
+      say(key);
+      return { ok: false, reason: res.body?.result === 'env_managed' ? 'env_managed' : 'failed' };
+    }
+    const st = await readStatus();
+    if (provider === id) enabled = consentValid(id) && !st.missing.length && !st.reason;
+    ctx.change(() => { state.message = { key: 'llm.provider.changed', text: `${t('llm.provider.changed')}${t(`llm.provider.${provider}`)}` }; });
+    return { ok: provider === id, provider };
+  })());
+  // 状態を読み直して、プロバイダーの選択と GitHub Copilot の状態を画面に反映する（AC-506・AC-514）
+  api.refreshLlmStatus = () => readStatus().then((st) => {
+    notify();
+    return { provider, missing: [...st.missing] };
+  });
+  api.refreshCopilotStatus = api.refreshLlmStatus;
+  api.getCopilotStatus = () => (cp ? { ...cp, missing: copilotMissing(cp) } : null);
   api.flushLlm = async () => { while (pending.size) await Promise.allSettled([...pending]); };
   api.getLlmLastSent = () => (enabled && lastSent ? { ...lastSent } : null); // AC-311（マスキング後。キー・トークンを含まない）
 
@@ -166,7 +283,7 @@ export async function llmModule(ctx) {
       const res = await send('POST', path, { ...(body && typeof body === 'object' ? body : { input: text }), input: text }, REQUEST_TIMEOUT_MS);
       if (gen !== generation || !enabled) return { ok: false, reason: 'stale' };
       const ok = res.status >= 200 && res.status < 300 && res.body && typeof res.body === 'object';
-      if (!ok) { failed = true; say('llm.failed'); return { ok: false, reason: 'failed' }; }
+      if (!ok) { failed = true; say(`llm.failed.${classifyLlmFailure(res)}`); return { ok: false, reason: 'failed' }; }
       const recovered = failed; failed = false;
       if (recovered) notify();
       ctx.emit('llm:result', { path, body: res.body });
@@ -204,8 +321,16 @@ export async function llmModule(ctx) {
   const baseDialog = api.getSettingsDialog;
   const llmFields = () => {
     const id = statusId();
+    // GitHub Copilot を選んで使えないとき（AC-506）: 原因と次の行動を状態に示す
+    const causes = !enabled && provider === 'copilot' ? (unconfigured?.length ? unconfigured : (cp ? copilotMissing(cp) : [])) : [];
+    const actions = causes.map((k) => (k === 'sdk'
+      ? { id: 'installGuide', label: t('llm.action.installGuide'), text: t('llm.installGuide.text'), focusable: true }
+      : { id: 'openApiKeys', label: t('llm.action.openApiKeys'), focusable: true }));
+    const stText = causes.length ? `${t(`llm.status.${id === 'disabled' ? 'unconfigured' : id}`)}: ${missingText(causes)}` : t(`llm.status.${id}`);
     return [
-      { id: 'llm.enabled', label: t('llm.enabled'), role: 'switch', value: enabled, focusable: true, status: { id, text: t(`llm.status.${id}`), icon: ICONS[id] } },
+      { id: 'llm.provider', label: t('llm.provider'), role: 'radiogroup', value: provider, focusable: true,
+        options: PROVIDERS.map((p) => ({ value: p, label: t(`llm.provider.${p}`), selected: p === provider })) },
+      { id: 'llm.enabled', label: t('llm.enabled'), role: 'switch', value: enabled, focusable: true, status: { id, text: stText, icon: ICONS[causes.length ? 'unconfigured' : id], ...(causes.length ? { causes: [...causes], actions } : {}) } },
       { id: 'llm.credential', label: t('llm.credential'), focusable: false, status: credentialSet == null ? { id: 'unknown', text: t('llm.credential.unset'), icon: ICONS.unconfigured } : { id: credentialSet ? 'set' : 'unset', text: t(credentialSet ? 'llm.credential.set' : 'llm.credential.unset'), icon: credentialSet ? ICONS.enabled : ICONS.unconfigured } },
       { id: 'llm.test', label: t('llm.test'), role: 'button', focusable: true, status: testResult ? { id: testResult.ok ? 'ok' : 'fail', text: t(testResult.ok ? 'llm.test.ok' : `llm.test.fail.${testResult.cause}`), icon: testResult.ok ? ICONS.enabled : ICONS.error } : { id: 'idle', text: '', icon: '' } },
     ];
@@ -215,12 +340,23 @@ export async function llmModule(ctx) {
     return d ? { ...d, fields: [...d.fields, ...llmFields()] } : null;
   };
   const baseView = api.getSettingsView;
-  api.getSettingsView = (...a) => { const v = baseView(...a); return { ...v, fields: [...v.fields, ...['llm.enabled', 'llm.credential', 'llm.test'].map((id) => ({ id, visible: true }))] }; };
+  api.getSettingsView = (...a) => { const v = baseView(...a); return { ...v, fields: [...v.fields, ...['llm.provider', 'llm.enabled', 'llm.credential', 'llm.test'].map((id) => ({ id, visible: true }))] }; };
   api.focusSettingsField = (id) => {
     if (!baseDialog()) return false;
     const f = llmFields().find((x) => x.id === id) ?? baseDialog().fields.find((x) => x.id === id);
-    if (!f) return false;
+    if (!f) { focusId = null; return false; }
     focusId = id; return true;
+  };
+  // ［設定］の LLM 連携の状態に示した次の行動（AC-506）
+  api.runSettingsAction = (id) => {
+    if (id === 'installGuide') return { ok: true, text: t('llm.installGuide.text') };
+    if (id === 'openApiKeys') { // 接続キー画面の GitHub Copilot の分類を開く
+      ctx.api.commands['settings.close']?.();
+      const r = ctx.api.commands['apiKeys.open']?.();
+      api.selectApiKeysCategory?.('copilot');
+      return { ok: !!r?.ok };
+    }
+    return { ok: false, reason: 'unknown' };
   };
   api.toggleLlm = () => (enabled ? api.disableLlm() : api.requestLlmEnable());
   ctx.registerCommand('llm.toggle', () => { void api.toggleLlm(); });
@@ -236,15 +372,21 @@ export async function llmModule(ctx) {
     if (consent && plain && k === 'Escape') { void api.answerLlmConsent(false); return 'llm.consent.decline'; }
     if (baseDialog() && !consent && plain && (k === 'Enter' || k === ' ' || k === 'Space') && focusId === 'llm.enabled') { void api.toggleLlm(); return 'llm.toggle'; }
     if (baseDialog() && !consent && plain && (k === 'Enter' || k === ' ' || k === 'Space') && focusId === 'llm.test') { void api.testLlmConnection(); return 'llm.test'; }
+    // プロバイダーの選択（radiogroup）: 矢印キーで次・前の選択肢（AC-514）
+    if (baseDialog() && !consent && plain && focusId === 'llm.provider' && ['ArrowDown', 'ArrowRight', 'ArrowUp', 'ArrowLeft'].includes(k)) {
+      const dir = k === 'ArrowDown' || k === 'ArrowRight' ? 1 : PROVIDERS.length - 1;
+      void api.setLlmProvider(PROVIDERS[(PROVIDERS.indexOf(provider) + dir) % PROVIDERS.length]);
+      return 'llm.provider';
+    }
     return baseKey(ev);
   };
-  // 設定画面を開いたときに、認証情報の「設定済み／未設定」を中継サーバーから読む（LLM 向けの要求には数えない）
+  // 設定画面を開いたときに、認証情報の「設定済み／未設定」とプロバイダーを中継サーバーから読む（LLM 向けの要求には数えない）
   const baseOpen = ctx.api.commands['settings.open'];
   ctx.registerCommand('settings.open', () => { baseOpen(); if (credentialSet == null && relay) track(readStatus().then(notify)); });
 
-  // 起動時: 保存された同意が現在の版と一致し、設定（AC-313）が揃っているときだけ有効に復帰する。それ以外は無効（再同意が必要）。
-  if (relay && consentValid()) {
+  // 起動時: 選ばれたプロバイダーへの同意が現在の版と一致し、設定（AC-313・AC-506）が揃っているときだけ有効に復帰する。それ以外は無効（再同意が必要）。
+  if (relay && (consentValid('foundry') || consentValid('copilot'))) {
     const st = await readStatus();
-    if (!st.missing.length && !st.reason) { enabled = true; }
+    enabled = consentValid(provider) && !st.missing.length && !st.reason;
   }
 }

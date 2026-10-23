@@ -407,16 +407,30 @@ export function mountUI(app, doc = document) {
         form.append(cur);
       }
       // FR-068: LLM 連携の切替・状態・認証情報の有無（入力欄なし）・接続テスト。状態は色だけでなく文字とアイコンで示す
+      // FR-068 AC-514: LLMのプロバイダーの選択（radiogroup。矢印キーで選べるネイティブのラジオボタン）
+      const pf = d.fields.find((f) => f.id === 'llm.provider');
+      if (pf) {
+        const grp = doc.createElement('div'); grp.setAttribute('role', 'radiogroup'); grp.setAttribute('aria-label', pf.label); grp.className = 'settings-radios';
+        for (const op of pf.options) {
+          const lab = doc.createElement('label'); lab.className = 'settings-check';
+          const rb = doc.createElement('input'); rb.type = 'radio'; rb.name = 'settings-llm-provider'; rb.value = op.value;
+          rb.addEventListener('change', () => { if (rb.checked) void app.setLlmProvider(op.value); });
+          lab.append(rb, ` ${op.label}`); grp.append(lab);
+        }
+        row('llm.provider', pf.label, grp);
+      }
       const llmSw = doc.createElement('input'); llmSw.type = 'checkbox'; llmSw.setAttribute('role', 'switch');
       llmSw.addEventListener('click', (e) => { e.preventDefault(); void app.toggleLlm(); });
       row('llm.enabled', d.fields.find((f) => f.id === 'llm.enabled').label, llmSw);
       const llmSt = doc.createElement('p'); llmSt.id = 'settings-llm-status'; llmSt.setAttribute('role', 'status'); llmSt.className = 'settings-status';
+      // FR-087 AC-506: GitHub Copilot を使えない原因に対する次の行動（導入の手順の案内・接続キー画面を開く）
+      const llmActs = doc.createElement('div'); llmActs.id = 'settings-llm-actions'; llmActs.className = 'settings-actions';
       const llmCred = doc.createElement('p'); llmCred.id = 'settings-llm-credential'; llmCred.className = 'settings-status';
       const llmTest = doc.createElement('button'); llmTest.type = 'button'; llmTest.className = 'btn';
       llmTest.addEventListener('click', () => { void app.testLlmConnection(); });
       const llmTestRes = doc.createElement('p'); llmTestRes.id = 'settings-llm-test-result'; llmTestRes.setAttribute('role', 'status'); llmTestRes.className = 'settings-status';
       row('llm.test', d.fields.find((f) => f.id === 'llm.test').label, llmTest);
-      form.append(llmSt, llmCred, llmTestRes);
+      form.append(llmSt, llmActs, llmCred, llmTestRes);
       buildAzureSpeech(form, d);
       const close =  doc.createElement('button'); close.type = 'button'; close.className = 'btn btn-primary'; close.textContent = o.closeLabel; close.dataset.action = 'settings-close';
       close.addEventListener('click', () => app.commands['settings.close']());
@@ -433,6 +447,24 @@ export function mountUI(app, doc = document) {
       const f = Object.fromEntries(d.fields.map((x) => [x.id, x]));
       const sw = setEl.querySelector('#settings-llm\\.enabled'); sw.checked = !!f['llm.enabled'].value;
       setEl.querySelector('#settings-llm-status').textContent = `${f['llm.enabled'].status.icon} ${f['llm.enabled'].label}: ${f['llm.enabled'].status.text}`;
+      if (f['llm.provider']) for (const rb of setEl.querySelectorAll('input[name="settings-llm-provider"]')) rb.checked = rb.value === f['llm.provider'].value;
+      const acts = setEl.querySelector('#settings-llm-actions');
+      const actKey = JSON.stringify(f['llm.enabled'].status.actions ?? []);
+      if (acts && acts.dataset.key !== actKey) {
+        acts.dataset.key = actKey; acts.textContent = '';
+        for (const a of f['llm.enabled'].status.actions ?? []) {
+          if (a.id === 'installGuide') { // 導入の手順の案内（外部へは接続しない: NFR-OFFLINE-001）
+            const p = doc.createElement('p'); p.className = 'settings-status settings-note'; p.dataset.action = a.id;
+            const s = doc.createElement('strong'); s.textContent = `${a.label}: `;
+            p.append(s, a.text);
+            acts.append(p);
+          } else {
+            const b = doc.createElement('button'); b.type = 'button'; b.className = 'btn'; b.textContent = a.label; b.dataset.action = a.id;
+            b.addEventListener('click', () => app.runSettingsAction(a.id));
+            acts.append(b);
+          }
+        }
+      }
       setEl.querySelector('#settings-llm-credential').textContent = `${f['llm.credential'].status.icon} ${f['llm.credential'].label}: ${f['llm.credential'].status.text}`;
       const tb = setEl.querySelector('#settings-llm\\.test'); tb.textContent = f['llm.test'].label;
       const tr = f['llm.test'].status; setEl.querySelector('#settings-llm-test-result').textContent = tr.text ? `${tr.icon} ${tr.text}` : '';
@@ -596,13 +628,14 @@ export function mountUI(app, doc = document) {
     const list = (items) => { const ul = doc.createElement('ul'); for (const x of items) { const li = doc.createElement('li'); li.textContent = x; ul.append(li); } return ul; };
     const p1 = doc.createElement('p'); p1.textContent = app.t('llm.consent.sent'); const p2 = doc.createElement('p'); p2.textContent = `${app.t('llm.consent.to')}: ${c.host}`;
     const p3 = doc.createElement('p'); p3.textContent = app.t('llm.consent.notSentLabel'); const p4 = doc.createElement('p'); p4.textContent = c.note;
+    const pm = doc.createElement('p'); if (c.model) pm.textContent = `${app.t('llm.consent.model')}: ${c.model}`; // AC-513: GitHub Copilot のときは使うモデル名
     const row = doc.createElement('div'); row.className = 'dialog-actions';
     for (const a of c.actions) {
       const el = doc.createElement('button'); el.type = 'button'; el.dataset.action = a.id; el.textContent = a.label; el.className = a.id === 'accept' ? 'btn btn-primary' : 'btn';
       el.addEventListener('click', () => { void app.answerLlmConsent(a.id === 'accept'); });
       row.append(el);
     }
-    box.append(h, p1, list(c.kinds), p2, p3, list(c.notSent), p4, row); consentEl.append(box); doc.body.append(consentEl);
+    box.append(h, p1, list(c.kinds), p2, ...(c.model ? [pm] : []), p3, list(c.notSent), p4, row); consentEl.append(box); doc.body.append(consentEl);
     row.querySelector('[data-action="decline"]')?.focus();
   }
   app.on('change', syncConsent);

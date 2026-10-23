@@ -198,6 +198,8 @@ class RelayHandler(SimpleHTTPRequestHandler):
                 text = sec.redact(json.dumps(st, ensure_ascii=False),
                                   up.secrets_of(s) + copilot.secrets_of(cfg.load_copilot_settings()))
                 return self._send_json(200, text.encode("utf-8"))
+            if self.path.split("?", 1)[0] == LLM_PREFIX + "provider":
+                return self._send_json(200, {"provider": cfg.load_copilot_settings().provider})
             return self._send_json(404, sec.error_body("not_found", "見つかりません。"))
         SimpleHTTPRequestHandler.do_GET(self)
 
@@ -220,6 +222,8 @@ class RelayHandler(SimpleHTTPRequestHandler):
             return self._relay()
         if is_llm and self.command in ("POST", "DELETE") and self.path.split("?", 1)[0] in (LLM_PREFIX + "key", LLM_PREFIX + "config"):
             return self._llm_admin()
+        if is_llm and self.command == "POST" and self.path.split("?", 1)[0] == LLM_PREFIX + "provider":
+            return self._llm_provider()
         status = 405 if is_llm and self.path.startswith(LLM_PREFIX + "config") else 404
         self._send_json(status if is_llm else 405, sec.error_body("not_allowed", "この操作はできません。"))
 
@@ -313,6 +317,37 @@ class RelayHandler(SimpleHTTPRequestHandler):
         if locked("endpoint", "deployment", "authMethod"):
             return reply(409, False, "env_managed")
         return reply(200, True, "deleted")
+
+    def _llm_provider(self):
+        """LLMのプロバイダーの選択の保存（FR-068 AC-514）。もう一方のプロバイダーの設定は消さない。
+        環境変数・設定ファイルで指定されているときは 409（env_managed）。応答は秘密を含まない状態（GET /api/llm/status と同じ形）。"""
+        raw = self._read_body()
+        try:
+            body = json.loads(raw.decode("utf-8")) if raw else None
+        except ValueError:
+            body = None
+
+        def reply(status, ok, result, reason=None):
+            s2, st = current_status(with_copilot=True)
+            out = dict(st)
+            out.pop("reason", None)
+            out.update({"ok": ok, "result": result})
+            if reason:
+                out["reason"] = reason
+            text = sec.redact(json.dumps(out, ensure_ascii=False),
+                              up.secrets_of(s2) + copilot.secrets_of(cfg.load_copilot_settings()))
+            self._send_json(status, text.encode("utf-8"))
+
+        if not isinstance(body, dict):
+            return reply(400, False, "invalid", "body_format")
+        bad = store.check_provider(body.get("provider"))
+        if bad:
+            return reply(400, False, "invalid", bad)
+        cs = cfg.load_copilot_settings()
+        if cs.sources.get("provider") in ("env", "file") and cs.provider != body["provider"]:
+            return reply(409, False, "env_managed")
+        store.save({"provider": body["provider"]})
+        return reply(200, True, "saved")
 
     def _speech(self):
         """Azure Speech（FR-082 / NFR-SEC-005）。応答はキー・トークンを含まない（念のため秘密を除いてから返す）。"""
