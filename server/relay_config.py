@@ -35,6 +35,7 @@ class Settings(object):
         self.api_key = api_key
         self.allow_loopback = allow_loopback
         self.file_error = file_error
+        self.sources = {}
 
     def __repr__(self):
         return "Settings(endpoint=%r, deployment=%r, auth_method=%r)" % (
@@ -73,14 +74,25 @@ def load_settings():
         except (OSError, ValueError):
             file_error = "設定ファイルを読み込めません。"  # 内容は出さない
     values = {}
+    sources = {}
+    saved = None  # 画面での保存（FR-086）。上位に値がない項目にだけ使う。必要なときだけ読む
     for key, env in _FIELDS:
+        src = "env"
         v = os.environ.get(env)
         if v is None or v == "":
+            src = "file"
             v = data.get(key)
-        values[key] = v.strip() if isinstance(v, str) else None
-        if values[key] == "":
-            values[key] = None
-    return Settings(
+        v = v.strip() if isinstance(v, str) else None
+        if not v:
+            src = "ui"
+            if saved is None:
+                import relay_llmstore  # 循環を避けるため遅延 import
+                saved = relay_llmstore.load()
+            v = saved.get(key)
+            v = v.strip() if isinstance(v, str) else None
+        values[key] = v or None
+        sources[key] = src if values[key] else None
+    s = Settings(
         endpoint=values["endpoint"],
         deployment=values["deployment"],
         auth_method=values["authMethod"] or "apiKey",
@@ -88,6 +100,8 @@ def load_settings():
         allow_loopback=os.environ.get("RELAY_ALLOW_LOOPBACK_UPSTREAM") == "1",  # AC-364。テスト専用・既定オフ
         file_error=file_error,
     )
+    s.sources = sources  # 項目ごとの出どころ（ui / env / file / None）。秘密ではない
+    return s
 
 
 def _is_loopback_host(host):

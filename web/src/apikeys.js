@@ -10,6 +10,8 @@ import { matchKey } from './keymap.js';
 
 const TIMEOUT_MS = 10_000; // PARAM-074（中継サーバーの操作の待機上限）
 export const MAX_KEY_LENGTH = 512; // PARAM-094
+export const MAX_ENDPOINT_LENGTH = 2048; // PARAM-095
+export const MAX_DEPLOYMENT_LENGTH = 64; // PARAM-096
 const SOURCES = ['ui', 'env', 'file'];
 const ICONS = { set: '●', unset: '○', unavailable: '▲', checking: '…' };
 const CATEGORIES = ['foundry', 'azureSpeech'];
@@ -40,6 +42,17 @@ export function apiKeysModule(ctx) {
       'keys.foundry.failed': 'Microsoft Foundry のキーを保存できませんでした。もう一度お試しください',
       'keys.foundry.deleted': 'Microsoft Foundry のキーを削除しました', 'keys.foundry.deleteFailed': 'キーを削除できませんでした。もう一度お試しください',
       'keys.foundry.delete.text': 'Microsoft Foundry のキーを削除しますか？ 削除すると、LLM 連携は認証情報が未設定になります', 'keys.foundry.delete.confirm': 'キーを削除',
+      'keys.label.endpoint': 'エンドポイント', 'keys.label.deployment': 'デプロイ名', 'keys.label.authMethod': '認証方式',
+      'keys.label.configSave': '設定保存', 'keys.label.configDelete': '設定削除',
+      'keys.auth.apiKey': 'API キー', 'keys.auth.entra': 'Microsoft Entra ID',
+      'keys.endpoint.placeholder': 'https://（保存後はホスト名だけ表示されます）', 'keys.deployment.placeholder': 'デプロイ名',
+      'keys.cfg.set': '設定済み', 'keys.cfg.unset': '未設定', 'keys.cfg.locked': '環境変数／設定ファイルで設定されているため画面からは変更できない',
+      'keys.cfg.entraNoKey': '認証方式が Microsoft Entra ID のときは API キーを入力できません',
+      'keys.cfg.saved': 'Microsoft Foundry の接続設定を保存しました', 'keys.cfg.deleted': '画面で保存した接続設定を削除しました',
+      'keys.cfg.invalid': '保存できませんでした。エンドポイントは https の URL、デプロイ名は空・制御文字なし・64 文字以内、認証方式は API キーか Microsoft Entra ID にしてください',
+      'keys.cfg.failed': '接続設定を保存できませんでした。もう一度お試しください', 'keys.cfg.deleteFailed': '接続設定を削除できませんでした。もう一度お試しください',
+      'keys.cfg.envManaged': '環境変数／設定ファイルで設定されている項目は、画面からは変更できません',
+      'keys.cfg.delete.text': '画面で保存したエンドポイント・デプロイ名・認証方式を削除しますか？ 削除すると、環境変数・設定ファイルに値がなければ LLM 連携は未設定になります', 'keys.cfg.delete.confirm': '設定を削除',
     },
     en: {
       'apikeys.title': 'API Keys', 'apikeys.close': 'Close', 'apikeys.categories': 'Categories',
@@ -58,6 +71,17 @@ export function apiKeysModule(ctx) {
       'keys.foundry.failed': 'The Microsoft Foundry key could not be saved. Try again',
       'keys.foundry.deleted': 'The Microsoft Foundry key was deleted', 'keys.foundry.deleteFailed': 'The key could not be deleted. Try again',
       'keys.foundry.delete.text': 'Delete the Microsoft Foundry key? LLM integration will have no credential', 'keys.foundry.delete.confirm': 'Delete key',
+      'keys.label.endpoint': 'Endpoint', 'keys.label.deployment': 'Deployment', 'keys.label.authMethod': 'Auth method',
+      'keys.label.configSave': 'Save setup', 'keys.label.configDelete': 'Clear setup',
+      'keys.auth.apiKey': 'API key', 'keys.auth.entra': 'Microsoft Entra ID',
+      'keys.endpoint.placeholder': 'https:// (only the host name is shown after saving)', 'keys.deployment.placeholder': 'Deployment name',
+      'keys.cfg.set': 'configured', 'keys.cfg.unset': 'not configured', 'keys.cfg.locked': 'Set by an environment variable or config file, so it cannot be changed here',
+      'keys.cfg.entraNoKey': 'An API key cannot be entered when the auth method is Microsoft Entra ID',
+      'keys.cfg.saved': 'The Microsoft Foundry connection settings were saved', 'keys.cfg.deleted': 'The connection settings saved in this screen were deleted',
+      'keys.cfg.invalid': 'Not saved. The endpoint must be an https URL, the deployment name must be non-empty, free of control characters and at most 64 characters, and the auth method must be API key or Microsoft Entra ID',
+      'keys.cfg.failed': 'The connection settings could not be saved. Try again', 'keys.cfg.deleteFailed': 'The connection settings could not be deleted. Try again',
+      'keys.cfg.envManaged': 'Items set by an environment variable or config file cannot be changed here',
+      'keys.cfg.delete.text': 'Delete the endpoint, deployment name and auth method saved in this screen? Without an environment variable or config file value, LLM integration will be unconfigured', 'keys.cfg.delete.confirm': 'Delete setup',
     },
   });
 
@@ -73,7 +97,14 @@ export function apiKeysModule(ctx) {
   let fStatus = { reachable: false, keyConfigured: false, source: null };
   let foundryInput = '';
   let busy = false;
-  let foundryDlg = false; // Foundry のキーの削除の確認
+  let foundryDlg = null; // 確認の種類: 'key'（キーの削除）| 'config'（接続設定の削除）| null
+  // 接続設定（FR-086）: 中継サーバーの状態（秘密を含まない）と、入力中の一時的な値
+  const EMPTY_CFG = () => ({ configured: { endpoint: false, deployment: false, authMethod: false, key: false }, endpointHost: '', authMethod: 'apiKey', sources: { endpoint: null, deployment: null, authMethod: null, key: null } });
+  let fCfg = EMPTY_CFG();
+  let endpointInput = '';
+  let deploymentInput = '';
+  let authInput = null; // null のときは中継サーバーの値に従う
+  const clearCfgInputs = () => { endpointInput = ''; deploymentInput = ''; authInput = null; };
   const say = (key) => ctx.change((s) => { s.message = { key, text: t(key) }; });
 
   // ---- 中継サーバーへの要求（タイムアウト・例外は分類にそろえる） ----
@@ -90,11 +121,25 @@ export function apiKeysModule(ctx) {
   // 応答から「設定済みか」と出どころだけを取り出す（ほかの項目は捨てる）
   const pick = (b) => ({ reachable: true, keyConfigured: b?.keyConfigured === true, source: b?.keyConfigured === true && SOURCES.includes(b?.keySource) ? b.keySource : null });
   const view = () => ({ reachable: fStatus.reachable, keyConfigured: fStatus.keyConfigured, source: fStatus.source });
+  // 応答から接続設定の状態だけを取り出す（ホスト名はホスト名の文字だけ通し、URL のパス・クエリは持たない）
+  const pickCfg = (b) => {
+    const c = b?.configured && typeof b.configured === 'object' ? b.configured : {};
+    const s = b?.sources && typeof b.sources === 'object' ? b.sources : {};
+    const host = typeof b?.endpointHost === 'string' && /^[A-Za-z0-9.-]{1,253}$/.test(b.endpointHost) ? b.endpointHost : '';
+    const src = (v) => (SOURCES.includes(v) ? v : null);
+    return {
+      configured: { endpoint: c.endpoint === true, deployment: c.deployment === true, authMethod: c.authMethod === true, key: c.key === true },
+      endpointHost: c.endpoint === true ? host : '', authMethod: b?.authMethod === 'entra' ? 'entra' : 'apiKey',
+      sources: { endpoint: c.endpoint === true ? src(s.endpoint) : null, deployment: c.deployment === true ? src(s.deployment) : null, authMethod: c.authMethod === true ? src(s.authMethod) : null, key: src(s.key) },
+    };
+  };
+  const apply = (b) => { fStatus = pick(b); if (b?.sources && typeof b.sources === 'object') fCfg = pickCfg(b); };
 
   api.refreshFoundryKeyStatus = async () => {
     const r = await send('GET', '/api/llm/status');
     fChecked = true;
     fStatus = ok2xx(r) ? pick(r.body) : { reachable: false, keyConfigured: false, source: null };
+    fCfg = ok2xx(r) ? pickCfg(r.body) : EMPTY_CFG();
     notify();
     return view();
   };
@@ -116,7 +161,7 @@ export function apiKeysModule(ctx) {
     const r = await send('POST', '/api/llm/key', { key });
     busy = false;
     if (ok2xx(r) && r.body.ok === true && r.body.result === 'saved') {
-      fStatus = pick(r.body); say('keys.foundry.saved'); return { ok: true, result: 'saved' };
+      apply(r.body); say('keys.foundry.saved'); return { ok: true, result: 'saved' };
     }
     if (r.error === 'unavailable') { fStatus = { reachable: false, keyConfigured: false, source: null }; say('keys.unavailable'); return { ok: false, result: 'unavailable' }; }
     if (r.status === 400 || r.body?.result === 'invalid') { say('keys.foundry.invalid'); return { ok: false, result: 'invalid' }; }
@@ -130,25 +175,72 @@ export function apiKeysModule(ctx) {
     if (!fStatus.reachable) { say('keys.unavailable'); return { ok: false, reason: 'unavailable' }; }
     if (fStatus.keyConfigured && fStatus.source !== 'ui') { say('keys.foundry.envManaged'); return { ok: false, reason: 'env_managed' }; }
     if (!deletable()) return { ok: false, reason: 'unset' };
-    if (!foundryDlg && !api.getDialog()) { foundryDlg = true; notify(); }
+    if (!foundryDlg && !api.getDialog()) { foundryDlg = 'key'; notify(); }
+    return { ok: true, pending: true };
+  });
+  // ---- 接続設定（FR-086）----
+  const CFG_NAMES = ['endpoint', 'deployment', 'authMethod'];
+  const lockedSrc = (n) => fCfg.sources[n] === 'env' || fCfg.sources[n] === 'file';
+  const effAuth = () => authInput ?? fCfg.authMethod;
+  const endpointOk = (v) => {
+    if (!v || v.length > MAX_ENDPOINT_LENGTH || hasControl(v)) return false;
+    try { const u = new URL(v); return u.protocol === 'https:' && !!u.hostname && !u.username && !u.password; } catch { return false; }
+  };
+  const deploymentOk = (v) => !!v && v.length <= MAX_DEPLOYMENT_LENGTH && !hasControl(v);
+  api.setFoundryEndpointInput = (text) => { endpointInput = String(text ?? ''); notify(); };
+  api.setFoundryDeploymentInput = (text) => { deploymentInput = String(text ?? ''); notify(); };
+  api.setFoundryAuthMethod = (v) => { authInput = String(v ?? ''); notify(); };
+  api.saveFoundryConfig = async () => {
+    const vals = { endpoint: endpointInput.trim(), deployment: deploymentInput.trim(), authMethod: effAuth() };
+    const provided = { endpoint: endpointInput !== '', deployment: deploymentInput !== '', authMethod: authInput !== null };
+    if (CFG_NAMES.some((n) => lockedSrc(n) && provided[n])) { clearCfgInputs(); notify(); say('keys.cfg.envManaged'); return { ok: false, result: 'env_managed' }; }
+    const names = CFG_NAMES.filter((n) => !lockedSrc(n));
+    const bad = names.length === 0 || names.some((n) => !(n === 'endpoint' ? endpointOk(vals.endpoint) : n === 'deployment' ? deploymentOk(vals.deployment) : (vals.authMethod === 'apiKey' || vals.authMethod === 'entra')));
+    if (bad) { say('keys.cfg.invalid'); return { ok: false, result: 'invalid' }; }
+    if (!relay || (fChecked && !fStatus.reachable)) {
+      const r = relay ? await api.refreshFoundryKeyStatus() : null;
+      if (!r || !r.reachable) { say('keys.unavailable'); return { ok: false, result: 'unavailable' }; }
+    }
+    const body = {}; for (const n of names) body[n] = vals[n];
+    clearCfgInputs(); busy = true; notify(); // 送る前に入力欄を空にする（全体の URL を画面に残さない）
+    const r = await send('POST', '/api/llm/config', body);
+    busy = false;
+    if (ok2xx(r) && r.body.ok === true && r.body.result === 'saved') { apply(r.body); say('keys.cfg.saved'); return { ok: true, result: 'saved' }; }
+    if (r.error === 'unavailable') { fStatus = { reachable: false, keyConfigured: false, source: null }; say('keys.unavailable'); return { ok: false, result: 'unavailable' }; }
+    if (r.body?.result === 'env_managed') { apply(r.body); say('keys.cfg.envManaged'); return { ok: false, result: 'env_managed' }; }
+    if (r.status === 400 || r.body?.result === 'invalid') { say('keys.cfg.invalid'); return { ok: false, result: 'invalid' }; }
+    say('keys.cfg.failed');
+    return { ok: false, result: 'failed' };
+  };
+  const cfgDeletable = () => fStatus.reachable && CFG_NAMES.some((n) => fCfg.sources[n] === 'ui');
+  ctx.registerCommand('foundry.deleteConfig', () => {
+    if (!fStatus.reachable) { say('keys.unavailable'); return { ok: false, reason: 'unavailable' }; }
+    if (!cfgDeletable()) {
+      if (CFG_NAMES.some(lockedSrc)) { say('keys.cfg.envManaged'); return { ok: false, reason: 'env_managed' }; }
+      return { ok: false, reason: 'unset' };
+    }
+    if (!foundryDlg && !api.getDialog()) { foundryDlg = 'config'; notify(); }
     return { ok: true, pending: true };
   });
   const baseGetDialog = api.getDialog;
   api.getDialog = () => (foundryDlg ? {
-    kind: 'foundry-key-delete', text: t('keys.foundry.delete.text'),
-    buttons: [{ id: 'confirm', label: t('keys.foundry.delete.confirm') }, { id: 'cancel', label: t('dialog.cancel') }],
+    kind: foundryDlg === 'config' ? 'foundry-config-delete' : 'foundry-key-delete', text: t(foundryDlg === 'config' ? 'keys.cfg.delete.text' : 'keys.foundry.delete.text'),
+    buttons: [{ id: 'confirm', label: t(foundryDlg === 'config' ? 'keys.cfg.delete.confirm' : 'keys.foundry.delete.confirm') }, { id: 'cancel', label: t('dialog.cancel') }],
     defaultFocus: 'cancel', keyboard: true,
   } : (baseGetDialog ? baseGetDialog() : null));
   const baseDialogAction = api.dialogAction;
   api.dialogAction = async (action) => {
     if (!foundryDlg) return baseDialogAction ? baseDialogAction(action) : { ok: false, reason: 'no_dialog' };
-    foundryDlg = false;
+    const which = foundryDlg;
+    foundryDlg = null;
     if (action !== 'confirm') { notify(); return { ok: false, reason: 'cancelled' }; }
-    const r = await send('DELETE', '/api/llm/key');
-    if (ok2xx(r) && r.body.ok === true) { fStatus = pick(r.body); say('keys.foundry.deleted'); return { ok: true }; }
+    const isCfg = which === 'config';
+    const r = await send('DELETE', isCfg ? '/api/llm/config' : '/api/llm/key');
+    const pre = isCfg ? 'keys.cfg' : 'keys.foundry';
+    if (ok2xx(r) && r.body.ok === true) { apply(r.body); say(`${pre}.deleted`); return { ok: true }; }
     if (r.error === 'unavailable') { fStatus = { reachable: false, keyConfigured: false, source: null }; say('keys.unavailable'); return { ok: false, reason: 'unavailable' }; }
-    if (ok2xx(r) && r.body.result === 'env_managed') { fStatus = pick(r.body); say('keys.foundry.envManaged'); return { ok: false, reason: 'env_managed' }; }
-    say('keys.foundry.deleteFailed');
+    if (ok2xx(r) && r.body.result === 'env_managed') { apply(r.body); say(`${pre}.envManaged`); return { ok: false, reason: 'env_managed' }; }
+    say(`${pre}.deleteFailed`);
     return { ok: false, reason: 'failed' };
   };
 
@@ -163,15 +255,38 @@ export function apiKeysModule(ctx) {
     const managed = fStatus.source !== 'ui' ? ` ／ ${t('keys.foundry.envManaged')}` : '';
     return { id: 'set', source: fStatus.source, text: `${t('keys.foundry.set')}（${t(`keys.src.${fStatus.source ?? 'ui'}`)}）${managed}`, icon: ICONS.set };
   };
+  const cfgStatus = (n) => {
+    const src = fCfg.sources[n];
+    const set = fCfg.configured[n] === true;
+    if (!set) return { id: 'unset', source: null, text: t('keys.cfg.unset'), icon: ICONS.unset };
+    const where = t(`keys.src.${src ?? 'ui'}`);
+    let what = t('keys.cfg.set');
+    if (n === 'endpoint' && fCfg.endpointHost) what = fCfg.endpointHost; // ホスト名だけ（全体の URL・パス・クエリは再表示しない）
+    if (n === 'authMethod') what = t(`keys.auth.${fCfg.authMethod}`);
+    const locked = src === 'env' || src === 'file' ? ` ／ ${t('keys.cfg.locked')}` : '';
+    return { id: 'set', source: src, text: `${what}（${where}）${locked}`, icon: ICONS.set };
+  };
   const foundryFields = () => {
     const off = !fChecked || down() || busy;
     const reason = down() ? t('keys.unavailable') : null;
     const base = (id, k, extra) => ({ id: `apiKeys.foundry.${id}`, label: lbl(k), accessibleName: a11y(lbl(k)), disabled: off, focusable: !off, reason, ...extra });
     const delOff = off || !deletable();
+    const entra = effAuth() === 'entra';
+    const keyOff = off || entra;
+    const cfgIn = (n, input) => {
+      const lk = lockedSrc(n); const dis = off || lk;
+      return base(n, n, { role: 'textbox', input: { autocomplete: 'off', ...input }, disabled: dis, focusable: !dis, reason: reason ?? (lk ? t('keys.cfg.locked') : null), status: down() || !fChecked ? { id: 'unset', source: null, text: reason ?? t('keys.checking'), icon: ICONS.unavailable } : cfgStatus(n) });
+    };
+    const cfgDelOff = off || !cfgDeletable();
     return [
-      base('key', 'key', { role: 'textbox', input: { type: 'password', value: '•'.repeat(Math.min(foundryInput.length, 64)), autocomplete: 'new-password', writeOnly: true, reveal: false, placeholder: t('keys.key.placeholder') } }),
+      cfgIn('endpoint', { type: 'url', value: endpointInput, placeholder: t('keys.endpoint.placeholder') }),
+      cfgIn('deployment', { type: 'text', value: deploymentInput, placeholder: t('keys.deployment.placeholder') }),
+      cfgIn('authMethod', { type: 'select', value: effAuth() === 'entra' ? 'entra' : 'apiKey', options: ['apiKey', 'entra'].map((v) => ({ value: v, label: t(`keys.auth.${v}`) })) }),
+      base('configSave', 'configSave', { role: 'button' }),
+      base('configDelete', 'configDelete', { role: 'button', disabled: cfgDelOff, focusable: !cfgDelOff, reason: down() ? reason : (CFG_NAMES.some(lockedSrc) && !cfgDeletable() ? t('keys.cfg.envManaged') : null) }),
+      base('key', 'key', { role: 'textbox', disabled: keyOff, focusable: !keyOff, reason: reason ?? (entra ? t('keys.cfg.entraNoKey') : null), input: { type: 'password', value: '•'.repeat(Math.min(foundryInput.length, 64)), autocomplete: 'new-password', writeOnly: true, reveal: false, placeholder: t('keys.key.placeholder') } }),
       { id: 'apiKeys.foundry.status', label: lbl('status'), accessibleName: a11y(lbl('status')), role: 'status', focusable: false, disabled: false, reason: null, status: foundryStatus() },
-      base('save', 'save', { role: 'button' }),
+      base('save', 'save', { role: 'button', disabled: keyOff, focusable: !keyOff, reason: reason ?? (entra ? t('keys.cfg.entraNoKey') : null) }),
       base('delete', 'delete', { role: 'button', disabled: delOff, focusable: !delOff, reason: down() ? reason : (fStatus.keyConfigured && fStatus.source !== 'ui' ? t('keys.foundry.envManaged') : null) }),
     ];
   };
@@ -214,7 +329,7 @@ export function apiKeysModule(ctx) {
   const baseFocusCommand = api.focusCommand;
   function openDialog() {
     if (open) return { ok: true };
-    open = true; selected = 'foundry'; focusId = 'apiKeys.category.foundry'; foundryInput = '';
+    open = true; selected = 'foundry'; focusId = 'apiKeys.category.foundry'; foundryInput = ''; clearCfgInputs();
     ctx.change((s) => { delete s.focusReturn; });
     say('keys.opened');
     if (relay) { void api.refreshFoundryKeyStatus(); void api.refreshAzureSpeechStatus?.(); }
@@ -222,7 +337,7 @@ export function apiKeysModule(ctx) {
   }
   function closeDialog() {
     if (!open) return { ok: false, reason: 'closed' };
-    open = false; selected = 'foundry'; focusId = null; foundryInput = ''; foundryDlg = false;
+    open = false; selected = 'foundry'; focusId = null; foundryInput = ''; foundryDlg = null; clearCfgInputs();
     api.setAzureSpeechKeyInput?.(''); api.setAzureSpeechEndpointInput?.(''); // 保存していない入力は破棄する（AC-484・AC-491）
     baseFocusCommand?.('apiKeys.open');
     ctx.change((s) => { s.focusReturn = 'apiKeys.open'; });
@@ -234,6 +349,7 @@ export function apiKeysModule(ctx) {
   ctx.registerKey({ key: 'h', ctrl: true, alt: true, shift: true, command: 'apiKeys.open' });
   ctx.registerKey({ key: 'o', ctrl: true, alt: true, shift: true, command: 'apiKeys.close' });
   ctx.registerKey({ key: 'n', ctrl: true, alt: true, shift: true, command: 'foundry.deleteKey' });
+  ctx.registerKey({ key: 'm', ctrl: true, alt: true, shift: true, command: 'foundry.deleteConfig' });
   api.selectApiKeysCategory = (id) => {
     if (!open || !CATEGORIES.includes(id)) return { ok: false, reason: 'invalid' };
     if (id !== selected) { selected = id; if (!String(focusId).startsWith('apiKeys.category.') && focusId !== 'apiKeys.close') focusId = `apiKeys.category.${id}`; notify(); }
@@ -287,6 +403,8 @@ export function apiKeysModule(ctx) {
       if (String(focusId).startsWith('apiKeys.category.')) return run('apiKeys.category', () => api.selectApiKeysCategory(focusId.slice('apiKeys.category.'.length)));
       if (f && !f.disabled) {
         if (focusId === 'apiKeys.foundry.save') return run('foundry.saveKey', () => { void api.saveFoundryKey(); });
+        if (focusId === 'apiKeys.foundry.configSave') return run('foundry.saveConfig', () => { void api.saveFoundryConfig(); });
+        if (focusId === 'apiKeys.foundry.configDelete') return run('foundry.deleteConfig', () => ctx.api.commands['foundry.deleteConfig']());
         if (focusId === 'apiKeys.foundry.delete') return run('foundry.deleteKey', () => ctx.api.commands['foundry.deleteKey']());
         if (focusId === 'apiKeys.azureSpeech.save') return run('azureSpeech.save', () => { void api.saveAzureSpeech(); });
         if (focusId === 'apiKeys.azureSpeech.delete') return run('azureSpeech.deleteKey', () => ctx.api.commands['azureSpeech.deleteKey']());
