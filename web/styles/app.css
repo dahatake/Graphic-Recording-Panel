@@ -253,6 +253,13 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .apikeys-reason { margin: 0; font-size: var(--font-size-caption); }
 .apikeys-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-top: var(--stroke) solid var(--color-border); }
 .apikeys-live { margin: 0; font-size: var(--font-size-caption); }
+/* FR-088: GitHub Copilot の分類（モデル名の注記・SDK の導入の案内・サインインの確認コード） */
+.apikeys-note { margin: 0; font-size: var(--font-size-caption); color: var(--color-text-muted); overflow-wrap: anywhere; }
+.apikeys-signin { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-3); border: var(--stroke) solid var(--color-border); border-radius: var(--radius); background: var(--color-surface-2); }
+.apikeys-signin .apikeys-status { flex: 1 0 100%; }
+.apikeys-link { color: var(--color-brand-fg); min-height: var(--target-size); display: inline-flex; align-items: center; }
+.apikeys-link:focus-visible { outline: var(--stroke-thick) solid var(--color-focus); outline-offset: 2px; }
+.apikeys-code { font-variant-numeric: tabular-nums; font-size: var(--font-size-subtitle); font-weight: var(--font-weight-semibold); letter-spacing: 0.08em; padding: var(--space-1) var(--space-2); border: var(--stroke) solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); user-select: all; }
 .apikeys-dialog .dialog-backdrop { position: fixed; }
 /* 狭い画面（NFR-UX-001）: 分類の一覧と内容を縦に並べ、項目を欠かさない */
 @media (max-width: 767px) { .apikeys-body { flex-direction: column; } .apikeys-nav { flex: 0 0 auto; flex-direction: row; border-right: 0; padding-right: 0; border-bottom: var(--stroke) solid var(--color-border); padding-bottom: var(--space-2); } }
@@ -264,4 +271,6 @@ textarea:focus { border-bottom-color: var(--color-primary); }
   .apikeys-dialog { border-color: CanvasText; }
   .apikeys-dialog::backdrop { background: Canvas; opacity: 0.7; }
   .apikeys-cat[aria-selected="true"] { border-color: Highlight; outline: 2px solid Highlight; }
+  .apikeys-signin, .apikeys-code { border-color: CanvasText; }
+  .apikeys-link { color: LinkText; }
 }

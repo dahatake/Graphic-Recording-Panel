@@ -25,6 +25,7 @@ STATUS_TTL_SEC = 10  # 状態の取得で CLI を何度も起動しないため�
 _DEFAULT_SYSTEM = "Reply with the requested content only."
 # CLI の子プロセスへ渡さない環境変数（ほかの連携の秘密）
 _CHILD_ENV_DROP = ("LLM_API_KEY", "AZURE_SPEECH_KEY", "SPEECH_KEY")
+_GITHUB_TOKEN_ENV = ("COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN")
 
 _lock = threading.RLock()
 _state = {"loop": None, "thread": None, "client": None, "key": None, "workdir": None}
@@ -99,8 +100,13 @@ def _workdir():
         return _state["workdir"]
 
 
-def _child_env():
-    env = {k: v for k, v in os.environ.items() if k not in _CHILD_ENV_DROP}
+def _child_env(cs=None):
+    """CLI の子プロセスの環境変数。ほかの連携の秘密は渡さない。認証方式がサインインのときは GitHub のトークンの
+    環境変数も渡さず、Copilot CLI の保管のサインイン済みの資格情報を使わせる（FR-088 AC-510 の ASSUMPTION）。"""
+    drop = set(_CHILD_ENV_DROP)
+    if cs is None or cs.auth_method != "token":
+        drop.update(_GITHUB_TOKEN_ENV)
+    env = {k: v for k, v in os.environ.items() if k not in drop}
     env["COPILOT_GITHUB_TELEMETRY_DISABLED"] = "true"
     return env
 
@@ -111,7 +117,7 @@ def _client_key(cs):
 
 
 def _client_options(cs):
-    opts = {"working_directory": _workdir(), "env": _child_env()}
+    opts = {"working_directory": _workdir(), "env": _child_env(cs)}
     if cs.auth_method == "token":
         opts["use_logged_in_user"] = False
         if cs.token:

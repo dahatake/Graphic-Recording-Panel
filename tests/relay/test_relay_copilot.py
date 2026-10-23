@@ -21,12 +21,12 @@ import relay_config as cfg  # noqa: E402
 import relay_copilot  # noqa: E402
 import relay_llmstore as store  # noqa: E402
 
-DUMMY_TOKEN = "github_pat_DUMMY0123456789abcdef"
+DUMMY_TOKEN = "github_pat_DUMMY.0123456789abcdef"  # 実値らしく見えないよう「.」を含める（AC-341）
 DUMMY_FOUNDRY_KEY = "DUMMY-FR087-FOUNDRY-KEY-0001"
 ACCOUNT = "octocat-dummy"
 WEB = os.path.join(os.path.dirname(__file__), "..", "..", "web")
 ENV_NAMES = ("LLM_ENDPOINT", "LLM_DEPLOYMENT", "LLM_AUTH_METHOD", "LLM_API_KEY", "RELAY_ALLOW_LOOPBACK_UPSTREAM",
-             "LLM_PROVIDER", "COPILOT_AUTH_METHOD", "COPILOT_MODEL", "COPILOT_GITHUB_TOKEN",
+             "LLM_PROVIDER", "COPILOT_AUTH_METHOD", "COPILOT_MODEL", "COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN",
              "RELAY_TIMEOUT_SEC", "RELAY_MAX_BYTES")
 
 

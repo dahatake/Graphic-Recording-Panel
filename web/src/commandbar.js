@@ -92,7 +92,7 @@ const TIP = {
   'input.focus': ['テキスト入力欄に移動して文字で入力します', 'Jump to the text field to type input'],
   'import.file': ['テキスト・字幕のファイルを選んで、発話として取り込みます', 'Pick a text or caption file and import it as utterances'],
   'save.png': ['図を PNG 画像として保存します', 'Save the diagram as a PNG image'],
-  'apiKeys.open': ['Microsoft Foundry・Azure Speech のキーを登録・変更・削除する画面を開きます', 'Open the screen to register, change or delete the Microsoft Foundry and Azure Speech keys'],
+  'apiKeys.open': ['Microsoft Foundry・Azure Speech のキーと GitHub Copilot の認証を登録・変更・削除する画面を開きます', 'Open the screen to register, change or delete the Microsoft Foundry and Azure Speech keys and the GitHub Copilot sign-in'],
   'save.svg': ['図を SVG ファイルとして保存します', 'Save the diagram as an SVG file'],
   'save.pdf': ['図を PDF として保存します', 'Save the diagram as a PDF'],
   'lang.ja': ['表示言語を日本語に切り替えます', 'Switch the display language to Japanese'],
@@ -136,7 +136,7 @@ export function commandBarModule(ctx) {
     ja: {
       'toolbar.import': '取り込み', 'toolbar.export': '図の書き出し', 'toolbar.environment': '画面・環境', 'toolbar.apiKeys': '接続キー',
       'import.description': 'テキストファイル（.txt）・字幕ファイル（.vtt）を取り込みます',
-      'apiKeys.description': 'Microsoft Foundry・Azure Speech のキーを登録します',
+      'apiKeys.description': 'Foundry・Azure Speech のキーと GitHub Copilot の認証を登録します',
       'status.speech.label': '音声認識',
       'status.lang': '言語',
       'status.view': '表示',
@@ -147,7 +147,7 @@ export function commandBarModule(ctx) {
     en: {
       'toolbar.import': 'Import', 'toolbar.export': 'Export diagram', 'toolbar.environment': 'Screen & environment', 'toolbar.apiKeys': 'API Keys',
       'import.description': 'Import a text file (.txt) or a caption file (.vtt)',
-      'apiKeys.description': 'Register the Microsoft Foundry and Azure Speech keys',
+      'apiKeys.description': 'Register the Foundry and Azure Speech keys and GitHub Copilot sign-in',
       'status.speech.label': 'Speech',
       'status.lang': 'Language',
       'status.view': 'View',
