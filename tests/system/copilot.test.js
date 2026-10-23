@@ -369,12 +369,20 @@ test('FR-062 AC-513: 同意はプロバイダーごとで、未同意の GitHub 
   type(a.app, a.env, '同意後の要点'); await a.app.flushLlm();
   assert.ok(a.relay.llmCalls().length >= 1 && a.relay.llmCalls().every((x) => x.provider === 'copilot'));
   const recs = consentRecords(a.env);
-  assert.equal(recs.length, 2, 'プロバイダーごとに記録される');
+  assert.equal(recs.length, 2, 'プロバイダーごとに別の記録として保存される');
   for (const [k, v] of recs) {
-    assert.ok(Object.keys(v).every((x) => ['version', 'at', 'provider'].includes(x)), `${k}: 保存する項目は版・日時・プロバイダーの名前だけ`);
     for (const s of [TOKEN_PROBE, MODEL, ACCOUNT, '要点']) assert.ok(!JSON.stringify(v).includes(s), `${k} に ${s} を含めない`);
   }
-  assert.ok(recs.some(([, v]) => v.provider === 'copilot'));
+  const fRecs = recs.filter(([, v]) => !('provider' in v));
+  const cRecs = recs.filter(([, v]) => v.provider === 'copilot');
+  assert.equal(fRecs.length, 1, 'Microsoft Foundry の記録は従来の形（プロバイダーの名前を持たない）');
+  assert.deepEqual(Object.keys(fRecs[0][1]).sort(), ['at', 'version'], 'Foundry の記録は版・同意日時だけ');
+  assert.equal(cRecs.length, 1, 'GitHub Copilot の記録はプロバイダーの名前を持つ');
+  assert.deepEqual(Object.keys(cRecs[0][1]).sort(), ['at', 'provider', 'version'], 'GitHub Copilot の記録は版・同意日時・プロバイダーの名前だけ');
+  assert.ok(typeof cRecs[0][1].version === 'string' && cRecs[0][1].version.length > 0 && Number.isFinite(cRecs[0][1].at));
+  assert.equal((await a.app.commands['file.save']()).ok, true);
+  const saved = a.env.downloads.at(-1).data;
+  assert.ok(!/consent/i.test(saved) && !saved.includes(TOKEN_PROBE), 'セッションファイルに同意の記録を含めない（AC-312）');
   assert.equal((await a.app.setLlmProvider('foundry')).ok, true); await flush();
   assert.equal(a.app.getLlmState().enabled, true, 'Foundry へ戻すと再同意なしに有効'); assert.equal(a.app.getLlmConsent(), null);
   await a.app.setLlmProvider('copilot'); await flush();
@@ -383,7 +391,7 @@ test('FR-062 AC-513: 同意はプロバイダーごとで、未同意の GitHub 
   assert.equal(b.app.getLlmProvider(), 'copilot'); assert.equal(b.app.getLlmState().enabled, true, '再読込後も保たれる');
 });
 
-test('FR-062 AC-513 異常系: プロバイダーの記録がない従来の同意は Foundry への同意として有効のまま。GitHub Copilot の同意を拒否すると無効で記録は作られず、Copilot だけの同意では Foundry は有効にならない', async () => {
+test('FR-062 AC-513 異常系: プロバイダーの記録がない従来の同意は Foundry への同意として有効のまま。GitHub Copilot の同意を拒否すると無効で記録は作られず、Copilot だけの同意では Foundry は有効にならない。一方の記録の作成・削除は他方の記録を変えない', async () => {
   const a = await boot({ relay: { copilot: SIGNED_IN } });
   await enable(a.app);
   const rec = JSON.parse(a.env.storage.getItem('grp.llm.consent'));
@@ -408,6 +416,19 @@ test('FR-062 AC-513 異常系: プロバイダーの記録がない従来の同�
   assert.equal(c.app.getLlmState().enabled, false, 'Copilot の同意で Foundry は有効にならない');
   c.app.commands['session.start'](); type(c.app, c.env, '要点'); await c.app.flushLlm();
   assert.equal(c.relay.llmCalls().filter((x) => x.provider === 'foundry').length, 0);
+  // 一方の記録の作成・削除は他方の記録を変えない
+  const d = await boot({ relay: { copilot: SIGNED_IN } });
+  await enable(d.app);
+  const fRaw = d.env.storage.getItem('grp.llm.consent');
+  assert.ok(fRaw, 'Foundry の記録');
+  await d.app.setLlmProvider('copilot'); await flush();
+  await enable(d.app);
+  assert.equal(d.env.storage.getItem('grp.llm.consent'), fRaw, 'GitHub Copilot の記録の作成で Foundry の記録は変わらない');
+  await d.app.disableLlm(); await flush();
+  assert.ok(!consentRecords(d.env).some(([, v]) => v.provider === 'copilot'), 'GitHub Copilot の記録は取り消される');
+  assert.equal(d.env.storage.getItem('grp.llm.consent'), fRaw, 'GitHub Copilot の記録の削除で Foundry の記録は変わらない');
+  await d.app.setLlmProvider('foundry'); await flush();
+  assert.equal(d.app.getLlmState().enabled, true, 'Foundry は再同意なしに有効のまま'); assert.equal(d.app.getLlmConsent(), null);
 });
 
 // ======================= FR-068 =======================
