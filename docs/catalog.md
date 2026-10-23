@@ -71,7 +71,7 @@
 | FR-063 | 方式1: LLM による描くべき物の抽出と同梱部品への対応づけ | 承認済み | web/src/llmdraw.js, web/src/session.js, server/relay.py | tests/unit/llmdraw.test.js, tests/system/llm-draw.test.js, tests/system/llm-consent-persist.test.js | LLM 連携の制御, 同梱部品, 中継サーバー |
 | FR-064 | 同梱部品の拡充と汎用キャラのビルダー | 承認済み | web/src/parts.js, web/src/diagram.js, web/sw.js | tests/unit/parts.test.js | 同梱部品, 感情語辞書 |
 | FR-065 | 方式2（任意・既定オフ）: LLM による SVG の生成と挿入 | 承認済み | web/src/llmdraw.js, web/src/session.js, server/relay.py | tests/unit/svgsanitize.test.js, tests/system/llm-draw.test.js | SVG サニタイズ, 中継サーバー |
-| FR-066 | ローカル中継サーバー | 承認済み | server/relay.py, server/relay_config.py, server/relay_security.py, server/relay_upstream.py, start.ps1, start.sh | tests/relay/test_relay_units.py, tests/system/llmrelay.test.js | 中継サーバー |
+| FR-066 | ローカル中継サーバー | 承認済み | server/relay.py, server/relay_config.py, server/relay_security.py, server/relay_upstream.py, server/relay_copilot.py, server/requirements-copilot.txt, start.ps1, start.sh | tests/relay/test_relay_units.py, tests/relay/test_relay_copilot.py, tests/system/llmrelay.test.js | 中継サーバー |
 | FR-067 | LLM 連携の設定（エンドポイント・デプロイ名・認証方式） | 承認済み | server/relay_config.py, config/llm.example.json, .gitignore | tests/relay/test_llm_config_files.py, tests/relay/test_relay_units.py, tests/system/llmrelay.test.js | 中継サーバー |
 | FR-068 | 設定画面での有効/無効と接続テスト | 承認済み | web/src/llm.js, web/src/ui.js, web/styles/app.css | tests/unit/llmconsent.test.js, tests/system/llm-consent.test.js, tests/system/llm-consent-persist.test.js | アプリ組立, デザイン基盤, i18n, LLM 連携の制御 |
 | FR-069 | LLM 連携の使い方ガイド | 承認済み | users-guide/08-llm.md, users-guide/README.md | tests/unit/docs.test.js, tests/unit/llmguide.test.js | - |
@@ -96,20 +96,20 @@
 | FR-085 | Microsoft Foundry のキーの設定（接続キー画面） | 承認済み | web/src/apikeys.js, web/src/apikeys-ui.js, web/src/i18n.js | tests/system/apikeys.test.js, tests/unit/apikeys.test.js | アプリ組立, i18n, デザイン基盤 |
 | NFR-SEC-006 | 接続キー画面のキー・トークン（Foundry・GitHub Copilot・Azure Speech）の入力・保管・非露出 | 承認済み | web/src/apikeys.js, web/src/apikeys-ui.js, web/index.html, server/relay.py, server/relay_llmstore.py | tests/system/apikeys.test.js, tests/unit/apikeys.test.js, tests/relay/test_relay_llmconfig.py | アプリ組立, 中継サーバー |
 | FR-086 | Microsoft Foundry の接続設定（エンドポイント・デプロイ名・認証方式）の画面での設定と保存 | 承認済み | server/relay.py, server/relay_config.py, server/relay_llmstore.py, web/src/apikeys.js, web/src/apikeys-ui.js, web/styles/app.css, .gitignore | tests/relay/test_relay_llmconfig.py, tests/system/apikeys.test.js | 中継サーバー, アプリ組立, i18n, デザイン基盤 |
-| FR-087 | GitHub Copilot SDK を介した生成AIのモデルの呼び出し | 承認済み | 未実装 | 未実装 | - |
+| FR-087 | GitHub Copilot SDK を介した生成AIのモデルの呼び出し | 承認済み | server/relay_copilot.py, server/relay.py, server/relay_config.py, server/relay_llmstore.py, server/requirements-copilot.txt, README.md | tests/relay/test_relay_copilot.py | 中継サーバー |
 | FR-088 | GitHub Copilot の認証（サインイン・トークン）とモデル名の、接続キー画面での設定 | 承認済み | 未実装 | 未実装 | - |
 
 ## API・イベント
 
 | 名前 | 定義ファイル | 関連する要求 ID |
 |---|---|---|
-| GET /api/llm/status | server/relay.py | FR-066, NFR-SEC-003, FR-086 |
+| GET /api/llm/status | server/relay.py, server/relay_copilot.py | FR-066, NFR-SEC-003, FR-086, FR-087 |
 | POST /api/llm/key | server/relay.py, server/relay_llmstore.py | FR-086, NFR-SEC-006 |
 | DELETE /api/llm/key | server/relay.py, server/relay_llmstore.py | FR-086, NFR-SEC-006 |
 | POST /api/llm/config | server/relay.py, server/relay_llmstore.py | FR-086, NFR-SEC-006 |
 | DELETE /api/llm/config | server/relay.py, server/relay_llmstore.py | FR-086, NFR-SEC-006 |
-| POST /api/llm/responses | server/relay.py | FR-066, NFR-SEC-003 |
-| POST /api/llm/svg | server/relay.py | FR-065, NFR-SEC-004 |
+| POST /api/llm/responses | server/relay.py, server/relay_copilot.py | FR-066, NFR-SEC-003, FR-087 |
+| POST /api/llm/svg | server/relay.py, server/relay_copilot.py | FR-065, NFR-SEC-004, FR-087 |
 | GET /api/speech/status | server/relay.py, server/relay_speech.py | FR-082, NFR-SEC-005 |
 | POST /api/speech/settings | server/relay.py, server/relay_speech.py | FR-082, NFR-SEC-005 |
 | DELETE /api/speech/key | server/relay.py, server/relay_speech.py | FR-082, NFR-SEC-005 |
@@ -125,7 +125,7 @@
 
 | 部品名 | ファイル | 用途 | 使っている要求 ID |
 |---|---|---|---|
-| 中継サーバー | server/relay.py, server/relay_config.py, server/relay_security.py, server/relay_upstream.py, server/relay_speech.py, server/relay_llmstore.py | 127.0.0.1 だけの静的配信＋LLM 中継。設定は relay_config（環境変数>設定ファイル）、Host/Origin 検証と SVG サニタイズ・秘密の除去は relay_security、上流呼び出しと Entra トークンは relay_upstream。後続の設定・Entra の項目はここを拡張する。Azure Speech（/api/speech/...）の設定・キーの保管（DPAPI／0600）・接続テスト・音声の中継は relay_speech。画面（接続キー画面）で保存した Foundry の接続設定・キーの保管（全体を DPAPI／0600 で封）と POST/DELETE /api/llm/key・config は relay_llmstore（優先順位は 環境変数＞設定ファイル＞画面保存） | FR-063、FR-065、FR-066、FR-067、FR-081、FR-082、FR-083、FR-086、NFR-SEC-003、NFR-SEC-005、NFR-SEC-006 |
+| 中継サーバー | server/relay.py, server/relay_config.py, server/relay_security.py, server/relay_upstream.py, server/relay_speech.py, server/relay_llmstore.py, server/relay_copilot.py | 127.0.0.1 だけの静的配信＋LLM 中継。設定は relay_config（環境変数>設定ファイル）、Host/Origin 検証と SVG サニタイズ・秘密の除去は relay_security、上流呼び出しと Entra トークンは relay_upstream。後続の設定・Entra の項目はここを拡張する。Azure Speech（/api/speech/...）の設定・キーの保管（DPAPI／0600）・接続テスト・音声の中継は relay_speech。画面（接続キー画面）で保存した Foundry の接続設定・キーの保管（全体を DPAPI／0600 で封）と POST/DELETE /api/llm/key・config は relay_llmstore（優先順位は 環境変数＞設定ファイル＞画面保存）。LLM のプロバイダーの選択（provider。既定 foundry。要求の body の provider でも選べる）と GitHub Copilot の認証方式・モデル名・トークンの読み取りは relay_config.load_copilot_settings（LLM_PROVIDER・COPILOT_AUTH_METHOD・COPILOT_MODEL・COPILOT_GITHUB_TOKEN＞設定ファイルの provider・copilot.*＞relay_llmstore の provider・copilot*）、GitHub Copilot SDK（任意の依存）を介した呼び出し・ツールの無効化・権限の拒否・状態の確認（GET /api/llm/status の provider・copilot）は relay_copilot | FR-063、FR-065、FR-066、FR-067、FR-081、FR-082、FR-083、FR-086、FR-087、NFR-SEC-003、NFR-SEC-005、NFR-SEC-006 |
 | LLM 連携の制御 | web/src/llm.js, web/src/relayclient.js | 既定オフ・同意の表示と同意後だけ有効（同意の記録はプロバイダーごとに別で、Microsoft Foundry は版・日時だけを grp.llm.consent に、GitHub Copilot は版・日時・プロバイダーの名前だけを grp.llm.consent.copilot に保存し、版が違えば再同意・無効化で撤回）・失敗時のルールベース復帰と短い通知・接続テスト・設定画面の項目（getLlmState / requestLlmEnable / getLlmConsent / answerLlmConsent / disableLlm / flushLlm / llmCall / testLlmConnection / getLlmLastSent）。FR-063・FR-065 は api.llmCall と 'llm:result' を使う | FR-062, FR-063, FR-068, NFR-PRIV-003 |
 | 簡易マスキング | web/src/llmdraw.js | 利用者が登録した語・敬称付きの人名らしい語・メールアドレス・電話番号を同じ伏せ字（●●●）に置き換える（maskText、api.applyLlmMask）。設定 getLlmMasking / setLlmMasking / setLlmMaskWords（初期値は有効・保存しない）。端末の中だけで行い、LLM への送信（AC-359）と画像生成プロンプトの注意の伏せ字（FR-078 AC-471）が同じ規則を使う | FR-078, NFR-PRIV-003 |
 | Azure Speech の設定 | web/src/speechsettings.js | 設定画面の Azure Speech の項目（speech.method・azureSpeech.*）、書き込み専用のキーの一時入力（送信前に空にする）、状態の取得（refreshAzureSpeechStatus / getAzureSpeechSettings。endpointHost・keyConfigured だけを取り込む）、保存・確認つき削除・接続テスト（saveAzureSpeech / azureSpeech.deleteKey / testAzureSpeech）、認識の方式の保存（getSpeechMethod / setSpeechMethod、grp.speech.method、イベント speech:method・speech:endpointHost）、接続キー画面への項目の提供（getAzureSpeechFields） | FR-081, FR-082, FR-084, NFR-SEC-005 |

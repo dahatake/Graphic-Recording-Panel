@@ -1,0 +1,3 @@
+# 任意の依存（FR-087 / FR-066）: LLM のプロバイダーに GitHub Copilot を使う利用者だけが導入する。
+# 導入しなくても中継サーバーは標準ライブラリだけで起動する（AC-345・AC-505）。Python 3.11 以上。MIT License。
+github-copilot-sdk
