@@ -28,7 +28,8 @@ _ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b
 _HOST_OK = re.compile(r"^(github\.com|[A-Za-z0-9-]+\.ghe\.com)$")
 
 _lock = threading.RLock()
-_flow = {"proc": None, "state": "none", "uri": None, "code": None, "started": 0.0, "out": "", "cancelled": False}
+_start_lock = threading.Lock()  # 同時のサインインの開始を 1 つずつにする（旧プロセスを残さない）
+_flow = {"proc": None, "reader": None, "state": "none", "uri": None, "code": None, "started": 0.0, "out": "", "cancelled": False}
 
 
 def cli_path():
@@ -107,7 +108,12 @@ def _refresh():
 
 
 def start():
-    """サインインを始める。{ok, state, verificationUri, userCode} か {ok: False, result}。"""
+    """サインインを始める。{ok, state, verificationUri, userCode} か {ok: False, result}。同時の開始は 1 つずつ行う。"""
+    with _start_lock:
+        return _start()
+
+
+def _start():
     if _cp.load_sdk() is None:
         return {"ok": False, "result": "sdk_missing"}
     argv = login_argv()
@@ -120,9 +126,13 @@ def start():
                                 env=_env(), cwd=_cp._workdir(), creationflags=flags)
     except (OSError, ValueError):
         return {"ok": False, "result": "cli_unavailable"}
+    reader = threading.Thread(target=_reader, args=(proc,), name="copilot-signin", daemon=True)
     with _lock:
-        _flow.update({"proc": proc, "state": "pending", "uri": None, "code": None, "started": time.time(), "out": "", "cancelled": False})
-    threading.Thread(target=_reader, args=(proc,), name="copilot-signin", daemon=True).start()
+        old = _flow["proc"]
+        _flow.update({"proc": proc, "reader": reader, "state": "pending", "uri": None, "code": None, "started": time.time(), "out": "", "cancelled": False})
+    if old is not None and old is not proc:
+        _kill(old)  # 念のため: 先に動いていたサインインの子プロセスを残さない
+    reader.start()
     deadline = time.time() + START_WAIT_SEC
     while time.time() < deadline:
         with _lock:
@@ -149,8 +159,11 @@ def status():
     """{state}。期限切れ・CLI の終了を反映する。資格情報・出力の文面は含めない。"""
     done = False
     with _lock:
-        proc = _flow["proc"]
-        if proc is not None and _flow["state"] == "pending":
+        proc, reader = _flow["proc"], _flow["reader"]
+    if proc is not None and proc.poll() is not None and reader is not None:
+        reader.join(5)  # 終了した CLI の最後の出力（期限切れ・拒否など）を読み終えてから分類する
+    with _lock:
+        if proc is not None and _flow["proc"] is proc and _flow["state"] == "pending":
             rc = proc.poll()
             if rc is None and time.time() - _flow["started"] > DEVICE_CODE_TTL_SEC:
                 _kill(proc)
