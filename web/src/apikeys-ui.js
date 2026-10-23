@@ -43,16 +43,30 @@ export function mountApiKeysUI(app, doc = globalThis.document) {
           inp.setAttribute('autocapitalize', 'off'); inp.setAttribute('autocorrect', 'off'); inp.setAttribute('data-lpignore', 'true'); inp.setAttribute('data-1p-ignore', '');
         }
         if (f.id.endsWith('.foundry.key')) inp.addEventListener('input', () => app.setFoundryKeyInput(inp.value));
+        else if (f.id.endsWith('.copilot.token')) inp.addEventListener('input', () => app.setCopilotTokenInput(inp.value));
+        else if (f.id.endsWith('.copilot.model')) inp.addEventListener('input', () => app.setCopilotModelInput(inp.value));
+        else if (f.id.endsWith('.copilot.authMethod')) inp.addEventListener('change', () => app.setCopilotAuthMethod(inp.value));
         else if (f.id.endsWith('.foundry.endpoint')) inp.addEventListener('input', () => app.setFoundryEndpointInput(inp.value));
         else if (f.id.endsWith('.foundry.deployment')) inp.addEventListener('input', () => app.setFoundryDeploymentInput(inp.value));
         else if (f.id.endsWith('.foundry.authMethod')) inp.addEventListener('change', () => app.setFoundryAuthMethod(inp.value));
         else if (f.id.endsWith('.azureSpeech.key')) inp.addEventListener('input', () => app.setAzureSpeechKeyInput(inp.value));
         else if (f.id.endsWith('.azureSpeech.endpoint')) inp.addEventListener('input', () => app.setAzureSpeechEndpointInput(inp.value));
         row.append(l, inp);
+        if (f.note) { const n = el('p', 'apikeys-note', f.note); n.id = `ak-note-${f.id}`; inp.setAttribute('aria-describedby', n.id); row.append(n); }
         if (f.status) { const sp = el('p', 'apikeys-status apikeys-field-status'); sp.dataset.statusFor = f.id; row.append(sp); }
+      } else if (f.role === 'link') {
+        // FR-088 AC-509: 確認のページ（新しいタブ）と確認コード
+        const box = el('div', 'apikeys-signin');
+        const p = el('p', 'apikeys-status'); p.dataset.id = f.id; p.setAttribute('role', 'status');
+        const a = el('a', 'apikeys-link', f.label); a.href = f.href; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.dataset.id = `${f.id}.a`;
+        a.setAttribute('aria-label', f.accessibleName);
+        const code = el('code', 'apikeys-code', f.text);
+        box.append(p, a, code);
+        row.append(box);
       } else if (f.role === 'status') {
         const p = el('p', 'apikeys-status'); p.dataset.id = f.id; p.setAttribute('role', 'status');
         row.append(el('span', 'apikeys-status-label', f.label), p);
+        if (f.guide) row.append(el('p', 'apikeys-note', f.guide));
       } else {
         const b = el('button', f.id.endsWith('.save') || f.id.endsWith('.configSave') ? 'btn btn-primary' : 'btn', f.label); b.type = 'button'; b.dataset.id = f.id;
         b.setAttribute('aria-label', f.accessibleName);
@@ -61,6 +75,7 @@ export function mountApiKeysUI(app, doc = globalThis.document) {
           else if (f.id === 'apiKeys.foundry.configSave') { void app.saveFoundryConfig(); } else if (f.id === 'apiKeys.foundry.configDelete') app.commands['foundry.deleteConfig']();
           else if (f.id === 'apiKeys.azureSpeech.save') { void app.saveAzureSpeech(); } else if (f.id === 'apiKeys.azureSpeech.delete') app.commands['azureSpeech.deleteKey']();
           else if (f.id === 'apiKeys.azureSpeech.test') void app.testAzureSpeech();
+          else if (f.id.startsWith('apiKeys.copilot.')) app.runCopilotField?.(f.id);
         });
         row.append(b);
       }
@@ -74,7 +89,7 @@ export function mountApiKeysUI(app, doc = globalThis.document) {
     close.addEventListener('click', () => app.apiKeysClick('closeButton'));
     foot.append(live, close);
     dlg.append(head, body, foot);
-    built = `${d.selected}|${app.getState().lang}`;
+    built = `${d.selected}|${app.getState().lang}|${d.fields.map((f) => f.id).join(',')}`;
   }
 
   function sync() {
@@ -84,7 +99,7 @@ export function mountApiKeysUI(app, doc = globalThis.document) {
       dlg.hidden = true; built = null;
       return;
     }
-    const key = `${d.selected}|${app.getState().lang}`;
+    const key = `${d.selected}|${app.getState().lang}|${d.fields.map((f) => f.id).join(',')}`; // 項目が増減したとき（サインインの待機中など）も組み立て直す
     const wasOpen = dlg.open;
     if (built !== key) {
       const keep = doc.activeElement && dlg.contains(doc.activeElement) ? doc.activeElement.dataset?.id : null;
@@ -107,7 +122,7 @@ export function mountApiKeysUI(app, doc = globalThis.document) {
         if (sp && f.status) sp.textContent = `${f.status.icon ?? ''} ${f.status.text}`.trim();
         // 入力中の値は DOM と app が持つ。app 側が空（保存の操作の後・閉じた後）なら DOM も空にする
         if (f.input.type === 'password') { if (f.input.value === '' && node.value !== '') node.value = ''; } else if (node.value !== f.input.value) node.value = f.input.value;
-      } else if (f.role === 'status') node.textContent = `${f.status.icon} ${f.status.text}`;
+      } else if (f.role === 'status' || f.role === 'link') node.textContent = `${f.status.icon} ${f.status.text}`;
       else node.disabled = f.disabled;
       const why = dlg.querySelector(`[data-reason="${f.id}"]`);
       if (why) { why.textContent = f.reason ?? ''; why.hidden = !f.reason; }

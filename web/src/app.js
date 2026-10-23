@@ -41,6 +41,7 @@ import { speechSettingsModule } from './speechsettings.js';
 import { stylePresetModule } from './presetdiagram.js';
 import { imagePromptModule } from './imageprompt.js';
 import { apiKeysModule } from './apikeys.js';
+import { copilotKeysModule } from './copilotkeys.js';
 
 const GAP_MS_DEFAULT = 20_000; // PARAM-002
 const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -292,6 +293,8 @@ export async function createApp(options = {}) {
 
   // FR-078: 画像生成 AI 向けのプロンプトのコピー（描画スタイル・レイアウト型・トピックの登録の後に足す）
   await app.use(imagePromptModule);
+  // FR-088: 接続キー画面の GitHub Copilot の分類（認証方式・サインイン・トークン・モデル名）。接続キー画面より先に足す
+  await app.use(copilotKeysModule);
   // FR-084・FR-085: 接続キー画面（Foundry・Azure Speech のキー）。背景の操作を止めるため、最後に足す
   await app.use(apiKeysModule);
   return app;

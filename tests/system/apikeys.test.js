@@ -96,7 +96,7 @@ test('FR-084 AC-482: 最上部に「接続キー」のアイコンと名称と�
   assert.ok(it, 'コマンドバーに apiKeys.open がある');
   assert.equal(it.label, '接続キー');
   assert.ok(typeof it.icon === 'string' && it.icon.trim(), 'アイコンがある');
-  assert.match(it.description, /Foundry/); assert.match(it.description, /Azure Speech/);
+  assert.match(it.description, /Foundry/); assert.match(it.description, /Azure Speech/); assert.match(it.description, /GitHub Copilot/, 'GitHub Copilot の認証も設定する旨（2026-10-24）');
   assert.equal(it.descriptionVisible, true, 'ホバー・フォーカスを待たず常時表示');
   assert.ok(it.accessibleName.includes(it.label) && it.accessibleName.trim());
   assert.equal(it.tabbable, true);
@@ -117,7 +117,7 @@ test('FR-084 AC-482 異常系: 表示言語を切り替えると再読込なし�
   const en = barItem(app, 'apiKeys.open');
   assert.equal(en.label, 'API Keys');
   assert.ok(en.description.trim() && en.description !== ja.description, '説明も英語に切り替わる');
-  assert.match(en.description, /Foundry/);
+  assert.match(en.description, /Foundry/); assert.match(en.description, /GitHub Copilot/);
   for (const s of [en.label, en.description, en.accessibleName]) assert.ok(!/Settings|設定/i.test(s), `Settings の語を使わない: ${s}`);
   assert.ok(weight(en.label) <= PARAM_011);
   app.setLang('ja');
@@ -125,7 +125,7 @@ test('FR-084 AC-482 異常系: 表示言語を切り替えると再読込なし�
 });
 
 // FR-084 AC-483
-test('FR-084 AC-483: 「接続キー」を操作すると中央のモーダル（role=dialog・aria-modal・見出し）が開き、背景は半透明のオーバーレイで覆われ inert・スクロール不可。左に 2 分類、開いた直後は先頭', async () => {
+test('FR-084 AC-483: 「接続キー」を操作すると中央のモーダル（role=dialog・aria-modal・見出し）が開き、背景は半透明のオーバーレイで覆われ inert・スクロール不可。左に 3 分類（Foundry・GitHub Copilot・Azure Speech）、開いた直後は先頭', async () => {
   const { app } = await boot();
   assert.equal(dlg(app), null, '開く前は閉じている');
   app.commands['apiKeys.open'](); await flush();
@@ -136,10 +136,12 @@ test('FR-084 AC-483: 「接続キー」を操作すると中央のモーダル�
   assert.equal(d.overlay.visible, true, 'オーバーレイで覆う');
   assert.equal(d.backgroundInert, true, '背景は inert');
   assert.equal(d.scrollLocked, true, '背景はスクロールしない');
-  assert.deepEqual(d.categories.map((c) => c.id), ['foundry', 'azureSpeech']);
-  assert.deepEqual(d.categories.map((c) => c.label), ['Microsoft Foundry', 'Azure Speech']);
+  assert.deepEqual(d.categories.map((c) => c.id), ['foundry', 'copilot', 'azureSpeech']);
+  assert.deepEqual(d.categories.map((c) => c.label), ['Microsoft Foundry', 'GitHub Copilot', 'Azure Speech']);
   assert.equal(d.selected, 'foundry', '先頭の分類が選ばれる');
   assert.ok(d.fields.length > 0 && d.fields.every((f) => f.id.startsWith('apiKeys.foundry.')), '右に選んだ分類の内容');
+  app.selectApiKeysCategory('copilot');
+  assert.ok(dlg(app).fields.length > 0 && dlg(app).fields.every((f) => f.id.startsWith('apiKeys.copilot.')));
   app.selectApiKeysCategory('azureSpeech');
   assert.ok(dlg(app).fields.every((f) => f.id.startsWith('apiKeys.azureSpeech.')));
   // 実 DOM
@@ -222,8 +224,10 @@ test('FR-084 AC-485: キーボードだけで操作でき、フォーカスは�
   const start = dlg(app).focus; app.handleKey({ key: 'Tab' }); app.handleKey({ key: 'Tab', shiftKey: true });
   assert.equal(dlg(app).focus, start, 'Shift+Tab で戻る');
   app.focusApiKeysField('apiKeys.category.foundry');
-  app.handleKey({ key: 'ArrowDown' }); assert.equal(dlg(app).selected, 'azureSpeech', '矢印キーで分類が切り替わる');
-  app.handleKey({ key: 'ArrowUp' }); assert.equal(dlg(app).selected, 'foundry');
+  // 分類は Foundry・GitHub Copilot・Azure Speech の順（AC-483。2026-10-24）
+  app.handleKey({ key: 'ArrowDown' }); assert.equal(dlg(app).selected, 'copilot', '矢印キーで分類が切り替わる');
+  app.handleKey({ key: 'ArrowDown' }); assert.equal(dlg(app).selected, 'azureSpeech');
+  app.handleKey({ key: 'ArrowUp' }); app.handleKey({ key: 'ArrowUp' }); assert.equal(dlg(app).selected, 'foundry');
 });
 
 test('FR-084 AC-485: 結果が読み上げ対象のメッセージで示され、状態は色だけでなく文字・アイコンで示され、ラベルは PARAM-011 以内で日英に従う', async () => {
@@ -237,7 +241,7 @@ test('FR-084 AC-485: 結果が読み上げ対象のメッセージで示され�
   assert.ok(st.text.trim() && st.icon, '状態を文字とアイコンでも示す');
   for (const lang of ['ja', 'en']) {
     app.setLang(lang);
-    for (const c of dlg(app).categories) assert.ok(weight(c.label) <= PARAM_011 || /Microsoft Foundry|Azure Speech/.test(c.label));
+    for (const c of dlg(app).categories) assert.ok(weight(c.label) <= PARAM_011 || /Microsoft Foundry|GitHub Copilot|Azure Speech/.test(c.label));
     for (const f of dlg(app).fields) { assert.ok(f.accessibleName?.trim(), `${f.id} に名前`); if (f.id.endsWith('.save') || f.id.endsWith('.delete') || f.id.endsWith('.test')) assert.ok(weight(f.label) <= PARAM_011, `${lang} ${f.id} のラベルは ${PARAM_011} 文字以内: ${f.label}`); }
   }
   app.setLang('ja');
@@ -252,7 +256,7 @@ test('FR-084 AC-485 異常系: 「動きを減らす」で開閉の動きを省�
   const narrow = await boot({ over: { options: { env: { webgl: true, reducedMotion: false, viewportWidth: 360 } } } });
   const d = await open(narrow.app);
   assert.equal(d.layout, 'stacked', '狭いと縦に並ぶ');
-  assert.equal(d.categories.length, 2);
+  assert.equal(d.categories.length, 3);
   assert.ok(d.fields.length >= 4, '項目が欠けない');
   assert.equal(d.forcedColors, true);
   const css = webFiles(/\.(css|html)$/).map((x) => x.t).join('\n');

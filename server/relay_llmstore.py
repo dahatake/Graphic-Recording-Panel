@@ -20,10 +20,10 @@ MAX_ENDPOINT_LEN = 2048  # PARAM-095
 MAX_DEPLOYMENT_LEN = 64  # PARAM-096
 MAX_KEY_LEN = 512  # PARAM-094
 _KEY_OK = re.compile(r"^[\x21-\x7e]+$")  # 表示可能な ASCII だけ（ヘッダへの注入を防ぐ）
-# provider と copilot* は FR-068 / FR-088（LLM のプロバイダーの選択と GitHub Copilot の設定）。トークンも同じ封で保存する
+# provider と copilot* は FR-068 / FR-087 / FR-088（LLM のプロバイダーの選択と GitHub Copilot の設定）。トークンも同じ封で保存する
 FIELDS = ("endpoint", "deployment", "authMethod", "apiKey", "provider", "copilotAuthMethod", "copilotModel", "copilotToken")
-MAX_COPILOT_MODEL_LEN = 128
-MAX_COPILOT_TOKEN_LEN = 512
+MAX_COPILOT_MODEL_LEN = 64  # PARAM-096（デプロイ名・モデル名の最大長。FR-088 AC-510）
+MAX_COPILOT_TOKEN_LEN = 512  # PARAM-094
 _lock = threading.Lock()
 
 
@@ -129,7 +129,10 @@ def check_copilot_model(value):
 
 
 def check_copilot_token(value):
-    if not isinstance(value, str) or not value.strip() or len(value.strip()) > MAX_COPILOT_TOKEN_LEN or not _KEY_OK.match(value.strip()):
+    """空・空白だけ・制御文字（改行を含む）・長すぎるもの・表示可能な ASCII 以外を含むものは不正。"""
+    if not isinstance(value, str) or any(ord(c) < 0x20 or ord(c) == 0x7F for c in value):
+        return "token_format"
+    if not value.strip() or len(value.strip()) > MAX_COPILOT_TOKEN_LEN or not _KEY_OK.match(value.strip()):
         return "token_format"
     return None
 

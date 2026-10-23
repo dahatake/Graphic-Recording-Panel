@@ -1,5 +1,6 @@
 // FR-084 接続キー画面（最上部の「接続キー」と中央のモーダル）／FR-085 Microsoft Foundry のキー／NFR-SEC-006 キーの非露出
 // （契約: tests/system/CONTRACT-API-KEYS.md）。DOM に依存しない（描画は apikeys-ui.js）。
+// - 分類は Microsoft Foundry・GitHub Copilot・Azure Speech の 3 つ。GitHub Copilot の分類の状態・操作は copilotkeys.js（FR-088）。
 // - Azure Speech の分類は speechsettings.js（FR-082）の状態・操作をそのまま使う（保管先は 1 つ。別の保管を作らない）。
 // - Foundry のキーは書き込み専用。入力中の一時的な値はメモリの 1 か所（foundryInput）だけに持ち、保存の要求を送る前に空にする。
 //   画面（fields）には伏せ字だけを出し、ブラウザ内の保存・ログ・メッセージ・セッションファイルには書かない。
@@ -14,9 +15,9 @@ export const MAX_ENDPOINT_LENGTH = 2048; // PARAM-095
 export const MAX_DEPLOYMENT_LENGTH = 64; // PARAM-096
 const SOURCES = ['ui', 'env', 'file'];
 const ICONS = { set: '●', unset: '○', unavailable: '▲', checking: '…' };
-const CATEGORIES = ['foundry', 'azureSpeech'];
-const ALLOWED_WHILE_OPEN = /^(apiKeys|foundry|azureSpeech)\./;
-const ALERT_RE = /(invalid|failed|unavailable|envManaged|deleteFailed|empty|test\.(unconfigured|auth|network|timeout))/;
+const CATEGORIES = ['foundry', 'copilot', 'azureSpeech']; // FR-084 AC-483: Foundry・GitHub Copilot・Azure Speech の順
+const ALLOWED_WHILE_OPEN = /^(apiKeys|foundry|azureSpeech|copilot)\./;
+const ALERT_RE = /(invalid|failed|unavailable|envManaged|deleteFailed|empty|blocked|expired|denied|copyFailed|test\.(unconfigured|auth|network|timeout))/;
 // 制御文字（NUL・C0・DEL）を含む値は拒否する
 const hasControl = (s) => { for (const ch of s) { const c = ch.codePointAt(0); if (c < 0x20 || c === 0x7f) return true; } return false; };
 
@@ -299,7 +300,7 @@ export function apiKeysModule(ctx) {
       return out;
     });
   };
-  const fieldsOf = (cat) => (cat === 'foundry' ? foundryFields() : azureFields());
+  const fieldsOf = (cat) => (cat === 'foundry' ? foundryFields() : cat === 'copilot' ? (api.getCopilotFields?.() ?? []) : azureFields());
   const tabOrder = (fields) => ['apiKeys.close', ...CATEGORIES.map((c) => `apiKeys.category.${c}`), ...fields.filter((f) => f.focusable).map((f) => f.id)];
   const liveMessage = () => {
     const m = state.message;
@@ -329,15 +330,15 @@ export function apiKeysModule(ctx) {
   const baseFocusCommand = api.focusCommand;
   function openDialog() {
     if (open) return { ok: true };
-    open = true; selected = 'foundry'; focusId = 'apiKeys.category.foundry'; foundryInput = ''; clearCfgInputs();
+    open = true; selected = 'foundry'; focusId = 'apiKeys.category.foundry'; foundryInput = ''; clearCfgInputs(); api.resetCopilotInputs?.();
     ctx.change((s) => { delete s.focusReturn; });
     say('keys.opened');
-    if (relay) { void api.refreshFoundryKeyStatus(); void api.refreshAzureSpeechStatus?.(); }
+    if (relay) { void api.refreshFoundryKeyStatus(); void api.refreshAzureSpeechStatus?.(); void api.refreshCopilotKeysStatus?.(); }
     return { ok: true };
   }
   function closeDialog() {
     if (!open) return { ok: false, reason: 'closed' };
-    open = false; selected = 'foundry'; focusId = null; foundryInput = ''; foundryDlg = null; clearCfgInputs();
+    open = false; selected = 'foundry'; focusId = null; foundryInput = ''; foundryDlg = null; clearCfgInputs(); api.resetCopilotInputs?.();
     api.setAzureSpeechKeyInput?.(''); api.setAzureSpeechEndpointInput?.(''); // 保存していない入力は破棄する（AC-484・AC-491）
     baseFocusCommand?.('apiKeys.open');
     ctx.change((s) => { s.focusReturn = 'apiKeys.open'; });
@@ -409,6 +410,7 @@ export function apiKeysModule(ctx) {
         if (focusId === 'apiKeys.azureSpeech.save') return run('azureSpeech.save', () => { void api.saveAzureSpeech(); });
         if (focusId === 'apiKeys.azureSpeech.delete') return run('azureSpeech.deleteKey', () => ctx.api.commands['azureSpeech.deleteKey']());
         if (focusId === 'apiKeys.azureSpeech.test') return run('azureSpeech.test', () => { void api.testAzureSpeech(); });
+        if (String(focusId).startsWith('apiKeys.copilot.')) { const done = api.runCopilotField?.(focusId); if (done) return done; }
       }
     }
     // 開いている間、背景向けのキーは効かない。接続キー画面のコマンド（キー割り当てがあるもの）だけ通す

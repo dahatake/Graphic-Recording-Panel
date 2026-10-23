@@ -64,6 +64,7 @@ test('FR-062 AC-312 異常系: 保存されるのは同意の事実・版・日�
   app.commands['session.start'](); type(app, env, '秘密の会話内容ABC', '二つ目の要点DEF');
   await app.flushLlm();
   const rec = consentRecord(env);
+  // Microsoft Foundry への同意の記録は版と同意日時だけ（プロバイダーの名前は持たない。GitHub Copilot の記録は AC-513 で検証）
   assert.deepEqual(Object.keys(rec).sort(), ['at', 'version'], '同意の記録の項目');
   const raw = env.storage.getItem(CONSENT_KEY);
   for (const s of [PROBE, '秘密の会話内容ABC', '二つ目の要点DEF']) assert.ok(!raw.includes(s), '同意の記録に含まれてはならない値');

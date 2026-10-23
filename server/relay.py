@@ -28,6 +28,7 @@ up = importlib.import_module("relay_upstream")
 speech = importlib.import_module("relay_speech")
 store = importlib.import_module("relay_llmstore")
 copilot = importlib.import_module("relay_copilot")  # GitHub Copilot SDK を介した呼び出し（FR-087）。SDK は任意の依存
+signin = importlib.import_module("relay_copilot_signin")  # Copilot CLI のサインイン（デバイスフロー。FR-088）
 BIND_ADDRESS = "127.0.0.1"
 MAX_REQUEST_BYTES = 1024 * 1024
 LLM_PREFIX = "/api/llm/"
@@ -62,10 +63,34 @@ def connection_view(s):
     }
 
 
-def current_status():
-    """LLM 連携の状態（秘密を含まない）。state は unconfigured / ready / error。"""
+def copilot_view(cs):
+    """プロバイダーの選択と GitHub Copilot の状態（FR-087 AC-505 / FR-088）。トークンの値を含まない。
+    available・unavailableReason（sdk_missing / cli_unavailable）・signedIn・account は SDK・CLI に確かめる（AC-507 の例外の範囲）。
+    missing は LLM 連携を有効にできない原因の分類（sdk / signin / token）。"""
+    probed = copilot.probe(cs)
+    src = cs.sources
+    missing = copilot.readiness(cs, probed)
+    return {
+        "provider": cs.provider,
+        "providerSource": src.get("provider"),
+        "copilot": {
+            "available": probed["available"], "unavailableReason": probed["unavailableReason"],
+            "authMethod": cs.auth_method, "authMethodSource": src.get("authMethod"),
+            "signedIn": probed["signedIn"], "account": probed["account"],
+            "tokenConfigured": bool(cs.token), "tokenSource": src.get("token") if cs.token else None,
+            "model": cs.model, "modelSource": src.get("model") if cs.model else None,
+            "ready": not missing, "missing": missing,
+        },
+    }
+
+
+def current_status(with_copilot=False):
+    """LLM 連携の状態（秘密を含まない）。state は Microsoft Foundry の unconfigured / ready / error（FR-086 のまま）。
+    with_copilot のとき、プロバイダーの選択と GitHub Copilot の状態（copilot_view）を加える。"""
     s, st = _base_status()
     st.update(connection_view(s))
+    if with_copilot:
+        st.update(copilot_view(cfg.load_copilot_settings()))
     return s, st
 
 
@@ -128,6 +153,18 @@ class RelayHandler(SimpleHTTPRequestHandler):
             self.wfile.write(body)
 
     def _forbidden(self):
+        # 本文を読まずに閉じると、Windows では未読のデータのために接続がリセットされ、403 の応答が届かないことがある。
+        # 上限内の本文は読み捨ててから応答する（上流へは送らない）
+        try:
+            n = int(self.headers.get("Content-Length") or "0")
+        except ValueError:
+            n = 0
+        if 0 < n <= MAX_REQUEST_BYTES:
+            try:
+                self.rfile.read(n)
+            except OSError:
+                pass
+        self.close_connection = True
         self._send_json(403, sec.error_body("forbidden", "この要求は許可されていません。"))
 
     def _guard(self, is_llm):
@@ -158,8 +195,14 @@ class RelayHandler(SimpleHTTPRequestHandler):
             return self._speech()
         if is_llm:
             if self.path.split("?", 1)[0] == LLM_PREFIX + "status":
-                _, st = current_status()
-                return self._send_json(200, st)
+                s, st = current_status(with_copilot=True)
+                text = sec.redact(json.dumps(st, ensure_ascii=False),
+                                  up.secrets_of(s) + copilot.secrets_of(cfg.load_copilot_settings()))
+                return self._send_json(200, text.encode("utf-8"))
+            if self.path.split("?", 1)[0] == LLM_PREFIX + "copilot/signin":
+                return self._copilot_admin()
+            if self.path.split("?", 1)[0] == LLM_PREFIX + "provider":
+                return self._send_json(200, {"provider": cfg.load_copilot_settings().provider})
             return self._send_json(404, sec.error_body("not_found", "見つかりません。"))
         SimpleHTTPRequestHandler.do_GET(self)
 
@@ -182,6 +225,11 @@ class RelayHandler(SimpleHTTPRequestHandler):
             return self._relay()
         if is_llm and self.command in ("POST", "DELETE") and self.path.split("?", 1)[0] in (LLM_PREFIX + "key", LLM_PREFIX + "config"):
             return self._llm_admin()
+        # FR-088: GitHub Copilot の認証方式・モデル名・トークンの保存と削除、サインインの開始・取り消し
+        if is_llm and self.command in ("POST", "DELETE") and self.path.split("?", 1)[0] in (LLM_PREFIX + "copilot", LLM_PREFIX + "copilot/signin"):
+            return self._copilot_admin()
+        if is_llm and self.command == "POST" and self.path.split("?", 1)[0] == LLM_PREFIX + "provider":
+            return self._llm_provider()
         status = 405 if is_llm and self.path.startswith(LLM_PREFIX + "config") else 404
         self._send_json(status if is_llm else 405, sec.error_body("not_allowed", "この操作はできません。"))
 
@@ -276,6 +324,114 @@ class RelayHandler(SimpleHTTPRequestHandler):
             return reply(409, False, "env_managed")
         return reply(200, True, "deleted")
 
+    def _copilot_admin(self):
+        """GitHub Copilot の設定の保存・削除とサインイン（FR-088 AC-509・AC-510 / NFR-SEC-006 AC-515）。
+        応答はトークン・資格情報を含まない（拒否の応答は原因の分類だけ）。設定の保存では SDK・CLI を起動しない（AC-507）。"""
+        route = (self.command, self.path.split("?", 1)[0][len(LLM_PREFIX):])
+        raw = self._read_body() if self.command != "GET" else None
+        cs = cfg.load_copilot_settings()
+        src = cs.sources
+        upper = lambda name: src.get(name) in ("env", "file")  # noqa: E731
+
+        def send(status, payload):
+            cs2 = cfg.load_copilot_settings()
+            secrets = copilot.secrets_of(cs) + copilot.secrets_of(cs2) + [store.load().get("copilotToken")]
+            self._send_json(status, sec.redact(json.dumps(payload, ensure_ascii=False), secrets).encode("utf-8"))
+
+        def reply(status, ok, result, reason=None):
+            cs2 = cfg.load_copilot_settings()
+            s2 = cs2.sources
+            body = {"ok": ok, "result": result, "copilot": {
+                "authMethod": cs2.auth_method, "authMethodSource": s2.get("authMethod"),
+                "tokenConfigured": bool(cs2.token), "tokenSource": s2.get("token") if cs2.token else None,
+                "model": cs2.model, "modelSource": s2.get("model") if cs2.model else None,
+            }}
+            if reason:
+                body["reason"] = reason
+            send(status, body)
+
+        if route[1] == "copilot/signin":
+            if route[0] == "GET":
+                return send(200, signin.status())
+            if route[0] == "DELETE":
+                return send(200, signin.cancel())
+            if cs.auth_method != "signin":
+                return send(409, {"ok": False, "result": "auth_method_mismatch"})
+            r = signin.start()
+            return send(200 if r.get("ok") else (409 if r.get("result") in ("sdk_missing", "cli_unavailable") else 502), r)
+
+        if route == ("DELETE", "copilot"):
+            store.delete(["copilotAuthMethod", "copilotModel", "copilotToken"])
+            copilot.reset()
+            if any(upper(n) for n in ("authMethod", "model", "token")):
+                return reply(409, False, "env_managed")
+            return reply(200, True, "deleted")
+
+        # ("POST", "copilot"): {authMethod, model, token?}
+        try:
+            body = json.loads(raw.decode("utf-8")) if raw else None
+        except ValueError:
+            body = None
+        if not isinstance(body, dict):
+            return reply(400, False, "invalid", "body_format")
+        am = body.get("authMethod", cs.auth_method)
+        model = body.get("model", cs.model)
+        has_token = "token" in body
+        bad = store.check_copilot_auth_method(am) or store.check_copilot_model(model)
+        if not bad and has_token:
+            bad = store.check_copilot_token(body.get("token"))
+            if not bad and am != "token":
+                bad = "auth_method_mismatch"  # トークンは認証方式がトークンのときだけ保存できる
+        if bad:
+            return reply(400, False, "invalid", bad)
+        model = model.strip()
+        if (am != cs.auth_method and upper("authMethod")) or (has_token and upper("token")) or (model != cs.model and upper("model")):
+            return reply(409, False, "env_managed")
+        values = {}
+        if not upper("authMethod"):
+            values["copilotAuthMethod"] = am
+        if has_token:
+            values["copilotToken"] = body["token"]
+        if not upper("model"):
+            if model:
+                values["copilotModel"] = model
+            else:
+                store.delete(["copilotModel"])  # 空 = SDK の既定のモデル
+        store.save(values)
+        copilot.reset()  # 認証方式・トークンが変わったら CLI を起動し直す
+        return reply(200, True, "saved")
+
+    def _llm_provider(self):
+        """LLMのプロバイダーの選択の保存（FR-068 AC-514）。もう一方のプロバイダーの設定は消さない。
+        環境変数・設定ファイルで指定されているときは 409（env_managed）。応答は秘密を含まない状態（GET /api/llm/status と同じ形）。"""
+        raw = self._read_body()
+        try:
+            body = json.loads(raw.decode("utf-8")) if raw else None
+        except ValueError:
+            body = None
+
+        def reply(status, ok, result, reason=None):
+            s2, st = current_status(with_copilot=True)
+            out = dict(st)
+            out.pop("reason", None)
+            out.update({"ok": ok, "result": result})
+            if reason:
+                out["reason"] = reason
+            text = sec.redact(json.dumps(out, ensure_ascii=False),
+                              up.secrets_of(s2) + copilot.secrets_of(cfg.load_copilot_settings()))
+            self._send_json(status, text.encode("utf-8"))
+
+        if not isinstance(body, dict):
+            return reply(400, False, "invalid", "body_format")
+        bad = store.check_provider(body.get("provider"))
+        if bad:
+            return reply(400, False, "invalid", bad)
+        cs = cfg.load_copilot_settings()
+        if cs.sources.get("provider") in ("env", "file") and cs.provider != body["provider"]:
+            return reply(409, False, "env_managed")
+        store.save({"provider": body["provider"]})
+        return reply(200, True, "saved")
+
     def _speech(self):
         """Azure Speech（FR-082 / NFR-SEC-005）。応答はキー・トークンを含まない（念のため秘密を除いてから返す）。"""
         route = (self.command, self.path.split("?", 1)[0][len(SPEECH_PREFIX):])
@@ -308,23 +464,34 @@ class RelayHandler(SimpleHTTPRequestHandler):
         self._send_json(status, out.encode("utf-8"))
 
     def _relay(self):
+        # プロバイダー: 要求の body の provider（foundry / copilot）か、中継サーバーの設定（既定 foundry。FR-068）
+        cs = cfg.load_copilot_settings()
+        raw = self._read_body()
+        payload = None
+        if raw is not None:
+            try:
+                payload = json.loads(raw.decode("utf-8"))
+            except ValueError:
+                payload = None
+        provider = cs.provider
+        if isinstance(payload, dict):
+            asked = payload.pop("provider", None)
+            if asked in cfg.PROVIDERS:
+                provider = asked
+        is_svg = self.path.split("?", 1)[0] == LLM_PREFIX + "svg"
+        if provider == "copilot":
+            return self._relay_copilot(cs, raw, payload, is_svg)
         settings, st = current_status()
         if st["state"] != "ready":
             return self._send_json(503, sec.error_body("not_ready", st["reason"], state=st["state"]))
-        raw = self._read_body()
         if raw is None:
             return self._send_json(413, sec.error_body("bad_request", "要求の大きさが不正です。"))
-        try:
-            payload = json.loads(raw.decode("utf-8"))
-        except ValueError:
-            payload = None
         if not isinstance(payload, dict):
             return self._send_json(400, sec.error_body("bad_request", "要求は JSON のオブジェクトにしてください。"))
         payload["model"] = settings.deployment
         payload.pop("stream", None)
         for extra in ("allowSvg", "key", "label"):  # アプリ内部の項目は上流へ送らない
             payload.pop(extra, None)
-        is_svg = self.path.split("?", 1)[0] == LLM_PREFIX + "svg"
         try:
             status, body = up.post_responses(settings, json.dumps(payload).encode("utf-8"))
         except up.UpstreamError as e:
@@ -336,12 +503,43 @@ class RelayHandler(SimpleHTTPRequestHandler):
             data = json.loads(sec.redact(body.decode("utf-8", "replace"), secrets))
         except ValueError:
             return self._send_json(502, sec.error_body("upstream_invalid", "上流の応答を解釈できません。"))
+        self._send_clean(data, is_svg, secrets)
+
+    def _send_clean(self, data, is_svg, secrets):
+        """応答の検査とサニタイズ（NFR-SEC-004）。Foundry と GitHub Copilot で共通。"""
         # 応答の SVG をサニタイズしてから返す。整形後にもう一度、秘密を除く
         clean = sec.sanitize_json(data)
         if is_svg and isinstance(clean, dict):  # 方式2: 応答から SVG を取り出し、サニタイズ済みのものを svg に置く（なければ空文字）
             clean["svg"] = sec.extract_svg(clean.get("svg") if isinstance(clean.get("svg"), str) and clean["svg"] else clean)
         out = sec.redact(json.dumps(clean, ensure_ascii=False), secrets)
         self._send_json(200, out.encode("utf-8"))
+
+    def _relay_copilot(self, cs, raw, payload, is_svg):
+        """GitHub Copilot SDK を介した呼び出し（FR-087 AC-503〜AC-505）。Foundry へは送らない。
+        送るのは画面から来た instructions（システムメッセージ）と input（送信内容。NFR-PRIV-003）だけ。"""
+        secrets = copilot.secrets_of(cs) + up.secrets_of(cfg.load_settings())
+
+        def fail(status, code, message, **extra):
+            return self._send_json(status, sec.redact(sec.error_body(code, message, **extra).decode("utf-8"), secrets).encode("utf-8"))
+
+        if raw is None:
+            return fail(413, "bad_request", "要求の大きさが不正です。")
+        if not isinstance(payload, dict):
+            return fail(400, "bad_request", "要求は JSON のオブジェクトにしてください。")
+        prompt, instructions = payload.get("input"), payload.get("instructions")
+        if not isinstance(prompt, str) or (instructions is not None and not isinstance(instructions, str)):
+            return fail(400, "bad_request", "要求の形式が不正です。")
+        probed = copilot.probe(cs)
+        missing = copilot.readiness(cs, probed)
+        if missing:  # 未導入・未サインイン・トークン未設定では送らない（AC-505・AC-506）
+            code = {"sdk": probed["unavailableReason"] or "sdk_missing", "signin": "not_signed_in",
+                    "token": "token_missing"}[missing[0]]
+            return fail(503, code, "GitHub Copilot を利用できません。", state="unconfigured", missing=missing)
+        try:
+            text = copilot.generate(cs, instructions, prompt)
+        except up.UpstreamError as e:
+            return fail(e.status, e.code, e.message)
+        self._send_clean(copilot.as_responses(sec.redact(text, secrets)), is_svg, secrets)
 
 
 class RelayServer(ThreadingHTTPServer):
@@ -461,6 +659,8 @@ def main(argv=None):
         pass
     finally:
         server.server_close()
+        copilot.shutdown()  # 起動していれば Copilot CLI を止める
+        signin.reset()  # 進行中のサインイン（copilot login）を止める
     return 0
 
 
