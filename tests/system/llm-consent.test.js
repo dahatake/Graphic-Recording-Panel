@@ -135,6 +135,24 @@ test('FR-062 AC-313 異常系: 3 項目すべて未設定のとき、未設定�
   assert.deepEqual([...r.missing].sort(), ['credential', 'deployment', 'endpoint']);
 });
 
+test('FR-062 AC-313 異常系: プロバイダーが Microsoft Foundry（既定）のときは、GitHub Copilot が使える状態でも Foundry の未設定の項目で判定され、有効にできない', async () => {
+  // AC-313 の文言変更（2026-10-24。GitHub Copilot のときは AC-506）。契約: CONTRACT-GITHUB-COPILOT.md の getLlmProvider・status.copilot
+  const relay = makeRelay({ configured: { ...ALL_SET, endpoint: false } });
+  const inner = relay.fn;
+  const copilot = { available: true, unavailableReason: null, authMethod: 'signin', signedIn: true, account: 'octo-dummy-user', tokenConfigured: false, tokenSource: null, model: '', modelSource: null };
+  const wrapped = async (req) => { const res = await inner(req); return req.path === '/api/llm/status' ? { ...res, body: { ...res.body, copilot } } : res; };
+  const { app, env } = await newApp({ options: { relay: wrapped } });
+  assert.equal(app.getLlmProvider(), 'foundry', '既定のプロバイダーは Microsoft Foundry');
+  app.commands['settings.open']();
+  const r = await app.requestLlmEnable();
+  assert.equal(r.ok, false);
+  assert.deepEqual(r.missing, ['endpoint'], 'Foundry の未設定の項目が示される');
+  assert.equal(app.getLlmState().enabled, false);
+  app.commands['session.start'](); type(app, env, '未設定での発話');
+  await app.flushLlm();
+  assert.equal(relay.llmCalls().length, 0);
+});
+
 // FR-062 AC-314
 test('FR-062 AC-314: 有効時にタイムアウト・エラー応答・不正な応答・オフラインで失敗しても、ルールベース描画で表示され、短く通知され、入力・選択・レイアウトは失われず他の機能は使える', async () => {
   for (const mode of ['timeout', 'error', 'malformed', 'offline']) {

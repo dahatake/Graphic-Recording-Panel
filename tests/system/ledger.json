@@ -113,7 +113,7 @@
     "AC-226": "sha256:f3469f21aec164eb",
     "AC-309": "sha256:1a9886a87363978c",
     "AC-310": "sha256:f7b35b0b2fae7d24",
-    "AC-313": "sha256:2c289f7360ed8036",
+    "AC-313": "sha256:a8f1088e97415746",
     "AC-314": "sha256:cafa008a92fe2bd9",
     "AC-315": "sha256:aed4e3eb34ec8cfb",
     "AC-316": "sha256:db9095b097c28f30",
@@ -222,15 +222,20 @@
     "AC-467": "sha256:c4226d7de46cdab0",
     "AC-468": "sha256:f80e054d2adb4c3d",
     "AC-469": "sha256:6fe4e419ca2b590c",
-    "AC-482": "sha256:f4f93aad35707a33",
-    "AC-483": "sha256:5dcffa82eb79739e",
+    "AC-482": "sha256:d62ecd132f0ec6d7",
+    "AC-483": "sha256:1ea8660426c4c85a",
     "AC-484": "sha256:c03029b79db89d22",
     "AC-485": "sha256:c2c7510c7aeb2c63",
     "AC-486": "sha256:70093967bc480c0f",
     "AC-487": "sha256:ee1c3e825c37eb17",
     "AC-490": "sha256:b6b5a791aae42fef",
     "AC-491": "sha256:8b0e5859c678cc64",
-    "AC-496": "sha256:fc9f8b4ac467a77a"
+    "AC-496": "sha256:fc9f8b4ac467a77a",
+    "AC-506": "sha256:63d6b6771bb91acd",
+    "AC-508": "sha256:a92396b443552fe3",
+    "AC-509": "sha256:417f4966976fa7f4",
+    "AC-513": "sha256:aea439d0037c734c",
+    "AC-514": "sha256:0faa36632a862ea8"
   },
   "cases": [
     {
@@ -761,9 +766,9 @@
       ],
       "title": "全機能の操作中に同一オリジン以外へのリクエストが 0 件",
       "layer": "e2e",
-      "command": "node --test --test-name-pattern=\"AC-031\" tests/system/offline.test.js",
+      "command": "node --test --test-name-pattern=\"AC-031\" tests/system/offline.test.js tests/system/speech.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "19eb475",
       "last_run_at": "2026-10-24T00:03:43+09:00",
       "evidence": "work/runs/202610232330/logs/system-test/E2E-021-202610240001.log",
@@ -779,6 +784,12 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "AC-031 の契約拡張のため再実行"
+        },
+        {
+          "at": "2026-10-24T05:56:56+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test --test-name-pattern=\"AC-031\" tests/system/offline.test.js' -> 'node --test --test-name-pattern=\"AC-031\" tests/system/offline.test.js tests/system/speech.test.js'",
+          "reason": "CHK-33: E2E-042 と同じ AC を保証するため、E2E-042 のテストを含む command に寄せて統合"
         }
       ]
     },
@@ -1408,7 +1419,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-031\" tests/system/speech.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "blocked",
       "last_commit": "19eb475",
       "last_run_at": "2026-10-24T00:03:43+09:00",
       "evidence": "work/runs/202610232330/logs/system-test/E2E-042-202610240001.log",
@@ -1418,6 +1429,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "同上"
+        },
+        {
+          "at": "2026-10-24T05:56:58+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "E2E-021 に統合（CHK-33）"
         }
       ]
     },
@@ -2345,7 +2362,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"既定の軸のうち\" tests/system/axes3d.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "blocked",
       "last_commit": "19eb475",
       "last_run_at": "2026-10-24T00:03:43+09:00",
       "evidence": "work/runs/202610232330/logs/system-test/E2E-073-202610240001.log",
@@ -2355,6 +2372,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-24T05:57:07+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "E2E-068 に統合（CHK-33。E2E-068 の -t AC-103 が同じテストを含む）"
         }
       ]
     },
@@ -2370,7 +2393,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"認識文字列\" tests/system/sessionfile.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "blocked",
       "last_commit": "19eb475",
       "last_run_at": "2026-10-24T00:03:43+09:00",
       "evidence": "work/runs/202610232330/logs/system-test/E2E-074-202610240001.log",
@@ -2380,6 +2403,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-24T05:57:06+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "E2E-064 に統合（CHK-33。E2E-064 の -t AC-098 が同じテストを含む）"
         }
       ]
     },
@@ -3281,11 +3310,11 @@
       "ac_ids": [
         "AC-313"
       ],
-      "title": "未設定の項目があると有効にできず項目が示される",
+      "title": "未設定の項目があると有効にできず項目が示される（プロバイダーが Microsoft Foundry のとき。Copilot が使えても Foundry で判定）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-313\" tests/system/llm-consent.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "19eb475",
       "last_run_at": "2026-10-24T00:03:43+09:00",
       "evidence": "work/runs/202610232330/logs/system-test/E2E-148-202610240001.log",
@@ -3295,6 +3324,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-24T05:55:31+09:00",
+          "by": "test-designer",
+          "change": "title: '未設定の項目があると有効にできず項目が示される' -> '未設定の項目があると有効にできず項目が示される（プロバイダーが Microsoft Foundry のとき。Copilot が使えても Foundry で判定）'",
+          "reason": "AC-313 の文言変更（プロバイダーが Microsoft Foundry のとき。2026-10-24）に合わせ、既定の Foundry で判定する異常系を追加"
         }
       ]
     },
@@ -3489,9 +3524,9 @@
       ],
       "title": "同じ入力・同じモック応答で 2 回描くと SVG が完全一致（部品が描かれている）",
       "layer": "e2e",
-      "command": "node --test --test-name-pattern=\"FR-063 AC-319 同じ入力\" tests/system/llm-draw.test.js",
+      "command": "node --test --test-name-pattern=\"FR-063 AC-319\" tests/system/llm-draw.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "19eb475",
       "last_run_at": "2026-10-24T00:03:43+09:00",
       "evidence": "work/runs/202610232330/logs/system-test/E2E-155-202610240001.log",
@@ -3501,6 +3536,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-24T05:56:58+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test --test-name-pattern=\"FR-063 AC-319 同じ入力\" tests/system/llm-draw.test.js' -> 'node --test --test-name-pattern=\"FR-063 AC-319\" tests/system/llm-draw.test.js'",
+          "reason": "CHK-33: E2E-156 と同じ AC を保証するため、E2E-156 のテストを含む command に寄せて統合"
         }
       ]
     },
@@ -3547,7 +3588,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"FR-063 AC-319 不正な部品キー\" tests/system/llm-draw.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "blocked",
       "last_commit": "19eb475",
       "last_run_at": "2026-10-24T00:03:43+09:00",
       "evidence": "work/runs/202610232330/logs/system-test/E2E-156-202610240001.log",
@@ -3557,6 +3598,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-24T05:56:59+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "E2E-155 に統合（CHK-33）"
         }
       ]
     },
@@ -3601,9 +3648,9 @@
       ],
       "title": "対応づけた絵が 2D・PNG・SVG・PDF・テキスト一覧に反映される",
       "layer": "e2e",
-      "command": "node --test --test-name-pattern=\"FR-063 AC-321 対応づけられた絵\" tests/system/llm-draw.test.js",
+      "command": "node --test --test-name-pattern=\"FR-063 AC-321\" tests/system/llm-draw.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "19eb475",
       "last_run_at": "2026-10-24T00:03:43+09:00",
       "evidence": "work/runs/202610232330/logs/system-test/E2E-157-202610240001.log",
@@ -3613,6 +3660,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-24T05:57:00+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test --test-name-pattern=\"FR-063 AC-321 対応づけられた絵\" tests/system/llm-draw.test.js' -> 'node --test --test-name-pattern=\"FR-063 AC-321\" tests/system/llm-draw.test.js'",
+          "reason": "CHK-33: E2E-158 と同じ AC を保証するため、E2E-158 のテストを含む command に寄せて統合"
         }
       ]
     },
@@ -3659,7 +3712,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"FR-063 AC-321 形式に合わない\" tests/system/llm-draw.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "blocked",
       "last_commit": "19eb475",
       "last_run_at": "2026-10-24T00:03:43+09:00",
       "evidence": "work/runs/202610232330/logs/system-test/E2E-158-202610240001.log",
@@ -3669,6 +3722,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-24T05:57:01+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "E2E-157 に統合（CHK-33）"
         }
       ]
     },
@@ -3713,9 +3772,9 @@
       ],
       "title": "応答を待たず 3 秒以内にルールベース描画が出て、応答後に絵が加わる",
       "layer": "e2e",
-      "command": "node --test --test-name-pattern=\"FR-063 AC-323 LLM の応答を待たずに\" tests/system/llm-draw.test.js",
+      "command": "node --test --test-name-pattern=\"FR-063 AC-323\" tests/system/llm-draw.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "19eb475",
       "last_run_at": "2026-10-24T00:03:43+09:00",
       "evidence": "work/runs/202610232330/logs/system-test/E2E-159-202610240001.log",
@@ -3725,6 +3784,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-24T05:57:01+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test --test-name-pattern=\"FR-063 AC-323 LLM の応答を待たずに\" tests/system/llm-draw.test.js' -> 'node --test --test-name-pattern=\"FR-063 AC-323\" tests/system/llm-draw.test.js'",
+          "reason": "CHK-33: E2E-160 と同じ AC を保証するため、E2E-160 のテストを含む command に寄せて統合"
         }
       ]
     },
@@ -3771,7 +3836,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"FR-063 AC-323 LLM の要求が失敗\" tests/system/llm-draw.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "blocked",
       "last_commit": "19eb475",
       "last_run_at": "2026-10-24T00:03:43+09:00",
       "evidence": "work/runs/202610232330/logs/system-test/E2E-160-202610240001.log",
@@ -3781,6 +3846,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-24T05:57:02+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "E2E-159 に統合（CHK-33）"
         }
       ]
     },
@@ -3825,9 +3896,9 @@
       ],
       "title": "方式2 は既定オフで、LLM 有効でも SVG 生成要求 0 件",
       "layer": "e2e",
-      "command": "node --test --test-name-pattern=\"FR-065 AC-330 方式2 は既定\" tests/system/llm-draw.test.js",
+      "command": "node --test --test-name-pattern=\"FR-065 AC-330\" tests/system/llm-draw.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "19eb475",
       "last_run_at": "2026-10-24T00:03:43+09:00",
       "evidence": "work/runs/202610232330/logs/system-test/E2E-161-202610240001.log",
@@ -3837,6 +3908,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-24T05:57:03+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test --test-name-pattern=\"FR-065 AC-330 方式2 は既定\" tests/system/llm-draw.test.js' -> 'node --test --test-name-pattern=\"FR-065 AC-330\" tests/system/llm-draw.test.js'",
+          "reason": "CHK-33: E2E-162 と同じ AC を保証するため、E2E-162 のテストを含む command に寄せて統合"
         }
       ]
     },
@@ -3883,7 +3960,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"FR-065 AC-330 方式2 をオンにした\" tests/system/llm-draw.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "blocked",
       "last_commit": "19eb475",
       "last_run_at": "2026-10-24T00:03:43+09:00",
       "evidence": "work/runs/202610232330/logs/system-test/E2E-162-202610240001.log",
@@ -3893,6 +3970,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-24T05:57:04+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "E2E-161 に統合（CHK-33）"
         }
       ]
     },
@@ -6035,9 +6118,9 @@
       ],
       "title": "再配置の周期: 起動から10秒ごと・暫定位置の即時表示・前の要素不動・追加なしは再配置しない・非表示中は復帰後（異常系含む）",
       "layer": "e2e",
-      "command": "node --test --test-name-pattern=\"AC-435(:| [^F])\" tests/system/rearrange.test.js",
+      "command": "node --test --test-name-pattern=\"AC-435\" tests/system/rearrange.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "19eb475",
       "last_run_at": "2026-10-24T00:03:43+09:00",
       "evidence": "work/runs/202610232330/logs/system-test/E2E-220-202610240002.log",
@@ -6047,6 +6130,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "test-designer System Test 設計（run 202610200407 part 1/2）"
+        },
+        {
+          "at": "2026-10-24T05:57:04+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test --test-name-pattern=\"AC-435(:| [^F])\" tests/system/rearrange.test.js' -> 'node --test --test-name-pattern=\"AC-435\" tests/system/rearrange.test.js'",
+          "reason": "CHK-33: E2E-221 と同じ AC を保証するため、E2E-221 のテストを含む command に寄せて統合"
         }
       ]
     },
@@ -6062,7 +6151,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-435 FR-079\" tests/system/rearrange.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "blocked",
       "last_commit": "19eb475",
       "last_run_at": "2026-10-24T00:03:43+09:00",
       "evidence": "work/runs/202610232330/logs/system-test/E2E-221-202610240002.log",
@@ -6072,6 +6161,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "test-designer System Test 設計（run 202610200407 part 1/2）"
+        },
+        {
+          "at": "2026-10-24T05:57:05+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "E2E-220 に統合（CHK-33）"
         }
       ]
     },
@@ -6886,11 +6981,11 @@
       "ac_ids": [
         "AC-482"
       ],
-      "title": "最上部の「接続キー」（アイコン・名称・常時表示の説明、［設定］と別、設定の語なし、日英切替）",
+      "title": "最上部の「接続キー」（アイコン・名称・常時表示の説明に GitHub Copilot の認証を含む、［設定］と別、設定の語なし、日英切替）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=AC-482 tests/system/apikeys.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "19eb475",
       "last_run_at": "2026-10-24T00:03:43+09:00",
       "evidence": "work/runs/202610232330/logs/system-test/E2E-246-202610240002.log",
@@ -6900,6 +6995,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610222227）"
+        },
+        {
+          "at": "2026-10-24T05:55:33+09:00",
+          "by": "test-designer",
+          "change": "title: '最上部の「接続キー」（アイコン・名称・常時表示の説明、［設定］と別、設定の語なし、日英切替）' -> '最上部の「接続キー」（アイコン・名称・常時表示の説明に GitHub Copilot の認証を含む、［設定］と別、設定の語なし、日英切替）'",
+          "reason": "AC-482 の文言変更（説明に GitHub Copilot の認証。2026-10-24）に合わせ、説明に GitHub Copilot を含むことを日英で確かめる"
         }
       ]
     },
@@ -6911,11 +7012,11 @@
       "ac_ids": [
         "AC-483"
       ],
-      "title": "接続キー画面が中央のモーダルで開き背景は inert のオーバーレイ、2 分類、開いても入力・記録・図は失われない",
+      "title": "接続キー画面が中央のモーダルで開き背景は inert のオーバーレイ、3 分類（Foundry・GitHub Copilot・Azure Speech）、開いても入力・記録・図は失われない",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=AC-483 tests/system/apikeys.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "19eb475",
       "last_run_at": "2026-10-24T00:03:43+09:00",
       "evidence": "work/runs/202610232330/logs/system-test/E2E-247-202610240002.log",
@@ -6925,6 +7026,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610222227）"
+        },
+        {
+          "at": "2026-10-24T05:55:34+09:00",
+          "by": "test-designer",
+          "change": "title: '接続キー画面が中央のモーダルで開き背景は inert のオーバーレイ、2 分類、開いても入力・記録・図は失われない' -> '接続キー画面が中央のモーダルで開き背景は inert のオーバーレイ、3 分類（Foundry・GitHub Copilot・Azure Speech）、開いても入力・記録・図は失われない'",
+          "reason": "AC-483 の文言変更（分類に GitHub Copilot。2026-10-24）に合わせ、3 分類の順と GitHub Copilot の内容を確かめる"
         }
       ]
     },
@@ -6961,11 +7068,11 @@
       "ac_ids": [
         "AC-485"
       ],
-      "title": "キーボード操作（Tab の循環・矢印）、読み上げ、動きを減らす、狭い画面、forced-colors、ラベル長",
+      "title": "キーボード操作（Tab の循環・矢印で 3 分類を切替）、読み上げ、動きを減らす、狭い画面、forced-colors、ラベル長",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=AC-485 tests/system/apikeys.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "19eb475",
       "last_run_at": "2026-10-24T00:03:43+09:00",
       "evidence": "work/runs/202610232330/logs/system-test/E2E-249-202610240002.log",
@@ -6975,6 +7082,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610222227）"
+        },
+        {
+          "at": "2026-10-24T05:55:52+09:00",
+          "by": "test-designer",
+          "change": "title: 'キーボード操作（Tab の循環・矢印）、読み上げ、動きを減らす、狭い画面、forced-colors、ラベル長' -> 'キーボード操作（Tab の循環・矢印で 3 分類を切替）、読み上げ、動きを減らす、狭い画面、forced-colors、ラベル長'",
+          "reason": "AC-483 の分類の追加（GitHub Copilot。2026-10-24）に合わせ、矢印キーの切替順と分類の数（3）を直す。期待値は弱めていない"
         }
       ]
     },
@@ -7100,6 +7213,61 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610232330）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-255",
+      "requirement_ids": [
+        "FR-087",
+        "FR-088"
+      ],
+      "ac_ids": [
+        "AC-506",
+        "AC-508",
+        "AC-509"
+      ],
+      "title": "GitHub Copilot: 未設定の原因と次の行動・失敗時の自動復帰（AC-506）、接続キー画面の GitHub Copilot の分類（AC-508）、サインインのデバイスフロー（AC-509）。異常系含む",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-50[689]\" tests/system/copilot.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-24T05:55:10+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "FR-087・FR-088 の追加（run 202610240526）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-256",
+      "requirement_ids": [
+        "FR-062",
+        "FR-068"
+      ],
+      "ac_ids": [
+        "AC-513",
+        "AC-514"
+      ],
+      "title": "LLMのプロバイダー: 同意はプロバイダーごと・従来の同意は Foundry（AC-513）、［設定］のプロバイダーの選択・保持・接続テストの宛先（AC-514）。異常系含む",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-51[34]\" tests/system/copilot.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-24T05:55:13+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "FR-062・FR-068 の GitHub Copilot 対応（run 202610240526）"
         }
       ]
     }
