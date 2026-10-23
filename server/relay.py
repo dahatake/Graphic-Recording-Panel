@@ -152,6 +152,18 @@ class RelayHandler(SimpleHTTPRequestHandler):
             self.wfile.write(body)
 
     def _forbidden(self):
+        # 本文を読まずに閉じると、Windows では未読のデータのために接続がリセットされ、403 の応答が届かないことがある。
+        # 上限内の本文は読み捨ててから応答する（上流へは送らない）
+        try:
+            n = int(self.headers.get("Content-Length") or "0")
+        except ValueError:
+            n = 0
+        if 0 < n <= MAX_REQUEST_BYTES:
+            try:
+                self.rfile.read(n)
+            except OSError:
+                pass
+        self.close_connection = True
         self._send_json(403, sec.error_body("forbidden", "この要求は許可されていません。"))
 
     def _guard(self, is_llm):
