@@ -134,8 +134,18 @@ _COPILOT_FIELDS = (
     ("provider", "LLM_PROVIDER", ("provider",), "provider", PROVIDERS),
     ("authMethod", "COPILOT_AUTH_METHOD", ("copilot", "authMethod"), "copilotAuthMethod", COPILOT_AUTH_METHODS),
     ("model", "COPILOT_MODEL", ("copilot", "model"), "copilotModel", None),
-    ("token", "COPILOT_GITHUB_TOKEN", ("copilot", "token"), "copilotToken", None),
+    # FR-088 AC-510: トークンの環境変数は COPILOT_GITHUB_TOKEN・GH_TOKEN・GITHUB_TOKEN の順（Copilot CLI と同じ。SRC-074）
+    ("token", ("COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"), ("copilot", "token"), "copilotToken", None),
 )
+COPILOT_TOKEN_ENV_NAMES = _COPILOT_FIELDS[-1][1]
+
+
+def _env_first(names, allowed):
+    for n in (names if isinstance(names, tuple) else (names,)):
+        v = _usable(os.environ.get(n), allowed)
+        if v is not None:
+            return v
+    return None
 
 
 def _dig(data, path):
@@ -164,7 +174,7 @@ def load_copilot_settings():
     saved = None
     values, sources = {}, {}
     for key, env, path, store_key, allowed in _COPILOT_FIELDS:
-        v, src = _usable(os.environ.get(env), allowed), "env"
+        v, src = _env_first(env, allowed), "env"
         if v is None:
             v, src = _usable(_dig(data, path), allowed), "file"
         if v is None:

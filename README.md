@@ -16,7 +16,7 @@
 - [07 新機能の使い方](users-guide/07-new-features.md)
 - [08 LLM 連携（方式2・任意）](users-guide/08-llm.md)
 - [09 Azure Speech による音声認識（任意）](users-guide/09-azure-speech.md)
-- [10 接続キー（Foundry・Azure Speech のキー）](users-guide/10-api-keys.md)
+- [10 接続キー（Foundry・GitHub Copilot・Azure Speech）](users-guide/10-api-keys.md)
 
 ## 起動手順
 
