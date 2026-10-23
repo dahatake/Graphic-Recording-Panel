@@ -16,6 +16,7 @@ import re
 import sys
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlsplit
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -24,15 +25,49 @@ cfg = importlib.import_module("relay_config")
 sec = importlib.import_module("relay_security")
 up = importlib.import_module("relay_upstream")
 speech = importlib.import_module("relay_speech")
-
+store = importlib.import_module("relay_llmstore")
 BIND_ADDRESS = "127.0.0.1"
 MAX_REQUEST_BYTES = 1024 * 1024
 LLM_PREFIX = "/api/llm/"
 SPEECH_PREFIX = "/api/speech/"
 
 
+def _host_of(endpoint):
+    """エンドポイントのホスト名だけ（パス・クエリ・ユーザー情報は返さない）。"""
+    if not endpoint:
+        return ""
+    try:
+        return urlsplit(endpoint).hostname or ""
+    except ValueError:
+        return ""
+
+
+def connection_view(s):
+    """画面向けの接続設定の状態（AC-500）。キーの値・URL のパス・クエリ・認証ヘッダを含まない。"""
+    src = getattr(s, "sources", {}) or {}
+    has_key = bool(s.api_key)
+    return {
+        "configured": {
+            "endpoint": bool(s.endpoint), "deployment": bool(s.deployment), "authMethod": bool(src.get("authMethod")),
+            "key": has_key, "credential": has_key or s.auth_method == "entra",
+        },
+        "endpointHost": _host_of(s.endpoint),
+        "authMethod": s.auth_method if s.auth_method in cfg.AUTH_METHODS else "apiKey",
+        "sources": {"endpoint": src.get("endpoint"), "deployment": src.get("deployment"),
+                    "authMethod": src.get("authMethod"), "key": src.get("apiKey")},
+        "keyConfigured": has_key,
+        "keySource": src.get("apiKey") if has_key else None,
+    }
+
+
 def current_status():
     """LLM 連携の状態（秘密を含まない）。state は unconfigured / ready / error。"""
+    s, st = _base_status()
+    st.update(connection_view(s))
+    return s, st
+
+
+def _base_status():
     s = cfg.load_settings()
     missing = []
     if not s.endpoint:
@@ -143,6 +178,8 @@ class RelayHandler(SimpleHTTPRequestHandler):
         # extract は FR-063 の抽出要求。responses と同じ中継（Responses 形式の本文）をする
         if self.command == "POST" and self.path.split("?", 1)[0] in (LLM_PREFIX + "responses", LLM_PREFIX + "extract", LLM_PREFIX + "svg"):
             return self._relay()
+        if is_llm and self.command in ("POST", "DELETE") and self.path.split("?", 1)[0] in (LLM_PREFIX + "key", LLM_PREFIX + "config"):
+            return self._llm_admin()
         status = 405 if is_llm and self.path.startswith(LLM_PREFIX + "config") else 404
         self._send_json(status if is_llm else 405, sec.error_body("not_allowed", "この操作はできません。"))
 
@@ -175,6 +212,67 @@ class RelayHandler(SimpleHTTPRequestHandler):
                 return None
             data += self.rfile.read(size)
             self.rfile.readline(4)
+
+    def _llm_admin(self):
+        """画面からの Foundry の接続設定・キーの保存と削除（FR-086 / NFR-SEC-006）。応答は秘密を含まない。"""
+        route = (self.command, self.path.split("?", 1)[0][len(LLM_PREFIX):])
+        raw = self._read_body()
+        s = cfg.load_settings()
+        src = s.sources
+        locked = lambda *names: any(src.get(n) in ("env", "file") for n in names)  # noqa: E731
+
+        def reply(status, ok, result, reason=None):
+            s2, st = current_status()
+            body = dict(st)
+            body.pop("reason", None)  # 状態の説明文ではなく、操作の結果の分類を返す
+            body.update({"ok": ok, "result": result})
+            if reason:
+                body["reason"] = reason
+            text = sec.redact(json.dumps(body, ensure_ascii=False), up.secrets_of(s2) + [s.api_key, store.load().get("apiKey")])
+            self._send_json(status, text.encode("utf-8"))
+
+        body = None
+        if route[0] == "POST":
+            try:
+                body = json.loads(raw.decode("utf-8")) if raw else None
+            except ValueError:
+                body = None
+            if not isinstance(body, dict):
+                return reply(400, False, "invalid", "body_format")
+        if route == ("POST", "key"):
+            bad = store.check_key(body.get("key"))
+            if bad:
+                return reply(400, False, "invalid", bad)
+            if s.auth_method != "apiKey":
+                return reply(400, False, "invalid", "auth_method_mismatch")
+            if locked("apiKey"):
+                return reply(409, False, "env_managed")
+            store.save({"apiKey": body["key"]})
+            return reply(200, True, "saved")
+        if route == ("DELETE", "key"):
+            if locked("apiKey"):
+                return reply(409, False, "env_managed")
+            store.delete(["apiKey"])
+            return reply(200, True, "deleted")
+        if route == ("POST", "config"):
+            checks = {"endpoint": lambda v: store.check_endpoint(v, s.allow_loopback),
+                      "deployment": store.check_deployment, "authMethod": store.check_auth_method}
+            present = [k for k in checks if k in body]
+            if not present:
+                return reply(400, False, "invalid", "body_format")
+            for k in present:
+                bad = checks[k](body[k])
+                if bad:
+                    return reply(400, False, "invalid", bad)
+            if locked(*present):
+                return reply(409, False, "env_managed")
+            store.save({k: body[k] for k in present})
+            return reply(200, True, "saved")
+        # ("DELETE", "config")
+        store.delete(["endpoint", "deployment", "authMethod"])
+        if locked("endpoint", "deployment", "authMethod"):
+            return reply(409, False, "env_managed")
+        return reply(200, True, "deleted")
 
     def _speech(self):
         """Azure Speech（FR-082 / NFR-SEC-005）。応答はキー・トークンを含まない（念のため秘密を除いてから返す）。"""

@@ -6,6 +6,7 @@ config/llm.local.json
 
 # Azure Speech のエンドポイントとキーの保管先（中継サーバーだけが書く。NFR-SEC-005）
 config/azure-speech.local.json
+config/llm-ui.local.json
 config/.azure-speech-*.tmp
 
 __pycache__/

@@ -247,7 +247,8 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .apikeys-cat[aria-selected="true"] { border-left-color: var(--color-brand, currentColor); font-weight: 600; background: var(--color-subtle-hover, rgb(127 127 127 / 0.15)); } /* 選択は太字と左の線でも示す（色だけに頼らない） */
 .apikeys-panel { flex: 1 1 auto; display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
 .apikeys-row { display: flex; flex-direction: column; gap: var(--space-1); }
-.apikeys-row input { padding: var(--space-2); font: inherit; background: var(--color-surface); color: inherit; border: var(--stroke) solid var(--color-border); border-radius: var(--radius); }
+.apikeys-row input, .apikeys-row select { padding: var(--space-2); font: inherit; background: var(--color-surface); color: inherit; border: var(--stroke) solid var(--color-border); border-radius: var(--radius); }
+.apikeys-field-status { font-size: var(--font-size-caption); overflow-wrap: anywhere; }
 .apikeys-status { margin: 0; }
 .apikeys-reason { margin: 0; font-size: var(--font-size-caption); }
 .apikeys-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-top: var(--stroke) solid var(--color-border); }
