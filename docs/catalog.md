@@ -94,8 +94,10 @@
 | FR-083 | 起動時の待ち受けポートの自動選択 | 承認済み | server/relay.py, start.ps1, start.sh, README.md, users-guide/01-getting-started.md, users-guide/06-troubleshooting.md | tests/relay/test_relay_port.py | 中継サーバー |
 | FR-084 | 画面最上部の「接続キー」機能と、中央のモーダルの接続キー画面 | 承認済み | web/src/apikeys.js, web/src/apikeys-ui.js, web/src/commandbar.js, web/src/speechsettings.js, web/src/ui.js, web/src/main.js, web/src/app.js, web/index.html, web/styles/app.css, web/src/i18n.js, web/sw.js, users-guide/10-api-keys.md | tests/system/apikeys.test.js, tests/unit/apikeys.test.js | コマンドバー, アプリ組立, i18n, デザイン基盤, Azure Speech の設定 |
 | FR-085 | Microsoft Foundry のキーの設定（接続キー画面） | 承認済み | web/src/apikeys.js, web/src/apikeys-ui.js, web/src/i18n.js | tests/system/apikeys.test.js, tests/unit/apikeys.test.js | アプリ組立, i18n, デザイン基盤 |
-| NFR-SEC-006 | 接続キー画面のキー（Foundry・Azure Speech）の入力・保管・非露出 | 承認済み | web/src/apikeys.js, web/src/apikeys-ui.js, web/index.html, server/relay.py, server/relay_llmstore.py | tests/system/apikeys.test.js, tests/unit/apikeys.test.js, tests/relay/test_relay_llmconfig.py | アプリ組立, 中継サーバー |
+| NFR-SEC-006 | 接続キー画面のキー・トークン（Foundry・GitHub Copilot・Azure Speech）の入力・保管・非露出 | 承認済み | web/src/apikeys.js, web/src/apikeys-ui.js, web/index.html, server/relay.py, server/relay_llmstore.py | tests/system/apikeys.test.js, tests/unit/apikeys.test.js, tests/relay/test_relay_llmconfig.py | アプリ組立, 中継サーバー |
 | FR-086 | Microsoft Foundry の接続設定（エンドポイント・デプロイ名・認証方式）の画面での設定と保存 | 承認済み | server/relay.py, server/relay_config.py, server/relay_llmstore.py, web/src/apikeys.js, web/src/apikeys-ui.js, web/styles/app.css, .gitignore | tests/relay/test_relay_llmconfig.py, tests/system/apikeys.test.js | 中継サーバー, アプリ組立, i18n, デザイン基盤 |
+| FR-087 | GitHub Copilot SDK を介した生成AIのモデルの呼び出し | 承認済み | 未実装 | 未実装 | - |
+| FR-088 | GitHub Copilot の認証（サインイン・トークン）とモデル名の、接続キー画面での設定 | 承認済み | 未実装 | 未実装 | - |
 
 ## API・イベント
 

@@ -42,6 +42,7 @@
 |---|---|---|---|---|---|
 | INT-002 | Microsoft Foundry（LLM 連携） | Microsoft Foundry の Azure OpenAI 互換 Responses API | 双方向 | 検討中 | FR-062、FR-063、FR-065、FR-066、NFR-PRIV-003 |
 | INT-003 | Azure Speech（音声認識） | 利用者が設定した Azure AI Speech のリソース（音声テキスト変換） | 双方向 | 検討中 | FR-081、FR-082、NFR-SEC-005、G-002、NFR-OFFLINE-001、NFR-PRIV-001 |
+| INT-004 | GitHub Copilot（LLM 連携の GitHub Copilot SDK による呼び出し） | GitHub Copilot（GitHub Copilot SDK と Copilot CLI を介したモデルの呼び出し） | 双方向 | 検討中 | FR-062、FR-068、FR-087、FR-088、NFR-SEC-006、NFR-PRIV-003 |
 
 ## 項目
 
@@ -88,3 +89,25 @@
 - データ保持: アプリと中継サーバーは音声を保存しない（AC-446）。Azure 側は、リアルタイムの音声テキスト変換では音声と認識結果を保持・保存しない（SRC-066。2026-10-20 確認）。リソース側の診断ログなどの設定と契約による保持は利用者の責任（外部確認未実施）
 - 障害時の代替: ブラウザ標準の音声認識（利用者の切替操作。FR-001 の条件に従う）、手入力、ファイル取込（FR-002、FR-022）
 - 法務・ライセンス: なし（有料の利用は依頼 2026-10-20 で利用者が明示。会議参加者への告知・外部送信の可否は利用者の組織の規程に従う。外部確認未実施）
+
+#### INT-004 GitHub Copilot（LLM 連携の GitHub Copilot SDK による呼び出し）
+- 連携先: GitHub Copilot のサービス（中継サーバーの中で GitHub Copilot SDK（Python 版 github-copilot-sdk）を使い、SDK が管理する Copilot CLI がモデルを呼ぶ。SRC-074）
+- 方向: 双方向
+- 方式: 中継サーバーが SDK を呼び、SDK は Copilot CLI と JSON-RPC で通信し、Copilot CLI が GitHub へ HTTPS で接続する（SRC-074）。ブラウザからは直接呼ばない（127.0.0.1・同一オリジンのみ。FR-066）
+- データ分類: 会議の発話の要点（利用者の社内情報を含み得る。INT-002 と同じ送信内容。NFR-PRIV-003）
+- 個人情報: あり（会話に含まれ得る。画面には利用者自身の GitHub のアカウント名を表示する）
+- 認証認可: GitHub アカウントでのサインイン（OAuth デバイスフロー。資格情報は Copilot CLI が OS の資格情報の保管庫に保存し、アプリは保存しない）、または GitHub のトークン（fine-grained personal access token・OAuth のユーザーのトークン。classic の personal access token は SDK が非対応。SRC-074）。GitHub Copilot の利用権が必要
+- 秘密の保管場所: サインインは OS の資格情報の保管庫（Copilot CLI の管理）。トークンは環境変数、git 管理外の config/llm.local.json、または中継サーバーの git 管理外の保管先（DPAPI／0600。NFR-SEC-006）。値はこの文書に書かない
+- 責任分界: 利用者が GitHub Copilot の契約・利用量（要求ごとに数えられる。SRC-074）・組織の規程に基づく送信の可否に責任を持ち、アプリは送信の最小化・プロバイダーごとの同意・ツールの無効化（AC-504）・秘密の非露出・失敗時の自動復帰に責任を持つ
+- 状態: 検討中
+- 関連する要求: FR-062、FR-068、FR-087、FR-088、NFR-SEC-006、NFR-PRIV-003
+- 頻度と量: プロバイダーが GitHub Copilot で LLM 連携が有効・同意済みの間、シーンの確定ごとに 1 回（1 回の送信は PARAM-070 の文字数以内）。サインインと状態の確認は利用者の操作のたびで、会議の内容を含まない（AC-507）
+- 可用性・SLA: なし（GitHub 側の SLA は未確認。障害時は AC-506 のとおり現行ルールベース描画へ復帰）
+- レート制限: なし（GitHub Copilot の利用量の上限は未確認。上限による拒否は「利用の上限」の失敗として扱う。AC-506）
+- エラー・再試行・冪等性: タイムアウト PARAM-069 秒。失敗は再試行せず現行ルールベース描画へ復帰（FR-062、AC-506）。SDK 未導入・未サインイン・トークン未設定では送らない（AC-505、AC-506）
+- 契約・バージョン: GitHub Copilot SDK（Python。github-copilot-sdk）と同梱の Copilot CLI。使う版の固定は実装工程が決める（SRC-074）
+- 変更通知: なし
+- 監視: なし（送信の履歴は件数と時刻だけ。NFR-PRIV-003）
+- データ保持: アプリは送信内容を保存しない。GitHub 側の保持は契約に従う（外部確認未実施）
+- 障害時の代替: 現行ルールベース描画（FR-062）。利用者の操作でプロバイダーを Microsoft Foundry に切り替えられる（FR-068）
+- 法務・ライセンス: なし（GitHub Copilot の利用規約と、外部送信の可否についての利用者の組織の規程に従う。外部確認未実施）
