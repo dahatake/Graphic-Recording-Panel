@@ -4,14 +4,14 @@ System Test（`tests/system/apikeys.test.js`）が前提にする、アプリ（
 対象の AC: AC-482〜AC-487（system）、AC-490・AC-491（system）。AC-488・489・492・493・494 は integration、AC-495 は unit のため、台帳（System Test）にはケースを追加しない。
 
 ## 入口（AC-482）
-- `getCommandBar().items` に `command:'apiKeys.open'` を持つ項目。`import.file` の項目（CONTRACT.md「最上部の取り込み」）と同じキーを持つ: `label`（ja「接続キー」、en「API Keys」。全角 1・半角 0.5 で PARAM-011（6）以内）、`icon`（非空）、`description`（Foundry と Azure Speech のキーを設定する旨。表示言語に従う）、`descriptionVisible:true`、`accessibleName`（`label` を含む）、`tabbable:true`。名称・説明・アクセシブルな名前に「設定」「Settings」を含まない。`settings.open` の項目は別に並存する。
+- `getCommandBar().items` に `command:'apiKeys.open'` を持つ項目。`import.file` の項目（CONTRACT.md「最上部の取り込み」）と同じキーを持つ: `label`（ja「接続キー」、en「API Keys」。全角 1・半角 0.5 で PARAM-011（6）以内）、`icon`（非空）、`description`（Foundry・Azure Speech のキーと GitHub Copilot の認証を設定する旨。表示言語に従う。2026-10-24 の AC-482）、`descriptionVisible:true`、`accessibleName`（`label` を含む）、`tabbable:true`。名称・説明・アクセシブルな名前に「設定」「Settings」を含まない。`settings.open` の項目は別に並存する。
 - `app.commands['apiKeys.open']()` / `apiKeys.close`。
 
 ## ダイアログ（AC-483〜AC-485）
 `app.getApiKeysDialog()` → `null | {`
 - `open:true, role:'dialog', modal:true（aria-modal）, heading:string（非空。ダイアログの名前）, label:string`
 - `overlay:{visible:true, dismissOnClick:false}`（背景全体を覆う半透明の層）, `backgroundInert:true`, `scrollLocked:true`
-- `categories:[{id:'foundry', label, selected}, {id:'azureSpeech', label, selected}]`（この順。`label` は「Microsoft Foundry」「Azure Speech」）, `selected:'foundry'|'azureSpeech'`（開いた直後は `'foundry'`）
+- `categories:[{id:'foundry', label, selected}, {id:'copilot', label, selected}, {id:'azureSpeech', label, selected}]`（この順。`label` は「Microsoft Foundry」「GitHub Copilot」「Azure Speech」。GitHub Copilot の分類の内容は CONTRACT-GITHUB-COPILOT.md）, `selected:'foundry'|'azureSpeech'`（開いた直後は `'foundry'`）
 - `fields:[{id, label, accessibleName, role?, input?, status?, disabled, focusable}]`（選択中の分類の内容。id は下表）
 - `closeButton:{label, accessibleName}`（右上の「閉じる」）, `focus:string|null`（フォーカスのある項目の id。`'apiKeys.close'`・`'apiKeys.category.<id>'`・`fields[].id`）, `focusInside:boolean`
 - `motion:'animated'|'none'`（`env.reducedMotion` が真なら `'none'`）, `layout:'side-by-side'|'stacked'`（`options.env.viewportWidth` が狭い＝ NFR-UX-001 の狭い幅のとき `'stacked'`）

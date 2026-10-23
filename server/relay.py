@@ -6,7 +6,8 @@
 - Host・Origin が自分自身（127.0.0.1 / localhost の自分のポート）でない要求は 403。
 - API キー・トークンはこのプロセスだけが持ち、応答・ログには出さない。
 - 構成: relay_config（設定）・relay_security（入口の検証と応答の無害化）・relay_upstream（上流）・
-  relay_speech（Azure Speech の設定・キーの保管・接続テスト・音声の中継。FR-082 / NFR-SEC-005）。
+  relay_speech（Azure Speech の設定・キーの保管・接続テスト・音声の中継。FR-082 / NFR-SEC-005）・
+  relay_copilot（GitHub Copilot SDK を介したモデルの呼び出し。FR-087。SDK は任意の依存で、なくても起動する）。
 """
 import argparse
 import importlib
@@ -26,6 +27,7 @@ sec = importlib.import_module("relay_security")
 up = importlib.import_module("relay_upstream")
 speech = importlib.import_module("relay_speech")
 store = importlib.import_module("relay_llmstore")
+copilot = importlib.import_module("relay_copilot")  # GitHub Copilot SDK を介した呼び出し（FR-087）。SDK は任意の依存
 BIND_ADDRESS = "127.0.0.1"
 MAX_REQUEST_BYTES = 1024 * 1024
 LLM_PREFIX = "/api/llm/"
