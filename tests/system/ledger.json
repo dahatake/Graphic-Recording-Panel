@@ -7,8 +7,8 @@
     "AC-005": "sha256:ca21d66a2f9cd592",
     "AC-009": "sha256:ea12566b56bfd7f6",
     "AC-010": "sha256:7ad499846fb55b0e",
-    "AC-013": "sha256:e3e6b53eed814289",
-    "AC-015": "sha256:8b0e0c7d087b37c9",
+    "AC-013": "sha256:6ebb085466e41b33",
+    "AC-015": "sha256:b2531b038c06c507",
     "AC-016": "sha256:1bd7bc8e31179e43",
     "AC-018": "sha256:294489eeb428a8fa",
     "AC-019": "sha256:c86aad8dac65920b",
@@ -21,7 +21,7 @@
     "AC-029": "sha256:0c3909f0e1309b2e",
     "AC-043": "sha256:9892682e961eed37",
     "AC-030": "sha256:4ff8c6e5383e0179",
-    "AC-031": "sha256:ea542ba6b9a5446a",
+    "AC-031": "sha256:9c512b2d34cbc9c6",
     "AC-032": "sha256:70a43cf878f66a04",
     "AC-036": "sha256:318b0f2e4205a0cb",
     "AC-038": "sha256:b7d5386af3599f7f",
@@ -164,7 +164,7 @@
     "AC-416": "sha256:ba93db768f821d6a",
     "AC-417": "sha256:a118cbbb63a602be",
     "AC-418": "sha256:02f6cc4a1725a831",
-    "AC-419": "sha256:781fa2ea3b8415ac",
+    "AC-419": "sha256:243b0e961fe846bb",
     "AC-420": "sha256:b7932ea93d8b0d02",
     "AC-421": "sha256:f545c43493b3d563",
     "AC-422": "sha256:f2fc47d36321cc4a",
@@ -233,9 +233,10 @@
     "AC-496": "sha256:fc9f8b4ac467a77a",
     "AC-506": "sha256:63d6b6771bb91acd",
     "AC-508": "sha256:a92396b443552fe3",
-    "AC-509": "sha256:417f4966976fa7f4",
+    "AC-509": "sha256:d55305ce0a2f555a",
     "AC-513": "sha256:854c341617196141",
-    "AC-514": "sha256:0faa36632a862ea8"
+    "AC-514": "sha256:0faa36632a862ea8",
+    "AC-511": "sha256:b882f15318d530fb"
   },
   "cases": [
     {
@@ -414,11 +415,11 @@
       "ac_ids": [
         "AC-013"
       ],
-      "title": "PNG 保存で全シーンの見出しと要点を含む PNG が得られる",
+      "title": "PNG 保存で画面の詳細度と同じ内容（詳細は全シーンの見出しと要点・中項目は見出しまで・大項目はトピックまで）を含む PNG が得られる",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-013\" tests/system/export.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "04f6024",
       "last_run_at": "2026-10-24T07:58:29+09:00",
       "evidence": "work/runs/202610240526/logs/system-test/E2E-007-202610240757.log",
@@ -428,6 +429,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-24T10:28:38+09:00",
+          "by": "test-designer",
+          "change": "title: 'PNG 保存で全シーンの見出しと要点を含む PNG が得られる' -> 'PNG 保存で画面の詳細度と同じ内容（詳細は全シーンの見出しと要点・中項目は見出しまで・大項目はトピックまで）を含む PNG が得られる'",
+          "reason": "AC-013 の変更（Q-029: 保存物は画面の詳細度に従う）に合わせ、詳細・中項目・大項目で確認する"
         }
       ]
     },
@@ -439,11 +446,11 @@
       "ac_ids": [
         "AC-015"
       ],
-      "title": "PDF 保存で全シーンの見出しと要点を含む PDF が得られる",
+      "title": "PDF 保存で画面の詳細度と同じ内容（詳細は全シーンの見出しと要点・中項目は見出しまで・大項目はトピックまで）を含む PDF が得られる",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-015\" tests/system/export.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "04f6024",
       "last_run_at": "2026-10-24T07:58:29+09:00",
       "evidence": "work/runs/202610240526/logs/system-test/E2E-008-202610240757.log",
@@ -453,6 +460,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-24T10:28:39+09:00",
+          "by": "test-designer",
+          "change": "title: 'PDF 保存で全シーンの見出しと要点を含む PDF が得られる' -> 'PDF 保存で画面の詳細度と同じ内容（詳細は全シーンの見出しと要点・中項目は見出しまで・大項目はトピックまで）を含む PDF が得られる'",
+          "reason": "AC-015 の変更（Q-029: 保存物は画面の詳細度に従う）に合わせ、詳細・中項目・大項目で確認する"
         }
       ]
     },
@@ -764,11 +777,11 @@
       "ac_ids": [
         "AC-031"
       ],
-      "title": "全機能の操作中に同一オリジン以外へのリクエストが 0 件",
+      "title": "全機能の操作中に同一オリジン以外へのリクエストが 0 件（GitHub Copilot のとき、中継サーバーが送るのは有効・同意済みのときだけ）",
       "layer": "e2e",
-      "command": "node --test --test-name-pattern=\"AC-031\" tests/system/offline.test.js tests/system/speech.test.js",
+      "command": "node --test --test-name-pattern=\"AC-031\" tests/system/offline.test.js tests/system/speech.test.js tests/system/copilot-relay.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "04f6024",
       "last_run_at": "2026-10-24T07:58:29+09:00",
       "evidence": "work/runs/202610240526/logs/system-test/E2E-021-202610240757.log",
@@ -790,6 +803,12 @@
           "by": "test-designer",
           "change": "command: 'node --test --test-name-pattern=\"AC-031\" tests/system/offline.test.js' -> 'node --test --test-name-pattern=\"AC-031\" tests/system/offline.test.js tests/system/speech.test.js'",
           "reason": "CHK-33: E2E-042 と同じ AC を保証するため、E2E-042 のテストを含む command に寄せて統合"
+        },
+        {
+          "at": "2026-10-24T10:28:39+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test --test-name-pattern=\"AC-031\" tests/system/offline.test.js tests/system/speech.test.js' -> 'node --test --test-name-pattern=\"AC-031\" tests/system/offline.test.js tests/system/speech.test.js tests/system/copilot-relay.test.js'; title: '全機能の操作中に同一オリジン以外へのリクエストが 0 件' -> '全機能の操作中に同一オリジン以外へのリクエストが 0 件（GitHub Copilot のとき、中継サーバーが送るのは有効・同意済みのときだけ）'",
+          "reason": "AC-031 の追記（GitHub Copilot と FR-088 の例外）に合わせ、中継サーバーの実プロセスと SDK・CLI のスタブでのケースを追加"
         }
       ]
     },
@@ -7231,13 +7250,14 @@
       "ac_ids": [
         "AC-506",
         "AC-508",
-        "AC-509"
+        "AC-509",
+        "AC-511"
       ],
-      "title": "GitHub Copilot: 未設定の原因と次の行動・失敗時の自動復帰（AC-506）、接続キー画面の GitHub Copilot の分類（AC-508）、サインインのデバイスフロー（AC-509）。異常系含む",
+      "title": "GitHub Copilot: 未設定の原因と次の行動・失敗時の自動復帰（AC-506）、接続キー画面の GitHub Copilot の分類（AC-508）、サインインのデバイスフローとサインアウト後の例外（AC-509）、サインアウト（CLI の資格情報を消さない・再起動後も保持。AC-511）。異常系含む",
       "layer": "e2e",
-      "command": "node --test --test-name-pattern=\"AC-50[689]\" tests/system/copilot.test.js",
+      "command": "node --test --test-name-pattern=\"AC-5(0[689]|11)\" tests/system/copilot.test.js tests/system/copilot-relay.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "04f6024",
       "last_run_at": "2026-10-24T07:58:29+09:00",
       "evidence": "work/runs/202610240526/logs/system-test/E2E-255-202610240757.log",
@@ -7247,6 +7267,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "FR-087・FR-088 の追加（run 202610240526）"
+        },
+        {
+          "at": "2026-10-24T10:28:40+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test --test-name-pattern=\"AC-50[689]\" tests/system/copilot.test.js' -> 'node --test --test-name-pattern=\"AC-5(0[689]|11)\" tests/system/copilot.test.js tests/system/copilot-relay.test.js'; title: 'GitHub Copilot: 未設定の原因と次の行動・失敗時の自動復帰（AC-506）、接続キー画面の GitHub Copilot の分類（AC-508）、サインインのデバイスフロー（AC-509）。異常系含む' -> 'GitHub Copilot: 未設定の原因と次の行動・失敗時の自動復帰（AC-506）、接続キー画面の GitHub Copilot の分類（AC-508）、サインインのデバイスフローとサインアウト後の例外（AC-509）、サインアウト（CLI の資格情報を消さない・再起動後も保持。AC-511）。異常系含む'; ac_ids: ['AC-506', 'AC-508', 'AC-509'] -> ['AC-506', 'AC-508', 'AC-509', 'AC-511']",
+          "reason": "AC-509 の例外（このアプリでのサインアウト後）と AC-511 の BLOCKED 解除（Q-033）に合わせ、画面のケースと中継サーバーの実プロセス＋Copilot CLI・SDK のスタブのケースを追加"
         }
       ]
     },
