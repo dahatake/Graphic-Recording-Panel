@@ -285,7 +285,8 @@ test('FR-087 AC-506 FR-062 AC-312 異常系: 有効なまま Copilot CLI を起�
   assert.equal(rv.ok, false, `再読込後も有効にできない: ${JSON.stringify(rv)}`);
   assert.deepEqual(rv.missing, ['cli'], '原因は Copilot CLI を起動できない');
   assert.equal(v.app.getLlmConsent(), null, '同意の表示へ進まない');
-  v.app.commands['session.start']();
+  // FR-012 AC-043: 再読込で復元したセッションは一時停止のため、再開操作で記録を続ける
+  v.app.commands['session.resume']();
   const n2 = relay.llmCalls().length;
   type(v.app, env, '担当者を決めましょう');
   await v.app.flushLlm();
@@ -334,7 +335,8 @@ test('FR-087 AC-506 FR-062 AC-312 異常系: 「有効にできない」状態�
     assert.equal(app.getLlmConsent(), null, `${trigger}: 再同意を求めない`);
     assert.equal(app.getLlmState().enabled, true, `${trigger}: 再同意なしで有効に戻る`);
     assert.deepEqual(consentRecords(env).filter(([k]) => k === 'grp.llm.consent.copilot'), consentBefore, `${trigger}: 同意の記録は変わらない`);
-    if (trigger === 'reload') app.commands['session.start']();
+    // FR-012 AC-043: 再読込で復元したセッションは一時停止のため、再開操作で記録を続ける
+    if (trigger === 'reload') app.commands['session.resume']();
     const n = relay.llmCalls().length;
     type(app, env, '担当者を決めましょう');
     await app.flushLlm();
