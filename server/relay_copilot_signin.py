@@ -99,8 +99,16 @@ def _outcome(rc, out):
     return "failed"
 
 
+on_completed = None  # サインインが完了したときに呼ぶ（relay.py が「このアプリでのサインアウト」を解除する。AC-511）
+
+
 def _refresh():
     """状態（GET /api/llm/status）のキャッシュを捨て、サインイン済みかを CLI に確かめ直させる。"""
+    if on_completed is not None:
+        try:
+            on_completed()
+        except Exception:  # noqa: BLE001
+            pass
     try:
         _cp.reset()
     except Exception:  # noqa: BLE001
@@ -158,16 +166,20 @@ def _start():
 def status():
     """{state}。期限切れ・CLI の終了を反映する。資格情報・出力の文面は含めない。"""
     done = False
+    joined = False
     with _lock:
         proc, reader = _flow["proc"], _flow["reader"]
     if proc is not None and proc.poll() is not None and reader is not None:
         reader.join(5)  # 終了した CLI の最後の出力（期限切れ・拒否など）を読み終えてから分類する
+        joined = True
     with _lock:
         if proc is not None and _flow["proc"] is proc and _flow["state"] == "pending":
             rc = proc.poll()
             if rc is None and time.time() - _flow["started"] > DEVICE_CODE_TTL_SEC:
                 _kill(proc)
                 _flow.update({"proc": None, "state": "expired", "out": ""})
+            elif rc is not None and not joined and reader is not None and reader.is_alive():
+                pass  # ロックの外で確かめた後に CLI が終わった: 出力を読み終えるまで分類せず、次の呼び出しで join してから分類する
             elif rc is not None:
                 state = "cancelled" if _flow["cancelled"] else _outcome(rc, _flow["out"])
                 _flow.update({"proc": None, "state": state, "out": ""})

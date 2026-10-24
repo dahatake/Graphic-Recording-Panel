@@ -265,7 +265,9 @@ export async function llmModule(ctx) {
   })());
   // 状態を読み直して、プロバイダーの選択と GitHub Copilot の状態を画面に反映する（AC-506・AC-514）
   api.refreshLlmStatus = () => readStatus().then(async (st) => {
-    await api.refreshCopilotKeysStatus?.(); // 接続キー画面の GitHub Copilot の分類の状態（FR-088。copilotkeys.js）も読み直す
+    // 有効なまま GitHub Copilot を使えなくなった（このアプリでのサインアウトなど。AC-511）ときは無効にし、AC-506 の原因を示す
+    if (enabled && provider === 'copilot' && st.missing.length) { enabled = false; unconfigured = [...st.missing]; generation++; }
+    await api.refreshCopilotKeysStatus?.();  // 接続キー画面の GitHub Copilot の分類の状態（FR-088。copilotkeys.js）も読み直す
     notify();
     return { provider, missing: [...st.missing] };
   });

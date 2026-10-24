@@ -5,6 +5,9 @@
 //   画面（fields）には伏せ字だけを出し、ブラウザ内の保存・ログ・メッセージ・セッションファイルには書かない。
 // - サインイン（AC-509）は中継サーバーが Copilot CLI のデバイスフローを始め、画面は確認のページの URL・確認コードと状態の分類だけを持つ。
 //   GitHub の資格情報は受け取らず、保存・表示しない。
+// - Copilot CLI でサインインの有無を確かめるのは、この分類を開いたとき（GET /api/llm/copilot）とプロバイダーが GitHub Copilot のときだけ。
+//   それ以外の状態の取得（GET /api/llm/status）では signedIn が null（未確認）で返り、「未確認」と示す（AC-507・AC-510。Q-034）。
+// - サインアウト（AC-511。Q-033）は確認つきで、このアプリでの状態だけを未サインインにする（Copilot CLI の資格情報は消さない）。
 // - 接続キー画面の枠（分類・Tab の順・Enter の操作・確認の表示）は apikeys.js が持ち、ここは GitHub Copilot の分類の状態と操作だけ。
 
 const TIMEOUT_MS = 10_000; // PARAM-074（中継サーバーの操作の待機上限）
@@ -40,7 +43,11 @@ export function copilotKeysModule(ctx) {
       'keys.cp.sdk.available': 'GitHub Copilot SDK: 導入済み', 'keys.cp.sdk.missing': 'GitHub Copilot SDK が導入されていません',
       'keys.cp.sdk.cli': 'Copilot CLI を起動できません',
       'keys.cp.sdk.guide': '導入の手順: 中継サーバーの Python で「pip install -r server/requirements-copilot.txt」を実行し、中継サーバーを起動し直してください（users-guide の「LLM 連携」を参照）',
-      'keys.cp.signedIn': 'サインイン済み（{account}）', 'keys.cp.signedOut': '未サインイン',
+      'keys.cp.signedIn': 'サインイン済み（{account}）', 'keys.cp.signedOut': '未サインイン', 'keys.cp.signinUnknown': '未確認',
+      'keys.cp.label.signout': 'サインアウト', 'keys.cp.a11y.signout': 'このアプリで GitHub Copilot からサインアウト',
+      'keys.cp.signout.text': 'このアプリでの GitHub Copilot のサインインを解除しますか？ Copilot CLI に保存されたサインインの資格情報は消さず、このアプリで使わない状態にするだけです。もう一度使うときは「GitHub でサインイン」を押してください',
+      'keys.cp.signout.confirm': 'サインアウト', 'keys.cp.signout.done': 'このアプリで GitHub Copilot からサインアウトしました',
+      'keys.cp.signout.failed': 'サインアウトできませんでした。もう一度お試しください', 'keys.cp.signout.notSignedIn': 'サインインしていません',
       'keys.cp.token.set': 'トークン: 設定済み', 'keys.cp.token.unset': 'トークン: 未設定',
       'keys.cp.saved': 'GitHub Copilot の設定を保存しました',
       'keys.cp.invalid': '保存できませんでした。トークンは空・空白だけ・制御文字を含む・長すぎる値にできず、モデル名は空白だけ・制御文字を含む・64 文字を超える値にできません',
@@ -74,7 +81,11 @@ export function copilotKeysModule(ctx) {
       'keys.cp.sdk.available': 'GitHub Copilot SDK: installed', 'keys.cp.sdk.missing': 'The GitHub Copilot SDK is not installed',
       'keys.cp.sdk.cli': 'The Copilot CLI cannot be started',
       'keys.cp.sdk.guide': 'To install: run "pip install -r server/requirements-copilot.txt" with the relay server\'s Python, then restart the relay server (see "LLM" in the users-guide)',
-      'keys.cp.signedIn': 'Signed in ({account})', 'keys.cp.signedOut': 'Not signed in',
+      'keys.cp.signedIn': 'Signed in ({account})', 'keys.cp.signedOut': 'Not signed in', 'keys.cp.signinUnknown': 'Not checked',
+      'keys.cp.label.signout': 'Sign out', 'keys.cp.a11y.signout': 'Sign out of GitHub Copilot in this app',
+      'keys.cp.signout.text': 'Sign out of GitHub Copilot in this app? The sign-in credential saved by the Copilot CLI is not deleted; this app just stops using it. To use it again, choose "Sign in with GitHub"',
+      'keys.cp.signout.confirm': 'Sign out', 'keys.cp.signout.done': 'Signed out of GitHub Copilot in this app',
+      'keys.cp.signout.failed': 'Could not sign out. Try again', 'keys.cp.signout.notSignedIn': 'Not signed in',
       'keys.cp.token.set': 'Token: configured', 'keys.cp.token.unset': 'Token: not configured',
       'keys.cp.saved': 'The GitHub Copilot settings were saved',
       'keys.cp.invalid': 'Not saved. The token cannot be empty, whitespace only, contain control characters or be too long, and the model name cannot be whitespace only, contain control characters or exceed 64 characters',
@@ -110,6 +121,7 @@ export function copilotKeysModule(ctx) {
   let authInput = null; // null のときは中継サーバーの値
   let busy = false;
   let dlg = false; // 削除の確認
+  let outDlg = false; // サインアウトの確認（AC-511）
   let flow = null; // { state, verificationUri, userCode }
   let pollTimer = null;
   const src = (v) => (SOURCES.includes(v) ? v : null);
@@ -122,7 +134,7 @@ export function copilotKeysModule(ctx) {
     if ('unavailableReason' in c) o.unavailableReason = ['sdk_missing', 'cli_unavailable'].includes(c.unavailableReason) ? c.unavailableReason : null;
     if (c.authMethod === 'signin' || c.authMethod === 'token') o.authMethod = c.authMethod;
     if ('authMethodSource' in c) o.authMethodSource = src(c.authMethodSource);
-    if (typeof c.signedIn === 'boolean') o.signedIn = c.signedIn;
+    if (typeof c.signedIn === 'boolean' || c.signedIn === null) o.signedIn = c.signedIn; // null = 未確認（Q-034）
     if ('account' in c) o.account = typeof c.account === 'string' && ACCOUNT_RE.test(c.account) ? c.account : null;
     if (typeof c.tokenConfigured === 'boolean') o.tokenConfigured = c.tokenConfigured;
     if ('tokenSource' in c) o.tokenSource = o.tokenConfigured ? src(c.tokenSource) : null;
@@ -145,8 +157,10 @@ export function copilotKeysModule(ctx) {
   const down = () => checked && !cp.reachable;
 
   // ---- 状態の取得（接続キー画面を開いたとき・サインインの完了のとき） ----
-  api.refreshCopilotKeysStatus = async () => {
-    const r = await send('GET', '/api/llm/status');
+  // GitHub Copilot の分類を開いているとき（または check: true）だけ、CLI で確かめる経路（GET /api/llm/copilot）を使う（AC-507。Q-034）
+  api.refreshCopilotKeysStatus = async (opts) => {
+    const deep = opts?.check === true || api.isCopilotCategoryOpen?.() === true;
+    const r = await send('GET', deep ? '/api/llm/copilot' : '/api/llm/status');
     checked = true;
     cp = ok2xx(r) ? pick(r.body.copilot, EMPTY()) : EMPTY();
     notify();
@@ -215,14 +229,44 @@ export function copilotKeysModule(ctx) {
     return { ok: true, pending: true };
   });
   ctx.registerKey({ key: 'p', ctrl: true, alt: true, shift: true, command: 'copilot.delete' }); // NFR-A11Y-001: 全コマンドにキー割り当て
+  // ---- サインアウト（AC-511。確認つき。このアプリでの状態だけを未サインインにする） ----
+  const canSignOut = () => cp.reachable && cp.signedIn === true && cp.authMethod === 'signin' && effAuth() === 'signin' && flow?.state !== 'pending';
+  ctx.registerCommand('copilot.signout', () => {
+    if (!cp.reachable) { say('keys.unavailable'); return { ok: false, reason: 'unavailable' }; }
+    if (!canSignOut()) { say('keys.cp.signout.notSignedIn'); return { ok: false, reason: 'not_signed_in' }; }
+    if (!outDlg && !dlg && !api.getDialog()) { outDlg = true; notify(); }
+    return { ok: true, pending: true };
+  });
+  ctx.registerKey({ key: 'f', ctrl: true, alt: true, shift: true, command: 'copilot.signout' }); // NFR-A11Y-001
   const baseGetDialog = api.getDialog;
-  api.getDialog = () => (dlg ? {
+  api.getDialog = () => (outDlg ? {
+    kind: 'copilot-signout', text: t('keys.cp.signout.text'),
+    buttons: [{ id: 'confirm', label: t('keys.cp.signout.confirm') }, { id: 'cancel', label: t('dialog.cancel') }],
+    defaultFocus: 'cancel', keyboard: true,
+  } : dlg ? {
     kind: 'copilot-delete', text: t('keys.cp.delete.text'),
     buttons: [{ id: 'confirm', label: t('keys.cp.delete.confirm') }, { id: 'cancel', label: t('dialog.cancel') }],
     defaultFocus: 'cancel', keyboard: true,
   } : (baseGetDialog ? baseGetDialog() : null));
   const baseDialogAction = api.dialogAction;
   api.dialogAction = async (action) => {
+    if (outDlg) {
+      outDlg = false;
+      if (action !== 'confirm') { notify(); return { ok: false, reason: 'cancelled' }; }
+      busy = true; notify();
+      const r = await send('POST', '/api/llm/copilot/signout');
+      busy = false;
+      if (ok2xx(r) && r.body.ok === true && r.body.result === 'signed_out') {
+        cp = { ...pick(r.body.copilot, cp), signedIn: false, account: null };
+        flow = null;
+        say('keys.cp.signout.done');
+        if (api.refreshCopilotStatus !== api.refreshCopilotKeysStatus) void api.refreshCopilotStatus?.(); // AC-506 の表示（llm.js）も読み直す
+        return { ok: true };
+      }
+      if (r.error === 'unavailable') { cp = EMPTY(); say('keys.unavailable'); return { ok: false, reason: 'unavailable' }; }
+      say('keys.cp.signout.failed'); notify();
+      return { ok: false, reason: 'failed' };
+    }
     if (!dlg) return baseDialogAction ? baseDialogAction(action) : { ok: false, reason: 'no_dialog' };
     dlg = false;
     if (action !== 'confirm') { notify(); return { ok: false, reason: 'cancelled' }; }
@@ -328,6 +372,7 @@ export function copilotKeysModule(ctx) {
     if (!cp.reachable) return { id: 'signedOut', text: checked ? t('keys.unavailable') : t('keys.checking'), account: null, icon: ICONS.warn };
     if (cp.signedIn && cp.account) return { id: 'signedIn', text: fmt(t('keys.cp.signedIn'), { account: cp.account }), account: cp.account, icon: ICONS.ok };
     if (cp.signedIn) return { id: 'signedIn', text: fmt(t('keys.cp.signedIn'), { account: '-' }), account: null, icon: ICONS.ok };
+    if (cp.signedIn === null) return { id: 'unknown', text: t('keys.cp.signinUnknown'), account: null, icon: ICONS.none }; // Q-034
     return { id: 'signedOut', text: t('keys.cp.signedOut'), account: null, icon: ICONS.none };
   };
   const tokenStatus = () => {
@@ -354,6 +399,7 @@ export function copilotKeysModule(ctx) {
     const siOff = off || !!siWhy || flow?.state === 'pending';
     const delOff = off || !uiSaved();
     const sdk = sdkStatus();
+    const soOff = off || !canSignOut();
     const out = [
       base('authMethod', 'authMethod', { role: 'combobox', disabled: amOff, focusable: !amOff, reason: reason ?? (amLocked ? t('keys.cp.locked') : null), input: { type: 'select', value: am, options: ['signin', 'token'].map((v) => ({ value: v, label: t(`keys.cp.auth.${v}`) })) } }),
       base('model', 'model', { role: 'textbox', disabled: modelOff, focusable: !modelOff, reason: reason ?? (modelLocked ? t('keys.cp.locked') : null), note: t('keys.cp.model.note'), input: { type: 'text', value: effModel(), autocomplete: 'off', placeholder: t('keys.cp.model.placeholder') } }),
@@ -364,6 +410,9 @@ export function copilotKeysModule(ctx) {
       base('signin', 'signin', { role: 'button', accessibleName: a11y(t('keys.cp.a11y.signin')), disabled: siOff, focusable: !siOff, reason: siWhy }),
     ];
     const sf = api.getCopilotSignin();
+    if (cp.signedIn === true && cp.authMethod === 'signin') {
+      out.push(base('signout', 'signout', { role: 'button', accessibleName: a11y(t('keys.cp.a11y.signout')), disabled: soOff, focusable: !soOff }));
+    }
     if (sf?.state === 'pending') {
       out.push({ id: 'apiKeys.copilot.verifyLink', label: lbl('link'), accessibleName: t('keys.cp.a11y.link'), role: 'link', href: sf.link.href, target: '_blank', text: sf.userCode, disabled: false, focusable: true, reason: null, status: { id: 'pending', text: sf.text, icon: ICONS.checking } });
       out.push({ id: 'apiKeys.copilot.copyCode', label: lbl('copy'), accessibleName: t('keys.cp.a11y.copy'), role: 'button', disabled: false, focusable: true, reason: null, code: sf.userCode });
@@ -382,11 +431,12 @@ export function copilotKeysModule(ctx) {
     if (id === 'apiKeys.copilot.save') { void api.saveCopilotSettings(); return 'copilot.save'; }
     if (id === 'apiKeys.copilot.delete') { ctx.api.commands['copilot.delete'](); return 'copilot.delete'; }
     if (id === 'apiKeys.copilot.signin') { void api.startCopilotSignin(); return 'copilot.signin'; }
+    if (id === 'apiKeys.copilot.signout') { ctx.api.commands['copilot.signout'](); return 'copilot.signout'; }
     if (id === 'apiKeys.copilot.copyCode') { void api.copyCopilotUserCode(); return 'copilot.copyCode'; }
     if (id === 'apiKeys.copilot.cancelSignin') { void api.cancelCopilotSignin(); return 'copilot.cancelSignin'; }
     if (id === 'apiKeys.copilot.verifyLink') { const h = flow?.verificationUri; if (h && typeof globalThis.open === 'function') globalThis.open(h, '_blank', 'noopener,noreferrer'); return 'copilot.verifyLink'; }
     return null;
   };
   // 接続キー画面を開いた・閉じたとき（apikeys.js から呼ぶ）。閉じると保存していない入力を破棄する
-  api.resetCopilotInputs = () => { tokenInput = ''; modelInput = null; authInput = null; dlg = false; if (flow && flow.state !== 'pending') flow = null; };
+  api.resetCopilotInputs = () => { tokenInput = ''; modelInput = null; authInput = null; dlg = false; outDlg = false; if (flow && flow.state !== 'pending') flow = null; };
 }

@@ -1,9 +1,9 @@
-# GitHub Copilot のプロバイダー（FR-062 AC-513・FR-068 AC-514・FR-087 AC-506・FR-088 AC-508〜AC-509）System Test の契約
+# GitHub Copilot のプロバイダー（FR-062 AC-513・FR-068 AC-514・FR-087 AC-506・FR-088 AC-508〜AC-509・AC-511、NFR-OFFLINE-001 AC-031 の GitHub Copilot の分）System Test の契約
 
 `tests/system/copilot.test.js` が前提にするアプリ（`createApp`）の観察点と、注入する中継サーバー（`options.relay`）のモックの形。
 期待値は受入基準だけから決め、ここには「どこで観察するか」だけを書く（CONTRACT-LLM-FR062.md・CONTRACT-LLM-CONSENT.md・CONTRACT-API-KEYS.md に追加。上書きではない）。
 GitHub Copilot SDK・Copilot CLI・GitHub へは通信しない。中継サーバーの内側（SDK の呼び出し）は AC-503〜505・507・510・515（integration）の範囲で、ここでは扱わない。
-AC-511 は BLOCKED（Q-033）のため扱わない。AC-512 は unit のため台帳（System Test）にはケースを追加しない。
+AC-511（Q-033）は下の「サインアウト」と「中継サーバーの実プロセスとスタブ」で扱う。AC-512 は unit のため台帳（System Test）にはケースを追加しない。
 
 ## 中継サーバー（モック）の状態の応答 `GET /api/llm/status`
 従来の項目（`configured`・`endpointHost`・`keyConfigured`・`keySource` ほか）に、次を加える。
@@ -63,3 +63,21 @@ copilot: {
   `app.getCopilotSignin()` → `null | {state, verificationUri, link:{href, target:'_blank'}, userCode, copy:{label}, cancel:{label}, text}`（`text` は待機中・原因の文）。
   `await app.copyCopilotUserCode()` は `options.clipboard.writeText(userCode)`。`await app.cancelCopilotSignin()` → `DELETE /api/llm/copilot/signin`。
   失敗・取り消しの後は `state` が `'expired'|'denied'|'cancelled'|'failed'`、`text` に秘密を含まない原因、もう一度 `startCopilotSignin()` できる。
+- 同じ PC の Copilot CLI ですでにサインインしているときは、操作なしに `signinStatus` が `'signedIn'`（`GET /api/llm/status` の `copilot.signedIn`）。ただし、このアプリでサインアウトした後は除く（AC-511）。
+  `startCopilotSignin()` の応答が `{ok:true, state:'completed'}`（確認コードなし。CLI の資格情報が残っているとき）なら、確認コードを示さずにサインイン済みへ進む（`getCopilotSignin()` は `null` か `userCode` を持たない）。
+
+## サインアウト（AC-511。Q-033）
+- `getApiKeysDialog().fields`（`copilot` を選んだとき）に `apiKeys.copilot.signout`（「サインアウト」。`role:'button'`、`label`・`accessibleName`（非空）、`disabled`）を加える。
+- `app.commands['copilot.signout']()` → 確認（`getDialog().kind === 'copilot-signout'`、`text`、`buttons` に `confirm`・`cancel`）。`text` は、Copilot CLI の資格情報は消さず、このアプリで使わない状態にするだけである旨（「Copilot CLI」「資格情報」の語を含む）。
+  `cancel` では何も送らない。`confirm` で `POST /api/llm/copilot/signout`（本体なし）→ `{ok:true, result:'signed_out', copilot:{...}}`（`copilot.signedIn:false`）。
+  サインアウトでは `DELETE /api/llm/copilot`（保存した設定の削除）・`DELETE /api/llm/copilot/signin`（取り消し）を送らない。
+- サインアウトの後は `signinStatus` が `'signedOut'`、`requestLlmEnable()` は `{ok:false, missing:['signin']}`、`llm.enabled` の `status.text` は AC-506 の「GitHub にサインインしていない」。LLM 向けの要求は送らない。
+- 中継サーバーは、このアプリでのサインアウトを自分の保管先（`RELAY_LLM_STORE`）に保存し、再起動の後も `copilot.signedIn:false` を返す（CLI の資格情報が残っていても）。
+  `POST /api/llm/copilot/signin` で解除し、CLI の資格情報が残っていれば `{ok:true, state:'completed'}` を返す。
+
+## 中継サーバーの実プロセスとスタブ（`tests/system/copilot-relay.test.js`。AC-511・AC-031）
+- `server/relay.py` を `startRelay`（relay-util.js）で起動し、画面の `options.relay` を同一オリジン（`Host`・`Origin` が `127.0.0.1:<port>`）の HTTP の要求で中継サーバーへつなぐ。
+- GitHub Copilot SDK は、`PYTHONPATH` の先頭に置いたスタブの `copilot` モジュール（`CopilotClient(**kw)`・`start`・`stop`・`get_auth_status()`→`is_authenticated`・`login`・`create_session(**opts)`→`send_and_wait(prompt)`・`disconnect`。`copilot.session.PermissionDecisionReject`）。
+  呼び出しを `GRP_ST_SDK_LOG` に記録し、未定義の属性（サインアウト・資格情報の削除に当たるもの）へのアクセスも記録する。認証の状態は、CLI の資格情報の保管（`GRP_ST_CLI_CRED` のファイル）の有無。
+- Copilot CLI は `COPILOT_CLI_PATH` のスタブ（Windows は `.cmd`、それ以外は実行可能なシェルスクリプト）。引数を `GRP_ST_CLI_LOG` に記録する。`login` は、保管に資格情報があれば確認コードなしに終了コード 0、なければ確認コード（`TEST-0000`）を出して待つ。
+- 中継サーバーの保管先は一時フォルダー（`RELAY_LLM_STORE`・`LLM_CONFIG_PATH`）。GitHub のトークンの環境変数は空、`HTTP(S)_PROXY` は到達しない宛先（GitHub へ通信しない）。

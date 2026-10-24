@@ -29,6 +29,7 @@ speech = importlib.import_module("relay_speech")
 store = importlib.import_module("relay_llmstore")
 copilot = importlib.import_module("relay_copilot")  # GitHub Copilot SDK を介した呼び出し（FR-087）。SDK は任意の依存
 signin = importlib.import_module("relay_copilot_signin")  # Copilot CLI のサインイン（デバイスフロー。FR-088）
+signin.on_completed = lambda: copilot.set_signed_out(False)  # サインインの完了でこのアプリでのサインアウトを解除（AC-511）
 BIND_ADDRESS = "127.0.0.1"
 MAX_REQUEST_BYTES = 1024 * 1024
 LLM_PREFIX = "/api/llm/"
@@ -63,11 +64,15 @@ def connection_view(s):
     }
 
 
-def copilot_view(cs):
+def copilot_view(cs, check=None):
     """プロバイダーの選択と GitHub Copilot の状態（FR-087 AC-505 / FR-088）。トークンの値を含まない。
-    available・unavailableReason（sdk_missing / cli_unavailable）・signedIn・account は SDK・CLI に確かめる（AC-507 の例外の範囲）。
+    check（既定: プロバイダーが GitHub Copilot のとき）が真のときだけ、available・unavailableReason（sdk_missing /
+    cli_unavailable）・signedIn・account を SDK・CLI に確かめる（AC-507 の例外の範囲）。偽のときは CLI を起動せず、
+    SDK の導入の有無だけを返し、signedIn は null（未確認。Q-034 / AC-510）。
     missing は LLM 連携を有効にできない原因の分類（sdk / signin / token）。"""
-    probed = copilot.probe(cs)
+    if check is None:
+        check = cs.provider == "copilot"
+    probed = copilot.probe(cs, check=check)
     src = cs.sources
     missing = copilot.readiness(cs, probed)
     return {
@@ -201,6 +206,15 @@ class RelayHandler(SimpleHTTPRequestHandler):
                 return self._send_json(200, text.encode("utf-8"))
             if self.path.split("?", 1)[0] == LLM_PREFIX + "copilot/signin":
                 return self._copilot_admin()
+            if self.path.split("?", 1)[0] == LLM_PREFIX + "copilot":
+                # 接続キー画面の GitHub Copilot の分類を開いたときの状態の取得（CLI で確かめてよい時点。AC-507・Q-034）
+                # Copilot CLI を起動する経路なので、Origin のない GET でも同一オリジンからの要求であることを確かめる
+                # （ほかのサイトの img タグなどからの起動を防ぐ。AC-507・AC-510）
+                if not self.headers.get("Origin") and (self.headers.get("Sec-Fetch-Site") or "same-origin").lower() not in ("same-origin", "none"):
+                    return self._forbidden()
+                cs = cfg.load_copilot_settings()
+                text = sec.redact(json.dumps(copilot_view(cs, check=True), ensure_ascii=False), copilot.secrets_of(cs))
+                return self._send_json(200, text.encode("utf-8"))
             if self.path.split("?", 1)[0] == LLM_PREFIX + "provider":
                 return self._send_json(200, {"provider": cfg.load_copilot_settings().provider})
             return self._send_json(404, sec.error_body("not_found", "見つかりません。"))
@@ -227,6 +241,8 @@ class RelayHandler(SimpleHTTPRequestHandler):
             return self._llm_admin()
         # FR-088: GitHub Copilot の認証方式・モデル名・トークンの保存と削除、サインインの開始・取り消し
         if is_llm and self.command in ("POST", "DELETE") and self.path.split("?", 1)[0] in (LLM_PREFIX + "copilot", LLM_PREFIX + "copilot/signin"):
+            return self._copilot_admin()
+        if is_llm and self.command == "POST" and self.path.split("?", 1)[0] == LLM_PREFIX + "copilot/signout":
             return self._copilot_admin()
         if is_llm and self.command == "POST" and self.path.split("?", 1)[0] == LLM_PREFIX + "provider":
             return self._llm_provider()
@@ -346,6 +362,8 @@ class RelayHandler(SimpleHTTPRequestHandler):
                 "tokenConfigured": bool(cs2.token), "tokenSource": s2.get("token") if cs2.token else None,
                 "model": cs2.model, "modelSource": s2.get("model") if cs2.model else None,
             }}
+            if result == "signed_out":
+                body["copilot"].update({"signedIn": False, "account": None})
             if reason:
                 body["reason"] = reason
             send(status, body)
@@ -357,8 +375,25 @@ class RelayHandler(SimpleHTTPRequestHandler):
                 return send(200, signin.cancel())
             if cs.auth_method != "signin":
                 return send(409, {"ok": False, "result": "auth_method_mismatch"})
+            if copilot.load_sdk() is not None and signin.status().get("state") != "pending":
+                # Copilot CLI の資格情報が残っていれば、デバイスフローを始めずにサインイン済みにする（AC-511。このアプリでの
+                # サインアウトの後に再び操作したとき）。確かめるのは利用者の操作による起動だけ（AC-507 の例外）
+                probed = copilot.probe(cs, check=True, ignore_signout=True)
+                if probed["signedIn"]:
+                    copilot.set_signed_out(False)
+                    return send(200, {"ok": True, "state": "completed"})
             r = signin.start()
             return send(200 if r.get("ok") else (409 if r.get("result") in ("sdk_missing", "cli_unavailable") else 502), r)
+
+        if route == ("POST", "copilot/signout"):
+            # このアプリでのサインアウト（AC-511。Q-033）: 状態を保存するだけで、Copilot CLI の資格情報は消さず、
+            # CLI のサインアウトも呼ばない。再起動後も保つ（保管先の copilotSignedOut）
+            if cs.auth_method != "signin":
+                return reply(409, False, "auth_method_mismatch")
+            signin.cancel(internal=True)
+            copilot.set_signed_out(True)
+            copilot.reset()  # CLI のクライアントを止め、状態のキャッシュを捨てる（資格情報には触れない）
+            return reply(200, True, "signed_out")
 
         if route == ("DELETE", "copilot"):
             store.delete(["copilotAuthMethod", "copilotModel", "copilotToken"])

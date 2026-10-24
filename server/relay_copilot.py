@@ -2,8 +2,11 @@
 
 - GitHub Copilot SDK（pip の github-copilot-sdk。import 名 copilot）は任意の依存。読み込めなくても中継サーバーは起動し、
   状態の取得で「SDK 未導入（sdk_missing）」を、Copilot CLI を起動できなければ「cli_unavailable」を返す（AC-505）。
-- SDK・Copilot CLI を起動するのは、プロバイダーが GitHub Copilot の LLM 向けの要求と、状態の取得（GET /api/llm/status）だけ（AC-507）。
-  プロバイダーが Microsoft Foundry のときに状態の取得で起動した CLI は、確認の後に止める。
+- SDK・Copilot CLI を起動するのは、プロバイダーが GitHub Copilot の LLM 向けの要求と状態の取得、接続キー画面の GitHub Copilot の
+  分類を開いたときの状態の取得（GET /api/llm/copilot）とサインインの操作だけ（AC-507。Q-034）。それ以外の状態の取得（プロバイダーが
+  Microsoft Foundry のときの GET /api/llm/status）は SDK の導入の有無だけを返し、サインインの有無は「未確認」（signedIn: null）にする。
+  プロバイダーが Microsoft Foundry のときに分類を開いて起動した CLI は、確認の後に止める。
+- このアプリでのサインアウト（AC-511。Q-033）は保管先の copilotSignedOut だけで表し、Copilot CLI の資格情報は消さずサインアウトも呼ばない。
 - セッションでは組み込みのツール・MCP を 1 つも使わせず（available_tools=[]）、権限の要求はすべて拒否し、
   作業フォルダーは空の専用フォルダー、システムメッセージは画面から来た instructions で置き換える（AC-504。端末・作業フォルダーの情報を送らない）。
 - 失敗は秘密を含まない分類（auth / rate_limit / connection / upstream_timeout / upstream_too_large / upstream_invalid）だけを返す。
@@ -19,6 +22,7 @@ import time
 
 from relay_config import max_bytes, timeout_sec
 from relay_upstream import UpstreamError
+import relay_llmstore as _store
 
 SDK_MODULE = "copilot"
 STATUS_TTL_SEC = 10  # 状態の取得で CLI を何度も起動しないための短いキャッシュ
@@ -190,11 +194,38 @@ def _field(obj, *names):
     return None
 
 
-def probe(cs):
-    """{available, unavailableReason, signedIn, account}。会議の内容は送らない（AC-507 の例外の範囲）。"""
+def signed_out():
+    """このアプリでサインアウトした状態か（AC-511。再起動後も保つ）。"""
+    return bool(_store.load().get("copilotSignedOut"))
+
+
+def set_signed_out(value):
+    """このアプリでのサインアウトの状態を保存・解除する。Copilot CLI の資格情報には触れない（Q-033）。"""
+    if value:
+        _store.save({"copilotSignedOut": "1"})
+    else:
+        _store.delete(["copilotSignedOut"])
+    with _lock:
+        _status_cache.update({"key": None, "at": 0.0, "value": None})
+
+
+def probe(cs, check=True, ignore_signout=False):
+    """{available, unavailableReason, signedIn, account}。会議の内容は送らない（AC-507 の例外の範囲）。
+    check が偽のときは Copilot CLI を起動せず、SDK の導入の有無だけを返す（signedIn は None = 未確認。Q-034）。
+    このアプリでサインアウトしているとき（認証方式がサインイン）は、CLI のサインインが残っていても未サインインにする
+    （ignore_signout のときを除く。AC-511）。"""
     sdk = load_sdk()
     if sdk is None:
         return {"available": False, "unavailableReason": "sdk_missing", "signedIn": False, "account": None}
+    if not check:
+        return {"available": True, "unavailableReason": None, "signedIn": None, "account": None}
+    value = _probe_cli(sdk, cs)
+    if not ignore_signout and cs.auth_method != "token" and value["signedIn"] and signed_out():
+        value.update({"signedIn": False, "account": None})
+    return value
+
+
+def _probe_cli(sdk, cs):
     key = (_client_key(cs), cs.provider)
     with _lock:
         if _status_cache["key"] == key and time.time() - _status_cache["at"] < STATUS_TTL_SEC:
