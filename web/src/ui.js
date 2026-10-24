@@ -32,6 +32,7 @@ export function mountUI(app, doc = document) {
 
   function buildToolbar() {
     toolbar.textContent = '';
+    const barItems = Object.fromEntries(app.getCommandBar().items.map((i) => [i.command, i]));
     for (const [groupLabelKey, names, groupId] of GROUPS) {
       // NFR-UX-011 AC-460: 見出し（常に表示）と、グループ要素のアクセシブルな名前（aria-label）は同じ文言
       const fs = doc.createElement('div');
@@ -42,14 +43,30 @@ export function mountUI(app, doc = document) {
       fs.setAttribute('aria-label', lg.textContent);
       fs.append(lg);
       for (const name of names) {
-        const b = doc.createElement('button');
-        b.type = 'button'; b.className = PRIMARY.has(name) ? 'btn btn-primary' : 'btn btn-subtle'; b.dataset.command = name;
+        const bi = barItems[name];
+        const field = bi && ['select', 'slider', 'number'].includes(bi.kind) && name !== 'drawStyle.pick' ? bi.kind : null;
+        const b = doc.createElement(field ? 'div' : 'button'); // 値を入れる部品を持つ項目は、ボタンの中に部品を入れない（div）
+        if (!field) b.type = 'button';
+        b.className = PRIMARY.has(name) ? 'btn btn-primary' : 'btn btn-subtle'; b.dataset.command = name;
         const lab = doc.createElement('span'); lab.className = 'btn-label'; lab.textContent = app.t(labelKey(name));
         b.append(icon(doc, name), lab);
         // FR-073 AC-388: 取り込みは、取り込めるファイルの説明を常に文字で見せる（アイコンだけに頼らない）
-        if (name === 'import.file' || name === 'apiKeys.open') {
-          const d = doc.createElement('span'); d.className = 'btn-desc'; d.textContent = app.t(name === 'import.file' ? 'import.description' : 'apiKeys.description'); b.append(d);
-          d.id = name === 'import.file' ? 'import-desc' : 'apikeys-desc'; b.className += name === 'import.file' ? ' btn-import' : ' btn-import btn-apikeys';
+        if (name === 'import.file') {
+          const d = doc.createElement('span'); d.className = 'btn-desc'; d.textContent = app.t('import.description'); b.append(d);
+          d.id = 'import-desc'; b.className += ' btn-import';
+        }
+        // FR-030 AC-519: ［設定］の項目（決め方・音量・周期）は、値を入れる部品（選択・スライダー・数値）と常時の短い説明を持つ
+        let ctl = null;
+        if (field) {
+          ctl = doc.createElement(field === 'select' ? 'select' : 'input'); ctl.className = 'toolbar-control'; ctl.dataset.control = name;
+          if (field === 'select') for (const o of bi.options) { const op = doc.createElement('option'); op.value = o.value; op.textContent = o.label; ctl.append(op); }
+          else { ctl.type = field === 'slider' ? 'range' : 'number'; ctl.min = String(bi.min); ctl.max = String(bi.max); ctl.step = String(bi.step); }
+          ctl.setAttribute('aria-label', bi.accessibleName);
+          ctl.addEventListener(field === 'slider' ? 'input' : 'change', () => { app.operateBarItem(name, field === 'select' ? ctl.value : field === 'slider' ? Number(ctl.value) : ctl.value); });
+          b.className += ' btn-field'; b.append(ctl);
+        }
+        if (bi?.settingsField && bi.descriptionVisible && bi.description) {
+          const d = doc.createElement('span'); d.className = 'btn-desc'; d.textContent = bi.description; b.append(d);
         }
         // FR-077 AC-414: 画風のボタンは、ラベルの下に現在の画風の名前を常に出し、一覧（listbox）を開くことを示す
         if (name === 'drawStyle.pick') {
@@ -62,14 +79,17 @@ export function mountUI(app, doc = document) {
         const tip = doc.createElement('span');
         tip.className = 'tooltip'; tip.id = tooltipId(name); tip.setAttribute('role', 'tooltip'); tip.hidden = true;
         tip.textContent = kl ? `${app.t(`tooltip.${name}`)} (${kl})` : app.t(`tooltip.${name}`);
+        const fe = ctl ?? b; // フォーカス・説明の対象（値の部品があればその部品）
         b.setAttribute('aria-describedby', tip.id);
-        if (kl) b.setAttribute('aria-keyshortcuts', kl);
-        b.addEventListener('click', () => { void app.commands[name]?.(); });
+        if (ctl) ctl.setAttribute('aria-describedby', tip.id);
+        if (kl) fe.setAttribute('aria-keyshortcuts', kl);
+        // 値を入れる部品を持つ項目は、部品の操作（operateBarItem）で動かす。ボタンの本体のクリックでは何もしない
+        b.addEventListener('click', (e) => { if (field) { if (e.target === b) ctl.focus(); return; } void app.commands[name]?.(); });
         const on = (trig) => () => { app.showTooltip(name, trig); syncTooltip(); };
         const off = (trig) => () => { app.hideTooltip(name, trig); syncTooltip(); };
         b.addEventListener('mouseenter', on('hover')); b.addEventListener('mouseleave', off('leave'));
-        b.addEventListener('focus', on('focus')); b.addEventListener('blur', off('blur'));
-        b.addEventListener('keydown', (e) => { if (e.key === 'Escape') { app.hideTooltip(name, 'blur'); syncTooltip(); } });
+        fe.addEventListener('focus', on('focus')); fe.addEventListener('blur', off('blur'));
+        fe.addEventListener('keydown', (e) => { if (e.key === 'Escape') { app.hideTooltip(name, 'blur'); syncTooltip(); } });
         const wrap = doc.createElement('span'); wrap.className = 'tooltip-host';
         wrap.append(b, tip);
         fs.append(wrap);
@@ -88,8 +108,11 @@ export function mountUI(app, doc = document) {
       menu.textContent = '';
       menu.setAttribute('role', 'group'); menu.setAttribute('aria-label', app.t('panel.menu'));
       const add = (label, fn, extra = {}) => {
-        const b = doc.createElement('button');
-        b.type = 'button'; b.className = 'btn btn-sm'; b.textContent = label; b.title = label;
+        const bi = barItems[name];
+        const field = bi && ['select', 'slider', 'number'].includes(bi.kind) && name !== 'drawStyle.pick' ? bi.kind : null;
+        const b = doc.createElement(field ? 'div' : 'button'); // 値を入れる部品を持つ項目は、ボタンの中に部品を入れない（div）
+        if (!field) b.type = 'button';
+        b.className = 'btn btn-sm'; b.textContent = label; b.title = label;
         Object.assign(b.dataset, extra);
         b.addEventListener('click', fn);
         menu.append(b);
@@ -130,6 +153,11 @@ export function mountUI(app, doc = document) {
       const f = PRESSED[b.dataset.command];
       if (f) b.setAttribute('aria-pressed', String(f(st)));
       b.disabled = typeof app.commands[b.dataset.command] !== 'function';
+    }
+    // FR-030 AC-519: ［設定］の値のある項目（決め方・音量・周期）の現在値。入力中の部品は書き換えない
+    for (const it of app.getCommandBar().items) {
+      const c = toolbar.querySelector(`[data-control="${it.command}"]`);
+      if (c && doc.activeElement !== c && c.value !== String(it.value)) c.value = String(it.value);
     }
     // FR-027 AC-139: 選択中のレイアウト型は、色だけでなく枠（先頭の型）・チェック印でも示す
     for (const it of app.getCommandBar().items) {
@@ -235,8 +263,11 @@ export function mountUI(app, doc = document) {
       const label = `${app.t(`panel.${id}`)}: ${app.t(p.maximized ? 'panel.restore' : 'panel.maximize')}`;
       max.title = label; max.setAttribute('aria-label', label);
       if (!p.visible) {
-        const b = doc.createElement('button');
-        b.type = 'button'; b.className = 'btn';
+        const bi = barItems[name];
+        const field = bi && ['select', 'slider', 'number'].includes(bi.kind) && name !== 'drawStyle.pick' ? bi.kind : null;
+        const b = doc.createElement(field ? 'div' : 'button'); // 値を入れる部品を持つ項目は、ボタンの中に部品を入れない（div）
+        if (!field) b.type = 'button';
+        b.className = 'btn';
         b.textContent = `${app.t(`panel.${id}`)}: ${app.t('panel.show')}`;
         b.addEventListener('click', () => app.setPanelVisible(id, true));
         showBar.append(b);
@@ -434,8 +465,20 @@ export function mountUI(app, doc = document) {
       buildAzureSpeech(form, d);
       const close =  doc.createElement('button'); close.type = 'button'; close.className = 'btn btn-primary'; close.textContent = o.closeLabel; close.dataset.action = 'settings-close';
       close.addEventListener('click', () => app.commands['settings.close']());
-      setEl.append(h, form, close);
+      // FR-084: 左（狭い画面では上）の分類。「接続キー」はアイコンと説明の文字つき。選ぶと接続キー画面（中央のモーダル）が開く
+      const nav = doc.createElement('div'); nav.className = 'settings-categories'; nav.setAttribute('role', 'tablist'); nav.setAttribute('aria-label', app.t('settings.categories'));
+      for (const c of d.categories) {
+        const b = doc.createElement('button'); b.type = 'button'; b.className = 'btn btn-subtle settings-category'; b.setAttribute('role', 'tab'); b.dataset.category = c.id; b.setAttribute('aria-label', `${c.accessibleName}: ${c.description}`);
+        const t = doc.createElement('template'); t.innerHTML = `<svg viewBox="0 0 20 20" class="icon" aria-hidden="true" focusable="false"><path d="${c.icon}"></path></svg>`;
+        const lab = doc.createElement('span'); lab.className = 'btn-label'; lab.textContent = c.label;
+        const desc = doc.createElement('span'); desc.className = 'btn-desc'; desc.textContent = c.description;
+        b.append(t.content.firstChild, lab, desc);
+        b.addEventListener('click', () => app.selectSettingsCategory(c.id));
+        nav.append(b);
+      }
+      setEl.append(h, nav, form, close);
     }
+    for (const b of setEl.querySelectorAll('.settings-category')) b.setAttribute('aria-selected', String(b.dataset.category === d.selectedCategory));
     const vals = Object.fromEntries(d.fields.map((f) => [f.id, f.value]));
     setEl.querySelector('select#settings-layout\\.mode').value = vals['layout.mode'];
     setEl.querySelector('select#settings-drawStyle').value = vals.drawStyle;

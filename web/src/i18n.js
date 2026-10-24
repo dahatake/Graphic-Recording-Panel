@@ -102,6 +102,7 @@ const BASE = {
     'outline.groups': 'まとまりの小見出し',
     'diagram.empty': 'まだ図がありません。記録を開始して発話を入力してください',
     'cmd.settings.arrangeInterval': '再配置の周期を設定', // FR-080 AC-440
+    'cmd.settings.layoutMode': 'レイアウトの決め方を切り替え', 'cmd.sound.toggleMute': '音のミュートを切り替え', 'cmd.sound.setVolume': '音量を上げる', 'cmd.arrange.setInterval': '再配置の周期を切り替え', // FR-030 AC-519
   },
   en: {
     'app.title': 'Graphic Recording Panel',
@@ -197,6 +198,7 @@ const BASE = {
     'outline.groups': 'Group subheadings',
     'diagram.empty': 'No diagram yet. Start recording and enter an utterance',
     'cmd.settings.arrangeInterval': 'Set the rearrange interval', // FR-080 AC-440
+    'cmd.settings.layoutMode': 'Switch how the layout is decided', 'cmd.sound.toggleMute': 'Toggle sound mute', 'cmd.sound.setVolume': 'Raise the volume', 'cmd.arrange.setInterval': 'Switch the rearrange interval', // FR-030 AC-519
   },
 };
 

@@ -7,6 +7,7 @@ import * as P from './persist.js';
 import { createDrawStyleRegistry, DEFAULT_STYLE_ID } from './drawstyles.js';
 import { createLayoutTypeRegistry, validTypeList, LAYOUT_TYPE_IDS, LAYOUT_TYPE_META, DEFAULT_LAYOUT_TYPE, fitTitle } from './layouttypes.js';
 import { TYPE_SCALE } from './infodesign.js';
+import { KEY_ICON } from './commandbar.js';
 
 export const SETTINGS_KEY = 'grp.settings';
 export const FIELD_IDS = ['layout.mode', 'layout.types', 'drawStyle'];
@@ -32,6 +33,7 @@ export function settingsModule(ctx) {
       'cmd.layoutType.clear': 'レイアウト型の手動選択を解除', 'label.layoutType.clear': '型を解除', 'tooltip.layoutType.clear': '手動で選んだレイアウト型を解除し、設定の既定のレイアウトに戻します',
       'toolbar.layoutType': 'レイアウト型', 'settings.title': 'レイアウトと描画スタイルの設定', 'settings.layout.mode': '決め方', 'settings.layout.types': 'レイアウト型', 'settings.drawStyle': '描画スタイル',
       'settings.mode.auto': '自動', 'settings.mode.fixed': '固定', 'settings.close': '閉じる',
+      'settings.categories': '分類', 'settings.category.general': '全般', 'settings.category.general.description': 'レイアウト型・描画スタイル・音・再配置の周期を設定します', 'settings.category.apiKeys': '接続キー', 'settings.category.apiKeys.description': 'Foundry・Azure Speech のキーと GitHub Copilot の認証を登録します', 'settings.category.invalid': '選べない分類です',
       'settings.changed': '設定を変更しました', 'settings.invalid': '設定の値が正しくないため変更しませんでした', 'drawStyle.changed': '描画スタイル', 'drawStyle.invalid': '選べない描画スタイルです',
       'cmd.settings.open': '設定を開く', 'cmd.settings.close': '設定を閉じる', 'label.settings.open': '設定', 'tooltip.settings.open': '既定のレイアウトと描画スタイルを選ぶ設定画面を開きます',
     },
@@ -42,6 +44,7 @@ export function settingsModule(ctx) {
       'cmd.layoutType.clear': 'Clear the manual layout choice', 'label.layoutType.clear': 'Clear type', 'tooltip.layoutType.clear': 'Clear the manually chosen layout types and return to the default layout in Settings',
       'toolbar.layoutType': 'Layout type', 'settings.title': 'Layout and draw style settings', 'settings.layout.mode': 'Mode', 'settings.layout.types': 'Layout types', 'settings.drawStyle': 'Draw style',
       'settings.mode.auto': 'Auto', 'settings.mode.fixed': 'Fixed', 'settings.close': 'Close',
+      'settings.categories': 'Categories', 'settings.category.general': 'General', 'settings.category.general.description': 'Set the layout types, draw style, sound and rearrange interval', 'settings.category.apiKeys': 'API Keys', 'settings.category.apiKeys.description': 'Register the Foundry and Azure Speech keys and GitHub Copilot sign-in', 'settings.category.invalid': 'That category cannot be selected',
       'settings.changed': 'Settings changed', 'settings.invalid': 'The settings were not changed because a value is invalid', 'drawStyle.changed': 'Draw style', 'drawStyle.invalid': 'That draw style cannot be selected',
       'cmd.settings.open': 'Open settings', 'cmd.settings.close': 'Close settings', 'label.settings.open': 'Settings', 'tooltip.settings.open': 'Open the settings for the default layout and draw style',
     },
@@ -198,9 +201,17 @@ export function settingsModule(ctx) {
 
   // ---- ［設定］画面 ----
   let open = false;
+  let category = 'general'; // FR-084: 左の分類（general・apiKeys）。接続キーの中身は apikeys.js
   const notify = () => ctx.emit('change', api);
+  const CATEGORY_ICONS = { general: 'M3 4h14M3 10h14M3 16h14M7 2v4M13 8v4M9 14v4', apiKeys: KEY_ICON };
+  const categories = () => ['general', 'apiKeys'].map((id) => { const label = t(`settings.category.${id}`); return { id, label, icon: CATEGORY_ICONS[id], description: t(`settings.category.${id}.description`), descriptionVisible: true, accessibleName: label, selected: id === category }; });
+  api.selectSettingsCategory = (id) => {
+    if (!open || !['general', 'apiKeys'].includes(id)) return { ok: false, reason: open ? 'invalid' : 'closed' };
+    if (id !== category) { category = id; notify(); }
+    return { ok: true };
+  };
   api.getSettingsDialog = () => (open ? {
-    open: true, role: 'dialog', label: t('settings.title'), focused: true,
+    open: true, role: 'dialog', modal: true, label: t('settings.title'), focused: true, categories: categories(), selectedCategory: category,
     fields: FIELD_IDS.map((id) => ({ id, label: t(`settings.${id}`), value: id === 'layout.mode' ? settings.layout.mode : id === 'layout.types' ? [...settings.layout.types] : settings.drawStyle,
       // FR-077 AC-418: 既定の描画スタイルの選択肢は、上部の一覧と同じ登録簿（同じ ID・名前・並び）から作る
       ...(id === 'drawStyle' ? { options: styles.list(lang()).map((s) => ({ value: s.id, label: s.label })) } : {}) })),
@@ -213,8 +224,8 @@ export function settingsModule(ctx) {
     closeLabel: t('settings.close'),
   });
   api.getSettingsView = () => ({ fields: FIELD_IDS.map((id) => ({ id, visible: true })), scrollsHorizontally: false }); // 狭い画面では縦に並べ、項目を欠かさない
-  ctx.registerCommand('settings.open', () => { if (!open) { open = true; notify(); } });
-  ctx.registerCommand('settings.close', () => { if (open) { open = false; notify(); } });
+  ctx.registerCommand('settings.open', () => { if (!open) { open = true; category = 'general'; notify(); } });
+  ctx.registerCommand('settings.close', () => { if (open) { open = false; category = 'general'; notify(); } });
   ctx.registerKey({ key: 'F11', alt: true, shift: true, command: 'settings.open' });
   ctx.registerKey({ key: 'F12', alt: true, shift: true, command: 'settings.close' });
   const baseKey = api.handleKey;

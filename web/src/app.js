@@ -41,6 +41,7 @@ import { speechSettingsModule } from './speechsettings.js';
 import { stylePresetModule } from './presetdiagram.js';
 import { imagePromptModule } from './imageprompt.js';
 import { apiKeysModule } from './apikeys.js';
+import { ribbonSettingsModule } from './ribbonsettings.js';
 import { copilotKeysModule } from './copilotkeys.js';
 
 const GAP_MS_DEFAULT = 20_000; // PARAM-002
@@ -295,6 +296,8 @@ export async function createApp(options = {}) {
   await app.use(imagePromptModule);
   // FR-088: 接続キー画面の GitHub Copilot の分類（認証方式・サインイン・トークン・モデル名）。接続キー画面より先に足す
   await app.use(copilotKeysModule);
+  // FR-030 AC-519・AC-520: リボンの「設定」グループ（［設定］パネルの項目）。背景の操作を止める接続キー画面より先に足す
+  await app.use(ribbonSettingsModule);
   // FR-084・FR-085: 接続キー画面（Foundry・Azure Speech のキー）。背景の操作を止めるため、最後に足す
   await app.use(apiKeysModule);
   return app;
