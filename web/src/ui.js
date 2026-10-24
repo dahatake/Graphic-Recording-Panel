@@ -108,10 +108,7 @@ export function mountUI(app, doc = document) {
       menu.textContent = '';
       menu.setAttribute('role', 'group'); menu.setAttribute('aria-label', app.t('panel.menu'));
       const add = (label, fn, extra = {}) => {
-        const bi = barItems[name];
-        const field = bi && ['select', 'slider', 'number'].includes(bi.kind) && name !== 'drawStyle.pick' ? bi.kind : null;
-        const b = doc.createElement(field ? 'div' : 'button'); // 値を入れる部品を持つ項目は、ボタンの中に部品を入れない（div）
-        if (!field) b.type = 'button';
+        const b = doc.createElement('button'); b.type = 'button';
         b.className = 'btn btn-sm'; b.textContent = label; b.title = label;
         Object.assign(b.dataset, extra);
         b.addEventListener('click', fn);
@@ -263,10 +260,7 @@ export function mountUI(app, doc = document) {
       const label = `${app.t(`panel.${id}`)}: ${app.t(p.maximized ? 'panel.restore' : 'panel.maximize')}`;
       max.title = label; max.setAttribute('aria-label', label);
       if (!p.visible) {
-        const bi = barItems[name];
-        const field = bi && ['select', 'slider', 'number'].includes(bi.kind) && name !== 'drawStyle.pick' ? bi.kind : null;
-        const b = doc.createElement(field ? 'div' : 'button'); // 値を入れる部品を持つ項目は、ボタンの中に部品を入れない（div）
-        if (!field) b.type = 'button';
+        const b = doc.createElement('button'); b.type = 'button';
         b.className = 'btn';
         b.textContent = `${app.t(`panel.${id}`)}: ${app.t('panel.show')}`;
         b.addEventListener('click', () => app.setPanelVisible(id, true));
