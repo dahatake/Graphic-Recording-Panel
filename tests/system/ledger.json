@@ -21,7 +21,7 @@
     "AC-029": "sha256:0c3909f0e1309b2e",
     "AC-043": "sha256:9892682e961eed37",
     "AC-030": "sha256:4ff8c6e5383e0179",
-    "AC-031": "sha256:9c512b2d34cbc9c6",
+    "AC-031": "sha256:5a4086c2ea19cdc4",
     "AC-032": "sha256:70a43cf878f66a04",
     "AC-036": "sha256:318b0f2e4205a0cb",
     "AC-038": "sha256:b7d5386af3599f7f",
@@ -231,7 +231,7 @@
     "AC-490": "sha256:b6b5a791aae42fef",
     "AC-491": "sha256:8b0e5859c678cc64",
     "AC-496": "sha256:fc9f8b4ac467a77a",
-    "AC-506": "sha256:63d6b6771bb91acd",
+    "AC-506": "sha256:56159f823208317b",
     "AC-508": "sha256:a92396b443552fe3",
     "AC-509": "sha256:02215bd5105c2f85",
     "AC-513": "sha256:854c341617196141",
@@ -777,11 +777,11 @@
       "ac_ids": [
         "AC-031"
       ],
-      "title": "全機能の操作中に同一オリジン以外へのリクエストが 0 件（GitHub Copilot のとき、中継サーバーが送るのは有効・同意済みのときだけ）",
+      "title": "全機能の操作中に同一オリジン以外へのリクエストが 0 件（GitHub Copilot のとき、中継サーバーが送るのは有効・同意済みのときだけで、サインイン・状態の確認・Copilot CLI の起動に付随する通信は会議の内容を含まない）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-031\" tests/system/offline.test.js tests/system/speech.test.js tests/system/copilot-relay.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "8c129af",
       "last_run_at": "2026-10-24T10:58:21+09:00",
       "evidence": "work/runs/202610240820/logs/system-test/E2E-021-202610241057.log",
@@ -809,6 +809,12 @@
           "by": "test-designer",
           "change": "command: 'node --test --test-name-pattern=\"AC-031\" tests/system/offline.test.js tests/system/speech.test.js' -> 'node --test --test-name-pattern=\"AC-031\" tests/system/offline.test.js tests/system/speech.test.js tests/system/copilot-relay.test.js'; title: '全機能の操作中に同一オリジン以外へのリクエストが 0 件' -> '全機能の操作中に同一オリジン以外へのリクエストが 0 件（GitHub Copilot のとき、中継サーバーが送るのは有効・同意済みのときだけ）'",
           "reason": "AC-031 の追記（GitHub Copilot と FR-088 の例外）に合わせ、中継サーバーの実プロセスと SDK・CLI のスタブでのケースを追加"
+        },
+        {
+          "at": "2026-10-24T13:12:03+09:00",
+          "by": "test-designer",
+          "change": "title: '全機能の操作中に同一オリジン以外へのリクエストが 0 件（GitHub Copilot のとき、中継サーバーが送るのは有効・同意済みのときだけ）' -> '全機能の操作中に同一オリジン以外へのリクエストが 0 件（GitHub Copilot のとき、中継サーバーが送るのは有効・同意済みのときだけで、サインイン・状態の確認・Copilot CLI の起動に付随する通信は会議の内容を含まない）'",
+          "reason": "AC-031 の追記（A-235: Copilot CLI の起動に付随する通信 AC-516 の例外）に合わせ、copilot-relay.test.js の CLI の起動回数 0 の確認を、CLI・SDK の呼び出しに会議の内容を含まない確認に変更"
         }
       ]
     },
@@ -7253,11 +7259,11 @@
         "AC-509",
         "AC-511"
       ],
-      "title": "GitHub Copilot: 未設定の原因と次の行動・失敗時の自動復帰（AC-506）、接続キー画面の GitHub Copilot の分類（AC-508）、サインインのデバイスフローとサインアウト後の例外（AC-509）、サインアウト（CLI の資格情報を消さない・再起動後も保持。AC-511）。異常系含む",
+      "title": "GitHub Copilot: 未設定の原因と次の行動（SDK 未導入・Copilot CLI を起動できない＝導入・再導入の案内・未サインイン・トークン未設定）・失敗時の自動復帰（AC-506）、接続キー画面の GitHub Copilot の分類（AC-508）、サインインのデバイスフローとサインアウト後の例外（AC-509）、サインアウト（AC-511）。異常系含む",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-5(0[689]|11)\" tests/system/copilot.test.js tests/system/copilot-relay.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "8c129af",
       "last_run_at": "2026-10-24T10:58:21+09:00",
       "evidence": "work/runs/202610240820/logs/system-test/E2E-255-202610241057.log",
@@ -7273,6 +7279,12 @@
           "by": "test-designer",
           "change": "command: 'node --test --test-name-pattern=\"AC-50[689]\" tests/system/copilot.test.js' -> 'node --test --test-name-pattern=\"AC-5(0[689]|11)\" tests/system/copilot.test.js tests/system/copilot-relay.test.js'; title: 'GitHub Copilot: 未設定の原因と次の行動・失敗時の自動復帰（AC-506）、接続キー画面の GitHub Copilot の分類（AC-508）、サインインのデバイスフロー（AC-509）。異常系含む' -> 'GitHub Copilot: 未設定の原因と次の行動・失敗時の自動復帰（AC-506）、接続キー画面の GitHub Copilot の分類（AC-508）、サインインのデバイスフローとサインアウト後の例外（AC-509）、サインアウト（CLI の資格情報を消さない・再起動後も保持。AC-511）。異常系含む'; ac_ids: ['AC-506', 'AC-508', 'AC-509'] -> ['AC-506', 'AC-508', 'AC-509', 'AC-511']",
           "reason": "AC-509 の例外（このアプリでのサインアウト後）と AC-511 の BLOCKED 解除（Q-033）に合わせ、画面のケースと中継サーバーの実プロセス＋Copilot CLI・SDK のスタブのケースを追加"
+        },
+        {
+          "at": "2026-10-24T13:12:03+09:00",
+          "by": "test-designer",
+          "change": "title: 'GitHub Copilot: 未設定の原因と次の行動・失敗時の自動復帰（AC-506）、接続キー画面の GitHub Copilot の分類（AC-508）、サインインのデバイスフローとサインアウト後の例外（AC-509）、サインアウト（CLI の資格情報を消さない・再起動後も保持。AC-511）。異常系含む' -> 'GitHub Copilot: 未設定の原因と次の行動（SDK 未導入・Copilot CLI を起動できない＝導入・再導入の案内・未サインイン・トークン未設定）・失敗時の自動復帰（AC-506）、接続キー画面の GitHub Copilot の分類（AC-508）、サインインのデバイスフローとサインアウト後の例外（AC-509）、サインアウト（AC-511）。異常系含む'",
+          "reason": "AC-506 の変更（監査 A-235: 原因「Copilot CLI を起動できない」と導入・再導入の案内）に合わせ、copilot.test.js の AC-506 のケースに CLI を起動できない場合を追加"
         }
       ]
     },

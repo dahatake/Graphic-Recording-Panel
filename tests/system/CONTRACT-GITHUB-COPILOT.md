@@ -33,9 +33,9 @@ copilot: {
 - 接続テスト（`app.testLlmConnection()`）は選ばれたプロバイダーへの要求として送る。
 
 ## 未設定と原因の表示（AC-506・AC-313）
-- プロバイダーが `'copilot'` のとき、`await app.requestLlmEnable()` は、SDK を使えない・未サインイン（認証方式がサインイン）・トークン未設定（認証方式がトークン）なら `{ok:false, missing:[...]}`。`missing` の値は `'sdk'`・`'signin'`・`'token'`。`getLlmState()` は `status:'unconfigured'`・同じ `missing`。
-- ［設定］の `llm.enabled` の `status.text` に原因の文（「GitHub Copilot SDK が導入されていない」「GitHub にサインインしていない」「トークンが未設定」）を含み、`status.actions:[{id, label}]` に次の行動を持つ:
-  `'installGuide'`（導入の手順の案内。`href` または `text` が非空）、`'openApiKeys'`（接続キー画面の GitHub Copilot の分類を開く）。`app.runSettingsAction(id)` で実行する。`'openApiKeys'` の後は `getApiKeysDialog().selected === 'copilot'`。
+- プロバイダーが `'copilot'` のとき、`await app.requestLlmEnable()` は、SDK を使えない・Copilot CLI を起動できない・未サインイン（認証方式がサインイン）・トークン未設定（認証方式がトークン）なら `{ok:false, missing:[...]}`。`missing` の値は `'sdk'`（`copilot.unavailableReason:'sdk_missing'`）・`'cli'`（`copilot.unavailableReason:'cli_unavailable'`）・`'signin'`・`'token'`。`getLlmState()` は `status:'unconfigured'`・同じ `missing`。
+- ［設定］の `llm.enabled` の `status.text` に原因の文（「GitHub Copilot SDK が導入されていない」「Copilot CLI を起動できない」「GitHub にサインインしていない」「トークンが未設定」）を含み、`status.actions:[{id, label}]` に次の行動を持つ:
+  `'installGuide'`（導入の手順の案内。`href` または `text` が非空。原因が `'cli'` のときは SDK・Copilot CLI の導入・再導入の手順の案内で、`text`・`label` か `runSettingsAction('installGuide')` の戻り値の `text` に「Copilot CLI」を含む）、`'openApiKeys'`（接続キー画面の GitHub Copilot の分類を開く）。`app.runSettingsAction(id)` で実行する。`'openApiKeys'` の後は `getApiKeysDialog().selected === 'copilot'`。
 - 失敗の通知は `getState().message`（`text` は 80 文字以内で、原因の分類の語「認証」「上限」「接続」「タイムアウト」を含む）。
 - モックの LLM 向けの要求の失敗の形: 認証 `401 {ok:false, error:{code:'auth'}}`、利用の上限 `429 {ok:false, error:{code:'rate_limit'}}`、接続 `502 {ok:false, error:{code:'connection'}}`、タイムアウト（応答しない。PARAM-069=30 秒）、不正な応答 `200 '<<not json>>'`。
 
@@ -81,3 +81,4 @@ copilot: {
   呼び出しを `GRP_ST_SDK_LOG` に記録し、未定義の属性（サインアウト・資格情報の削除に当たるもの）へのアクセスも記録する。認証の状態は、CLI の資格情報の保管（`GRP_ST_CLI_CRED` のファイル）の有無。
 - Copilot CLI は `COPILOT_CLI_PATH` のスタブ（Windows は `.cmd`、それ以外は実行可能なシェルスクリプト）。引数を `GRP_ST_CLI_LOG` に記録する。`login` は、保管に資格情報があれば確認コードなしに終了コード 0、なければ確認コード（`TEST-0000`）を出して待つ。
 - 中継サーバーの保管先は一時フォルダー（`RELAY_LLM_STORE`・`LLM_CONFIG_PATH`）。GitHub のトークンの環境変数は空、`HTTP(S)_PROXY` は到達しない宛先（GitHub へ通信しない）。
+- AC-031（2026-10-24。監査 A-235）: 中継サーバーが Copilot CLI を起動すること自体は許される（AC-516 の付随する通信）。観察するのは、CLI の引数と SDK の送信（`send`）以外の呼び出しに会議の内容（発話の文）が含まれないこと、`send` が有効・同意済みのときだけであること、サインインの操作なしに `login` が呼ばれないこと。

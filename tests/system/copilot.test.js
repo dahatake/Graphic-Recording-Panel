@@ -149,9 +149,11 @@ const consentRecords = (env) => env.storage.dump().filter(([k]) => k.startsWith(
 
 // ======================= FR-087 =======================
 // FR-087 AC-506
-test('FR-087 AC-506: GitHub Copilot を選び SDK 未導入・未サインイン・トークン未設定のときは、［設定］に原因と次の行動が示され、有効にできず、図はルールベースのまま・LLM 向けの要求は 0 件', async () => {
+// 2026-10-24（監査 A-235）: 原因「Copilot CLI を起動できない」と、SDK・Copilot CLI の導入・再導入の手順の案内を追加
+test('FR-087 AC-506: GitHub Copilot を選び SDK 未導入・Copilot CLI を起動できない・未サインイン・トークン未設定のときは、［設定］に原因と次の行動が示され、有効にできず、図はルールベースのまま・LLM 向けの要求は 0 件', async () => {
   const cases = [
     { miss: 'sdk', copilot: { available: false, unavailableReason: 'sdk_missing' }, text: 'GitHub Copilot SDK が導入されていない', action: 'installGuide' },
+    { miss: 'cli', copilot: { available: false, unavailableReason: 'cli_unavailable' }, text: 'Copilot CLI を起動できない', action: 'installGuide', guide: /Copilot CLI/ },
     { miss: 'signin', copilot: { authMethod: 'signin', signedIn: false }, text: 'GitHub にサインインしていない', action: 'openApiKeys' },
     { miss: 'token', copilot: { authMethod: 'token', authMethodSource: 'ui', tokenConfigured: false }, text: 'トークンが未設定', action: 'openApiKeys' },
   ];
@@ -171,6 +173,13 @@ test('FR-087 AC-506: GitHub Copilot を選び SDK 未導入・未サインイン
     const act = (f.status.actions ?? []).find((a) => a.id === c.action);
     assert.ok(act && String(act.label ?? '').trim(), `${c.miss}: 次の行動 ${c.action}`);
     if (c.action === 'installGuide') assert.ok(String(act.href ?? act.text ?? '').trim(), '導入の手順の案内');
+    if (c.guide) {
+      // Copilot CLI を起動できないとき: SDK・Copilot CLI の導入・再導入の手順の案内（SDK 未導入の文だけではない）
+      assert.ok(!f.status.text.includes('GitHub Copilot SDK が導入されていない'), `${c.miss}: SDK 未導入とは区別される: ${f.status.text}`);
+      const shown = await app.runSettingsAction(c.action);
+      const guide = [act.text, act.label, shown?.text].filter(Boolean).join(' ');
+      assert.match(guide, c.guide, `${c.miss}: Copilot CLI の導入・再導入の案内: ${guide}`);
+    }
     app.commands['session.start'](); base.app.commands['session.start']();
     type(app, env, '予算の見直しが必要です'); type(base.app, base.env, '予算の見直しが必要です');
     await app.flushLlm();

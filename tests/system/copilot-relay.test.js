@@ -214,7 +214,7 @@ test('FR-088 AC-511 中継サーバー: サインアウトで Copilot CLI の資
 });
 
 // NFR-OFFLINE-001 AC-031（プロバイダーが GitHub Copilot のとき）
-test('NFR-OFFLINE-001 AC-031 GitHub Copilot: アプリの要求は同一オリジンの中継サーバーだけで、中継サーバーが GitHub Copilot へ送るのは有効・同意済みのときだけ。無効・未同意では 0 件で、ほかに CLI を起動するのはサインイン・状態の確認だけ', async () => {
+test('NFR-OFFLINE-001 AC-031 GitHub Copilot: アプリの要求は同一オリジンの中継サーバーだけで、中継サーバーが GitHub Copilot へ送るのは有効・同意済みのときだけ。無効・未同意では 0 件で、ほかの GitHub との通信（サインイン・状態の確認・Copilot CLI の起動に付随）は会議の内容を含まない', async () => {
   const saved = {};
   const external = [];
   for (const k of ['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource']) {
@@ -259,8 +259,14 @@ test('NFR-OFFLINE-001 AC-031 GitHub Copilot: アプリの要求は同一オリ�
     // アプリ自身の要求: 同一オリジン以外は 0 件
     assert.deepEqual(external, [], '同一オリジン以外への要求は 0 件');
     assert.ok(b.log.length >= 1 && b.log.every((c) => c.path.startsWith('/api/') && !c.path.startsWith('//')), '要求は同一オリジンの中継サーバーだけ');
-    // 中継サーバーが CLI を起動したのはサインイン以外にない（このテストではサインインの操作なし → 0 回）
-    assert.equal(stubs.cli().length, 0, 'サインインの操作をしない限り CLI のコマンドは呼ばれない');
+    // 中継サーバーの GitHub との通信は、サインイン・状態の確認（AC-507）と Copilot CLI の起動に付随する通信（AC-516）のほかは
+    // FR-062 の例外条件のときだけ。CLI の起動は許されるが、会議の内容を含まない（引数・SDK の送信以外の呼び出しに発話がない）
+    const spoken = ['予算の見直しが必要です', 'コストが高くて困った', '来月のリリース計画を決める', '担当者の割り当てを確認する', '次回の会議の日程を決める'];
+    const cliArgs = JSON.stringify(stubs.cli());
+    assert.ok(spoken.every((t) => !cliArgs.includes(t)), `Copilot CLI の起動に会議の内容を含まない: ${cliArgs}`);
+    const nonSend = JSON.stringify(stubs.sdk().filter((e) => e.ev !== 'send'));
+    assert.ok(spoken.every((t) => !nonSend.includes(t)), 'SDK の送信（同意済み）以外の呼び出しに会議の内容を含まない');
+    assert.equal(stubs.cli().filter((a) => a[0] === 'login').length, 0, 'サインインの操作をしない限り CLI の login は呼ばれない');
   } finally {
     for (const k of Object.keys(saved)) { if (saved[k]) Object.defineProperty(globalThis, k, saved[k]); else delete globalThis[k]; }
     if (b) await b.ref.current.stop();
