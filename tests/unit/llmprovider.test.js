@@ -187,3 +187,65 @@ test('FR-087 AC-506 異常系: 失敗の通知は 80 文字以内で原因の分
     assert.match(m.text, re); assert.ok(m.text.length <= 80); assert.ok(!m.text.includes('SECRET-PROBE'));
   }
 });
+
+// FR-087 AC-506（監査 A-240・A-242）: 中継サーバーの cli_unavailable は「接続」ではなく cli、不正な応答は invalid に分類する
+test('FR-087 AC-506: classifyLlmFailure は cli_unavailable（503）を cli、2xx の不正な応答を invalid に分類する', () => {
+  assert.equal(classifyLlmFailure({ status: 503, body: { ok: false, error: { code: 'cli_unavailable', message: 'spawn C:\\x\\copilot.exe ENOENT' } } }), 'cli');
+  assert.equal(classifyLlmFailure({ status: 503, body: { ok: false, error: { code: 'not_ready' } } }), 'connection');
+  assert.equal(classifyLlmFailure({ status: 200, body: null }), 'invalid');
+});
+
+// FR-087 AC-506 / FR-062 AC-312（例外。監査 D-1）: 有効なまま cli_unavailable で失敗すると自動で無効（同意の記録は残す）、
+// 確かめ直し（［設定］を開く・接続テスト）で解消が分かれば再同意なしで有効に戻る。周期的な確かめ直しはしない
+test('FR-087 AC-506 FR-062 AC-312: cli_unavailable で自動で無効・同意は残る。［設定］を開く／接続テストで確かめ直して再同意なしで戻る', async () => {
+  for (const trigger of ['settings', 'test']) {
+    const relay = relayMock({ provider: 'copilot' });
+    const base = relay.fn;
+    let broken = false;
+    relay.fn = async (q) => {
+      if (q.path === '/api/llm/status') {
+        relay.copilot = broken ? { ...READY_CP, available: false, unavailableReason: 'cli_unavailable' } : { ...READY_CP };
+        return base(q);
+      }
+      if (broken && !['/api/llm/provider'].includes(q.path)) { relay.calls.push(q); return { status: 503, body: { ok: false, error: { code: 'cli_unavailable', message: 'SECRET-PROBE C:\\PATH-PROBE\\copilot.exe' } } }; }
+      return base(q);
+    };
+    const { app, env } = await newApp({ options: { relay: relay.fn } });
+    await app.refreshCopilotStatus();
+    await app.requestLlmEnable(); await app.answerLlmConsent(true);
+    const rec = env.storage.getItem(CONSENT_KEY_COPILOT);
+    broken = true;
+    const r = await app.llmCall('/api/llm/extract', { input: 'x' });
+    assert.equal(r.ok, false);
+    const m = app.getState().message;
+    assert.match(m.text, /Copilot CLI を起動できない/); assert.doesNotMatch(m.text, /接続/);
+    assert.ok(m.text.length <= 80 && !m.text.includes('SECRET-PROBE') && !m.text.includes('PATH-PROBE'));
+    assert.equal(app.getLlmState().enabled, false, '自動で無効');
+    assert.equal(env.storage.getItem(CONSENT_KEY_COPILOT), rec, '同意の記録は残る');
+    const n = relay.llm().length;
+    assert.deepEqual(await app.llmCall('/api/llm/extract', { input: 'y' }), { ok: false, reason: 'disabled' });
+    assert.equal(relay.llm().length, n, '以後の要求は 0 件');
+    // まだ起動できない間の確かめ直しでは有効にならない
+    if (trigger === 'settings') { app.commands['settings.open'](); await app.flushLlm(); } else await app.testLlmConnection();
+    assert.equal(app.getLlmState().enabled, false);
+    assert.equal(app.getLlmConsent(), null);
+    if (trigger === 'settings') assert.match(field(app, 'llm.enabled').status.text, /Copilot CLI を起動できない/);
+    // 解消後の確かめ直しで再同意なしに有効へ
+    broken = false;
+    if (trigger === 'settings') { app.commands['settings.close']?.(); app.commands['settings.open'](); await app.flushLlm(); } else await app.testLlmConnection();
+    assert.equal(app.getLlmState().enabled, true, `${trigger}: 再同意なしで有効に戻る`);
+    assert.equal(app.getLlmConsent(), null);
+    assert.equal(env.storage.getItem(CONSENT_KEY_COPILOT), rec, '同意の記録は作り直さない');
+  }
+});
+
+// FR-062 AC-312（例外）: 同意の記録があり版が一致しても、起動時に中継サーバーが cli_unavailable を返す間は有効にしない
+test('FR-062 AC-312: 同意の記録があっても cli_unavailable の間は起動時に有効にならず、解消後の起動では有効', async () => {
+  for (const [cp, want] of [[{ ...READY_CP, available: false, unavailableReason: 'cli_unavailable' }, false], [READY_CP, true]]) {
+    const a = await mk({ provider: 'copilot', copilot: cp });
+    a.env.storage.setItem(CONSENT_KEY_COPILOT, JSON.stringify({ version: CONSENT_VERSION, at: 1, provider: 'copilot' }));
+    const b = await a.createApp({ ...a.env.options, relay: a.relay.fn });
+    assert.equal(b.getLlmState().enabled, want);
+    if (!want) { const r = await b.requestLlmEnable(); assert.deepEqual([r.ok, r.missing], [false, ['cli']]); assert.equal(b.getLlmConsent(), null); }
+  }
+});

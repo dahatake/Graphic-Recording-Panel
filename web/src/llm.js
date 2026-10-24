@@ -39,7 +39,9 @@ export function copilotMissing(cp) {
 export function classifyLlmFailure(res) {
   if (!res || res.error === 'timeout') return 'timeout';
   const code = String(res.body?.error?.code ?? '');
-  if (res.status >= 200 && res.status < 300) return 'invalid';
+  if (res.status >= 200 && res.status < 300) return 'invalid'; // 不正な応答（AC-506）
+  // 要求の途中で Copilot CLI を起動できなかった（中継サーバーの 503・cli_unavailable。AC-505・AC-518 (3)）。「接続」とは区別する
+  if (code === 'cli_unavailable') return 'cli';
   // 中継サーバーが PARAM-069 で打ち切った（CLI の起動・SDK の初期化を含む。AC-518）もタイムアウト
   if (res.status === 504 || code === 'upstream_timeout') return 'timeout';
   if (res.status === 401 || res.status === 403 || code === 'auth' || [401, 403].includes(res.body?.error?.upstreamStatus)) return 'auth';
@@ -77,6 +79,7 @@ export async function llmModule(ctx) {
       'llm.failed.auth': 'LLM 連携に失敗しました（認証）。通常の描画で表示しています', 'llm.failed.rateLimit': 'LLM 連携に失敗しました（利用の上限）。通常の描画で表示しています',
       'llm.failed.connection': 'LLM 連携に失敗しました（接続）。通常の描画で表示しています', 'llm.failed.timeout': 'LLM 連携に失敗しました（タイムアウト）。通常の描画で表示しています',
       'llm.failed.invalid': 'LLM 連携に失敗しました（不正な応答）。通常の描画で表示しています',
+      'llm.failed.cli': 'LLM 連携に失敗しました（Copilot CLI を起動できない）。LLM 連携を無効にし、通常の描画で表示しています',
     },
     en: {
       'llm.title': 'LLM integration', 'llm.enabled': 'Use LLM integration', 'llm.credential': 'Credential (API key / token)', 'llm.test': 'Connection test',
@@ -103,6 +106,7 @@ export async function llmModule(ctx) {
       'llm.failed.auth': 'LLM integration failed (authentication); showing the normal drawing', 'llm.failed.rateLimit': 'LLM integration failed (usage limit); showing the normal drawing',
       'llm.failed.connection': 'LLM integration failed (connection); showing the normal drawing', 'llm.failed.timeout': 'LLM integration failed (timeout); showing the normal drawing',
       'llm.failed.invalid': 'LLM integration failed (invalid response); showing the normal drawing',
+      'llm.failed.cli': 'LLM integration failed (Copilot CLI cannot be started); disabled it and showing the normal drawing',
     },
   });
 
@@ -275,6 +279,28 @@ export async function llmModule(ctx) {
     return { provider, missing: [...st.missing] };
   });
   api.refreshCopilotStatus = api.refreshLlmStatus;
+  // FR-087 AC-506（監査 A-240・A-242・D-1）/ FR-062 AC-312（例外）: 有効なまま Copilot CLI を起動できなかったとき。
+  // 自動で無効に戻し、「有効にできない」状態（原因 cli）を示す。同意の記録は消さない。状態は中継サーバーの原因から導き、保存しない。
+  function enterCliUnavailable() {
+    enabled = false; failed = false; consent = null; lastSent = null; generation++; // 処理中の要求の結果は反映しない
+    cp = { ...(cp ?? {}), available: false, unavailableReason: 'cli_unavailable' };
+    unconfigured = ['cli'];
+  }
+  // 確かめ直し（状態の取得）。契機は［設定］を開く・接続テスト・再読込だけ（周期的にはしない）。
+  // GitHub Copilot への同意の記録があり、使えない原因がなくなっていれば、再同意なしで有効に戻す（AC-513。AC-366 の撤回とは別）。
+  async function recheck() {
+    const st = await readStatus();
+    if (provider === 'copilot') {
+      if (!enabled && consentValid('copilot') && !st.missing.length && !st.reason) {
+        enabled = true; failed = false; unconfigured = null; consent = null; generation++;
+      } else if (enabled && st.missing.length) {
+        enabled = false; unconfigured = [...st.missing]; generation++;
+      } else if (!enabled && unconfigured && st.missing.length) {
+        unconfigured = [...st.missing];
+      }
+    }
+    return st;
+  }
   api.getCopilotStatus = () => (cp ? { ...cp, missing: copilotMissing(cp) } : null);
   api.flushLlm = async () => { while (pending.size) await Promise.allSettled([...pending]); };
   api.getLlmLastSent = () => (enabled && lastSent ? { ...lastSent } : null); // AC-311（マスキング後。キー・トークンを含まない）
@@ -289,7 +315,12 @@ export async function llmModule(ctx) {
       const res = await send('POST', path, { ...(body && typeof body === 'object' ? body : { input: text }), input: text }, REQUEST_TIMEOUT_MS);
       if (gen !== generation || !enabled) return { ok: false, reason: 'stale' };
       const ok = res.status >= 200 && res.status < 300 && res.body && typeof res.body === 'object';
-      if (!ok) { failed = true; say(`llm.failed.${classifyLlmFailure(res)}`); return { ok: false, reason: 'failed' }; }
+      if (!ok) {
+        const cause = classifyLlmFailure(res);
+        if (cause === 'cli') enterCliUnavailable(); else failed = true;
+        say(`llm.failed.${cause}`);
+        return { ok: false, reason: 'failed' };
+      }
       const recovered = failed; failed = false;
       if (recovered) notify();
       ctx.emit('llm:result', { path, body: res.body });
@@ -308,12 +339,15 @@ export async function llmModule(ctx) {
     return 'connection';
   }
   api.testLlmConnection = () => track((async () => {
+    // 「有効にできない」状態（同意の記録はある）では、接続テストを確かめ直しの契機にする（AC-506）
+    if (!enabled && provider === 'copilot' && consentValid('copilot')) await recheck();
     // 有効かつ同意済み（有効化は同意の後にだけ成立する）のときだけ中継へ送る。それ以外は中継への要求を 0 件にする
-    if (!enabled) { testResult = { ok: false, cause: 'consent' }; }
+    if (!enabled) { testResult = { ok: false, cause: provider === 'copilot' && consentValid('copilot') && unconfigured?.length ? 'unconfigured' : 'consent' }; }
     else if ((await readStatus()).missing.length) { testResult = { ok: false, cause: 'unconfigured' }; }
     else {
       const res = await send('POST', RESPONSES_PATH, { input: 'ping' }, TEST_TIMEOUT_MS);
       const ok = res.status >= 200 && res.status < 300 && res.body && typeof res.body === 'object';
+      if (!ok && res.body?.error?.code === 'cli_unavailable') enterCliUnavailable();
       testResult = ok ? { ok: true, cause: null } : { ok: false, cause: classify(res) };
     }
     const mk = testResult.ok ? 'llm.test.ok' : `llm.test.fail.${testResult.cause}`;
@@ -389,9 +423,15 @@ export async function llmModule(ctx) {
     }
     return baseKey(ev);
   };
-  // 設定画面を開いたときに、認証情報の「設定済み／未設定」とプロバイダーを中継サーバーから読む（LLM 向けの要求には数えない）
+  // 設定画面を開いたときに、認証情報の「設定済み／未設定」とプロバイダーを中継サーバーから読む（LLM 向けの要求には数えない）。
+  // ［設定］を開くことは AC-506 の確かめ直しの契機でもある（GitHub Copilot を選んでいるときは毎回読み直す）
   const baseOpen = ctx.api.commands['settings.open'];
-  ctx.registerCommand('settings.open', () => { baseOpen(); if (credentialSet == null && relay) track(readStatus().then(notify)); });
+  ctx.registerCommand('settings.open', () => {
+    baseOpen();
+    if (!relay) return;
+    if (provider === 'copilot') track(recheck().then(notify));
+    else if (credentialSet == null) track(readStatus().then(notify));
+  });
 
   // 起動時: 選ばれたプロバイダーへの同意が現在の版と一致し、設定（AC-313・AC-506）が揃っているときだけ有効に復帰する。それ以外は無効（再同意が必要）。
   if (relay && (consentValid('foundry') || consentValid('copilot'))) {
