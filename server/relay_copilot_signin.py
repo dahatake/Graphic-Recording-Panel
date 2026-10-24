@@ -17,6 +17,7 @@ import threading
 import time
 
 import relay_copilot as _cp
+import relay_proctree as _pt
 
 DEVICE_CODE_TTL_SEC = 900  # GitHub のデバイスコードの有効期限（15 分）
 START_WAIT_SEC = 20  # 確認コードが出力されるまで待つ上限
@@ -41,9 +42,9 @@ def cli_path():
 
 
 def login_argv():
-    """サインインのコマンド。引数に秘密を含めない。"""
+    """サインインのコマンド。引数に秘密を含めない。CLI の利用状況の送信と自動更新は無効にする（AC-516。SRC-075）。"""
     cli = cli_path()
-    return [cli, "login", "--device-code"] if cli else None
+    return [cli, "login", "--device-code"] + list(_cp.CLI_ARGS) if cli else None
 
 
 def _env():
@@ -77,14 +78,8 @@ def _reader(proc):
 
 
 def _kill(proc):
-    if proc is None:
-        return
-    try:
-        if proc.poll() is None:
-            proc.kill()
-            proc.wait(5)
-    except (OSError, subprocess.TimeoutExpired):
-        pass
+    """CLI をプロセスの木ごと止める（copilot.cmd が起動した子の node まで。AC-517）。"""
+    _pt.stop_popen(proc)
 
 
 def _outcome(rc, out):
@@ -128,10 +123,9 @@ def _start():
     if not argv:
         return {"ok": False, "result": "cli_unavailable"}
     cancel(internal=True)
-    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-    try:
+    try:  # 木ごと止められるように別のプロセスグループで起動する（AC-517）
         proc = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                env=_env(), cwd=_cp._workdir(), creationflags=flags)
+                                env=_env(), cwd=_cp._workdir(), **_pt.popen_kwargs())
     except (OSError, ValueError):
         return {"ok": False, "result": "cli_unavailable"}
     reader = threading.Thread(target=_reader, args=(proc,), name="copilot-signin", daemon=True)

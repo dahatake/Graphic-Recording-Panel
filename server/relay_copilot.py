@@ -10,29 +10,42 @@
 - セッションでは組み込みのツール・MCP を 1 つも使わせず（available_tools=[]）、権限の要求はすべて拒否し、
   作業フォルダーは空の専用フォルダー、システムメッセージは画面から来た instructions で置き換える（AC-504。端末・作業フォルダーの情報を送らない）。
 - 失敗は秘密を含まない分類（auth / rate_limit / connection / upstream_timeout / upstream_too_large / upstream_invalid）だけを返す。
+- Copilot CLI は、利用状況の送信（クライアント側のテレメトリ）と自動更新を無効にして起動する（引数 CLI_ARGS・環境変数
+  COPILOT_AUTO_UPDATE=false。AC-516。SRC-075）。止めるときはプロセスの木ごと止める（relay_proctree。AC-517）。
+- LLM 向けの要求は、CLI の起動・SDK の初期化・認証の状態の確認を含めて PARAM-069（timeout_sec）で打ち切り、タイムアウトの
+  エラーにする（AC-518）。打ち切った要求の後も、起動中の CLI・SDK の初期化は止めずに背景で続け（上限 START_LIMIT_SEC）、
+  済んだクライアントを次の要求で使い回す（毎回起動し直してタイムアウトし続けることを防ぐ。監査 U-1）。
 """
 import asyncio
 import concurrent.futures
 import hashlib
 import importlib
+import inspect
 import os
 import tempfile
 import threading
 import time
 
+import relay_config as _cfg
 from relay_config import max_bytes, timeout_sec
 from relay_upstream import UpstreamError
 import relay_llmstore as _store
+import relay_proctree as _pt
 
 SDK_MODULE = "copilot"
 STATUS_TTL_SEC = 10  # 状態の取得で CLI を何度も起動しないための短いキャッシュ
+START_LIMIT_SEC = 120  # 背景で続ける CLI の起動・SDK の初期化の上限。超えたら木ごと止めて cli_unavailable にする
+STATUS_START_WAIT_SEC = 30  # 状態の取得（要求の期限がない）で、CLI の起動を待つ上限
+STOP_GRACE_SEC = 5  # SDK の停止（stop）を待つ上限。過ぎたら木ごと止める
+# Copilot CLI の利用状況の送信と自動更新を無効にする引数（AC-516。SRC-075）。サインイン（login）の起動にも付ける
+CLI_ARGS = ("--disable-client-telemetry", "--no-auto-update")
 _DEFAULT_SYSTEM = "Reply with the requested content only."
 # CLI の子プロセスへ渡さない環境変数（ほかの連携の秘密）
 _CHILD_ENV_DROP = ("LLM_API_KEY", "AZURE_SPEECH_KEY", "SPEECH_KEY")
 _GITHUB_TOKEN_ENV = ("COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN")
 
 _lock = threading.RLock()
-_state = {"loop": None, "thread": None, "client": None, "key": None, "workdir": None}
+_state = {"loop": None, "thread": None, "client": None, "key": None, "pids": [], "pending": None, "workdir": None}
 _status_cache = {"key": None, "at": 0.0, "value": None}
 
 
@@ -112,6 +125,7 @@ def _child_env(cs=None):
         drop.update(_GITHUB_TOKEN_ENV)
     env = {k: v for k, v in os.environ.items() if k not in drop}
     env["COPILOT_GITHUB_TELEMETRY_DISABLED"] = "true"
+    env["COPILOT_AUTO_UPDATE"] = "false"  # CLI と第一者のプラグインの自動更新を無効にする（AC-516。SRC-075）
     return env
 
 
@@ -120,8 +134,40 @@ def _client_key(cs):
     return (cs.auth_method, tok)
 
 
-def _client_options(cs):
-    opts = {"working_directory": _workdir(), "env": _child_env(cs)}
+def _accepts(fn, name):
+    """呼び出し可能なものが引数 name（または **kwargs）を受け付けるか。"""
+    try:
+        params = inspect.signature(fn).parameters.values()
+    except (TypeError, ValueError):
+        return False
+    return any(p.name == name or p.kind == p.VAR_KEYWORD for p in params)
+
+
+def _connection(sdk, env):
+    """CLI を子プロセスで起動する SDK の接続（RuntimeConnection.for_stdio）に、CLI_ARGS と環境変数を付ける（AC-516）。
+    SDK がその形を持たなければ None。"""
+    conn_cls = getattr(sdk, "RuntimeConnection", None)
+    factory = getattr(conn_cls, "for_stdio", None) if conn_cls is not None else None
+    if factory is None:
+        return None
+    try:
+        conn = factory(args=list(CLI_ARGS))
+        conn.env = env
+    except Exception:  # noqa: BLE001 — 使えない版は従来の引数の形にする
+        return None
+    return conn
+
+
+def _client_options(cs, sdk=None):
+    env = _child_env(cs)
+    opts = {"working_directory": _workdir()}
+    conn = _connection(sdk, env) if sdk is not None else None
+    if conn is not None:
+        opts["connection"] = conn  # 接続の env と、クライアントの env の両方は渡せない（SDK の仕様）
+    else:
+        opts["env"] = env
+        if sdk is not None and _accepts(getattr(sdk, "CopilotClient", None), "cli_args"):
+            opts["cli_args"] = list(CLI_ARGS)
     if cs.auth_method == "token":
         opts["use_logged_in_user"] = False
         if cs.token:
@@ -133,45 +179,174 @@ def _client_options(cs):
 
 async def _astop(client):
     try:
-        await client.stop()
-    except Exception:  # noqa: BLE001
+        await asyncio.wait_for(client.stop(), STOP_GRACE_SEC)
+    except BaseException:  # noqa: BLE001 — 停止の失敗・時間切れは木ごと止めて片づける
         pass
 
 
-def _stop_client():
-    with _lock:
-        client, _state["client"], _state["key"] = _state["client"], None, None
+def _tree(pids):
+    """止める前に、CLI のプロセスとその子・孫のプロセス ID を集める（親が先に終わっても子を見失わない）。"""
+    found = []
+    for pid in pids or []:
+        for p in [pid] + _pt.descendants(pid):
+            if p not in found:
+                found.append(p)
+    return found
+
+
+def _stop_one(client, pids):
+    """SDK のクライアントを止め、CLI に由来するプロセスを木ごと終了させる（AC-517）。"""
+    tree = _tree(pids)
     if client is not None:
         try:
-            _run(_astop(client), 15)
+            _run(_astop(client), STOP_GRACE_SEC + 2)
         except UpstreamError:
             pass
+    for p in tree:
+        if _pt.alive(p):
+            _pt.kill_tree(p)
 
 
-def _get_client(sdk, cs):
-    """設定（認証方式・トークン）ごとに 1 つのクライアントを使い回す。起動できなければ cli_unavailable。"""
+def _stop_pending(pend, wait=STOP_GRACE_SEC):
+    """起動中の CLI を止める（AC-517）。起動を取り消し、起動を始めたときに pend に記録したクライアントから子のプロセスを
+    たどって木ごと止める。起動の途中で子のプロセスが後から現れることがあるので、上限（wait 秒）つきで待ちながら止める。
+    イベントループ（daemon のスレッド）の後始末に頼らないので、中継サーバーの終了の直前でも CLI が残らない。"""
+    fut = pend.get("future")
+    if fut is not None:
+        fut.cancel()
+    deadline = time.monotonic() + wait
+    while True:
+        for p in _pt.find_child_pids(pend.get("client")):
+            if p not in pend["pids"]:
+                pend["pids"].append(p)
+        tree = _tree(pend["pids"])
+        for p in tree:
+            if _pt.alive(p):
+                _pt.kill_tree(p)
+        # 取り消しの後も、クライアントを作った起動の処理は後始末（停止・木ごとの終了）を終えるまで待つ（上限つき）
+        done = fut is None or (fut.done() and (pend.get("client") is None or pend.get("finished")))
+        if (done and not any(_pt.alive(p) for p in tree)) or time.monotonic() >= deadline:
+            return
+        time.sleep(0.05)
+
+
+def _stop_client():
+    """使っているクライアントを止める。起動中のものは取り消し、子のプロセスを木ごと止める（AC-517）。"""
+    with _lock:
+        client, pids = _state["client"], _state["pids"]
+        _state.update({"client": None, "key": None, "pids": []})
+        pend, _state["pending"] = _state["pending"], None
+        if pend is not None:
+            pend["abandon"] = True
+    if client is not None or pids:
+        _stop_one(client, pids)
+    if pend is not None:
+        _stop_pending(pend)
+
+
+def _on_started(pend, fut):
+    """背景の起動が済んだとき: 待っている設定のままならクライアントを使い回せるように残し、そうでなければ止める。"""
+    if fut.cancelled() or fut.exception() is not None:
+        with _lock:
+            if _state["pending"] is pend:
+                _state["pending"] = None
+        return
+    client = fut.result()
+    pids = _pt.find_child_pids(client)
+    with _lock:
+        if _state["client"] is client:
+            return  # 待っていた要求がすでに使い始めた
+        # プロバイダーが GitHub Copilot のとき（または要求が待っているとき）だけ残す。Foundry に切り替わっていれば止める（AC-507）
+        keep = (not pend["abandon"] and _state["client"] is None
+                and (pend["waiters"] > 0 or _provider_is_copilot()))
+        if _state["pending"] is pend:
+            _state["pending"] = None
+        if keep:
+            _state.update({"client": client, "key": pend["key"], "pids": pids})
+            return
+    # イベントループのスレッドから同期で止めると待ち合わせが詰まるので、別のスレッドで止める
+    threading.Thread(target=_stop_one, args=(client, pids), name="copilot-stop", daemon=True).start()
+
+
+def _provider_is_copilot():
+    try:
+        return _cfg.load_copilot_settings().provider == "copilot"
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _begin_start(sdk, cs, key):
+    """CLI の起動・SDK の初期化を背景で始める。要求の打ち切りでは止めず、START_LIMIT_SEC を超えたら木ごと止める。
+    起動を始めたときにクライアントを pend に記録し、止めるときに子のプロセスをたどれるようにする（AC-517）。"""
+    opts = _client_options(cs, sdk)
+    pend = {"key": key, "abandon": False, "client": None, "pids": [], "waiters": 0}
+
+    async def start():
+        client = sdk.CopilotClient(**opts)
+        pend["client"] = client
+        try:
+            await asyncio.wait_for(client.start(), START_LIMIT_SEC)
+        except BaseException:
+            pids = _pt.find_child_pids(client)
+            tree = _tree(pids)
+            await _astop(client)
+            await asyncio.get_running_loop().run_in_executor(None, lambda: [_pt.kill_tree(p) for p in tree if _pt.alive(p)])
+            raise
+        finally:
+            pend["finished"] = True
+        return client
+
+    pend["future"] = fut = asyncio.run_coroutine_threadsafe(start(), _loop())
+    with _lock:
+        _state["pending"] = pend
+    fut.add_done_callback(lambda f: _on_started(pend, f))
+    return pend
+
+
+def _timeout_error():
+    return UpstreamError(504, "upstream_timeout", "GitHub Copilot の応答が時間内に完了しませんでした。")
+
+
+def _remaining(deadline):
+    return deadline - time.monotonic()
+
+
+def _get_client(sdk, cs, deadline=None):
+    """設定（認証方式・トークン）ごとに 1 つのクライアントを使い回す。起動できなければ cli_unavailable。
+    deadline（time.monotonic の時刻）までに起動が済まなければ upstream_timeout にするが、起動は背景で続ける（AC-518）。"""
     key = _client_key(cs)
     with _lock:
         if _state["client"] is not None and _state["key"] == key:
             return _state["client"]
-    _stop_client()
-
-    async def start():
-        client = sdk.CopilotClient(**_client_options(cs))
-        await client.start()
-        return client
-
-    try:
-        client = _run(start(), max(timeout_sec(), 30))
-    except Exception:  # noqa: BLE001 — 例外の文面にパス・資格情報が入りうるので分類だけ返す
-        raise UpstreamError(503, "cli_unavailable", "GitHub Copilot CLI を起動できません。")
+        pend = _state["pending"]
+        if pend is None or pend["key"] != key or pend["abandon"]:
+            pend = None
+    if pend is None:
+        _stop_client()
+        pend = _begin_start(sdk, cs, key)
+    fut = pend["future"]
+    wait = STATUS_START_WAIT_SEC if deadline is None else _remaining(deadline)
     with _lock:
-        _state["client"], _state["key"] = client, key
+        pend["waiters"] += 1
+    try:
+        client = fut.result(max(wait, 0))  # 打ち切っても fut は取り消さない（次の要求で使い回す）
+    except concurrent.futures.TimeoutError:
+        raise _timeout_error()
+    except (Exception, concurrent.futures.CancelledError):  # noqa: BLE001 — 文面にパス・資格情報が入りうるので分類だけ返す
+        raise UpstreamError(503, "cli_unavailable", "GitHub Copilot CLI を起動できません。")
+    finally:
+        with _lock:
+            pend["waiters"] -= 1
+    with _lock:
+        if _state["client"] is None and not pend["abandon"]:
+            _state.update({"client": client, "key": key, "pids": _pt.find_child_pids(client)})
+        if _state["pending"] is pend:
+            _state["pending"] = None
     return client
 
 
 def shutdown():
-    """中継サーバーの終了時に CLI を止める。"""
+    """中継サーバーの終了時に CLI を止める。起動の途中なら取り消し、子のプロセスを木ごと止める（AC-517）。"""
     _stop_client()
 
 
@@ -209,7 +384,7 @@ def set_signed_out(value):
         _status_cache.update({"key": None, "at": 0.0, "value": None})
 
 
-def probe(cs, check=True, ignore_signout=False):
+def probe(cs, check=True, ignore_signout=False, deadline=None):
     """{available, unavailableReason, signedIn, account}。会議の内容は送らない（AC-507 の例外の範囲）。
     check が偽のときは Copilot CLI を起動せず、SDK の導入の有無だけを返す（signedIn は None = 未確認。Q-034）。
     このアプリでサインアウトしているとき（認証方式がサインイン）は、CLI のサインインが残っていても未サインインにする
@@ -219,42 +394,60 @@ def probe(cs, check=True, ignore_signout=False):
         return {"available": False, "unavailableReason": "sdk_missing", "signedIn": False, "account": None}
     if not check:
         return {"available": True, "unavailableReason": None, "signedIn": None, "account": None}
-    value = _probe_cli(sdk, cs)
+    value = _probe_cli(sdk, cs, deadline)
     if not ignore_signout and cs.auth_method != "token" and value["signedIn"] and signed_out():
         value.update({"signedIn": False, "account": None})
     return value
 
 
-def _probe_cli(sdk, cs):
+def _probe_cli(sdk, cs, deadline=None):
+    """CLI に認証の状態を確かめる。deadline（LLM 向けの要求の期限）があれば、起動・確認がそれまでに済まないとき
+    upstream_timeout を送出する（AC-518）。期限がない状態の取得では、時間内に起動しなければ cli_unavailable を返す。"""
     key = (_client_key(cs), cs.provider)
     with _lock:
         if _status_cache["key"] == key and time.time() - _status_cache["at"] < STATUS_TTL_SEC:
             return dict(_status_cache["value"])
+    cache = True
     try:
-        client = _get_client(sdk, cs)
-    except UpstreamError:
+        client = _get_client(sdk, cs, deadline)
+    except UpstreamError as e:
+        if deadline is not None and e.code == "upstream_timeout":
+            raise
         value = {"available": False, "unavailableReason": "cli_unavailable", "signedIn": False, "account": None}
+        cache = e.code != "upstream_timeout"  # 起動中（背景で続けている）のときは覚えない
     else:
         value = {"available": True, "unavailableReason": None, "signedIn": False, "account": None}
+        limit = max(timeout_sec(), 20) if deadline is None else _remaining(deadline)
         try:
-            auth = _run(client.get_auth_status(), max(timeout_sec(), 20))
+            if limit <= 0:
+                raise _timeout_error()
+            auth = _run(client.get_auth_status(), limit)
             signed = bool(_field(auth, "is_authenticated", "isAuthenticated"))
             login = _field(auth, "login") if signed else None
             value["signedIn"] = signed
             value["account"] = login if isinstance(login, str) and login.strip() else None
+        except UpstreamError as e:
+            if deadline is not None and e.code == "upstream_timeout":
+                raise
+            cache = False
         except Exception:  # noqa: BLE001
             pass
         if cs.provider != "copilot":
             _stop_client()  # Foundry を使っている間は CLI を動かし続けない（AC-507）
+    if not cache:
+        if cs.provider != "copilot":
+            _stop_client()
+        return value
     with _lock:
         _status_cache.update({"key": key, "at": time.time(), "value": dict(value)})
     return value
 
 
 def readiness(cs, probed):
-    """LLM 連携を有効にできない原因（'sdk' / 'signin' / 'token'。AC-506 の画面の原因の分類）。"""
+    """LLM 連携を有効にできない原因（'sdk' / 'cli' / 'signin' / 'token'。AC-506 の画面の原因の分類）。
+    SDK は導入済みで Copilot CLI を起動できないときは 'cli'（SDK 未導入の 'sdk' と区別する）。"""
     if not probed["available"]:
-        return ["sdk"]
+        return ["cli"] if probed.get("unavailableReason") == "cli_unavailable" else ["sdk"]
     if cs.auth_method == "token":
         return [] if cs.token else ["token"]
     return [] if probed["signedIn"] else ["signin"]
@@ -297,15 +490,21 @@ def _content_of(event):
     return content if isinstance(content, str) else None
 
 
-def generate(cs, instructions, prompt):
-    """instructions（システム）と prompt（送信内容）だけを Copilot のモデルへ送り、応答の文字を返す。"""
+def generate(cs, instructions, prompt, deadline=None):
+    """instructions（システム）と prompt（送信内容）だけを Copilot のモデルへ送り、応答の文字を返す。
+    deadline（time.monotonic の時刻。既定は今から PARAM-069 秒）までに、CLI の起動・SDK の初期化を含めて済まなければ
+    upstream_timeout（AC-518）。"""
     sdk = load_sdk()
     if sdk is None:
         raise UpstreamError(503, "sdk_missing", "GitHub Copilot SDK が導入されていません。")
     if cs.auth_method == "token" and not cs.token:
         raise UpstreamError(503, "token_missing", "GitHub Copilot のトークンが設定されていません。")
-    client = _get_client(sdk, cs)
-    total = timeout_sec()
+    if deadline is None:
+        deadline = time.monotonic() + timeout_sec()
+    client = _get_client(sdk, cs, deadline)
+    total = _remaining(deadline)
+    if total <= 0:
+        raise _timeout_error()
 
     async def go():
         session = await client.create_session(**session_options(cs, instructions))
@@ -318,7 +517,7 @@ def generate(cs, instructions, prompt):
                 pass
 
     try:
-        event = _run(asyncio.wait_for(go(), total), total + 2)
+        event = _run(asyncio.wait_for(go(), total), total + 0.5)
     except Exception as e:  # noqa: BLE001
         err = classify(e)
         if err.code == "connection":
