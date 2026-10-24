@@ -348,6 +348,19 @@ async function renderArrangedPng(scenes, model, canvasFactory, parts = null, ima
   return canvas.toBytes();
 }
 
+// FR-026 AC-089（Q-029）: 保存（PNG・PDF）の時系列の内容を、画面の詳細度に合わせた「見出しと行」の並びにする。
+// 大項目: トピックの題名だけ（行なし）。中項目: トピックの題名と、その下にシーンの見出し。詳細: シーンの見出しと要点（そのまま）。
+export function scenesForDetail(scenes, level, topics) {
+  if (level === 'detail' || !topics?.length) return scenes;
+  const byId = new Map(scenes.map((s) => [s.id, s]));
+  return topics.map((tp) => ({
+    id: tp.id,
+    heading: tp.title,
+    points: level === 'middle' ? tp.sceneIds.filter((id) => byId.has(id)).map((id) => ({ id, text: byId.get(id).heading })) : [],
+    relations: [],
+  }));
+}
+
 // ---- 実ブラウザの既定（注入がないとき） ----
 function browserCanvasFactory() {
   const doc = globalThis.document;
@@ -397,7 +410,8 @@ export function exportModule(ctx) {
     ctx.change((s) => ctx.setMessage(s.viewMode === '3d' ? 'msg.save3d' : 'msg.saved'));
     return { ok: true };
   }
-  const scenes = () => ctx.state.scenes;
+  // FR-026 AC-089（Q-029）: PNG・PDF の時系列の内容は、画面で選んでいる詳細度に従う（SVG は画面と同じ renderSvg を通る）
+  const scenes = () => scenesForDetail(ctx.state.scenes, ctx.api.getDetailLevel?.() ?? 'detail', ctx.api.getTopics?.() ?? null);
   // 整理の表示を選んでいるときは、その配置（軸・区分・未分類を含む）で出力する（AC-089）
   const arranged = () => (ctx.state.displayMode === 'arrange' && ctx.api.getArrangement ? ctx.api.getArrangement() : null);
   // 保存する SVG は風の配色で出す（強制カラーのシステム色への変換は画面の表示だけ。AC-456 の指摘）
@@ -406,11 +420,17 @@ export function exportModule(ctx) {
   // FR-077 AC-419: 現在の描画スタイル（上部・［設定］で選んだもの）の見た目で保存する
   const look = () => exportLook(ctx.api.getDrawStyleSpec?.(ctx.api.getDrawStyle?.()) ?? null);
   // FR-076 AC-467: 吹き出し型で感情語を含むトピックの吹き出しは、保存でも画面の図と同じギザギザ
-  const emotion = () => emotionBalloonSceneIds(ctx.api, scenes());
-  ctx.registerCommand('save.pdf', () => run('pdf', 'application/pdf', () => buildPdf(scenes(), { title: ctx.t('app.title'), arrange: arranged(), parts: drawn(), look: look(), emotion: emotion() })));
+  const emotion = () => {
+    const ids = emotionBalloonSceneIds(ctx.api, ctx.state.scenes);
+    if (!ids?.size) return ids;
+    const out = new Set(ids);
+    for (const tp of ctx.api.getTopics?.() ?? []) if (tp.sceneIds.some((id) => ids.has(id))) out.add(tp.id); // 大項目・中項目の行はトピックの id
+    return out;
+  };
+  ctx.registerCommand('save.pdf', () => run('pdf', 'application/pdf', () => buildPdf(arranged() ? ctx.state.scenes : scenes(), { title: ctx.t('app.title'), arrange: arranged(), parts: drawn(), look: look(), emotion: emotion() })));
   ctx.registerCommand('save.png', () => run('png', 'image/png', async () => {
     const factory = ctx.options.canvasFactory ?? browserCanvasFactory();
     if (!factory) throw new Error('no canvas');
-    return renderPng(scenes(), factory, { arrange: arranged(), rpg: ctx.api.getRpgMap?.() ?? null, parts: drawn(), imageFactory: ctx.options.imageFactory ?? null, look: look(), emotion: emotion() });
+    return renderPng(arranged() ? ctx.state.scenes : scenes(), factory, { arrange: arranged(), rpg: ctx.api.getRpgMap?.() ?? null, parts: drawn(), imageFactory: ctx.options.imageFactory ?? null, look: look(), emotion: emotion() });
   }));
 }
