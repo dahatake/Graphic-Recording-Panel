@@ -16,7 +16,7 @@ export const MAX_DEPLOYMENT_LENGTH = 64; // PARAM-096
 const SOURCES = ['ui', 'env', 'file'];
 const ICONS = { set: '●', unset: '○', unavailable: '▲', checking: '…' };
 const CATEGORIES = ['foundry', 'copilot', 'azureSpeech']; // FR-084 AC-483: Foundry・GitHub Copilot・Azure Speech の順
-const ALLOWED_WHILE_OPEN = /^(apiKeys|foundry|azureSpeech|copilot)\./;
+const ALLOWED_WHILE_OPEN = /^((apiKeys|foundry|azureSpeech|copilot)\.|settings\.close$)/;
 const ALERT_RE = /(invalid|failed|unavailable|envManaged|deleteFailed|empty|blocked|expired|denied|copyFailed|test\.(unconfigured|auth|network|timeout))/;
 // 制御文字（NUL・C0・DEL）を含む値は拒否する
 const hasControl = (s) => { for (const ch of s) { const c = ch.codePointAt(0); if (c < 0x20 || c === 0x7f) return true; } return false; };
@@ -328,7 +328,15 @@ export function apiKeysModule(ctx) {
 
   // ---- 開閉・分類・フォーカス ----
   const baseFocusCommand = api.focusCommand;
+  // 2026-10-25: 接続キーは［設定］の分類。piKeys.open は［設定］を開いて「接続キー」の分類を選ぶ（リボンの独立したボタンは廃止）
+  const baseSettingsClose = ctx.api.commands['settings.close'];
   function openDialog() {
+    if (open) return { ok: true };
+    ctx.api.commands['settings.open']?.();
+    api.selectSettingsCategory('apiKeys');
+    return { ok: open };
+  }
+  function activate() {
     if (open) return { ok: true };
     open = true; selected = 'foundry'; focusId = 'apiKeys.category.foundry'; foundryInput = ''; clearCfgInputs(); api.resetCopilotInputs?.();
     ctx.change((s) => { delete s.focusReturn; });
@@ -336,15 +344,27 @@ export function apiKeysModule(ctx) {
     if (relay) { void api.refreshFoundryKeyStatus(); void api.refreshAzureSpeechStatus?.(); void api.refreshCopilotKeysStatus?.(); }
     return { ok: true };
   }
-  function closeDialog() {
-    if (!open) return { ok: false, reason: 'closed' };
+  function deactivate() {
     open = false; selected = 'foundry'; focusId = null; foundryInput = ''; foundryDlg = null; clearCfgInputs(); api.resetCopilotInputs?.();
     api.setAzureSpeechKeyInput?.(''); api.setAzureSpeechEndpointInput?.(''); // 保存していない入力は破棄する（AC-484・AC-491）
-    baseFocusCommand?.('apiKeys.open');
-    ctx.change((s) => { s.focusReturn = 'apiKeys.open'; });
+  }
+  function closeDialog() {
+    if (!open) return { ok: false, reason: 'closed' };
+    deactivate();
+    baseSettingsClose?.(); // 閉じるときは［設定］のダイアログごと閉じる
+    baseFocusCommand?.('settings.open');
+    ctx.change((s) => { s.focusReturn = 'settings.open'; });
     say('keys.closed');
     return { ok: true };
   }
+  const baseSelectCategory = api.selectSettingsCategory;
+  api.selectSettingsCategory = (id) => {
+    const r = baseSelectCategory(id);
+    if (!r.ok) return r;
+    if (id === 'apiKeys') activate(); else if (open) { deactivate(); notify(); }
+    return r;
+  };
+  ctx.registerCommand('settings.close', () => (open ? closeDialog() : baseSettingsClose()));
   ctx.registerCommand('apiKeys.open', openDialog);
   ctx.registerCommand('apiKeys.close', closeDialog);
   ctx.registerKey({ key: 'h', ctrl: true, alt: true, shift: true, command: 'apiKeys.open' });
@@ -377,7 +397,7 @@ export function apiKeysModule(ctx) {
   api.getFocus = () => {
     const b = baseGetFocus?.();
     // 閉じた後は「接続キー」の操作へ戻る（コマンド名で観察できる。文字列としては従来と同じ）
-    return b === 'command:apiKeys.open' ? { command: 'apiKeys.open', toString: () => b } : b;
+    return b === 'command:settings.open' ? { command: 'settings.open', toString: () => b } : b;
   };
 
   // ---- キーボード ----

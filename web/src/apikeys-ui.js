@@ -140,7 +140,7 @@ export function mountApiKeysUI(app, doc = globalThis.document) {
   app.on('change', () => {
     const was = dlg.open;
     sync();
-    if (was && !dlg.open) doc.querySelector('#toolbar [data-command="apiKeys.open"]')?.focus?.();
+    if (was && !dlg.open) doc.querySelector('#toolbar [data-command="settings.open"]')?.focus?.();
   });
   sync();
 }

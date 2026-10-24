@@ -2,16 +2,16 @@
 // アイコンはインライン SVG のパス（Fluent System Icons 風の 20px・線画）。外部の資産は使わない。
 import { LAYOUT_TYPE_IDS, LAYOUT_TYPE_META } from './layouttypes.js';
 
-// NFR-UX-011 AC-459〜462: 作業順（左→右）の 8 グループ [見出しの i18n キー, コマンド名, グループ ID]。1 グループは PARAM-092（7）個以内。
+// NFR-UX-011 AC-459〜462: 作業順（左→右）の 9 グループ [見出しの i18n キー, コマンド名, グループ ID]。1 グループは PARAM-092（12）個以内。
 // DOM 順＝フォーカス順＝視覚順。取り消せない data.reset はデータの末尾。
 export const GROUPS = [
   ['toolbar.import', ['import.file'], 'import'],
-  // FR-084: 画面最上部の「接続キー」（Foundry・Azure Speech のキー）。取り込みと同じ形（アイコン＋常時の説明文字列）
-  ['toolbar.apiKeys', ['apiKeys.open'], 'apiKeys'],
   ['toolbar.session', ['session.start', 'session.pause', 'session.resume', 'session.stop', 'session.nextScene', 'input.focus'], 'session'],
   // FR-077: 画風（描画スタイル。〇〇風）の一覧を開くボタンは「表示」の末尾（一覧・選択は stylepicker.js）
   ['toolbar.view', ['view.2d', 'view.3d', 'view.timeline', 'view.arrange', 'detail.next', 'drawStyle.pick'], 'view'],
-  ['toolbar.layoutType', [...LAYOUT_TYPE_IDS.map((id) => `layoutType.${id}`), 'layoutType.clear', 'settings.open'], 'layoutType'],
+  ['toolbar.layoutType', [...LAYOUT_TYPE_IDS.map((id) => `layoutType.${id}`), 'layoutType.clear'], 'layoutType'],
+  // FR-030 AC-519・FR-084: ［設定］を開く＋［設定］パネルの項目（決め方・音のミュート・音量・再配置の周期）。型のチェックはレイアウト型、描画スタイルは表示に 1 つだけ（settings.js・ribbonsettings.js）
+  ['toolbar.settings', ['settings.open', 'settings.layoutMode', 'sound.toggleMute', 'sound.setVolume', 'arrange.setInterval'], 'settings'],
   ['toolbar.presentation', ['presentation.start', 'presentation.pause', 'presentation.resume', 'presentation.stop', 'presentation.prev', 'presentation.next'], 'presentation'],
   // FR-078: 画像生成 AI 向けのプロンプトのコピーは、図の書き出し（PNG・SVG・PDF）の後ろ
   ['toolbar.export', ['save.png', 'save.svg', 'save.pdf', 'prompt.copy'], 'export'],
@@ -23,7 +23,7 @@ export const GROUPS = [
 const LABELS = {
   'session.start': ['記録開始', 'Record'], 'session.pause': ['一時停止', 'Pause'], 'session.resume': ['再開', 'Resume'],
   'session.stop': ['記録終了', 'Stop'], 'session.nextScene': ['次シーン', 'Next scene'], 'input.focus': ['入力', 'Type'],
-  'import.file': ['取り込み', 'Import'], 'apiKeys.open': ['接続キー', 'API Keys'],
+  'import.file': ['取り込み', 'Import'],
   'save.png': ['PNG保存', 'Save PNG'], 'save.svg': ['SVG保存', 'Save SVG'], 'save.pdf': ['PDF保存', 'Save PDF'],
   'lang.ja': ['日本語', 'Japanese'], 'lang.en': ['英語', 'English'],
   'view.2d': ['2D表示', '2D view'], 'view.3d': ['3D表示', '3D view'], 'view.timeline': ['時系列', 'Timeline'], 'view.arrange': ['整理', 'Arrange'], 'detail.next': ['詳細度', 'Detail'],
@@ -32,6 +32,8 @@ const LABELS = {
   'presentation.stop': ['発表終了', 'End talk'], 'presentation.prev': ['前へ', 'Previous'], 'presentation.next': ['次へ', 'Next'],
   'layout.tile': ['タイル', 'Tile'], 'layout.focus': ['集中', 'Focus'], 'layout.maximize': ['最大化', 'Maximize'], 'layout.reset': ['配置初期化', 'Reset layout'],
   'data.reset': ['データ初期化', 'Reset data'], 'file.save': ['ファイル保存', 'Save file'], 'file.load': ['ファイル読込', 'Load file'],
+  // FR-030 AC-519: ［設定］パネルの項目（ribbonsettings.js）。ラベルは ja 全角 6・en 半角 12 以内
+  'settings.layoutMode': ['決め方', 'Mode'], 'sound.toggleMute': ['ミュート', 'Mute'], 'sound.setVolume': ['音量', 'Volume'], 'arrange.setInterval': ['周期', 'Interval'],
   // FR-027: レイアウト型のアイコンの名称ラベル（label.layoutType.clear・label.settings.open は settings.js が文言を足す）
   ...Object.fromEntries(LAYOUT_TYPE_IDS.map((id) => [`layoutType.${id}`, [LAYOUT_TYPE_META[id].ja.label, LAYOUT_TYPE_META[id].en.label]])),
 };
@@ -57,7 +59,8 @@ const P = {
   theme: 'M10 2a8 8 0 1 0 0 16ZM10 2v16',
   present: 'M3 3h14v10H3zM10 13v4M6 17h8',
   reset: 'M4 10a6 6 0 1 1 2 4.5M4 5v5h5',
-  tile: 'M3 3h14v14H3zM10 3v14M3 10h14',
+  tile: 'M3 3h6v6H3zM11 3h6v6h-6zM3 11h6v6H3zM11 11h6v6h-6z',
+  import: 'M10 3v9M6.500 8.500L10 12l3.500-3.500M4 14v3h12v-3',
   detail: 'M3 5h14M3 10h10M3 15h6',
   focus: 'M3 3h10v14H3zM13 3h4v14h-4zM13 10h4',
   maximize: 'M4 4h12v12H4zM4 7h12',
@@ -67,18 +70,21 @@ const P = {
   key: 'M6.500 8a3.500 3.500 0 1 1 3.300 3.500L9 12.500H7.500V14H6v1.500H3.500V13L8.600 8.800A3.500 3.500 0 0 1 6.500 8ZM12.500 6.500h.01',
   palette: 'M10 2a8 8 0 1 0 0 16c1 0 1.5-.7 1.5-1.5 0-1-.8-1.4-.8-2.2 0-.8.7-1.3 1.5-1.3H14a4 4 0 0 0 4-4c0-3.900-3.600-7-8-7ZM5 9.500a1.200 1.200 0 1 0 2.400 0 1.200 1.200 0 1 0-2.400 0M7.800 5.800a1.200 1.200 0 1 0 2.400 0 1.200 1.200 0 1 0-2.400 0M11.800 5.800a1.200 1.200 0 1 0 2.400 0 1.200 1.200 0 1 0-2.400 0',
 };
+export const KEY_ICON = P.key; // ［設定］の「接続キー」分類のアイコン（錠・鍵を示す既知の図）
 export const ICONS = {
   'session.start': P.rec, 'session.pause': P.pause, 'session.resume': P.play, 'session.stop': P.stop,
-  'session.nextScene': P.next, 'input.focus': P.edit, 'import.file': P.fileLoad, 'apiKeys.open': P.key,
-  'save.png': P.save, 'save.svg': P.save, 'save.pdf': P.save, 'lang.ja': P.lang, 'lang.en': P.lang,
-  'view.2d': P.square, 'view.3d': P.cube, 'theme.toggle': P.theme, 'drawStyle.pick': P.palette, 'view.timeline': P.prev, 'view.arrange': P.tile, 'detail.next': P.detail,
-  'presentation.start': P.present, 'presentation.pause': P.pause, 'presentation.resume': P.play,
-  'presentation.stop': P.stop, 'presentation.prev': P.prev, 'presentation.next': P.next, 'layout.reset': P.reset,
-  'layout.tile': P.tile, 'layout.focus': P.focus, 'layout.maximize': P.maximize,
+  'session.nextScene': P.next, 'input.focus': P.edit, 'import.file': P.import,
+  'save.png': `M9 10h2`, 'save.svg': `M8 10l1.500 2L11 10`, 'save.pdf': `M8 10h4M8 12h4`, 'lang.ja': P.lang, 'lang.en': `M5 5h10`,
+  'view.2d': P.square, 'view.3d': P.cube, 'theme.toggle': P.theme, 'drawStyle.pick': P.palette, 'view.timeline': 'M3 10h14M6 6v8M10 4v12M14 7v6', 'view.arrange': P.tile, 'detail.next': P.detail,
+  // 発表（画面の枠＋記号）は記録（記号だけ）と別の形にする（同じ機能でない項目のアイコンを重ねない）
+  'presentation.start': P.present, 'presentation.pause': 'M2 3h16v11H2zM8 6v5M12 6v5M7 17h6', 'presentation.resume': 'M2 3h16v11H2zM8 5.500v6l5-3zM7 17h6',
+  'presentation.stop': 'M2 3h16v11H2zM7.500 6.500h5v5h-5zM7 17h6', 'presentation.prev': 'M2 3h16v11H2zM12 5.500l-4 3 4 3zM7 17h6', 'presentation.next': 'M2 3h16v11H2zM8 5.500l4 3-4 3zM7 17h6', 'layout.reset': P.reset,
+  'layout.tile': 'M3 3h14v14H3zM3 7h14M3 13h14M10 7v10', 'layout.focus': P.focus, 'layout.maximize': P.maximize,
   'data.reset': P.trash, 'file.save': P.fileSave, 'file.load': P.fileLoad,
+  'settings.layoutMode': 'M3 4h14M3 10h14M3 16h14M7 2v4M13 8v4M9 14v4', 'sound.toggleMute': 'M3 8h3l4-3v10l-4-3H3zM13 8l4 4M17 8l-4 4', 'sound.setVolume': 'M3 8h3l4-3v10l-4-3H3zM13 7.500a3.500 3.500 0 0 1 0 5M15 5a7 7 0 0 1 0 10', 'arrange.setInterval': 'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14ZM10 6v4l3 2',
   // FR-078: プロンプトのコピー（2 枚重ねの紙。ラベル・ツールチップの文言は imageprompt.js）
   'prompt.copy': 'M7 3h9v11H7zM4 6v11h9',
-  'layoutType.clear': P.reset, 'settings.open': 'M10 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM10 2v2M10 16v2M2 10h2M16 10h2M4.500 4.500l1.500 1.500M14 14l1.500 1.500M4.500 15.500L6 14M14 6l1.500-1.500',
+  'layoutType.clear': `M8 8l4 4M12 8l-4 4`, 'settings.open': 'M10 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM10 2v2M10 16v2M2 10h2M16 10h2M4.500 4.500l1.500 1.500M14 14l1.500 1.500M4.500 15.500L6 14M14 6l1.500-1.500',
   ...Object.fromEntries(LAYOUT_TYPE_IDS.map((id) => [`layoutType.${id}`, LAYOUT_TYPE_META[id].icon])),
 };
 
@@ -92,7 +98,6 @@ const TIP = {
   'input.focus': ['テキスト入力欄に移動して文字で入力します', 'Jump to the text field to type input'],
   'import.file': ['テキスト・字幕のファイルを選んで、発話として取り込みます', 'Pick a text or caption file and import it as utterances'],
   'save.png': ['図を PNG 画像として保存します', 'Save the diagram as a PNG image'],
-  'apiKeys.open': ['Microsoft Foundry・Azure Speech のキーと GitHub Copilot の認証を登録・変更・削除する画面を開きます', 'Open the screen to register, change or delete the Microsoft Foundry and Azure Speech keys and the GitHub Copilot sign-in'],
   'save.svg': ['図を SVG ファイルとして保存します', 'Save the diagram as an SVG file'],
   'save.pdf': ['図を PDF として保存します', 'Save the diagram as a PDF'],
   'lang.ja': ['表示言語を日本語に切り替えます', 'Switch the display language to Japanese'],
@@ -117,6 +122,10 @@ const TIP = {
   'data.reset': ['確認のうえ、議論の内容と保存されたセッションを消去して初期状態に戻します。元に戻せません', 'After confirmation, erase the discussion and the saved session and return to the initial state. Cannot be undone'],
   'file.save': ['議論の途中のデータを 1 つのセッションファイルとして端末に保存します', 'Save the discussion in progress as one session file on this device'],
   'file.load': ['保存したセッションファイルを読み込んで議論の途中を復元します', 'Load a saved session file to restore the discussion in progress'],
+  'settings.layoutMode': ['レイアウト型の決め方（自動・固定）を切り替えます', 'Switch how the layout type is decided (auto or fixed)'],
+  'sound.toggleMute': ['RPG風の音（BGM・効果音）のミュートを切り替えます', 'Toggle the mute of the RPG-style sound (BGM and effects)'],
+  'sound.setVolume': ['RPG風の音の音量（0〜100）を設定します', 'Set the RPG-style sound volume (0 to 100)'],
+  'arrange.setInterval': ['図を再配置する周期（0〜300 秒。0 は会話の区切り）を設定します', 'Set how often the diagram is rearranged (0 to 300 s; 0 = at conversation breaks)'],
   ...Object.fromEntries(LAYOUT_TYPE_IDS.map((id) => [`layoutType.${id}`, [LAYOUT_TYPE_META[id].ja.tip, LAYOUT_TYPE_META[id].en.tip]])),
 };
 export const tooltipId = (command) => `tooltip-${command.replace(/[^a-zA-Z0-9]+/g, '-')}`;
@@ -134,9 +143,8 @@ export function commandBarModule(ctx) {
   });
   ctx.i18n.addStrings({
     ja: {
-      'toolbar.import': '取り込み', 'toolbar.export': '図の書き出し', 'toolbar.environment': '画面・環境', 'toolbar.apiKeys': '接続キー',
+      'toolbar.import': '取り込み', 'toolbar.export': '図の書き出し', 'toolbar.environment': '画面・環境', 'toolbar.settings': '設定',
       'import.description': 'テキストファイル（.txt）・字幕ファイル（.vtt）を取り込みます',
-      'apiKeys.description': 'Foundry・Azure Speech のキーと GitHub Copilot の認証を登録します',
       'status.speech.label': '音声認識',
       'status.lang': '言語',
       'status.view': '表示',
@@ -145,9 +153,8 @@ export function commandBarModule(ctx) {
       'view.name.2d': '2D', 'view.name.3d': '3D',
     },
     en: {
-      'toolbar.import': 'Import', 'toolbar.export': 'Export diagram', 'toolbar.environment': 'Screen & environment', 'toolbar.apiKeys': 'API Keys',
+      'toolbar.import': 'Import', 'toolbar.export': 'Export diagram', 'toolbar.environment': 'Screen & environment', 'toolbar.settings': 'Settings',
       'import.description': 'Import a text file (.txt) or a caption file (.vtt)',
-      'apiKeys.description': 'Register the Foundry and Azure Speech keys and GitHub Copilot sign-in',
       'status.speech.label': 'Speech',
       'status.lang': 'Language',
       'status.view': 'View',
@@ -196,8 +203,6 @@ export function commandBarModule(ctx) {
       const it = { command, group: groupOfCommand.get(command), label, labelVisible: true, accessibleName: label, tabbable: true, tabIndex: 0, tooltip: tip(command), describedBy: tooltipId(command), icon: ICONS[command] ?? '' };
       // FR-073 AC-388: 取り込みは、何を取り込めるかの説明を常時表示する（ホバー・フォーカスを待たない）
       if (command === 'import.file') { it.description = ctx.t('import.description'); it.descriptionVisible = true; }
-      // FR-084 AC-482: 接続キーも同じ形（説明を常時表示。「設定」の語は使わない）
-      if (command === 'apiKeys.open') { it.description = ctx.t('apiKeys.description'); it.descriptionVisible = true; }
       return it;
     });
     return { position: 'top', groups, items, focusOrder: items.map((i) => i.command), status: api.getCommandStatus() };

@@ -165,7 +165,7 @@ test('FR-087 AC-506: Copilot が使えないときは状態に原因と次の行
   assert.equal(a.app.runSettingsAction('nope').ok, false);
   a.app.runSettingsAction('openApiKeys');
   assert.ok(a.app.getApiKeysDialog(), '接続キー画面が開く');
-  assert.equal(a.app.getSettingsDialog(), null, '［設定］は閉じる');
+  assert.equal(a.app.getSettingsDialog().selectedCategory, 'apiKeys', '［設定］の「接続キー」の分類として開く');
   const f = await mk({ configured: { ...ALL, deployment: false }, copilot: { ...READY_CP, available: false } });
   const rf = await f.app.requestLlmEnable();
   assert.deepEqual(rf.missing, ['deployment']);

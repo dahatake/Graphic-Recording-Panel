@@ -90,6 +90,10 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 /* FR-073: 最上部の「取り込み」は、アイコン・名称・説明の文字を常時見せる */
 .commandbar .btn-import { height: auto; flex-direction: row; gap: var(--space-2); text-align: left; }
 .commandbar .btn-import .btn-desc { font-size: var(--font-size-caption); color: var(--color-text-secondary, var(--color-text)); white-space: normal; max-width: 24em; }
+/* FR-030 AC-519: リボンの［設定］の項目（値を入れる部品と常時の短い説明） */
+.commandbar .btn-field { height: auto; display: inline-flex; flex-direction: column; align-items: center; gap: var(--space-1); }
+.commandbar .toolbar-control { max-width: 9em; }
+.commandbar .btn-field .btn-desc { font-size: var(--font-size-caption); color: var(--color-text-secondary, var(--color-text)); white-space: normal; max-width: 9em; text-align: center; }
 /* FR-072: 同意のチェックと説明は、最上部の操作領域（コマンドバーの直下）に置く */
 #speech-consent-box.speech-consent { margin: var(--space-1) var(--space-3); }
 .tabs [role="tab"][aria-selected="true"] { border-bottom: 3px solid currentColor; font-weight: 600; }
@@ -233,7 +237,12 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .rpg-window-hint { font-size: var(--font-size-caption); text-align: right; }
 
 /* FR-084・FR-085: 接続キー画面（画面中央のモーダル。VS Code の設定画面風: 左に分類、右に内容）。デザイン基盤のトークンだけを使う */
-.commandbar .btn-apikeys { height: auto; }
+/* FR-084: ［設定］の左の分類（アイコン・名称・説明の文字） */
+.settings-categories { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
+.settings-category { height: auto; flex-direction: row; gap: var(--space-2); text-align: left; }
+.settings-category[aria-selected="true"] { border: var(--stroke) solid var(--color-border); font-weight: var(--font-weight-semibold, 600); }
+.settings-category .btn-label { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
+.settings-category .btn-desc { font-size: var(--font-size-caption); color: var(--color-text-secondary, var(--color-text)); white-space: normal; max-width: 20em; }
 .apikeys-dialog { padding: 0; border: var(--stroke) solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-8); width: min(44rem, calc(100vw - 2 * var(--space-4))); max-height: calc(100vh - 2 * var(--space-5)); overflow: hidden; margin: auto; }
 .apikeys-dialog[hidden] { display: none; }
 .apikeys-dialog[open] { display: flex; flex-direction: column; animation: apikeys-in 120ms ease-out; }
