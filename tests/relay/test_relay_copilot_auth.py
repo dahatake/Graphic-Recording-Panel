@@ -275,7 +275,7 @@ def test_fr088_ac509_device_flow_completes(srv, env, sdk, cli, monkeypatch):
     sdk.signed_in = True
     b, raw = wait_state(srv, "completed")
     assert CRED not in raw and "octo-dummy" not in raw and "Signed" not in raw
-    st, b, raw = srv.call("GET", "/api/llm/status")
+    st, b, raw = srv.call("GET", "/api/llm/copilot")  # GitHub Copilot の分類を開いたときの状態の取得（Q-034）
     assert b["copilot"]["signedIn"] is True and b["copilot"]["account"]
     assert CRED.encode() not in raw_store(env)
     assert CRED not in raw
@@ -359,3 +359,79 @@ def test_nfr_sec006_ac515_no_real_github_token_in_repo():
                     continue
                 hits += [(f, m.group(0)[:12]) for m in pat.finditer(text)]
     assert hits == []
+
+
+# ---------------------------------------------------------------- このアプリでのサインアウト（FR-088 AC-511。Q-033）
+
+SIGNOUT_EXTRACT = {"input": "要点", "instructions": "Reply with JSON."}
+
+
+def _signout_flag():
+    return bool(store.load().get("copilotSignedOut"))
+
+
+# FR-088 AC-511: サインアウトでこのアプリの状態だけ未サインインになり、再起動後も保たれる。Copilot CLI の資格情報は消さず
+# CLI のサインアウト・サインインも呼ばない。再び「GitHub でサインイン」を操作すると、CLI の資格情報が残っていれば
+# デバイスフローを始めずに（確認コードなしに）サインイン済みになる
+def test_fr088_ac511_signout_keeps_cli_credential_and_persists(srv, env, sdk, cli):
+    sdk.signed_in = True
+    assert srv.call("GET", "/api/llm/copilot")[1]["copilot"]["signedIn"] is True
+    st, b, raw = srv.call("POST", "/api/llm/copilot/signout", {})
+    assert st == 200 and b["ok"] is True and b["result"] == "signed_out"
+    assert b["copilot"]["signedIn"] is False and b["copilot"]["account"] is None
+    assert sdk.signed_in is True, "Copilot CLI の資格情報は消さない"
+    assert not os.path.exists(str(cli) + ".argv"), "Copilot CLI のサインアウト・サインインのコマンドを呼ばない"
+    assert _signout_flag()
+    cp = srv.call("GET", "/api/llm/copilot")[1]["copilot"]
+    assert cp["signedIn"] is False and cp["account"] is None and "signin" in cp["missing"]
+    # 中継サーバーの再起動（同じ保管先）の後も未サインインのまま
+    relay_copilot.reset()
+    signin.reset()
+    srv2 = Srv()
+    try:
+        cp = srv2.call("GET", "/api/llm/copilot")[1]["copilot"]
+        assert cp["signedIn"] is False, "再起動後もサインアウトの状態を保つ"
+        st, b, raw = srv2.call("POST", "/api/llm/copilot/signin", {})
+        assert st == 200 and b == {"ok": True, "state": "completed"}, "確認コードなしにサインイン済み"
+        assert not os.path.exists(str(cli) + ".argv"), "デバイスフロー（copilot login）を始めない"
+        assert not _signout_flag()
+        cp = srv2.call("GET", "/api/llm/copilot")[1]["copilot"]
+        assert cp["signedIn"] is True and cp["account"]
+        assert CRED not in raw
+    finally:
+        srv2.stop()
+
+
+# FR-088 AC-511: サインアウトの後は GitHub Copilot への要求を送らない（未サインインの扱い）
+def test_fr088_ac511_signout_blocks_copilot_requests(srv, env, sdk, monkeypatch):
+    sdk.signed_in = True
+    monkeypatch.setenv("LLM_PROVIDER", "copilot")
+    assert srv.call("POST", "/api/llm/copilot/signout", {})[0] == 200
+    status, payload, raw = srv.call("POST", "/api/llm/extract", SIGNOUT_EXTRACT)
+    assert status == 503 and payload["error"]["code"] == "not_signed_in"
+    assert sdk.sent == [] and sdk.sessions == []
+
+
+# FR-088 AC-511 AC-509: サインアウトの後に CLI の資格情報もないときは、通常どおりデバイスフローを始め、完了でサインアウトを解除する
+def test_fr088_ac511_resignin_without_cli_credential_uses_device_flow(srv, env, sdk, cli):
+    sdk.signed_in = True
+    assert srv.call("POST", "/api/llm/copilot/signout", {})[0] == 200
+    sdk.signed_in = False
+    relay_copilot.reset()
+    st, b, raw = srv.call("POST", "/api/llm/copilot/signin", {})
+    assert st == 200 and b["state"] == "pending" and b["userCode"] == "ABCD-1234"
+    cli.write_text("ok")
+    sdk.signed_in = True
+    wait_state(srv, "completed")
+    assert not _signout_flag(), "サインインの完了でこのアプリでのサインアウトを解除する"
+    assert srv.call("GET", "/api/llm/copilot")[1]["copilot"]["signedIn"] is True
+
+
+# FR-088 AC-510 AC-511: サインアウトの要求も同一オリジンだけ受け付ける。認証方式がトークンのときは拒否する
+def test_fr088_ac511_signout_same_origin_and_auth_method(srv, env, sdk, monkeypatch):
+    sdk.signed_in = True
+    st, b, raw = srv.call("POST", "/api/llm/copilot/signout", {}, origin="http://evil.example")
+    assert st == 403 and not _signout_flag()
+    monkeypatch.setenv("COPILOT_AUTH_METHOD", "token")
+    st, b, raw = srv.call("POST", "/api/llm/copilot/signout", {})
+    assert st == 409 and b["result"] == "auth_method_mismatch" and not _signout_flag()

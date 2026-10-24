@@ -364,7 +364,7 @@ def test_fr087_ac505_sdk_missing_copilot_request_rejected(no_sdk, foundry, srv, 
 # FR-087 AC-505: Copilot CLI を起動できないときは cli_unavailable（例外の文面・パスは返さない）
 def test_fr087_ac505_cli_unavailable(sdk, srv, monkeypatch):
     sdk.start_fail = True
-    st = srv.call("GET", "/api/llm/status")[1]
+    st = srv.call("GET", "/api/llm/copilot")[1]  # CLI を起動してよい時点（GitHub Copilot の分類を開いた。AC-507・Q-034）
     assert st["copilot"]["available"] is False and st["copilot"]["unavailableReason"] == "cli_unavailable"
     use_copilot(monkeypatch)
     relay_copilot.reset()
@@ -423,14 +423,41 @@ def test_fr087_ac507_foundry_never_starts_copilot(sdk, foundry, srv):
     assert sdk.starts == 0 and sdk.sent == [] and sdk.sessions == []
 
 
-# FR-087 AC-507: 状態の取得だけは CLI を起動してよいが、会議の内容は送らず、Foundry のときは確認の後に止める
+# FR-087 AC-507: GitHub Copilot の分類を開いたときの状態の取得は CLI を起動してよいが、会議の内容は送らず、
+# Foundry のときは確認の後に止める
 def test_fr087_ac507_status_probe_sends_no_content(sdk, foundry, srv):
-    st = srv.call("GET", "/api/llm/status")[1]
+    st = srv.call("GET", "/api/llm/copilot")[1]
     assert st["copilot"]["signedIn"] is True and st["copilot"]["account"] == ACCOUNT
     assert sdk.starts == 1 and sdk.stops == 1, "Foundry のときは確認の後に止める"
     assert sdk.sent == [] and sdk.sessions == []
-    srv.call("GET", "/api/llm/status")
+    srv.call("GET", "/api/llm/copilot")
     assert sdk.starts == 1, "短い間の状態の取得では起動し直さない"
+
+
+# FR-087 AC-507 AC-505 / FR-088 AC-510（Q-034）: プロバイダーが Microsoft Foundry のままの GET /api/llm/status・
+# 設定の保存・プロバイダーの取得では Copilot CLI を起動せず（起動 0 回・送信 0 件）、SDK の導入の有無と「未確認」だけを返す
+def test_fr087_ac507_foundry_status_does_not_start_cli(sdk, foundry, srv):
+    for _ in range(3):
+        status, st, raw = srv.call("GET", "/api/llm/status")
+        assert status == 200
+        cp = st["copilot"]
+        assert cp["available"] is True and cp["unavailableReason"] is None
+        assert cp["signedIn"] is None and cp["account"] is None, "サインインの有無は未確認"
+    srv.call("GET", "/api/llm/provider")
+    srv.call("POST", "/api/llm/copilot", {"authMethod": "signin", "model": ""})
+    srv.call("POST", "/api/llm/provider", {"provider": "foundry"})
+    assert sdk.starts == 0 and sdk.sent == [] and sdk.sessions == [], "CLI を起動しない・GitHub へ送らない"
+    srv.call("GET", "/api/llm/copilot")
+    assert sdk.starts == 1, "GitHub Copilot の分類を開いたときだけ起動する"
+
+
+# FR-087 AC-505（Q-034）: SDK を読み込めないときは、CLI を起動してよい時点かどうかに関係なく sdk_missing
+def test_fr087_ac505_sdk_missing_without_cli_check(srv, foundry, monkeypatch):
+    monkeypatch.setattr(relay_copilot, "load_sdk", lambda: None)
+    relay_copilot.reset()
+    for path in ("/api/llm/status", "/api/llm/copilot"):
+        cp = srv.call("GET", path)[1]["copilot"]
+        assert cp["available"] is False and cp["unavailableReason"] == "sdk_missing"
 
 
 # FR-087 AC-507: プロバイダーが GitHub Copilot のときは CLI を使い回す（要求ごとに起動しない）

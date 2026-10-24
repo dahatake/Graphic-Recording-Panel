@@ -353,9 +353,14 @@ export function apiKeysModule(ctx) {
   ctx.registerKey({ key: 'm', ctrl: true, alt: true, shift: true, command: 'foundry.deleteConfig' });
   api.selectApiKeysCategory = (id) => {
     if (!open || !CATEGORIES.includes(id)) return { ok: false, reason: 'invalid' };
-    if (id !== selected) { selected = id; if (!String(focusId).startsWith('apiKeys.category.') && focusId !== 'apiKeys.close') focusId = `apiKeys.category.${id}`; notify(); }
+    if (id !== selected) {
+      selected = id; if (!String(focusId).startsWith('apiKeys.category.') && focusId !== 'apiKeys.close') focusId = `apiKeys.category.${id}`; notify();
+      // GitHub Copilot の分類を開いたときだけ、Copilot CLI でサインインの状態を確かめる（AC-507。Q-034）
+      if (id === 'copilot' && relay) void api.refreshCopilotKeysStatus?.({ check: true });
+    }
     return { ok: true };
   };
+  api.isCopilotCategoryOpen = () => open && selected === 'copilot';
   api.focusApiKeysField = (id) => {
     if (!open) return false;
     const d = api.getApiKeysDialog();

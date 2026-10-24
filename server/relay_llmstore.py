@@ -21,7 +21,8 @@ MAX_DEPLOYMENT_LEN = 64  # PARAM-096
 MAX_KEY_LEN = 512  # PARAM-094
 _KEY_OK = re.compile(r"^[\x21-\x7e]+$")  # 表示可能な ASCII だけ（ヘッダへの注入を防ぐ）
 # provider と copilot* は FR-068 / FR-087 / FR-088（LLM のプロバイダーの選択と GitHub Copilot の設定）。トークンも同じ封で保存する
-FIELDS = ("endpoint", "deployment", "authMethod", "apiKey", "provider", "copilotAuthMethod", "copilotModel", "copilotToken")
+FIELDS = ("endpoint", "deployment", "authMethod", "apiKey", "provider", "copilotAuthMethod", "copilotModel", "copilotToken",
+          "copilotSignedOut")  # copilotSignedOut: このアプリでのサインアウト（FR-088 AC-511。Copilot CLI の資格情報は消さない）
 MAX_COPILOT_MODEL_LEN = 64  # PARAM-096（デプロイ名・モデル名の最大長。FR-088 AC-510）
 MAX_COPILOT_TOKEN_LEN = 512  # PARAM-094
 _lock = threading.Lock()

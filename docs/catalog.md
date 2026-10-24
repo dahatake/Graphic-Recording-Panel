@@ -97,7 +97,7 @@
 | NFR-SEC-006 | 接続キー画面のキー・トークン（Foundry・GitHub Copilot・Azure Speech）の入力・保管・非露出 | 承認済み | web/src/apikeys.js, web/src/apikeys-ui.js, web/src/copilotkeys.js, web/index.html, server/relay.py, server/relay_llmstore.py, server/relay_copilot.py, server/relay_copilot_signin.py | tests/system/apikeys.test.js, tests/unit/apikeys.test.js, tests/relay/test_relay_llmconfig.py, tests/relay/test_relay_copilot_auth.py, tests/unit/copilotkeys.test.js | アプリ組立, 中継サーバー |
 | FR-086 | Microsoft Foundry の接続設定（エンドポイント・デプロイ名・認証方式）の画面での設定と保存 | 承認済み | server/relay.py, server/relay_config.py, server/relay_llmstore.py, web/src/apikeys.js, web/src/apikeys-ui.js, web/styles/app.css, .gitignore | tests/relay/test_relay_llmconfig.py, tests/system/apikeys.test.js | 中継サーバー, アプリ組立, i18n, デザイン基盤 |
 | FR-087 | GitHub Copilot SDK を介した生成AIのモデルの呼び出し | 承認済み | server/relay_copilot.py, server/relay.py, server/relay_config.py, server/relay_llmstore.py, server/requirements-copilot.txt, README.md, web/src/llm.js, web/src/ui.js | tests/relay/test_relay_copilot.py, tests/unit/llmprovider.test.js, tests/system/copilot.test.js | 中継サーバー, LLM 連携の制御 |
-| FR-088 | GitHub Copilot の認証（サインイン・トークン）とモデル名の、接続キー画面での設定 | 承認済み | web/src/copilotkeys.js, web/src/apikeys.js, web/src/apikeys-ui.js, web/src/llm.js, web/src/i18n.js, web/styles/app.css, web/sw.js, server/relay.py, server/relay_copilot_signin.py, server/relay_copilot.py, server/relay_config.py, server/relay_llmstore.py, users-guide/10-api-keys.md | tests/unit/copilotkeys.test.js, tests/relay/test_relay_copilot_auth.py, tests/system/copilot.test.js | アプリ組立, i18n, デザイン基盤, 中継サーバー |
+| FR-088 | GitHub Copilot の認証（サインイン・トークン）とモデル名の、接続キー画面での設定 | 承認済み | web/src/copilotkeys.js, web/src/apikeys.js, web/src/apikeys-ui.js, web/src/llm.js, web/src/i18n.js, web/styles/app.css, web/sw.js, server/relay.py, server/relay_copilot_signin.py, server/relay_copilot.py, server/relay_config.py, server/relay_llmstore.py, users-guide/10-api-keys.md | tests/unit/copilotkeys.test.js, tests/relay/test_relay_copilot_auth.py, tests/system/copilot.test.js, tests/system/copilot-relay.test.js | アプリ組立, i18n, デザイン基盤, 中継サーバー |
 
 ## API・イベント
 
@@ -117,6 +117,8 @@
 | POST /api/llm/copilot/signin | server/relay.py, server/relay_copilot_signin.py | FR-088 |
 | GET /api/llm/copilot/signin | server/relay.py, server/relay_copilot_signin.py | FR-088 |
 | DELETE /api/llm/copilot/signin | server/relay.py, server/relay_copilot_signin.py | FR-088 |
+| GET /api/llm/copilot | server/relay.py, server/relay_copilot.py | FR-087, FR-088 |
+| POST /api/llm/copilot/signout | server/relay.py, server/relay_copilot.py, server/relay_llmstore.py | FR-088 |
 | GET /api/speech/status | server/relay.py, server/relay_speech.py | FR-082, NFR-SEC-005 |
 | POST /api/speech/settings | server/relay.py, server/relay_speech.py | FR-082, NFR-SEC-005 |
 | DELETE /api/speech/key | server/relay.py, server/relay_speech.py | FR-082, NFR-SEC-005 |
