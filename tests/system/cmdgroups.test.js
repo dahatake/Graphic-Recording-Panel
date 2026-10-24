@@ -1,17 +1,16 @@
 // NFR-UX-011 AC-459〜464（System Test。契約: CONTRACT.md「コマンドバーの作業順グループ」）
-// 期待値は受入基準だけから決める（PARAM-006=640px、PARAM-092=7 個）。
+// 期待値は受入基準だけから決める（PARAM-006=640px、PARAM-092=12 個）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp, CJK } from './helpers.js';
 
 const NARROW = 640; // PARAM-006（以下で折り返す）
 const WIDE = 1280;
-const MAX_PER_GROUP = 7; // PARAM-092
-const ORDER = ['import', 'apiKeys', 'session', 'view', 'layoutType', 'presentation', 'export', 'data', 'environment'];
-const JA = ['取り込み', '接続キー', '記録', '表示', 'レイアウト型', 'プレゼンテーション', '図の書き出し', 'データ', '画面・環境'];
+const MAX_PER_GROUP = 12; // PARAM-092
+const ORDER = ['import', 'session', 'view', 'layoutType', 'settings', 'presentation', 'export', 'data', 'environment'];
+const JA = ['取り込み', '記録', '表示', 'レイアウト型', '設定', 'プレゼンテーション', '図の書き出し', 'データ', '画面・環境'];
 const MEMBERS = {
   import: ['import.file'],
-  apiKeys: ['apiKeys.open'], // FR-084 AC-482（画面最上部の「接続キー」）
   session: ['session.start', 'session.pause', 'session.resume', 'session.stop', 'session.nextScene', 'input.focus'],
   view: ['view.2d', 'view.3d', 'view.timeline', 'view.arrange', 'detail.next', 'drawStyle.pick'], // drawStyle.pick は末尾（FR-077）
   presentation: ['presentation.start', 'presentation.pause', 'presentation.resume', 'presentation.stop', 'presentation.prev', 'presentation.next'],
@@ -19,7 +18,9 @@ const MEMBERS = {
   data: ['file.save', 'file.load', 'data.reset'],
   environment: ['layout.tile', 'layout.focus', 'layout.maximize', 'layout.reset', 'theme.toggle', 'lang.ja', 'lang.en'],
 };
-const isLayoutType = (c) => c.startsWith('layoutType.') || c === 'settings.open';
+const isLayoutType = (c) => c.startsWith('layoutType.');
+// 設定グループ: ［設定］を開く＋FR-030 の項目（型のチェックはレイアウト型、描画スタイルは表示に 1 つだけ。AC-519・520）
+const SETTINGS_FIELDS = ['layout.mode', 'sound.muted', 'sound.volume', 'arrange.interval'];
 const bar = (app) => app.getCommandBar();
 const groupOf = (g) => g.commands;
 const sameSet = (a, b) => assert.deepEqual([...a].sort(), [...b].sort());
@@ -27,15 +28,19 @@ const intersects = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b
 const byLayout = (app, w) => app.getCommandBarLayout({ viewportWidth: w });
 
 // NFR-UX-011 AC-459
-test('NFR-UX-011 AC-459: グループは 取り込み→接続キー→記録→表示→レイアウト型→プレゼンテーション→図の書き出し→データ→画面・環境 の 9 つで、各ボタンが定められたグループに属する', async () => {
+test('NFR-UX-011 AC-459: グループは 取り込み→記録→表示→レイアウト型→設定→プレゼンテーション→図の書き出し→データ→画面・環境 の 9 つで、各ボタンが定められたグループに属する', async () => {
   const { app } = await newApp();
   const groups = bar(app).groups;
   assert.deepEqual(groups.map((g) => g.id), ORDER);
   for (const g of groups) {
     if (g.id === 'layoutType') {
-      assert.ok(groupOf(g).every(isLayoutType), '型アイコン・クリア・設定だけ');
-      for (const c of ['layoutType.clear', 'settings.open']) assert.ok(g.commands.includes(c), c);
-      assert.ok(g.commands.length > 2, '型アイコンがある');
+      assert.ok(groupOf(g).every(isLayoutType), '型アイコン・クリアだけ');
+      assert.ok(g.commands.includes('layoutType.clear'));
+      assert.ok(g.commands.length > 1, '型アイコンがある');
+    } else if (g.id === 'settings') {
+      assert.ok(g.commands.includes('settings.open'));
+      const fields = g.commands.filter((c) => c !== 'settings.open').map((c) => bar(app).items.find((i) => i.command === c).settingsField).sort();
+      assert.deepEqual(fields, [...SETTINGS_FIELDS].sort(), '決め方・ミュート・音量・周期が 1 つずつ');
     } else sameSet(g.commands, MEMBERS[g.id]);
   }
   // items は DOM 順＝グループを順に並べたもの、各 item が属するグループ ID を持つ
@@ -76,7 +81,7 @@ test('NFR-UX-011 AC-459 異常系: 描画スタイルの選択・プロンプト
   assert.ok(groups.find((g) => g.id === 'export').commands.length <= MAX_PER_GROUP);
 });
 
-test('NFR-UX-011 AC-459 異常系: 各グループは 7 個以内で、どのボタンも 1 つのグループにだけ属する（重複・未分類なし）', async () => {
+test('NFR-UX-011 AC-459 異常系: 各グループは 12 個以内で、どのボタンも 1 つのグループにだけ属する（重複・未分類なし）', async () => {
   const { app } = await newApp();
   const groups = bar(app).groups;
   for (const g of groups) assert.ok(g.commands.length >= 1 && g.commands.length <= MAX_PER_GROUP, `${g.id}: ${g.commands.length} 個`);

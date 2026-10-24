@@ -5991,7 +5991,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-459\" tests/system/cmdgroups.test.js",
       "canary": true,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "b72da86",
       "last_run_at": "2026-10-25T05:13:10+09:00",
       "evidence": "work/runs/202610242234/logs/system-test/E2E-225-202610250511.log",
@@ -6007,6 +6007,12 @@
           "by": "test-designer",
           "change": "title: 'コマンドバーの作業順 8 グループと所属・7 個以内（異常系: 折返し時の順）' -> 'コマンドバーの作業順 8 グループと所属・7 個以内、描画スタイルの選択は表示の末尾・プロンプトのコピーは図の書き出しの末尾（異常系: 折返し時の順・他グループに入らない）'",
           "reason": "AC-459 変更(3ba5311)"
+        },
+        {
+          "at": "2026-10-25T06:17:32+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "NFR-UX-011 変更（9 グループ・接続キーなし・PARAM-092=12）に合わせテスト更新"
         }
       ]
     },
@@ -6022,7 +6028,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-460\" tests/system/cmdgroups.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "b72da86",
       "last_run_at": "2026-10-25T05:13:10+09:00",
       "evidence": "work/runs/202610242234/logs/system-test/E2E-226-202610250513.log",
@@ -6032,6 +6038,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-25T06:17:32+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "NFR-UX-011 変更（9 グループ・接続キーなし・PARAM-092=12）に合わせテスト更新"
         }
       ]
     },
@@ -6047,7 +6059,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-461\" tests/system/cmdgroups.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "b72da86",
       "last_run_at": "2026-10-25T05:13:10+09:00",
       "evidence": "work/runs/202610242234/logs/system-test/E2E-227-202610250513.log",
@@ -6057,6 +6069,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-25T06:17:33+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "NFR-UX-011 変更（9 グループ・接続キーなし・PARAM-092=12）に合わせテスト更新"
         }
       ]
     },
@@ -6072,7 +6090,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-462\" tests/system/cmdgroups.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "b72da86",
       "last_run_at": "2026-10-25T05:13:10+09:00",
       "evidence": "work/runs/202610242234/logs/system-test/E2E-229-202610250513.log",
@@ -6082,6 +6100,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-25T06:17:33+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "NFR-UX-011 変更（9 グループ・接続キーなし・PARAM-092=12）に合わせテスト更新"
         }
       ]
     },
