@@ -30,7 +30,8 @@ export const PROVIDERS = ['foundry', 'copilot'];
 export const DEFAULT_PROVIDER = 'foundry';
 // FR-087 AC-506: GitHub Copilot を使えない原因（中継サーバーの relay_copilot.readiness と同じ順で 1 つだけ返す）
 export function copilotMissing(cp) {
-  if (!cp || typeof cp !== 'object' || cp.available !== true) return ['sdk'];
+  // SDK は導入済みでも、SDK が使う Copilot CLI を起動できないときは 'cli'（SDK 未導入と区別する）
+  if (!cp || typeof cp !== 'object' || cp.available !== true) return [cp && typeof cp === 'object' && cp.unavailableReason === 'cli_unavailable' ? 'cli' : 'sdk'];
   if (cp.authMethod === 'token') return cp.tokenConfigured === true ? [] : ['token'];
   return cp.signedIn === true ? [] : ['signin'];
 }
@@ -39,6 +40,8 @@ export function classifyLlmFailure(res) {
   if (!res || res.error === 'timeout') return 'timeout';
   const code = String(res.body?.error?.code ?? '');
   if (res.status >= 200 && res.status < 300) return 'invalid';
+  // 中継サーバーが PARAM-069 で打ち切った（CLI の起動・SDK の初期化を含む。AC-518）もタイムアウト
+  if (res.status === 504 || code === 'upstream_timeout') return 'timeout';
   if (res.status === 401 || res.status === 403 || code === 'auth' || [401, 403].includes(res.body?.error?.upstreamStatus)) return 'auth';
   if (res.status === 429 || code === 'rate_limit' || res.body?.error?.upstreamStatus === 429) return 'rateLimit';
   return 'connection';
@@ -66,11 +69,11 @@ export async function llmModule(ctx) {
       'llm.provider': 'プロバイダー', 'llm.provider.foundry': 'Microsoft Foundry', 'llm.provider.copilot': 'GitHub Copilot',
       'llm.provider.changed': 'LLM のプロバイダーを変更しました: ', 'llm.provider.failed': 'LLM のプロバイダーを変更できませんでした。中継サーバーを確認してください',
       'llm.provider.envManaged': 'LLM のプロバイダーは環境変数／設定ファイルで指定されているため、画面からは変更できません',
-      'llm.missing.sdk': 'GitHub Copilot SDK が導入されていない', 'llm.missing.signin': 'GitHub にサインインしていない', 'llm.missing.token': 'トークンが未設定',
+      'llm.missing.sdk': 'GitHub Copilot SDK が導入されていない', 'llm.missing.cli': 'Copilot CLI を起動できない', 'llm.missing.signin': 'GitHub にサインインしていない', 'llm.missing.token': 'トークンが未設定',
       'llm.unconfigured.copilot': 'GitHub Copilot を使えません。原因: ',
       'llm.action.installGuide': '導入の手順', 'llm.action.openApiKeys': '接続キーを開く',
       'llm.installGuide.text': '中継サーバーの Python 環境で pip install -r server/requirements-copilot.txt を実行し、中継サーバーを起動し直してください',
-      'llm.consent.hostCopilot': 'GitHub Copilot（GitHub のサービス）', 'llm.consent.model': '使うモデル', 'llm.consent.modelDefault': 'GitHub Copilot SDK の既定のモデル',
+            'llm.installGuide.cli': 'Copilot CLI を起動できません。中継サーバーの Python 環境で pip install --force-reinstall -r server/requirements-copilot.txt を実行して SDK と同梱の Copilot CLI を導入し直すか、Copilot CLI（npm install -g @github/copilot）を導入・再導入して copilot が PATH にある（または環境変数 COPILOT_CLI_PATH で指定する）ことを確かめ、中継サーバーを起動し直してください',      'llm.consent.hostCopilot': 'GitHub Copilot（GitHub のサービス）', 'llm.consent.model': '使うモデル', 'llm.consent.modelDefault': 'GitHub Copilot SDK の既定のモデル',
       'llm.failed.auth': 'LLM 連携に失敗しました（認証）。通常の描画で表示しています', 'llm.failed.rateLimit': 'LLM 連携に失敗しました（利用の上限）。通常の描画で表示しています',
       'llm.failed.connection': 'LLM 連携に失敗しました（接続）。通常の描画で表示しています', 'llm.failed.timeout': 'LLM 連携に失敗しました（タイムアウト）。通常の描画で表示しています',
       'llm.failed.invalid': 'LLM 連携に失敗しました（不正な応答）。通常の描画で表示しています',
@@ -92,11 +95,11 @@ export async function llmModule(ctx) {
       'llm.provider': 'Provider', 'llm.provider.foundry': 'Microsoft Foundry', 'llm.provider.copilot': 'GitHub Copilot',
       'llm.provider.changed': 'LLM provider changed: ', 'llm.provider.failed': 'The LLM provider could not be changed. Check the relay server',
       'llm.provider.envManaged': 'The LLM provider is set by an environment variable or config file, so it cannot be changed here',
-      'llm.missing.sdk': 'GitHub Copilot SDK is not installed', 'llm.missing.signin': 'Not signed in to GitHub', 'llm.missing.token': 'Token is not set',
+      'llm.missing.sdk': 'GitHub Copilot SDK is not installed', 'llm.missing.cli': 'Copilot CLI cannot be started', 'llm.missing.signin': 'Not signed in to GitHub', 'llm.missing.token': 'Token is not set',
       'llm.unconfigured.copilot': 'GitHub Copilot cannot be used. Cause: ',
       'llm.action.installGuide': 'Setup steps', 'llm.action.openApiKeys': 'Open API Keys',
       'llm.installGuide.text': 'Run pip install -r server/requirements-copilot.txt in the relay server\'s Python environment, then restart the relay server',
-      'llm.consent.hostCopilot': 'GitHub Copilot (a GitHub service)', 'llm.consent.model': 'Model', 'llm.consent.modelDefault': 'The default model of GitHub Copilot SDK',
+            'llm.installGuide.cli': 'Copilot CLI cannot be started. Reinstall the SDK and its bundled Copilot CLI with pip install --force-reinstall -r server/requirements-copilot.txt in the relay server\'s Python environment, or install/reinstall Copilot CLI (npm install -g @github/copilot) and make sure copilot is on PATH (or set COPILOT_CLI_PATH), then restart the relay server',      'llm.consent.hostCopilot': 'GitHub Copilot (a GitHub service)', 'llm.consent.model': 'Model', 'llm.consent.modelDefault': 'The default model of GitHub Copilot SDK',
       'llm.failed.auth': 'LLM integration failed (authentication); showing the normal drawing', 'llm.failed.rateLimit': 'LLM integration failed (usage limit); showing the normal drawing',
       'llm.failed.connection': 'LLM integration failed (connection); showing the normal drawing', 'llm.failed.timeout': 'LLM integration failed (timeout); showing the normal drawing',
       'llm.failed.invalid': 'LLM integration failed (invalid response); showing the normal drawing',
@@ -326,8 +329,8 @@ export async function llmModule(ctx) {
     const id = statusId();
     // GitHub Copilot を選んで使えないとき（AC-506）: 原因と次の行動を状態に示す
     const causes = !enabled && provider === 'copilot' ? (unconfigured?.length ? unconfigured : (cp ? copilotMissing(cp) : [])) : [];
-    const actions = causes.map((k) => (k === 'sdk'
-      ? { id: 'installGuide', label: t('llm.action.installGuide'), text: t('llm.installGuide.text'), focusable: true }
+    const actions = causes.map((k) => (k === 'sdk' || k === 'cli'
+      ? { id: 'installGuide', label: t('llm.action.installGuide'), text: t(k === 'cli' ? 'llm.installGuide.cli' : 'llm.installGuide.text'), focusable: true }
       : { id: 'openApiKeys', label: t('llm.action.openApiKeys'), focusable: true }));
     const stText = causes.length ? `${t(`llm.status.${id === 'disabled' ? 'unconfigured' : id}`)}: ${missingText(causes)}` : t(`llm.status.${id}`);
     return [
@@ -352,7 +355,10 @@ export async function llmModule(ctx) {
   };
   // ［設定］の LLM 連携の状態に示した次の行動（AC-506）
   api.runSettingsAction = (id) => {
-    if (id === 'installGuide') return { ok: true, text: t('llm.installGuide.text') };
+    if (id === 'installGuide') { // 原因が Copilot CLI を起動できないときは、SDK・Copilot CLI の導入・再導入の案内（AC-506）
+      const guide = llmFields().find((f) => f.id === 'llm.enabled')?.status?.actions?.find((a) => a.id === 'installGuide');
+      return { ok: true, text: guide?.text ?? t('llm.installGuide.text') };
+    }
     if (id === 'openApiKeys') { // 接続キー画面の GitHub Copilot の分類を開く
       ctx.api.commands['settings.close']?.();
       const r = ctx.api.commands['apiKeys.open']?.();

@@ -15,6 +15,7 @@ import json
 import os
 import re
 import sys
+import time
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
@@ -69,7 +70,7 @@ def copilot_view(cs, check=None):
     check（既定: プロバイダーが GitHub Copilot のとき）が真のときだけ、available・unavailableReason（sdk_missing /
     cli_unavailable）・signedIn・account を SDK・CLI に確かめる（AC-507 の例外の範囲）。偽のときは CLI を起動せず、
     SDK の導入の有無だけを返し、signedIn は null（未確認。Q-034 / AC-510）。
-    missing は LLM 連携を有効にできない原因の分類（sdk / signin / token）。"""
+    missing は LLM 連携を有効にできない原因の分類（sdk / cli / signin / token。AC-506）。"""
     if check is None:
         check = cs.provider == "copilot"
     probed = copilot.probe(cs, check=check)
@@ -564,14 +565,19 @@ class RelayHandler(SimpleHTTPRequestHandler):
         prompt, instructions = payload.get("input"), payload.get("instructions")
         if not isinstance(prompt, str) or (instructions is not None and not isinstance(instructions, str)):
             return fail(400, "bad_request", "要求の形式が不正です。")
-        probed = copilot.probe(cs)
+        # CLI の起動・SDK の初期化・認証の状態の確認を含めて PARAM-069 秒で打ち切る（AC-518）
+        deadline = time.monotonic() + cfg.timeout_sec()
+        try:
+            probed = copilot.probe(cs, deadline=deadline)
+        except up.UpstreamError as e:
+            return fail(e.status, e.code, e.message)
         missing = copilot.readiness(cs, probed)
-        if missing:  # 未導入・未サインイン・トークン未設定では送らない（AC-505・AC-506）
-            code = {"sdk": probed["unavailableReason"] or "sdk_missing", "signin": "not_signed_in",
+        if missing:  # 未導入・CLI を起動できない・未サインイン・トークン未設定では送らない（AC-505・AC-506）
+            code = {"sdk": "sdk_missing", "cli": "cli_unavailable", "signin": "not_signed_in",
                     "token": "token_missing"}[missing[0]]
             return fail(503, code, "GitHub Copilot を利用できません。", state="unconfigured", missing=missing)
         try:
-            text = copilot.generate(cs, instructions, prompt)
+            text = copilot.generate(cs, instructions, prompt, deadline=deadline)
         except up.UpstreamError as e:
             return fail(e.status, e.code, e.message)
         self._send_clean(copilot.as_responses(sec.redact(text, secrets)), is_svg, secrets)
