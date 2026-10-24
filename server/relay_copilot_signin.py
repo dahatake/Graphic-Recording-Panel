@@ -21,6 +21,8 @@ import relay_proctree as _pt
 
 DEVICE_CODE_TTL_SEC = 900  # GitHub のデバイスコードの有効期限（15 分）
 START_WAIT_SEC = 20  # 確認コードが出力されるまで待つ上限
+READER_JOIN_SEC = 5  # status() 1 回で、終了した CLI の出力を読み終えるのを待つ上限
+READER_GRACE_SEC = 60  # CLI の終了後、出力を読み終えないまま分類を待つ上限（超えたら読めた分で分類する）
 MAX_OUTPUT = 64 * 1024
 STATES = ("none", "pending", "completed", "expired", "denied", "cancelled", "failed")
 _URI_RE = re.compile(r"https://([A-Za-z0-9.-]+)/login/device(?![A-Za-z0-9])")
@@ -30,7 +32,7 @@ _HOST_OK = re.compile(r"^(github\.com|[A-Za-z0-9-]+\.ghe\.com)$")
 
 _lock = threading.RLock()
 _start_lock = threading.Lock()  # 同時のサインインの開始を 1 つずつにする（旧プロセスを残さない）
-_flow = {"proc": None, "reader": None, "state": "none", "uri": None, "code": None, "started": 0.0, "out": "", "cancelled": False}
+_flow = {"proc": None, "reader": None, "state": "none", "uri": None, "code": None, "started": 0.0, "out": "", "cancelled": False, "exited": 0.0}
 
 
 def cli_path():
@@ -131,7 +133,7 @@ def _start():
     reader = threading.Thread(target=_reader, args=(proc,), name="copilot-signin", daemon=True)
     with _lock:
         old = _flow["proc"]
-        _flow.update({"proc": proc, "reader": reader, "state": "pending", "uri": None, "code": None, "started": time.time(), "out": "", "cancelled": False})
+        _flow.update({"proc": proc, "reader": reader, "state": "pending", "uri": None, "code": None, "started": time.time(), "out": "", "cancelled": False, "exited": 0.0})
     if old is not None and old is not proc:
         _kill(old)  # 念のため: 先に動いていたサインインの子プロセスを残さない
     reader.start()
@@ -164,8 +166,15 @@ def status():
     with _lock:
         proc, reader = _flow["proc"], _flow["reader"]
     if proc is not None and proc.poll() is not None and reader is not None:
-        reader.join(5)  # 終了した CLI の最後の出力（期限切れ・拒否など）を読み終えてから分類する
-        joined = True
+        reader.join(READER_JOIN_SEC)  # 終了した CLI の最後の出力（期限切れ・拒否など）を読み終えてから分類する
+        # 上限内に読み終えなければ（負荷が高い）、途中の出力で分類せず次の呼び出しで待ち直す。
+        # ただし CLI の終了から READER_GRACE_SEC を過ぎても読み終えない（パイプを孫が持ち続ける）ときは、読めた分で分類する
+        joined = not reader.is_alive()
+        with _lock:
+            if _flow["proc"] is proc and not _flow.get("exited"):
+                _flow["exited"] = time.time()
+            if not joined and time.time() - (_flow.get("exited") or time.time()) > READER_GRACE_SEC:
+                joined = True
     with _lock:
         if proc is not None and _flow["proc"] is proc and _flow["state"] == "pending":
             rc = proc.poll()
@@ -173,7 +182,7 @@ def status():
                 _kill(proc)
                 _flow.update({"proc": None, "state": "expired", "out": ""})
             elif rc is not None and not joined and reader is not None and reader.is_alive():
-                pass  # ロックの外で確かめた後に CLI が終わった: 出力を読み終えるまで分類せず、次の呼び出しで join してから分類する
+                pass  # 出力を読み終えていない（ロックの外で確かめた後に CLI が終わった・join の上限を超えた）: 分類せず次の呼び出しで待つ
             elif rc is not None:
                 state = "cancelled" if _flow["cancelled"] else _outcome(rc, _flow["out"])
                 _flow.update({"proc": None, "state": state, "out": ""})
@@ -203,5 +212,5 @@ def reset():
     """テスト・終了時: 子プロセスを止め、状態を消す。"""
     with _lock:
         proc = _flow["proc"]
-        _flow.update({"proc": None, "state": "none", "uri": None, "code": None, "started": 0.0, "out": "", "cancelled": False})
+        _flow.update({"proc": None, "state": "none", "uri": None, "code": None, "started": 0.0, "out": "", "cancelled": False, "exited": 0.0})
     _kill(proc)
