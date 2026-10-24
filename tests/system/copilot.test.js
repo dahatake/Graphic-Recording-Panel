@@ -13,6 +13,7 @@ const weight = (s) => [...String(s)].reduce((n, ch) => n + (CJK.test(ch) ? 1 : 0
 const FOUNDRY_HOST = 'foundry.example.test';
 const TOKEN_PROBE = 'PROBE-GH-TOKEN-0000-not-a-real-token';
 const CRED_PROBE = 'PROBE-GH-CRED-0000-not-a-real-credential';
+const PATH_PROBE = 'C:\\PROBE-PATH-0000\\copilot-cli\\copilot.exe'; // ファイルのパスの漏れの探針
 const VERIFY_URI = 'https://github.com/login/device';
 const USER_CODE = 'TEST-0000';
 const ACCOUNT = 'octo-dummy-user';
@@ -23,6 +24,7 @@ const SETTINGS_PATHS = new Set(['/api/llm/status', '/api/llm/provider', '/api/ll
 const SIGNIN = '/api/llm/copilot/signin';
 
 // 同一オリジンの中継サーバーのモック。mode（LLM 向けの要求の結果）: 'ok' | 'auth' | 'rate_limit' | 'connection' | 'timeout' | 'malformed'。
+// 'cli_unavailable'（503 {error:{code:'cli_unavailable'}}。以後の状態も copilot.unavailableReason:'cli_unavailable'）。
 // 'offline' はすべての要求を失敗させる。要求ごとに「その時点のプロバイダー」（body.provider か保存済みの provider）を記録する。
 function makeRelay({ provider, foundry = true, copilot = {}, mode = 'ok' } = {}) {
   const r = { calls: [], mode, provider, flow: null, signinStarts: 0, signouts: 0 };
@@ -95,6 +97,10 @@ function makeRelay({ provider, foundry = true, copilot = {}, mode = 'ok' } = {})
     // ここから LLM 向けの要求（抽出・SVG・接続テストなど）
     const leak = `Bad credentials: Authorization: Bearer ${TOKEN_PROBE}`;
     if (r.mode === 'timeout') return new Promise(() => {});
+    if (r.mode === 'cli_unavailable') { // AC-506（A-240）: 要求の途中で Copilot CLI を起動できなかった。以後の状態もそれを返す（AC-505）
+      r.cp.available = false; r.cp.unavailableReason = 'cli_unavailable';
+      return { status: 503, body: { ok: false, error: { code: 'cli_unavailable', message: `${leak} spawn ${PATH_PROBE} ENOENT` } } };
+    }
     if (r.mode === 'auth') return { status: 401, body: { ok: false, error: { code: 'auth', message: leak } } };
     if (r.mode === 'rate_limit') return { status: 429, body: { ok: false, error: { code: 'rate_limit', message: leak } } };
     if (r.mode === 'connection') return { status: 502, body: { ok: false, error: { code: 'connection', message: leak } } };
@@ -192,8 +198,9 @@ test('FR-087 AC-506: GitHub Copilot を選び SDK 未導入・Copilot CLI を起
   }
 });
 
+// 2026-10-24（監査 A-240・A-242）: 不正な応答にも原因の分類「不正な応答」の通知を確かめる
 test('FR-087 AC-506 異常系: 有効なまま認証・利用の上限・接続・タイムアウト・不正な応答で失敗すると、ルールベース描画で表示され、原因の分類が短く通知され、トークン・認証の情報は表示されない', async () => {
-  for (const [mode, re] of [['auth', /認証/], ['rate_limit', /上限/], ['connection', /接続/], ['timeout', /タイムアウト/], ['malformed', null]]) {
+  for (const [mode, re] of [['auth', /認証/], ['rate_limit', /上限/], ['connection', /接続/], ['timeout', /タイムアウト/], ['malformed', /不正な応答/]]) {
     const { app, env, relay } = await boot({ relay: { provider: 'copilot', copilot: SIGNED_IN } });
     const base = await newApp();
     await enable(app);
@@ -212,6 +219,59 @@ test('FR-087 AC-506 異常系: 有効なまま認証・利用の上限・接続�
     assert.ok(!s.includes(TOKEN_PROBE), `${mode}: トークン・認証の情報は表示されない`);
     assert.equal(app.getState().session, 'recording', `${mode}: 記録は続く`);
   }
+});
+
+// FR-087 AC-506（監査 A-240・A-242）: 有効なまま Copilot CLI を起動できない（中継サーバーの 503・cli_unavailable）
+test('FR-087 AC-506 異常系: 有効なまま Copilot CLI を起動できないと、ルールベース描画で表示され「Copilot CLI を起動できない」と通知され（接続ではない）、トークン・パスは表示されず、LLM 連携は自動で無効（同意の記録は残る）・以後の要求は 0 件。導入を直して有効にすると再同意なしで戻る', async () => {
+  const { app, env, relay } = await boot({ relay: { provider: 'copilot', copilot: SIGNED_IN } });
+  const base = await newApp();
+  await enable(app);
+  const consentBefore = consentRecords(env).filter(([k]) => k === 'grp.llm.consent.copilot');
+  assert.equal(consentBefore.length, 1, '同意の記録がある');
+  relay.mode = 'cli_unavailable';
+  app.commands['session.start'](); base.app.commands['session.start']();
+  type(app, env, '予算の見直しが必要です'); type(base.app, base.env, '予算の見直しが必要です');
+  assert.ok(relay.llmCalls().length >= 1, '有効なので LLM 向けの要求が出る');
+  await app.flushLlm();
+  assert.equal(app.renderSvg(), base.app.renderSvg(), '該当のシーンはルールベース描画');
+  const msg = app.getState().message;
+  assert.ok(msg && msg.text.trim() && msg.text.length <= 80, `短く通知される: ${JSON.stringify(msg)}`);
+  assert.match(msg.text, /Copilot CLI を起動できない/, `原因の分類: ${msg.text}`);
+  assert.doesNotMatch(msg.text, /接続/, `「接続」として通知しない: ${msg.text}`);
+  assert.equal(app.getState().session, 'recording', '記録は続く');
+  // LLM 連携は自動で無効に戻り、同意の記録は消さない
+  assert.equal(app.getLlmState().enabled, false, '自動で無効に戻る');
+  assert.deepEqual(consentRecords(env).filter(([k]) => k === 'grp.llm.consent.copilot'), consentBefore, '同意の記録は残る');
+  // ［設定］の LLM 連携の状態に原因と次の行動（SDK・Copilot CLI の導入・再導入の案内）
+  await settle(app);
+  app.commands['settings.open'](); await flush();
+  const f = sfield(app, 'llm.enabled');
+  assert.ok(f.status.text.includes('Copilot CLI を起動できない'), `［設定］の原因: ${f.status.text}`);
+  const act = (f.status.actions ?? []).find((a) => a.id === 'installGuide');
+  assert.ok(act && String(act.label ?? '').trim(), '次の行動 installGuide');
+  const shown = await app.runSettingsAction('installGuide');
+  assert.match([act.text, act.label, shown?.text].filter(Boolean).join(' '), /Copilot CLI/, 'Copilot CLI の導入・再導入の案内');
+  const s = surface(app, env);
+  assert.ok(!s.includes(TOKEN_PROBE), 'トークン・認証の情報は表示されない');
+  assert.ok(!s.includes('PROBE-PATH-0000'), 'ファイルのパスは表示されない');
+  // 以後の LLM 向けの要求は 0 件
+  const n = relay.llmCalls().length;
+  type(app, env, '次の四半期の計画を立てます'); type(base.app, base.env, '次の四半期の計画を立てます');
+  await app.flushLlm();
+  assert.equal(relay.llmCalls().length, n, '以後の LLM 向けの要求は 0 件');
+  assert.equal(app.renderSvg(), base.app.renderSvg(), '以後もルールベース描画');
+  // 導入を直して再び有効にする: Copilot CLI を起動できると確かめられれば、再同意なしで有効に戻る（AC-513）
+  relay.mode = 'ok'; relay.cp.available = true; relay.cp.unavailableReason = null;
+  await settle(app);
+  const r = await app.requestLlmEnable();
+  assert.equal(r.ok, true, `有効にできる: ${JSON.stringify(r)}`);
+  assert.notEqual(r.pending, 'consent', '再同意は求めない');
+  assert.equal(app.getLlmConsent(), null, '同意の表示は出ない');
+  assert.equal(app.getLlmState().enabled, true, '有効に戻る');
+  type(app, env, '担当者を決めましょう');
+  await app.flushLlm();
+  assert.ok(relay.llmCalls().length > n, '有効に戻った後は LLM 向けの要求が出る');
+  assert.ok(relay.llmCalls().slice(n).every((x) => x.provider === 'copilot'), 'GitHub Copilot への要求');
 });
 
 // ======================= FR-088 =======================

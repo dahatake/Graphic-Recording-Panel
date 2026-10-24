@@ -21,7 +21,7 @@
     "AC-029": "sha256:0c3909f0e1309b2e",
     "AC-043": "sha256:9892682e961eed37",
     "AC-030": "sha256:4ff8c6e5383e0179",
-    "AC-031": "sha256:5a4086c2ea19cdc4",
+    "AC-031": "sha256:dbc47a4570d83d70",
     "AC-032": "sha256:70a43cf878f66a04",
     "AC-036": "sha256:318b0f2e4205a0cb",
     "AC-038": "sha256:b7d5386af3599f7f",
@@ -231,7 +231,7 @@
     "AC-490": "sha256:b6b5a791aae42fef",
     "AC-491": "sha256:8b0e5859c678cc64",
     "AC-496": "sha256:fc9f8b4ac467a77a",
-    "AC-506": "sha256:56159f823208317b",
+    "AC-506": "sha256:ff1478c0853c2f61",
     "AC-508": "sha256:a92396b443552fe3",
     "AC-509": "sha256:02215bd5105c2f85",
     "AC-513": "sha256:854c341617196141",
@@ -7259,11 +7259,11 @@
         "AC-509",
         "AC-511"
       ],
-      "title": "GitHub Copilot: 未設定の原因と次の行動（SDK 未導入・Copilot CLI を起動できない＝導入・再導入の案内・未サインイン・トークン未設定）・失敗時の自動復帰（AC-506）、接続キー画面の GitHub Copilot の分類（AC-508）、サインインのデバイスフローとサインアウト後の例外（AC-509）、サインアウト（AC-511）。異常系含む",
+      "title": "GitHub Copilot: 未設定の原因と次の行動（SDK 未導入・Copilot CLI を起動できない＝導入・再導入の案内・未サインイン・トークン未設定）・失敗時の自動復帰と原因の分類（不正な応答を含む）・有効なまま Copilot CLI を起動できないときの通知・自動で無効（同意は残す）・再同意なしの復帰（AC-506）、接続キー画面の GitHub Copilot の分類（AC-508）、サインインのデバイスフローとサインアウト後の例外（AC-509）、サインアウト（AC-511）。異常系含む",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-5(0[689]|11)\" tests/system/copilot.test.js tests/system/copilot-relay.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "d0b446c",
       "last_run_at": "2026-10-24T22:21:05+09:00",
       "evidence": "work/runs/202610242132/logs/system-test/E2E-255-202610242220.log",
@@ -7285,6 +7285,12 @@
           "by": "test-designer",
           "change": "title: 'GitHub Copilot: 未設定の原因と次の行動・失敗時の自動復帰（AC-506）、接続キー画面の GitHub Copilot の分類（AC-508）、サインインのデバイスフローとサインアウト後の例外（AC-509）、サインアウト（CLI の資格情報を消さない・再起動後も保持。AC-511）。異常系含む' -> 'GitHub Copilot: 未設定の原因と次の行動（SDK 未導入・Copilot CLI を起動できない＝導入・再導入の案内・未サインイン・トークン未設定）・失敗時の自動復帰（AC-506）、接続キー画面の GitHub Copilot の分類（AC-508）、サインインのデバイスフローとサインアウト後の例外（AC-509）、サインアウト（AC-511）。異常系含む'",
           "reason": "AC-506 の変更（監査 A-235: 原因「Copilot CLI を起動できない」と導入・再導入の案内）に合わせ、copilot.test.js の AC-506 のケースに CLI を起動できない場合を追加"
+        },
+        {
+          "at": "2026-10-24T22:49:04+09:00",
+          "by": "test-designer",
+          "change": "title: 'GitHub Copilot: 未設定の原因と次の行動（SDK 未導入・Copilot CLI を起動できない＝導入・再導入の案内・未サインイン・トークン未設定）・失敗時の自動復帰（AC-506）、接続キー画面の GitHub Copilot の分類（AC-508）、サインインのデバイスフローとサインアウト後の例外（AC-509）、サインアウト（AC-511）。異常系含む' -> 'GitHub Copilot: 未設定の原因と次の行動（SDK 未導入・Copilot CLI を起動できない＝導入・再導入の案内・未サインイン・トークン未設定）・失敗時の自動復帰と原因の分類（不正な応答を含む）・有効なまま Copilot CLI を起動できないときの通知・自動で無効（同意は残す）・再同意なしの復帰（AC-506）、接続キー画面の GitHub Copilot の分類（AC-508）、サインインのデバイスフローとサインアウト後の例外（AC-509）、サインアウト（AC-511）。異常系含む'",
+          "reason": "AC-506 の変更（監査 A-240・A-242）: 有効なまま Copilot CLI を起動できない（中継サーバーの 503 cli_unavailable）ときのルールベース描画・原因の通知（接続としない）・トークン・パスの非表示・自動で無効（同意は残す）・以後の要求 0 件・再同意なしの復帰と、不正な応答の原因の分類の通知を copilot.test.js に追加"
         }
       ]
     },
