@@ -222,9 +222,9 @@
     "AC-467": "sha256:c4226d7de46cdab0",
     "AC-468": "sha256:f80e054d2adb4c3d",
     "AC-469": "sha256:6fe4e419ca2b590c",
-    "AC-482": "sha256:d62ecd132f0ec6d7",
-    "AC-483": "sha256:1ea8660426c4c85a",
-    "AC-484": "sha256:c03029b79db89d22",
+    "AC-482": "sha256:f3a7f63426aac750",
+    "AC-483": "sha256:a249208451878167",
+    "AC-484": "sha256:fabe5c154ba93740",
     "AC-485": "sha256:c2c7510c7aeb2c63",
     "AC-486": "sha256:70093967bc480c0f",
     "AC-487": "sha256:ee1c3e825c37eb17",
@@ -236,7 +236,9 @@
     "AC-509": "sha256:02215bd5105c2f85",
     "AC-513": "sha256:854c341617196141",
     "AC-514": "sha256:0faa36632a862ea8",
-    "AC-511": "sha256:b882f15318d530fb"
+    "AC-511": "sha256:b882f15318d530fb",
+    "AC-519": "sha256:e59a5839d6fa8676",
+    "AC-520": "sha256:14b573b98403a6ff"
   },
   "cases": [
     {
@@ -7018,11 +7020,11 @@
       "ac_ids": [
         "AC-482"
       ],
-      "title": "最上部の「接続キー」（アイコン・名称・常時表示の説明に GitHub Copilot の認証を含む、［設定］と別、設定の語なし、日英切替）",
+      "title": "リボンに接続キーが 0 件で、［設定］の分類に「接続キー」がアイコン・説明つきで並ぶ（日英切替・異常系含む。2026-10-25 変更）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=AC-482 tests/system/apikeys.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "b72da86",
       "last_run_at": "2026-10-25T05:13:10+09:00",
       "evidence": "work/runs/202610242234/logs/system-test/E2E-246-202610250513.log",
@@ -7038,6 +7040,18 @@
           "by": "test-designer",
           "change": "title: '最上部の「接続キー」（アイコン・名称・常時表示の説明、［設定］と別、設定の語なし、日英切替）' -> '最上部の「接続キー」（アイコン・名称・常時表示の説明に GitHub Copilot の認証を含む、［設定］と別、設定の語なし、日英切替）'",
           "reason": "AC-482 の文言変更（説明に GitHub Copilot の認証。2026-10-24）に合わせ、説明に GitHub Copilot を含むことを日英で確かめる"
+        },
+        {
+          "at": "2026-10-25T06:13:58+09:00",
+          "by": "test-designer",
+          "change": "title: '最上部の「接続キー」（アイコン・名称・常時表示の説明に GitHub Copilot の認証を含む、［設定］と別、設定の語なし、日英切替）' -> 'リボンに接続キーが 0 件で、［設定］の分類に「接続キー」がアイコン・説明つきで並ぶ（日英切替・異常系含む。2026-10-25 変更）'",
+          "reason": "FR-084 AC-482 の変更（リボンのグループ廃止・［設定］へ統合）"
+        },
+        {
+          "at": "2026-10-25T06:14:09+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "FR-084 変更（接続キーを［設定］へ統合）のため再実行"
         }
       ]
     },
@@ -7053,7 +7067,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=AC-483 tests/system/apikeys.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "b72da86",
       "last_run_at": "2026-10-25T05:13:10+09:00",
       "evidence": "work/runs/202610242234/logs/system-test/E2E-247-202610250513.log",
@@ -7069,6 +7083,12 @@
           "by": "test-designer",
           "change": "title: '接続キー画面が中央のモーダルで開き背景は inert のオーバーレイ、2 分類、開いても入力・記録・図は失われない' -> '接続キー画面が中央のモーダルで開き背景は inert のオーバーレイ、3 分類（Foundry・GitHub Copilot・Azure Speech）、開いても入力・記録・図は失われない'",
           "reason": "AC-483 の文言変更（分類に GitHub Copilot。2026-10-24）に合わせ、3 分類の順と GitHub Copilot の内容を確かめる"
+        },
+        {
+          "at": "2026-10-25T06:14:10+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "FR-084 変更（接続キーを［設定］へ統合）のため再実行"
         }
       ]
     },
@@ -7084,7 +7104,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=AC-484 tests/system/apikeys.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "b72da86",
       "last_run_at": "2026-10-25T05:13:10+09:00",
       "evidence": "work/runs/202610242234/logs/system-test/E2E-248-202610250513.log",
@@ -7094,6 +7114,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610222227）"
+        },
+        {
+          "at": "2026-10-25T06:14:10+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "FR-084 変更（接続キーを［設定］へ統合）のため再実行"
         }
       ]
     },
@@ -7109,7 +7135,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=AC-485 tests/system/apikeys.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "b72da86",
       "last_run_at": "2026-10-25T05:13:10+09:00",
       "evidence": "work/runs/202610242234/logs/system-test/E2E-249-202610250513.log",
@@ -7125,6 +7151,12 @@
           "by": "test-designer",
           "change": "title: 'キーボード操作（Tab の循環・矢印）、読み上げ、動きを減らす、狭い画面、forced-colors、ラベル長' -> 'キーボード操作（Tab の循環・矢印で 3 分類を切替）、読み上げ、動きを減らす、狭い画面、forced-colors、ラベル長'",
           "reason": "AC-483 の分類の追加（GitHub Copilot。2026-10-24）に合わせ、矢印キーの切替順と分類の数（3）を直す。期待値は弱めていない"
+        },
+        {
+          "at": "2026-10-25T06:14:11+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "FR-084 変更（接続キーを［設定］へ統合）のため再実行"
         }
       ]
     },
@@ -7140,7 +7172,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=AC-486 tests/system/apikeys.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "b72da86",
       "last_run_at": "2026-10-25T05:13:10+09:00",
       "evidence": "work/runs/202610242234/logs/system-test/E2E-250-202610250513.log",
@@ -7150,6 +7182,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610222227）"
+        },
+        {
+          "at": "2026-10-25T06:14:11+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "FR-084 変更（接続キーを［設定］へ統合）のため再実行"
         }
       ]
     },
@@ -7330,6 +7368,56 @@
           "by": "test-designer",
           "change": "title: 'LLMのプロバイダー: 同意はプロバイダーごと・従来の同意は Foundry（AC-513）、［設定］のプロバイダーの選択・保持・接続テストの宛先（AC-514）。異常系含む' -> 'LLMのプロバイダー: 同意はプロバイダーごとの別の記録（Foundry は版・日時だけ、Copilot は版・日時・プロバイダーの名前。一方の作成・削除は他方を変えない）・従来の同意は Foundry（AC-513）、［設定］のプロバイダーの選択・保持・接続テストの宛先（AC-514）。異常系含む'",
           "reason": "AC-513 の本文変更（393a7a5）: 記録の項目をプロバイダーごとに検証し、一方の記録の作成・削除が他方を変えないこと、セッションファイルに同意を含めないことを追加"
+        }
+      ]
+    },
+    {
+      "id": "E2E-257",
+      "requirement_ids": [
+        "FR-030"
+      ],
+      "ac_ids": [
+        "AC-519"
+      ],
+      "title": "リボンに［設定］パネルの全項目（アイコン・説明つき）があり、リボンと［設定］の値が常に一致する（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=AC-519 tests/system/ribbon-settings.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-25T06:14:00+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-258",
+      "requirement_ids": [
+        "FR-030"
+      ],
+      "ac_ids": [
+        "AC-520"
+      ],
+      "title": "リボンに同じ機能の項目の重複がなく、全項目が操作で動作し無反応が 0 件（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=AC-520 tests/system/ribbon-settings.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-25T06:14:01+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
         }
       ]
     }
