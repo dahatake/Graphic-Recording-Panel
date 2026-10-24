@@ -14,8 +14,8 @@
 | FR-003 | 発話のシーン分割と要点抽出 | 承認済み | web/src/scenes.js, web/src/app.js | tests/unit/core.test.js, tests/system/scenes.test.js | アプリ組立 |
 | FR-004 | 2D のグラフィック・ファシリテーション表示 | 承認済み | web/src/diagram.js, web/src/emotion.js, web/styles/app.css | tests/unit/core.test.js, tests/system/scenes.test.js | アプリ組立, デザイン基盤, 感情語辞書 |
 | FR-005 | 図の手修正 | 承認済み | web/src/edit.js, web/src/edit-ui.js, web/src/persist.js, web/src/app.js | tests/unit/export-edit.test.js | アプリ組立 |
-| FR-006 | 画像としての保存 | 承認済み | web/src/export.js, web/src/edit-ui.js, web/src/app.js | tests/unit/export-edit.test.js, tests/system/export.test.js | アプリ組立, i18n |
-| FR-007 | PDF としての保存 | 承認済み | web/src/export.js, web/src/app.js | tests/unit/export-edit.test.js, tests/system/export.test.js | アプリ組立 |
+| FR-006 | 画像としての保存 | 承認済み | web/src/export.js, web/src/edit-ui.js, web/src/app.js | tests/unit/export-edit.test.js, tests/unit/export-detail.test.js, tests/system/export.test.js | アプリ組立, i18n |
+| FR-007 | PDF としての保存 | 承認済み | web/src/export.js, web/src/app.js | tests/unit/export-edit.test.js, tests/unit/export-detail.test.js, tests/system/export.test.js | アプリ組立 |
 | FR-008 | 表示言語の切替（日本語・英語） | 承認済み | web/src/i18n.js, web/src/app.js, web/src/ui.js | tests/unit/shell.test.js, tests/system/i18n.test.js | i18n, アプリ組立 |
 | FR-009 | 2D/3D の切替表示 | 承認済み | web/src/view3d.js, web/styles/view3d.css, web/src/app.js, web/src/main.js | tests/unit/view3d.test.js, tests/system/view.test.js | アプリ組立, 3D ビュー |
 | FR-010 | ダイナミックカメラによるプレゼンテーション | 承認済み | web/src/view3d.js, web/src/keymap.js, web/src/ui.js | tests/unit/view3d.test.js, tests/system/view.test.js | アプリ組立, 3D ビュー |
@@ -46,7 +46,7 @@
 | FR-023 | 字幕ファイル取込の処理中表示と再取込 | 承認済み | web/src/input.js, web/src/ui.js, web/index.html | tests/unit/importstatus.test.js, tests/system/importstatus.test.js | アプリ組立 |
 | FR-024 | オブジェクト選択時のテキスト一覧のポップアップ表示 | 承認済み | web/src/popup.js, web/src/app.js, web/src/ui.js, web/src/i18n.js, web/styles/app.css, web/sw.js | tests/unit/popup.test.js, tests/system/scenepopup.test.js | アプリ組立, デザイン基盤 |
 | FR-025 | シーンのトピックへの分類と集約 | 承認済み | web/src/topics.js, web/src/diagram.js, web/src/arrange.js, web/src/popup.js, web/src/outline.js, web/src/persist.js, web/src/session.js, web/src/edit-ui.js, web/src/app.js, web/src/i18n.js, web/styles/app.css, web/sw.js | tests/unit/topics.test.js, tests/system/detail.test.js | アプリ組立, i18n, キーマップ |
-| FR-026 | 図の表示の詳細度の設定（初期値は大項目） | 承認済み | web/src/topics.js, web/src/diagram.js, web/src/arrange.js, web/src/popup.js, web/src/commandbar.js, web/src/ui.js, web/src/i18n.js, web/sw.js | tests/unit/topics.test.js, tests/system/detail.test.js | アプリ組立, デザイン基盤, i18n, コマンドバー, キーマップ |
+| FR-026 | 図の表示の詳細度の設定（初期値は大項目） | 承認済み | web/src/topics.js, web/src/diagram.js, web/src/arrange.js, web/src/popup.js, web/src/commandbar.js, web/src/ui.js, web/src/i18n.js, web/src/export.js, web/sw.js | tests/unit/topics.test.js, tests/unit/export-detail.test.js, tests/system/detail.test.js | アプリ組立, デザイン基盤, i18n, コマンドバー, キーマップ |
 | FR-027 | レイアウト型の切替（上部アイコン・名称ラベル・手動上書き・併用） | 承認済み | web/src/settings.js, web/src/layouttypes.js, web/src/commandbar.js, web/src/session.js, web/src/diagram.js, web/src/ui.js, web/src/app.js, web/styles/app.css, web/sw.js | tests/unit/layoutsettings.test.js, tests/system/layouttype.test.js | アプリ組立, デザイン基盤, コマンドバー, キーマップ, i18n, セッション, レイアウト型レジストリ |
 | FR-028 | 会話の内容からのレイアウト型の自動選択 | 承認済み | web/src/autolayout.js, web/src/app.js, web/sw.js | tests/unit/autolayout.test.js, tests/system/layouttype.test.js | アプリ組立, レイアウト型レジストリ |
 | FR-029 | 描画スタイルの選択（拡張可能） | 承認済み | web/src/drawstyles.js, web/src/settings.js, web/src/diagram.js, web/src/session.js, web/sw.js | tests/unit/layoutsettings.test.js, tests/system/drawstyle.test.js | アプリ組立, デザイン基盤, セッション, 描画スタイルの登録 |
