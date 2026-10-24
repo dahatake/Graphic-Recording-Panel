@@ -27,7 +27,7 @@ function relayMock(copilot = {}, { signin } = {}) {
   const r = { calls: [], cp: { available: true, unavailableReason: null, authMethod: 'signin', authMethodSource: null, signedIn: false, account: null, tokenConfigured: false, tokenSource: null, model: '', modelSource: null, ...copilot }, flow: 'pending' };
   r.fn = async ({ method = 'GET', path: p, body }) => {
     r.calls.push({ method, path: p, body: body === undefined ? undefined : JSON.parse(JSON.stringify(body)) });
-    if (p === '/api/llm/status') return { status: 200, body: { configured: {}, copilot: { ...r.cp, token: LEAK, credential: LEAK }, token: LEAK } };
+    if (p === '/api/llm/status' || (p === '/api/llm/copilot' && method === 'GET')) return { status: 200, body: { configured: {}, copilot: { ...r.cp, token: LEAK, credential: LEAK }, token: LEAK } };
     if (p === '/api/llm/copilot' && method === 'POST') {
       r.cp.authMethod = body.authMethod; r.cp.authMethodSource = 'ui';
       if (body.token) { r.cp.tokenConfigured = true; r.cp.tokenSource = 'ui'; }
@@ -79,7 +79,7 @@ test('FR-088 AC-508 / NFR-SEC-006 AC-515: トークンは書き込み専用で�
   assert.ok(!visible(app, storage).includes(PROBE));
   const r = await app.saveCopilotSettings();
   assert.deepEqual(r, { ok: true, result: 'saved' });
-  assert.equal(m.calls.find((c) => c.path === '/api/llm/copilot').body.token, PROBE, '中継サーバーへは送る');
+  assert.equal(m.calls.find((c) => c.path === '/api/llm/copilot' && c.method === 'POST').body.token, PROBE, '中継サーバーへは送る');
   assert.equal(field(app, 'token').input.value, '');
   const s = visible(app, storage);
   assert.ok(!s.includes(PROBE) && !s.includes(LEAK), 'トークン・漏れの探針は表示・保存されない');
@@ -96,7 +96,7 @@ test('FR-088 AC-508: 認証方式がサインインのときトークン欄は�
   app.setCopilotTokenInput(PROBE);
   assert.equal(field(app, 'token').input.value, '');
   await app.saveCopilotSettings();
-  assert.ok(!('token' in m.calls.find((c) => c.path === '/api/llm/copilot').body));
+  assert.ok(!('token' in m.calls.find((c) => c.path === '/api/llm/copilot' && c.method === 'POST').body));
   // 認証方式をトークンにしてから戻すと、入力中のトークンは捨てられる
   app.setCopilotAuthMethod('token'); app.setCopilotTokenInput(PROBE); app.setCopilotAuthMethod('signin');
   app.setCopilotAuthMethod('token');
@@ -111,7 +111,7 @@ test('FR-088 AC-510: トークンは PARAM-094、モデル名は PARAM-096 を�
   app.setCopilotAuthMethod('token');
   app.setCopilotTokenInput('x'.repeat(513)); assert.equal((await app.saveCopilotSettings()).result, 'invalid');
   app.setCopilotModelInput('m'.repeat(65)); assert.equal((await app.saveCopilotSettings()).result, 'invalid');
-  assert.equal(m.calls.filter((c) => c.path === '/api/llm/copilot').length, 0);
+  assert.equal(m.calls.filter((c) => c.path === '/api/llm/copilot' && c.method === 'POST').length, 0);
   assert.equal(app.getApiKeysDialog().liveMessage.role, 'alert');
   app.setCopilotModelInput('m'.repeat(64)); app.setCopilotTokenInput('x'.repeat(512));
   assert.equal((await app.saveCopilotSettings()).result, 'saved');

@@ -99,8 +99,16 @@ def _outcome(rc, out):
     return "failed"
 
 
+on_completed = None  # サインインが完了したときに呼ぶ（relay.py が「このアプリでのサインアウト」を解除する。AC-511）
+
+
 def _refresh():
     """状態（GET /api/llm/status）のキャッシュを捨て、サインイン済みかを CLI に確かめ直させる。"""
+    if on_completed is not None:
+        try:
+            on_completed()
+        except Exception:  # noqa: BLE001
+            pass
     try:
         _cp.reset()
     except Exception:  # noqa: BLE001
