@@ -43,7 +43,13 @@ CLI_STUB = textwrap.dedent('''
     print("Waiting for authorization...", flush=True)
     for _ in range(600):
         if os.path.exists(flag):
-            mode = open(flag).read().strip()
+            # Windows では os.replace の瞬間に開くと PermissionError になる。読めなければ待って読み直す
+            try:
+                with open(flag) as f:
+                    mode = f.read().strip()
+            except OSError:
+                time.sleep(0.05)
+                continue
             if not mode:  # 書き込みの途中（作成済みで中身がまだない）を「想定外」と読まない
                 time.sleep(0.05)
                 continue
