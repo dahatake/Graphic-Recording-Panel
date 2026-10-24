@@ -44,7 +44,9 @@ copilot: {
 - 503 `cli_unavailable` を受けたら: 該当のシーンはルールベース描画、`getState().message.text`（80 文字以内）に「Copilot CLI を起動できない」を含み「接続」を含まない。トークン・認証の情報・ファイルのパスはどの観察点（`surface`）にも出ない。
 - `getLlmState().enabled` は `false` に戻る（自動）。同意の記録 `grp.llm.consent.copilot` は変えない。以後の LLM 向けの要求は 0 件。
 - ［設定］の `llm.enabled` の `status.text` に「Copilot CLI を起動できない」、`status.actions` に `'installGuide'`（SDK・Copilot CLI の導入・再導入の案内。「Copilot CLI」を含む）。
-- 導入を直した後（モックの `copilot.available:true`・`unavailableReason:null`、LLM 向けの要求は成功）、`await app.refreshCopilotStatus()` の後の `requestLlmEnable()` は `{ok:true}`（`pending:'consent'` ではない）で、`getLlmConsent()` は `null`、`getLlmState().enabled` は `true`。
+- 「有効にできない」状態（監査 D-1）: クライアントは有効・無効のフラグや別の記録を持たず、`GET /api/llm/status` の `copilot.unavailableReason:'cli_unavailable'` から導く。その間は同意の記録（版が一致）があっても `getLlmState().enabled` は `false`、`requestLlmEnable()` は `{ok:false, missing:['cli']}`（AC-312 の例外）。再読込（同じ storage・同じ中継サーバーで `createApp` し直し、テストが `refreshCopilotStatus()` を呼ぶ）は状態を引き継がず、状態の取得の結果で決まる。
+- 確かめ直し（`GET /api/llm/status`）の契機は、`commands['settings.open']()`（アプリが自ら状態の取得を送る。テストは `refreshCopilotStatus()` を呼ばない）・`await app.testLlmConnection()`・再読込だけ。利用者の操作なしに `env.scheduler` の時間を進めても `GET /api/llm/status` は送らない。
+- 導入を直した後（モックの `copilot.available:true`・`unavailableReason:null`、LLM 向けの要求は成功）、上の契機のあとは `requestLlmEnable()` を呼ばずに `getLlmState().enabled` が `true`、`getLlmConsent()` は `null`、同意の記録は変わらない（再同意を求めない。AC-513）。
 
 ## 同意（AC-513）
 - 同意の記録は `options.storage` のキー `grp.llm.consent`（Microsoft Foundry。従来の `{version, at}`。2026-10-24 より前の記録＝`provider` なしも Foundry への同意）と、`grp.llm.consent.copilot`（GitHub Copilot。`{version, at, provider:'copilot'}`）に置く。Foundry の記録の項目は `version`・`at` だけ（`provider` を持たない）、GitHub Copilot の記録の項目は `version`・`at`・`provider` だけ。一方の記録の作成・削除（無効化 `disableLlm()` による取り消しを含む）は他方の記録を変えない。
