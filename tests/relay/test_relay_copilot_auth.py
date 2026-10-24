@@ -44,6 +44,9 @@ CLI_STUB = textwrap.dedent('''
     for _ in range(600):
         if os.path.exists(flag):
             mode = open(flag).read().strip()
+            if not mode:  # 書き込みの途中（作成済みで中身がまだない）を「想定外」と読まない
+                time.sleep(0.05)
+                continue
             if mode == "ok":
                 print("Signed in successfully as octo-dummy. credential " + "''' + CRED + '''", flush=True)
                 sys.exit(0)
@@ -125,6 +128,13 @@ def cli(env, monkeypatch):
     flag = env / "signin-flag"
     monkeypatch.setattr(signin, "login_argv", lambda: [sys.executable, str(script), str(flag), "login", "--device-code"])
     return flag
+
+
+def signal(flag, mode):
+    """スタブの CLI への合図を原子的に書く（作成と書き込みの間の空のファイルを CLI に読ませない）。"""
+    tmp = flag.with_name(flag.name + ".tmp")
+    tmp.write_text(mode)
+    os.replace(str(tmp), str(flag))
 
 
 def raw_store(env):
@@ -282,7 +292,7 @@ def test_fr088_ac509_device_flow_completes(srv, env, sdk, cli, monkeypatch):
     assert args == "login --device-code", "引数に秘密を置かない"
     assert env_tokens.strip() == "", "子プロセスに GitHub のトークンの環境変数を渡さない"
     b, _ = wait_state(srv, "pending")
-    cli.write_text("ok")
+    signal(cli, "ok")
     sdk.signed_in = True
     b, raw = wait_state(srv, "completed")
     assert CRED not in raw and "octo-dummy" not in raw and "Signed" not in raw
@@ -301,7 +311,7 @@ def test_fr088_ac509_device_flow_failures(srv, env, sdk, cli, mode, state):
         st, b, raw = srv.call("DELETE", "/api/llm/copilot/signin")
         assert st == 200 and b["state"] == "cancelled"
     else:
-        cli.write_text(mode)
+        signal(cli, mode)
     b, raw = wait_state(srv, state)
     assert CRED not in raw and set(b) == {"state"}
     if cli.exists():
@@ -346,6 +356,59 @@ def test_fr088_ac509_classify_waits_for_reader_output(env, text, state):
     threading.Timer(0.2, release.set).start()
     assert signin.status() == {"state": state}
     assert not reader.is_alive()
+
+
+class _ExitedProc:
+    def __init__(self, rc):
+        self.rc = rc
+
+    def poll(self):
+        return self.rc
+
+    def kill(self):
+        pass
+
+    def wait(self, timeout=None):
+        return self.rc
+
+
+# FR-088 AC-509: 負荷で reader の join が上限を超えても、途中の出力で failed にせず、読み終えてから拒否を分類する
+def test_fr088_ac509_classify_waits_when_reader_join_times_out(env, monkeypatch):
+    monkeypatch.setattr(signin, "READER_JOIN_SEC", 0.05)
+    proc = _ExitedProc(1)
+    release = threading.Event()
+
+    def slow_reader():
+        release.wait(10)
+        with signin._lock:
+            signin._flow["out"] += "Error: access_denied by the user"
+
+    reader = threading.Thread(target=slow_reader, daemon=True)
+    with signin._lock:
+        signin._flow.update({"proc": proc, "reader": reader, "state": "pending", "started": time.time(), "out": "",
+                             "cancelled": False, "exited": 0.0})
+    reader.start()
+    assert signin.status() == {"state": "pending"}, "join の上限を超えても途中の出力で分類しない"
+    assert signin.status() == {"state": "pending"}
+    release.set()
+    reader.join(5)
+    assert signin.status() == {"state": "denied"}
+
+
+# FR-088 AC-509: CLI の終了後、出力を読み終えないまま READER_GRACE_SEC を過ぎたら、読めた分で分類して pending に留まらない
+def test_fr088_ac509_classify_after_reader_grace(env, monkeypatch):
+    monkeypatch.setattr(signin, "READER_JOIN_SEC", 0.01)
+    monkeypatch.setattr(signin, "READER_GRACE_SEC", 0)
+    release = threading.Event()
+    reader = threading.Thread(target=lambda: release.wait(10), daemon=True)
+    with signin._lock:
+        signin._flow.update({"proc": _ExitedProc(1), "reader": reader, "state": "pending", "started": time.time(),
+                             "out": "access_denied", "cancelled": False, "exited": time.time() - 1})
+    reader.start()
+    try:
+        assert signin.status() == {"state": "denied"}
+    finally:
+        release.set()
 
 
 # FR-088 AC-509: 認証方式がトークンのとき・SDK がないときはサインインを始めない
@@ -469,7 +532,7 @@ def test_fr088_ac511_resignin_without_cli_credential_uses_device_flow(srv, env, 
     relay_copilot.reset()
     st, b, raw = srv.call("POST", "/api/llm/copilot/signin", {})
     assert st == 200 and b["state"] == "pending" and b["userCode"] == "ABCD-1234"
-    cli.write_text("ok")
+    signal(cli, "ok")
     sdk.signed_in = True
     wait_state(srv, "completed")
     assert not _signout_flag(), "サインインの完了でこのアプリでのサインアウトを解除する"

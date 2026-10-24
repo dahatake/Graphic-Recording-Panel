@@ -4,6 +4,7 @@ GitHub Copilot SDK は sys.modules に置いたスタブだけを使い、GitHub
 Foundry はループバックの上流モックで要求の件数だけを数える。テスト用のダミーの値だけを使う。
 """
 import asyncio
+import concurrent.futures
 import http.client
 import json
 import os
@@ -466,3 +467,104 @@ def test_fr087_ac507_copilot_client_reused(sdk, srv, monkeypatch):
     for _ in range(3):
         assert srv.call("POST", "/api/llm/extract", EXTRACT)[0] == 200
     assert sdk.starts == 1 and len(sdk.sent) == 3
+
+
+# FR-087 AC-507 AC-518: 起動の完了のコールバック（_on_started）が、要求のスレッドが fut.result() を受け取った後・
+# クライアントを取得する前に走っても、要求がこれから使うクライアントを止めない（Foundry のときの断続的な二重停止の再現）
+def test_fr087_ac507_ac518_on_started_between_result_and_claim_keeps_client(sdk, monkeypatch):
+    real_lock = relay_copilot._lock
+    real_on_started = relay_copilot._on_started
+    real_begin = relay_copilot._begin_start
+    me = threading.current_thread()
+    box = {"pend": None, "fired": False}
+    deferred = []
+    ready = threading.Event()
+
+    def defer_on_started(pend, fut):
+        deferred.append((pend, fut))
+        ready.set()
+
+    def begin(*a, **k):
+        box["pend"] = real_begin(*a, **k)
+        return box["pend"]
+
+    class HookLock(object):
+        """要求のスレッドが待ち（waiters）を 0 に戻してロックを離した直後に、保留した _on_started を割り込ませる。"""
+
+        def __enter__(self):
+            real_lock.acquire()
+            return self
+
+        def __exit__(self, *exc):
+            pend = box["pend"]
+            real_lock.release()
+            if pend is None or box["fired"] or threading.current_thread() is not me:
+                return False
+            if pend["waiters"] == 0:
+                box["fired"] = True
+                assert ready.wait(5), "起動の完了のコールバックが呼ばれない"
+                real_on_started(*deferred[0])
+            return False
+
+    monkeypatch.setattr(relay_copilot, "_provider_is_copilot", lambda: False)  # プロバイダーは Foundry
+    monkeypatch.setattr(relay_copilot, "_on_started", defer_on_started)
+    monkeypatch.setattr(relay_copilot, "_begin_start", begin)
+    monkeypatch.setattr(relay_copilot, "_lock", HookLock())
+
+    client = relay_copilot._get_client(relay_copilot.load_sdk(), cfg.load_copilot_settings())
+    assert box["fired"], "コールバックを割り込ませられていない"
+    for t in threading.enumerate():
+        if t.name == "copilot-stop":
+            t.join(5)
+    assert sdk.starts == 1 and sdk.stops == 0, "要求がこれから使うクライアントを止めない"
+    assert relay_copilot._state["client"] is client
+
+
+# FR-087 AC-507 AC-518: 起動の完了のコールバックが、要求がクライアントを取得して使い終え、止めた後に遅れて走っても、
+# 止めたクライアントをもう一度止めたり、使い回すクライアントとして残したりしない
+@pytest.mark.parametrize("copilot", [False, True])
+def test_fr087_ac507_ac518_late_on_started_after_claim_and_stop(sdk, monkeypatch, copilot):
+    real_on_started = relay_copilot._on_started
+    deferred = []
+    ready = threading.Event()
+
+    def defer_on_started(pend, fut):
+        deferred.append((pend, fut))
+        ready.set()
+
+    monkeypatch.setattr(relay_copilot, "_provider_is_copilot", lambda: copilot)
+    monkeypatch.setattr(relay_copilot, "_on_started", defer_on_started)
+    client = relay_copilot._get_client(relay_copilot.load_sdk(), cfg.load_copilot_settings())
+    assert relay_copilot._state["client"] is client
+    relay_copilot._stop_client()
+    assert sdk.stops == 1
+    assert ready.wait(5), "起動の完了のコールバックが呼ばれない"
+    real_on_started(*deferred[0])
+    for t in threading.enumerate():
+        if t.name == "copilot-stop":
+            t.join(5)
+    assert sdk.starts == 1 and sdk.stops == 1, "止めたクライアントを二重に止めない"
+    assert relay_copilot._state["client"] is None, "止めたクライアントを使い回しの対象に戻さない"
+
+
+# FR-087 AC-507 AC-518: 起動がすぐ済み、add_done_callback の中で _on_started が同期で走っても（要求が待ちに数えられる前）、
+# Foundry のとき要求がこれから使うクライアントを止めない（status_probe の断続的な二重停止の原因）
+def test_fr087_ac507_ac518_fast_start_callback_before_wait_keeps_client(sdk, monkeypatch):
+    real_rcts = asyncio.run_coroutine_threadsafe
+
+    def finish_first(coro, loop):
+        fut = real_rcts(coro, loop)
+        if getattr(coro, "__name__", "") == "start":
+            concurrent.futures.wait([fut], 5)  # add_done_callback の前に起動を済ませる
+        return fut
+
+    monkeypatch.setattr(relay_copilot, "_provider_is_copilot", lambda: False)  # プロバイダーは Foundry
+    monkeypatch.setattr(asyncio, "run_coroutine_threadsafe", finish_first)
+    client = relay_copilot._get_client(relay_copilot.load_sdk(), cfg.load_copilot_settings())
+    for t in threading.enumerate():
+        if t.name == "copilot-stop":
+            t.join(5)
+    assert sdk.starts == 1 and sdk.stops == 0, "要求がこれから使うクライアントを止めない"
+    assert relay_copilot._state["client"] is client
+    relay_copilot._stop_client()
+    assert sdk.stops == 1
