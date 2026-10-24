@@ -26,6 +26,7 @@ import tempfile
 import threading
 import time
 
+import relay_config as _cfg
 from relay_config import max_bytes, timeout_sec
 from relay_upstream import UpstreamError
 import relay_llmstore as _store
@@ -206,8 +207,31 @@ def _stop_one(client, pids):
             _pt.kill_tree(p)
 
 
+def _stop_pending(pend, wait=STOP_GRACE_SEC):
+    """起動中の CLI を止める（AC-517）。起動を取り消し、起動を始めたときに pend に記録したクライアントから子のプロセスを
+    たどって木ごと止める。起動の途中で子のプロセスが後から現れることがあるので、上限（wait 秒）つきで待ちながら止める。
+    イベントループ（daemon のスレッド）の後始末に頼らないので、中継サーバーの終了の直前でも CLI が残らない。"""
+    fut = pend.get("future")
+    if fut is not None:
+        fut.cancel()
+    deadline = time.monotonic() + wait
+    while True:
+        for p in _pt.find_child_pids(pend.get("client")):
+            if p not in pend["pids"]:
+                pend["pids"].append(p)
+        tree = _tree(pend["pids"])
+        for p in tree:
+            if _pt.alive(p):
+                _pt.kill_tree(p)
+        # 取り消しの後も、クライアントを作った起動の処理は後始末（停止・木ごとの終了）を終えるまで待つ（上限つき）
+        done = fut is None or (fut.done() and (pend.get("client") is None or pend.get("finished")))
+        if (done and not any(_pt.alive(p) for p in tree)) or time.monotonic() >= deadline:
+            return
+        time.sleep(0.05)
+
+
 def _stop_client():
-    """使っているクライアントを止める。起動中のものは、起動が済んだ時点で止めるように印を付ける。"""
+    """使っているクライアントを止める。起動中のものは取り消し、子のプロセスを木ごと止める（AC-517）。"""
     with _lock:
         client, pids = _state["client"], _state["pids"]
         _state.update({"client": None, "key": None, "pids": []})
@@ -216,6 +240,8 @@ def _stop_client():
             pend["abandon"] = True
     if client is not None or pids:
         _stop_one(client, pids)
+    if pend is not None:
+        _stop_pending(pend)
 
 
 def _on_started(pend, fut):
@@ -230,7 +256,9 @@ def _on_started(pend, fut):
     with _lock:
         if _state["client"] is client:
             return  # 待っていた要求がすでに使い始めた
-        keep = not pend["abandon"] and _state["client"] is None
+        # プロバイダーが GitHub Copilot のとき（または要求が待っているとき）だけ残す。Foundry に切り替わっていれば止める（AC-507）
+        keep = (not pend["abandon"] and _state["client"] is None
+                and (pend["waiters"] > 0 or _provider_is_copilot()))
         if _state["pending"] is pend:
             _state["pending"] = None
         if keep:
@@ -240,12 +268,22 @@ def _on_started(pend, fut):
     threading.Thread(target=_stop_one, args=(client, pids), name="copilot-stop", daemon=True).start()
 
 
+def _provider_is_copilot():
+    try:
+        return _cfg.load_copilot_settings().provider == "copilot"
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _begin_start(sdk, cs, key):
-    """CLI の起動・SDK の初期化を背景で始める。要求の打ち切りでは止めず、START_LIMIT_SEC を超えたら木ごと止める。"""
+    """CLI の起動・SDK の初期化を背景で始める。要求の打ち切りでは止めず、START_LIMIT_SEC を超えたら木ごと止める。
+    起動を始めたときにクライアントを pend に記録し、止めるときに子のプロセスをたどれるようにする（AC-517）。"""
     opts = _client_options(cs, sdk)
+    pend = {"key": key, "abandon": False, "client": None, "pids": [], "waiters": 0}
 
     async def start():
         client = sdk.CopilotClient(**opts)
+        pend["client"] = client
         try:
             await asyncio.wait_for(client.start(), START_LIMIT_SEC)
         except BaseException:
@@ -254,9 +292,10 @@ def _begin_start(sdk, cs, key):
             await _astop(client)
             await asyncio.get_running_loop().run_in_executor(None, lambda: [_pt.kill_tree(p) for p in tree if _pt.alive(p)])
             raise
+        finally:
+            pend["finished"] = True
         return client
 
-    pend = {"key": key, "abandon": False}
     pend["future"] = fut = asyncio.run_coroutine_threadsafe(start(), _loop())
     with _lock:
         _state["pending"] = pend
@@ -287,12 +326,17 @@ def _get_client(sdk, cs, deadline=None):
         pend = _begin_start(sdk, cs, key)
     fut = pend["future"]
     wait = STATUS_START_WAIT_SEC if deadline is None else _remaining(deadline)
+    with _lock:
+        pend["waiters"] += 1
     try:
         client = fut.result(max(wait, 0))  # 打ち切っても fut は取り消さない（次の要求で使い回す）
     except concurrent.futures.TimeoutError:
         raise _timeout_error()
-    except Exception:  # noqa: BLE001 — 例外の文面にパス・資格情報が入りうるので分類だけ返す
+    except (Exception, concurrent.futures.CancelledError):  # noqa: BLE001 — 文面にパス・資格情報が入りうるので分類だけ返す
         raise UpstreamError(503, "cli_unavailable", "GitHub Copilot CLI を起動できません。")
+    finally:
+        with _lock:
+            pend["waiters"] -= 1
     with _lock:
         if _state["client"] is None and not pend["abandon"]:
             _state.update({"client": client, "key": key, "pids": _pt.find_child_pids(client)})
@@ -302,7 +346,7 @@ def _get_client(sdk, cs, deadline=None):
 
 
 def shutdown():
-    """中継サーバーの終了時に CLI を止める。"""
+    """中継サーバーの終了時に CLI を止める。起動の途中なら取り消し、子のプロセスを木ごと止める（AC-517）。"""
     _stop_client()
 
 

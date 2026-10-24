@@ -466,6 +466,8 @@ class RelayHandler(SimpleHTTPRequestHandler):
         if cs.sources.get("provider") in ("env", "file") and cs.provider != body["provider"]:
             return reply(409, False, "env_managed")
         store.save({"provider": body["provider"]})
+        # プロバイダーを変えたら、起動中・起動済みの Copilot CLI を止め、状態のキャッシュを捨てる（AC-507・AC-517）
+        copilot.reset()
         return reply(200, True, "saved")
 
     def _speech(self):

@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 import relay_copilot  # noqa: E402
 import relay_copilot_signin as signin  # noqa: E402
+import relay_llmstore as store  # noqa: E402
 import relay_proctree as proctree  # noqa: E402
 from test_relay_copilot import EXTRACT, ENV_NAMES, Srv, use_copilot  # noqa: E402
 
@@ -310,6 +311,65 @@ def test_fr087_ac518_pending_start_is_shared(psdk, srv, monkeypatch):
     for _ in range(2):
         assert srv.call("POST", "/api/llm/extract", EXTRACT)[1]["error"]["code"] == "upstream_timeout"
     assert psdk.starts == 1
+
+
+def _start_slow_request(psdk, srv, env, monkeypatch, delay=8.0):
+    """起動を遅らせ、PARAM-069=1 秒の要求を打ち切らせて、起動の途中の CLI（シェル・CLI・子）のプロセス ID を返す。"""
+    monkeypatch.setenv("RELAY_TIMEOUT_SEC", "1")
+    psdk.start_delay = delay
+    assert srv.call("POST", "/api/llm/extract", EXTRACT)[1]["error"]["code"] == "upstream_timeout"
+    rec = _wait_log(env, 1)[0]
+    pids = [psdk.procs[0], rec["pid"], rec["child"]]
+    assert all(proctree.alive(p) for p in pids), "前提: 起動の途中で CLI とその子が動いている"
+    return pids
+
+
+# FR-087 AC-517 AC-518: 背景の起動が START_LIMIT_SEC を超えたら、CLI をプロセスの木ごと止めて cli_unavailable にする
+def test_fr087_ac517_start_limit_kills_process_tree(psdk, srv, env, monkeypatch):
+    use_copilot(monkeypatch)
+    monkeypatch.setattr(relay_copilot, "START_LIMIT_SEC", 2)
+    t0 = time.monotonic()
+    pids = _start_slow_request(psdk, srv, env, monkeypatch, delay=30.0)
+    assert _all_dead(pids, sec=10), [p for p in pids if proctree.alive(p)]
+    assert time.monotonic() - t0 < 15, "上限を超えた時点で止める（起動の遅れ 30 秒を待たない）"
+    relay_copilot.reset()
+    psdk.start_delay = 0.0
+    monkeypatch.setattr(psdk, "start_fail", True)
+    assert srv.call("POST", "/api/llm/extract", EXTRACT)[1]["error"]["code"] == "cli_unavailable"
+
+
+# FR-087 AC-517: 起動の途中で中継サーバーを終了（shutdown）しても、CLI とその子のプロセスが残らない
+def test_fr087_ac517_shutdown_during_start_kills_process_tree(psdk, srv, env, monkeypatch):
+    use_copilot(monkeypatch)
+    pids = _start_slow_request(psdk, srv, env, monkeypatch)
+    t0 = time.monotonic()
+    relay_copilot.shutdown()
+    assert time.monotonic() - t0 < relay_copilot.STOP_GRACE_SEC + 3, "上限つきで待つ"
+    assert not any(proctree.alive(p) for p in pids), "shutdown から戻った時点で残っていない（daemon のループに頼らない）"
+
+
+# FR-087 AC-507 AC-517: 起動の途中で Microsoft Foundry へ切り替えたら（POST /api/llm/provider）、CLI が残らず、後で起動が済んでも使い続けない
+def test_fr087_ac507_switch_to_foundry_during_start_leaves_no_cli(psdk, srv, env, monkeypatch):
+    store.save({"provider": "copilot"})  # 画面で保存済みのプロバイダー（保存の応答の状態の取得で CLI を起動させない）
+    pids = _start_slow_request(psdk, srv, env, monkeypatch, delay=3.0)
+    assert srv.call("POST", "/api/llm/provider", {"provider": "foundry"})[0] == 200
+    assert _all_dead(pids, sec=10), [p for p in pids if proctree.alive(p)]
+    time.sleep(3.5)  # 遅らせた起動が済む時刻を過ぎても
+    assert relay_copilot._state["client"] is None and relay_copilot._state["pending"] is None
+    assert psdk.starts == 1 and len(_cli_log(env)) == 1, "Foundry のときは CLI を起動し直さない"
+
+
+# FR-087 AC-507: 打ち切られた起動が後で済んだとき、プロバイダーが Microsoft Foundry に変わっていれば残さず止める
+def test_fr087_ac507_late_start_not_kept_when_provider_is_foundry(psdk, srv, env, monkeypatch):
+    store.save({"provider": "copilot"})  # 画面で保存済みのプロバイダー（保存の応答の状態の取得で CLI を起動させない）
+    monkeypatch.setenv("RELAY_TIMEOUT_SEC", "1")
+    psdk.start_delay = 2.0
+    assert srv.call("POST", "/api/llm/extract", EXTRACT)[1]["error"]["code"] == "upstream_timeout"
+    rec = _wait_log(env, 1)[0]
+    monkeypatch.setenv("LLM_PROVIDER", "foundry")  # 保存の操作を経ずにプロバイダーが変わった（環境変数）
+    pids = [psdk.procs[0], rec["pid"], rec["child"]]
+    assert _all_dead(pids, sec=15), [p for p in pids if proctree.alive(p)]
+    assert relay_copilot._state["client"] is None
 
 
 # ---------------------------------------------------------------- AC-505・AC-506: CLI を起動できない
