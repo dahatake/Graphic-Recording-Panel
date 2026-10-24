@@ -254,8 +254,8 @@ def _on_started(pend, fut):
     client = fut.result()
     pids = _pt.find_child_pids(client)
     with _lock:
-        if _state["client"] is client:
-            return  # 待っていた要求がすでに使い始めた
+        if _state["client"] is client or pend.get("claimed"):
+            return  # 待っていた要求がすでに使い始めた（その後に止めたものを、ここで止め直したり残したりしない）
         # プロバイダーが GitHub Copilot のとき（または要求が待っているとき）だけ残す。Foundry に切り替わっていれば止める（AC-507）
         keep = (not pend["abandon"] and _state["client"] is None
                 and (pend["waiters"] > 0 or _provider_is_copilot()))
@@ -279,7 +279,7 @@ def _begin_start(sdk, cs, key):
     """CLI の起動・SDK の初期化を背景で始める。要求の打ち切りでは止めず、START_LIMIT_SEC を超えたら木ごと止める。
     起動を始めたときにクライアントを pend に記録し、止めるときに子のプロセスをたどれるようにする（AC-517）。"""
     opts = _client_options(cs, sdk)
-    pend = {"key": key, "abandon": False, "client": None, "pids": [], "waiters": 0}
+    pend = {"key": key, "abandon": False, "client": None, "pids": [], "waiters": 1}  # 起動を始めた要求が待つ
 
     async def start():
         client = sdk.CopilotClient(**opts)
@@ -321,25 +321,35 @@ def _get_client(sdk, cs, deadline=None):
         pend = _state["pending"]
         if pend is None or pend["key"] != key or pend["abandon"]:
             pend = None
+        else:
+            pend["waiters"] += 1  # 見つけたのと同じロックの中で待ちに数える（_on_started が間に走っても止めさせない）
     if pend is None:
         _stop_client()
+        # 待ち（waiters=1）を数えた状態で起動を始める。起動がすぐ済み、add_done_callback の中で _on_started が
+        # 同期で走っても、要求がこれから使うクライアントを止めない（AC-507・AC-518）
         pend = _begin_start(sdk, cs, key)
     fut = pend["future"]
     wait = STATUS_START_WAIT_SEC if deadline is None else _remaining(deadline)
-    with _lock:
-        pend["waiters"] += 1
+    ok = False
     try:
         client = fut.result(max(wait, 0))  # 打ち切っても fut は取り消さない（次の要求で使い回す）
+        ok = True
     except concurrent.futures.TimeoutError:
         raise _timeout_error()
     except (Exception, concurrent.futures.CancelledError):  # noqa: BLE001 — 文面にパス・資格情報が入りうるので分類だけ返す
         raise UpstreamError(503, "cli_unavailable", "GitHub Copilot CLI を起動できません。")
     finally:
-        with _lock:
-            pend["waiters"] -= 1
+        if not ok:  # 失敗したとき（タイムアウト・起動失敗）だけここで減らす。成功したときは取得と同じロックの中で減らす
+            with _lock:
+                pend["waiters"] -= 1
+    # 取得と待ちの減算を同じロックの中で行う。_on_started からは「待っている要求がある」か「取得済み」の
+    # どちらかに必ず見えるので、要求がこれから使うクライアントを止めない（AC-507・AC-518）
     with _lock:
+        pend["waiters"] -= 1
         if _state["client"] is None and not pend["abandon"]:
             _state.update({"client": client, "key": key, "pids": _pt.find_child_pids(client)})
+        if _state["client"] is client:
+            pend["claimed"] = True  # 以後の停止は _state の側で行う
         if _state["pending"] is pend:
             _state["pending"] = None
     return client
