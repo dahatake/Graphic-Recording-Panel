@@ -208,6 +208,10 @@ class RelayHandler(SimpleHTTPRequestHandler):
                 return self._copilot_admin()
             if self.path.split("?", 1)[0] == LLM_PREFIX + "copilot":
                 # 接続キー画面の GitHub Copilot の分類を開いたときの状態の取得（CLI で確かめてよい時点。AC-507・Q-034）
+                # Copilot CLI を起動する経路なので、Origin のない GET でも同一オリジンからの要求であることを確かめる
+                # （ほかのサイトの img タグなどからの起動を防ぐ。AC-507・AC-510）
+                if not self.headers.get("Origin") and (self.headers.get("Sec-Fetch-Site") or "same-origin").lower() not in ("same-origin", "none"):
+                    return self._forbidden()
                 cs = cfg.load_copilot_settings()
                 text = sec.redact(json.dumps(copilot_view(cs, check=True), ensure_ascii=False), copilot.secrets_of(cs))
                 return self._send_json(200, text.encode("utf-8"))

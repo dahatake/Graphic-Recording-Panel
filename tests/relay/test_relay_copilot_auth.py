@@ -63,9 +63,10 @@ class Srv(object):
         self.port = self.server.server_address[1]
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
 
-    def call(self, method, path, body=None, origin=True, host=None):
+    def call(self, method, path, body=None, origin=True, host=None, headers=None):
         c = http.client.HTTPConnection("127.0.0.1", self.port, timeout=30)
         h = {"Host": host or "127.0.0.1:%d" % self.port}
+        h.update(headers or {})
         if origin is True:
             h["Origin"] = "http://127.0.0.1:%d" % self.port
         elif origin:
@@ -209,6 +210,16 @@ def test_fr088_ac510_cross_origin_rejected(srv, env, sdk, cli):
         assert st == 403, ("host", method, path)
     assert raw_store(env) == before
     assert not os.path.exists(str(cli) + ".argv"), "サインインは始まらない"
+    # FR-087 AC-507 / FR-088 AC-510: CLI を起動する状態の取得（GET /api/llm/copilot）も、ほかのオリジン・偽の Host・
+    # Origin のない cross-site の要求（img タグなど）は 403 にし、CLI を起動しない
+    for kw in ({"origin": "http://evil.example"}, {"host": "evil.example"},
+               {"origin": None, "headers": {"Sec-Fetch-Site": "cross-site"}}, {"origin": None, "headers": {"Sec-Fetch-Site": "same-site"}}):
+        st, _, raw = srv.call("GET", "/api/llm/copilot", **kw)
+        assert st == 403, kw
+        assert DUMMY_TOKEN not in raw
+    assert sdk.starts == 0, "CLI を起動しない"
+    st, _, _ = srv.call("GET", "/api/llm/copilot", origin=None, headers={"Sec-Fetch-Site": "same-origin"})
+    assert st == 200 and sdk.starts == 1, "同一オリジンからの要求だけ CLI で確かめる"
 
 
 # FR-088 AC-510: 環境変数（COPILOT_GITHUB_TOKEN ＞ GH_TOKEN ＞ GITHUB_TOKEN）＞ 設定ファイル ＞ 画面。上位の値は画面から上書き・削除できない
