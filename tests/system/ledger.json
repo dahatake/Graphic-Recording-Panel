@@ -254,9 +254,9 @@
       "command": "node --test --test-name-pattern=\"AC-017\" tests/system/i18n.test.js",
       "canary": true,
       "status": "pass",
-      "last_commit": "b72da86",
-      "last_run_at": "2026-10-25T05:13:10+09:00",
-      "evidence": "work/runs/202610242234/logs/system-test/E2E-001-202610250511.log",
+      "last_commit": "31d97dd",
+      "last_run_at": "2026-10-25T07:21:03+09:00",
+      "evidence": "work/runs/202610250606/logs/system-test/E2E-001-202610250720.log",
       "history": [
         {
           "at": "2026-10-14T03:15:36+09:00",
@@ -908,9 +908,9 @@
       "command": "node --test --test-name-pattern=\"AC-049\" tests/system/rightpanel.test.js",
       "canary": true,
       "status": "pass",
-      "last_commit": "b72da86",
-      "last_run_at": "2026-10-25T05:13:10+09:00",
-      "evidence": "work/runs/202610242234/logs/system-test/E2E-025-202610250511.log",
+      "last_commit": "31d97dd",
+      "last_run_at": "2026-10-25T07:21:03+09:00",
+      "evidence": "work/runs/202610250606/logs/system-test/E2E-025-202610250720.log",
       "history": [
         {
           "at": "2026-10-14T04:54:45+09:00",
@@ -1156,9 +1156,9 @@
       "command": "node --test --test-name-pattern=\"AC-063\" tests/system/background.test.js",
       "canary": true,
       "status": "pass",
-      "last_commit": "b72da86",
-      "last_run_at": "2026-10-25T05:13:10+09:00",
-      "evidence": "work/runs/202610242234/logs/system-test/E2E-033-202610250511.log",
+      "last_commit": "31d97dd",
+      "last_run_at": "2026-10-25T07:21:03+09:00",
+      "evidence": "work/runs/202610250606/logs/system-test/E2E-033-202610250720.log",
       "history": [
         {
           "at": "2026-10-14T06:06:02+09:00",
@@ -2906,9 +2906,9 @@
       "command": "node --test --test-name-pattern=\"AC-149\" tests/system/settings.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "b72da86",
-      "last_run_at": "2026-10-25T05:13:10+09:00",
-      "evidence": "work/runs/202610242234/logs/system-test/E2E-091-202610250513.log",
+      "last_commit": "31d97dd",
+      "last_run_at": "2026-10-25T07:21:03+09:00",
+      "evidence": "work/runs/202610250606/logs/system-test/E2E-091-202610250721.log",
       "history": [
         {
           "at": "2026-10-16T05:16:41+09:00",
@@ -2949,9 +2949,9 @@
       "command": "node --test --test-name-pattern=\"AC-151\" tests/system/settings.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "b72da86",
-      "last_run_at": "2026-10-25T05:13:10+09:00",
-      "evidence": "work/runs/202610242234/logs/system-test/E2E-092-202610250513.log",
+      "last_commit": "31d97dd",
+      "last_run_at": "2026-10-25T07:21:03+09:00",
+      "evidence": "work/runs/202610250606/logs/system-test/E2E-092-202610250721.log",
       "history": [
         {
           "at": "2026-10-16T05:16:44+09:00",
@@ -3529,9 +3529,9 @@
       "command": "node --test --test-name-pattern=AC-339 tests/system/llmrelay.test.js",
       "canary": true,
       "status": "pass",
-      "last_commit": "b72da86",
-      "last_run_at": "2026-10-25T05:13:10+09:00",
-      "evidence": "work/runs/202610242234/logs/system-test/IT-001-202610250511.log",
+      "last_commit": "31d97dd",
+      "last_run_at": "2026-10-25T07:21:03+09:00",
+      "evidence": "work/runs/202610250606/logs/system-test/IT-001-202610250720.log",
       "history": [
         {
           "at": "2026-10-17T16:50:44+09:00",
@@ -5453,9 +5453,9 @@
       "command": "node --test --test-name-pattern=\"AC-408\" tests/system/stylepreset.test.js",
       "canary": true,
       "status": "pass",
-      "last_commit": "b72da86",
-      "last_run_at": "2026-10-25T05:13:10+09:00",
-      "evidence": "work/runs/202610242234/logs/system-test/E2E-210-202610250511.log",
+      "last_commit": "31d97dd",
+      "last_run_at": "2026-10-25T07:21:03+09:00",
+      "evidence": "work/runs/202610250606/logs/system-test/E2E-210-202610250720.log",
       "history": [
         {
           "at": "2026-10-20T05:23:14+09:00",
@@ -5991,10 +5991,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-459\" tests/system/cmdgroups.test.js",
       "canary": true,
-      "status": "not_run",
-      "last_commit": "b72da86",
-      "last_run_at": "2026-10-25T05:13:10+09:00",
-      "evidence": "work/runs/202610242234/logs/system-test/E2E-225-202610250511.log",
+      "status": "pass",
+      "last_commit": "31d97dd",
+      "last_run_at": "2026-10-25T07:21:03+09:00",
+      "evidence": "work/runs/202610250606/logs/system-test/E2E-225-202610250720.log",
       "history": [
         {
           "at": "2026-10-20T05:37:47+09:00",
@@ -6028,10 +6028,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-460\" tests/system/cmdgroups.test.js",
       "canary": false,
-      "status": "not_run",
-      "last_commit": "b72da86",
-      "last_run_at": "2026-10-25T05:13:10+09:00",
-      "evidence": "work/runs/202610242234/logs/system-test/E2E-226-202610250513.log",
+      "status": "pass",
+      "last_commit": "31d97dd",
+      "last_run_at": "2026-10-25T07:21:03+09:00",
+      "evidence": "work/runs/202610250606/logs/system-test/E2E-226-202610250721.log",
       "history": [
         {
           "at": "2026-10-20T05:37:50+09:00",
@@ -6059,10 +6059,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-461\" tests/system/cmdgroups.test.js",
       "canary": false,
-      "status": "not_run",
-      "last_commit": "b72da86",
-      "last_run_at": "2026-10-25T05:13:10+09:00",
-      "evidence": "work/runs/202610242234/logs/system-test/E2E-227-202610250513.log",
+      "status": "pass",
+      "last_commit": "31d97dd",
+      "last_run_at": "2026-10-25T07:21:03+09:00",
+      "evidence": "work/runs/202610250606/logs/system-test/E2E-227-202610250721.log",
       "history": [
         {
           "at": "2026-10-20T05:37:55+09:00",
@@ -6090,10 +6090,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-462\" tests/system/cmdgroups.test.js",
       "canary": false,
-      "status": "not_run",
-      "last_commit": "b72da86",
-      "last_run_at": "2026-10-25T05:13:10+09:00",
-      "evidence": "work/runs/202610242234/logs/system-test/E2E-229-202610250513.log",
+      "status": "pass",
+      "last_commit": "31d97dd",
+      "last_run_at": "2026-10-25T07:21:03+09:00",
+      "evidence": "work/runs/202610250606/logs/system-test/E2E-229-202610250721.log",
       "history": [
         {
           "at": "2026-10-20T05:38:02+09:00",
@@ -7048,10 +7048,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=AC-482 tests/system/apikeys.test.js",
       "canary": false,
-      "status": "not_run",
-      "last_commit": "b72da86",
-      "last_run_at": "2026-10-25T05:13:10+09:00",
-      "evidence": "work/runs/202610242234/logs/system-test/E2E-246-202610250513.log",
+      "status": "pass",
+      "last_commit": "31d97dd",
+      "last_run_at": "2026-10-25T07:21:03+09:00",
+      "evidence": "work/runs/202610250606/logs/system-test/E2E-246-202610250721.log",
       "history": [
         {
           "at": "2026-10-22T22:47:55+09:00",
@@ -7091,10 +7091,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=AC-483 tests/system/apikeys.test.js",
       "canary": false,
-      "status": "not_run",
-      "last_commit": "b72da86",
-      "last_run_at": "2026-10-25T05:13:10+09:00",
-      "evidence": "work/runs/202610242234/logs/system-test/E2E-247-202610250513.log",
+      "status": "pass",
+      "last_commit": "31d97dd",
+      "last_run_at": "2026-10-25T07:21:03+09:00",
+      "evidence": "work/runs/202610250606/logs/system-test/E2E-247-202610250721.log",
       "history": [
         {
           "at": "2026-10-22T22:47:57+09:00",
@@ -7128,10 +7128,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=AC-484 tests/system/apikeys.test.js",
       "canary": false,
-      "status": "not_run",
-      "last_commit": "b72da86",
-      "last_run_at": "2026-10-25T05:13:10+09:00",
-      "evidence": "work/runs/202610242234/logs/system-test/E2E-248-202610250513.log",
+      "status": "pass",
+      "last_commit": "31d97dd",
+      "last_run_at": "2026-10-25T07:21:03+09:00",
+      "evidence": "work/runs/202610250606/logs/system-test/E2E-248-202610250721.log",
       "history": [
         {
           "at": "2026-10-22T22:47:59+09:00",
@@ -7159,10 +7159,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=AC-485 tests/system/apikeys.test.js",
       "canary": false,
-      "status": "not_run",
-      "last_commit": "b72da86",
-      "last_run_at": "2026-10-25T05:13:10+09:00",
-      "evidence": "work/runs/202610242234/logs/system-test/E2E-249-202610250513.log",
+      "status": "pass",
+      "last_commit": "31d97dd",
+      "last_run_at": "2026-10-25T07:21:03+09:00",
+      "evidence": "work/runs/202610250606/logs/system-test/E2E-249-202610250721.log",
       "history": [
         {
           "at": "2026-10-22T22:48:01+09:00",
@@ -7196,10 +7196,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=AC-486 tests/system/apikeys.test.js",
       "canary": false,
-      "status": "not_run",
-      "last_commit": "b72da86",
-      "last_run_at": "2026-10-25T05:13:10+09:00",
-      "evidence": "work/runs/202610242234/logs/system-test/E2E-250-202610250513.log",
+      "status": "pass",
+      "last_commit": "31d97dd",
+      "last_run_at": "2026-10-25T07:21:03+09:00",
+      "evidence": "work/runs/202610250606/logs/system-test/E2E-250-202610250721.log",
       "history": [
         {
           "at": "2026-10-22T22:48:03+09:00",
@@ -7407,10 +7407,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=AC-519 tests/system/ribbon-settings.test.js",
       "canary": false,
-      "status": "not_run",
-      "last_commit": null,
-      "last_run_at": null,
-      "evidence": null,
+      "status": "pass",
+      "last_commit": "31d97dd",
+      "last_run_at": "2026-10-25T07:21:03+09:00",
+      "evidence": "work/runs/202610250606/logs/system-test/E2E-257-202610250721.log",
       "history": [
         {
           "at": "2026-10-25T06:14:00+09:00",
@@ -7432,10 +7432,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=AC-520 tests/system/ribbon-settings.test.js",
       "canary": false,
-      "status": "not_run",
-      "last_commit": null,
-      "last_run_at": null,
-      "evidence": null,
+      "status": "pass",
+      "last_commit": "31d97dd",
+      "last_run_at": "2026-10-25T07:21:03+09:00",
+      "evidence": "work/runs/202610250606/logs/system-test/E2E-258-202610250721.log",
       "history": [
         {
           "at": "2026-10-25T06:14:01+09:00",
