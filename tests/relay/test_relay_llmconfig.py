@@ -154,7 +154,9 @@ def test_fr086_ac498_key_validation(env, srv, key):
     assert DUMMY_KEY not in text
 
 
-def test_fr086_ac498_key_boundary_and_auth_mismatch(env, srv):
+def test_fr086_ac498_key_boundary_and_auth_mismatch(env, monkeypatch, srv):
+    # 状態の確認で実際の az を呼ばない（端末の Azure CLI の応答時間に左右されないようにする）
+    monkeypatch.setattr(up, "get_entra_token", lambda: "DUMMY-ENTRA-TOKEN-0001")
     assert srv.call("POST", "/api/llm/key", {"key": "k" * 512})[0] == 200
     assert srv.call("POST", "/api/llm/config", good(authMethod="entra"))[0] == 200
     before = store_bytes(env)
@@ -243,7 +245,9 @@ def test_fr086_ac500_status_shape_and_no_secrets(srv):
 
 
 # FR-086 AC-500: 認証方式が Entra ID でも、保存されているキーの有無と出どころを正しく示す
-def test_fr086_ac500_key_state_when_entra(srv):
+def test_fr086_ac500_key_state_when_entra(monkeypatch, srv):
+    # 状態の確認で実際の az を呼ばない（端末の Azure CLI の応答時間に左右されないようにする）
+    monkeypatch.setattr(up, "get_entra_token", lambda: "DUMMY-ENTRA-TOKEN-0001")
     srv.call("POST", "/api/llm/key", {"key": DUMMY_KEY})
     srv.call("POST", "/api/llm/config", good(authMethod="entra"))
     s = srv.call("GET", "/api/llm/status")[1]
