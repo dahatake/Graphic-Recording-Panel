@@ -36,8 +36,17 @@ copilot: {
 - プロバイダーが `'copilot'` のとき、`await app.requestLlmEnable()` は、SDK を使えない・Copilot CLI を起動できない・未サインイン（認証方式がサインイン）・トークン未設定（認証方式がトークン）なら `{ok:false, missing:[...]}`。`missing` の値は `'sdk'`（`copilot.unavailableReason:'sdk_missing'`）・`'cli'`（`copilot.unavailableReason:'cli_unavailable'`）・`'signin'`・`'token'`。`getLlmState()` は `status:'unconfigured'`・同じ `missing`。
 - ［設定］の `llm.enabled` の `status.text` に原因の文（「GitHub Copilot SDK が導入されていない」「Copilot CLI を起動できない」「GitHub にサインインしていない」「トークンが未設定」）を含み、`status.actions:[{id, label}]` に次の行動を持つ:
   `'installGuide'`（導入の手順の案内。`href` または `text` が非空。原因が `'cli'` のときは SDK・Copilot CLI の導入・再導入の手順の案内で、`text`・`label` か `runSettingsAction('installGuide')` の戻り値の `text` に「Copilot CLI」を含む）、`'openApiKeys'`（接続キー画面の GitHub Copilot の分類を開く）。`app.runSettingsAction(id)` で実行する。`'openApiKeys'` の後は `getApiKeysDialog().selected === 'copilot'`。
-- 失敗の通知は `getState().message`（`text` は 80 文字以内で、原因の分類の語「認証」「上限」「接続」「タイムアウト」を含む）。
-- モックの LLM 向けの要求の失敗の形: 認証 `401 {ok:false, error:{code:'auth'}}`、利用の上限 `429 {ok:false, error:{code:'rate_limit'}}`、接続 `502 {ok:false, error:{code:'connection'}}`、タイムアウト（応答しない。PARAM-069=30 秒）、不正な応答 `200 '<<not json>>'`。
+- 失敗の通知は `getState().message`（`text` は 80 文字以内で、原因の分類の語「認証」「上限」「接続」「タイムアウト」「不正な応答」を含む）。
+- モックの LLM 向けの要求の失敗の形: 認証 `401 {ok:false, error:{code:'auth'}}`、利用の上限 `429 {ok:false, error:{code:'rate_limit'}}`、接続 `502 {ok:false, error:{code:'connection'}}`、タイムアウト（応答しない。PARAM-069=30 秒）、不正な応答 `200 '<<not json>>'`、
+  Copilot CLI を起動できない `503 {ok:false, error:{code:'cli_unavailable', message}}`（`message` にトークン・ファイルのパスの探針を混ぜる。このエラーを返した後は `GET /api/llm/status` の `copilot` が `available:false, unavailableReason:'cli_unavailable'`）。
+
+## 有効なまま Copilot CLI を起動できなくなったとき（AC-506。監査 A-240・A-242）
+- 503 `cli_unavailable` を受けたら: 該当のシーンはルールベース描画、`getState().message.text`（80 文字以内）に「Copilot CLI を起動できない」を含み「接続」を含まない。トークン・認証の情報・ファイルのパスはどの観察点（`surface`）にも出ない。
+- `getLlmState().enabled` は `false` に戻る（自動）。同意の記録 `grp.llm.consent.copilot` は変えない。以後の LLM 向けの要求は 0 件。
+- ［設定］の `llm.enabled` の `status.text` に「Copilot CLI を起動できない」、`status.actions` に `'installGuide'`（SDK・Copilot CLI の導入・再導入の案内。「Copilot CLI」を含む）。
+- 「有効にできない」状態（監査 D-1）: クライアントは有効・無効のフラグや別の記録を持たず、`GET /api/llm/status` の `copilot.unavailableReason:'cli_unavailable'` から導く。その間は同意の記録（版が一致）があっても `getLlmState().enabled` は `false`、`requestLlmEnable()` は `{ok:false, missing:['cli']}`（AC-312 の例外）。再読込（同じ storage・同じ中継サーバーで `createApp` し直し、テストが `refreshCopilotStatus()` を呼ぶ）は状態を引き継がず、状態の取得の結果で決まる。
+- 確かめ直し（`GET /api/llm/status`）の契機は、`commands['settings.open']()`（アプリが自ら状態の取得を送る。テストは `refreshCopilotStatus()` を呼ばない）・`await app.testLlmConnection()`・再読込だけ。利用者の操作なしに `env.scheduler` の時間を進めても `GET /api/llm/status` は送らない。
+- 導入を直した後（モックの `copilot.available:true`・`unavailableReason:null`、LLM 向けの要求は成功）、上の契機のあとは `requestLlmEnable()` を呼ばずに `getLlmState().enabled` が `true`、`getLlmConsent()` は `null`、同意の記録は変わらない（再同意を求めない。AC-513）。
 
 ## 同意（AC-513）
 - 同意の記録は `options.storage` のキー `grp.llm.consent`（Microsoft Foundry。従来の `{version, at}`。2026-10-24 より前の記録＝`provider` なしも Foundry への同意）と、`grp.llm.consent.copilot`（GitHub Copilot。`{version, at, provider:'copilot'}`）に置く。Foundry の記録の項目は `version`・`at` だけ（`provider` を持たない）、GitHub Copilot の記録の項目は `version`・`at`・`provider` だけ。一方の記録の作成・削除（無効化 `disableLlm()` による取り消しを含む）は他方の記録を変えない。
