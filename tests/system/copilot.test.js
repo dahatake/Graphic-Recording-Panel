@@ -383,8 +383,10 @@ test('FR-088 AC-511: サインアウト（確認つき・Copilot CLI の資格�
   assert.equal(relay.calls.filter((c) => c.method === 'DELETE' && (c.path === '/api/llm/copilot' || c.path === SIGNIN)).length, 0, '保存済みの設定の削除・サインインの取り消しは送らない');
   assert.equal(field(app, 'apiKeys.copilot.signinStatus').status.id, 'signedOut', 'このアプリでは未サインイン');
   // 以降 GitHub Copilot への要求は送られず、AC-506 の未サインインの表示
+  app.commands['apiKeys.close'](); await flush(); // 接続キー画面（モーダル）を閉じてから入力・［設定］を開く
   const n = relay.llmCalls().length;
   type(app, env, '来月のリリース計画を決める'); await app.flushLlm();
+  assert.ok(app.getState().utterances.some((u) => u.text === '来月のリリース計画を決める'), '前提: 発話が記録される');
   assert.equal(relay.llmCalls().length, n, 'サインアウト後の GitHub Copilot への要求は 0 件');
   app.commands['settings.open'](); await flush();
   const f = sfield(app, 'llm.enabled');
