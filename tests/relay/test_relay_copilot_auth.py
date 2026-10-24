@@ -310,6 +310,44 @@ def test_fr088_ac509_device_flow_failures(srv, env, sdk, cli, mode, state):
     assert st == 200 and b["state"] == "pending", "もう一度始められる"
 
 
+class _LateExitProc:
+    """status() のロックの外の poll では動いていて、ロックの中の poll では終わっている CLI。"""
+
+    def __init__(self, rc):
+        self.rc, self.calls = rc, 0
+
+    def poll(self):
+        self.calls += 1
+        return None if self.calls == 1 else self.rc
+
+    def kill(self):
+        pass
+
+    def wait(self, timeout=None):
+        return self.rc
+
+
+# FR-088 AC-509: CLI の終了と最後の出力の読み取りが競合しても、期限切れ・拒否を出力から決定的に分類する
+@pytest.mark.parametrize("text,state", [("device code expired", "expired"), ("access_denied", "denied")])
+def test_fr088_ac509_classify_waits_for_reader_output(env, text, state):
+    proc = _LateExitProc(1)
+    release = threading.Event()
+
+    def late_reader():
+        release.wait(10)
+        with signin._lock:
+            signin._flow["out"] += text
+
+    reader = threading.Thread(target=late_reader, daemon=True)
+    with signin._lock:
+        signin._flow.update({"proc": proc, "reader": reader, "state": "pending", "started": time.time(), "out": "", "cancelled": False})
+    reader.start()
+    assert signin.status() == {"state": "pending"}, "reader が読み終える前に分類しない"
+    threading.Timer(0.2, release.set).start()
+    assert signin.status() == {"state": state}
+    assert not reader.is_alive()
+
+
 # FR-088 AC-509: 認証方式がトークンのとき・SDK がないときはサインインを始めない
 def test_fr088_ac509_signin_refused(srv, env, cli, monkeypatch):
     monkeypatch.setitem(sys.modules, "copilot", None)
