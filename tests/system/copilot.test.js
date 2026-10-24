@@ -1,6 +1,7 @@
 // FR-087 AC-506 / FR-088 AC-508 AC-509 / FR-062 AC-513 / FR-068 AC-514（System Test。契約: tests/system/CONTRACT-GITHUB-COPILOT.md）
 // 期待値は受入基準だけから決める。GitHub Copilot SDK・Copilot CLI・GitHub へは通信せず、同一オリジンの中継サーバーをモックで差し込む（決定的）。
-// AC-503・504・505・507・510・515 は検証レベル integration、AC-512 は unit のため、ここには置かない。AC-511 は BLOCKED（Q-033）。
+// AC-503・504・505・507・510・515 は検証レベル integration、AC-512 は unit のため、ここには置かない。
+// AC-511（Q-033）の画面側はここ、中継サーバーの実プロセスと Copilot CLI・SDK のスタブでの確認は copilot-relay.test.js。
 // トークン・資格情報は実値らしくない探針（PROBE-...）だけを使う。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,15 +18,18 @@ const USER_CODE = 'TEST-0000';
 const ACCOUNT = 'octo-dummy-user';
 const MODEL = 'dummy-model-x';
 const SIGNED_IN = { signedIn: true, account: ACCOUNT, model: MODEL, modelSource: 'ui' };
-const SETTINGS_PATHS = new Set(['/api/llm/status', '/api/llm/provider', '/api/llm/key', '/api/llm/config', '/api/llm/copilot', '/api/llm/copilot/signin']);
+const SIGNOUT = '/api/llm/copilot/signout';
+const SETTINGS_PATHS = new Set(['/api/llm/status', '/api/llm/provider', '/api/llm/key', '/api/llm/config', '/api/llm/copilot', '/api/llm/copilot/signin', SIGNOUT]);
 const SIGNIN = '/api/llm/copilot/signin';
 
 // 同一オリジンの中継サーバーのモック。mode（LLM 向けの要求の結果）: 'ok' | 'auth' | 'rate_limit' | 'connection' | 'timeout' | 'malformed'。
 // 'offline' はすべての要求を失敗させる。要求ごとに「その時点のプロバイダー」（body.provider か保存済みの provider）を記録する。
 function makeRelay({ provider, foundry = true, copilot = {}, mode = 'ok' } = {}) {
-  const r = { calls: [], mode, provider, flow: null, signinStarts: 0 };
+  const r = { calls: [], mode, provider, flow: null, signinStarts: 0, signouts: 0 };
   r.foundry = { endpoint: foundry, deployment: foundry, credential: foundry };
   r.cp = { available: true, unavailableReason: null, authMethod: 'signin', authMethodSource: null, signedIn: false, account: null, tokenConfigured: false, tokenSource: null, model: '', modelSource: null, ...copilot };
+  // 同じ PC の Copilot CLI の資格情報の有無（AC-509・AC-511）。このアプリでのサインアウトは中継サーバーに保存され、CLI の資格情報は残る
+  r.cliCred = r.cp.signedIn;
   const speech = makeSpeechRelay();
   const ok = (body) => ({ status: 200, body });
   const st = () => ({
@@ -68,9 +72,17 @@ function makeRelay({ provider, foundry = true, copilot = {}, mode = 'ok' } = {})
       }
       return ok({ copilot: { ...r.cp } });
     }
+    if (p === SIGNOUT && method === 'POST') { // AC-511: このアプリで使わない状態にするだけ（CLI の資格情報は残す）
+      r.signouts++; r.cp.signedIn = false; r.cp.account = null;
+      return ok({ ok: true, result: 'signed_out', copilot: { ...r.cp } });
+    }
     if (p === SIGNIN) {
       if (method === 'POST') {
         if (!r.cp.available) return { status: 409, body: { ok: false, result: 'sdk_missing' } };
+        if (r.cliCred) { // CLI の資格情報が残っている: 確認コードなしにサインイン済み（AC-511）
+          r.flow = { state: 'completed' }; r.signinStarts++; r.cp.signedIn = true; r.cp.account = ACCOUNT;
+          return ok({ ok: true, state: 'completed' });
+        }
         r.flow = { state: 'pending' }; r.signinStarts++;
         return ok({ ok: true, state: 'pending', verificationUri: VERIFY_URI, userCode: USER_CODE });
       }
@@ -89,7 +101,7 @@ function makeRelay({ provider, foundry = true, copilot = {}, mode = 'ok' } = {})
     if (r.mode === 'malformed') return ok('<<not json>>');
     return ok({ objects: [], people: [], emotions: [], metaphors: [], points: [], output: [{ type: 'message', content: [{ type: 'output_text', text: '{"points":[]}' }] }] });
   };
-  r.finishSignin = (state) => { r.flow.state = state; if (state === 'completed') { r.cp.signedIn = true; r.cp.account = ACCOUNT; } };
+  r.finishSignin = (state) => { r.flow.state = state; if (state === 'completed') { r.cp.signedIn = true; r.cp.account = ACCOUNT; r.cliCred = true; } };
   r.llmCalls = () => r.calls.filter((c) => c.path.startsWith('/api/llm/') && !SETTINGS_PATHS.has(c.path));
   return r;
 }
@@ -343,6 +355,58 @@ test('FR-088 AC-509 異常系: 確認コードの期限切れ・拒否・失敗�
     assert.equal(relay.signinStarts, 2, `${outcome}: もう一度始められる`);
     assert.equal(app.getCopilotSignin().state, 'pending');
   }
+});
+
+// FR-088 AC-511（Q-033）
+test('FR-088 AC-511: サインアウト（確認つき・Copilot CLI の資格情報は消さない旨）で、このアプリでは未サインインになり、以降 GitHub Copilot への要求は 0 件で AC-506 の表示になる。再読込後も CLI のサインインが残っていても未サインインのままで、再び「GitHub でサインイン」を操作すると確認コードなしにサインイン済み', async () => {
+  const ctx = await boot({ relay: { provider: 'copilot', copilot: SIGNED_IN } });
+  const { app, env, relay } = ctx;
+  await enable(app);
+  app.commands['session.start']();
+  type(app, env, '予算の見直しが必要です'); await app.flushLlm();
+  assert.ok(relay.llmCalls().length >= 1, '前提: サインイン済みで有効なので GitHub Copilot への要求が出る');
+  await openCopilot(app);
+  assert.equal(field(app, 'apiKeys.copilot.signinStatus').status.id, 'signedIn');
+  const so = field(app, 'apiKeys.copilot.signout');
+  assert.ok(so && so.role === 'button' && String(so.label ?? '').trim() && String(so.accessibleName ?? '').trim() && !so.disabled, '「サインアウト」の操作がある');
+  // 確認つき（取り消しでは何も変わらない）
+  app.commands['copilot.signout'](); await flush();
+  const d = app.getDialog();
+  assert.equal(d?.kind, 'copilot-signout');
+  assert.deepEqual(d.buttons.map((x) => x.id).sort(), ['cancel', 'confirm']);
+  assert.ok(String(d.text ?? '').includes('Copilot CLI') && /資格情報/.test(d.text), `確認に、Copilot CLI の資格情報は消さずこのアプリで使わないだけである旨: ${d.text}`);
+  await app.dialogAction('cancel'); await flush();
+  assert.equal(relay.signouts, 0, '取り消しではサインアウトしない');
+  assert.equal(field(app, 'apiKeys.copilot.signinStatus').status.id, 'signedIn');
+  app.commands['copilot.signout'](); await app.dialogAction('confirm'); await flush(); await settle(app);
+  assert.equal(relay.calls.filter((c) => c.path === SIGNOUT && c.method === 'POST').length, 1, '中継サーバーへサインアウトを送る');
+  assert.equal(relay.calls.filter((c) => c.method === 'DELETE' && (c.path === '/api/llm/copilot' || c.path === SIGNIN)).length, 0, '保存済みの設定の削除・サインインの取り消しは送らない');
+  assert.equal(field(app, 'apiKeys.copilot.signinStatus').status.id, 'signedOut', 'このアプリでは未サインイン');
+  // 以降 GitHub Copilot への要求は送られず、AC-506 の未サインインの表示
+  const n = relay.llmCalls().length;
+  type(app, env, '来月のリリース計画を決める'); await app.flushLlm();
+  assert.equal(relay.llmCalls().length, n, 'サインアウト後の GitHub Copilot への要求は 0 件');
+  app.commands['settings.open'](); await flush();
+  const f = sfield(app, 'llm.enabled');
+  assert.ok(f.status.text.includes('GitHub にサインインしていない'), `AC-506 の原因: ${f.status.text}`);
+  assert.ok((f.status.actions ?? []).some((a) => a.id === 'openApiKeys'), 'AC-506 の次の行動');
+  const r = await app.requestLlmEnable();
+  assert.equal(r.ok, false); assert.deepEqual(r.missing, ['signin']);
+  assert.equal(relay.llmCalls().length, n);
+  // 再読込・再起動の後も、CLI のサインインが残っていても操作なしにサインイン済みとは示されない（AC-509 の例外）
+  assert.equal(relay.cliCred, true, '前提: CLI の資格情報は残っている');
+  const re = await reload(ctx);
+  await openCopilot(re.app);
+  assert.equal(field(re.app, 'apiKeys.copilot.signinStatus').status.id, 'signedOut', '再読込後も未サインイン');
+  assert.equal(relay.signinStarts, 0, '操作なしにサインインを始めない');
+  // 再び「GitHub でサインイン」: CLI の資格情報が残っているので確認コードの入力なしにサインイン済み
+  await re.app.startCopilotSignin(); await flush();
+  assert.equal(relay.signinStarts, 1);
+  assert.ok(await pump(env, () => field(re.app, 'apiKeys.copilot.signinStatus')?.status.id === 'signedIn'), '再び操作するとサインイン済み');
+  assert.ok(field(re.app, 'apiKeys.copilot.signinStatus').status.text.includes(ACCOUNT));
+  const s = re.app.getCopilotSignin();
+  assert.ok(!s || !s.userCode, '確認コードの入力を求めない');
+  assert.ok(!surface(re.app, env).includes(CRED_PROBE), '資格情報を表示・保存しない');
 });
 
 // ======================= FR-062 =======================
