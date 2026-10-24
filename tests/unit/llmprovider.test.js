@@ -34,6 +34,27 @@ test('FR-087 AC-506: copilotMissing は SDK・サインイン・トークンの�
   assert.deepEqual(copilotMissing(READY_CP), []);
 });
 
+// FR-087 AC-506 AC-505: SDK は導入済みで Copilot CLI を起動できないときは 'cli'（SDK 未導入の 'sdk' と区別する）
+test('FR-087 AC-506: copilotMissing は CLI を起動できない（cli_unavailable）を SDK 未導入と区別して cli を返す', () => {
+  assert.deepEqual(copilotMissing({ available: false, unavailableReason: 'cli_unavailable', authMethod: 'signin', signedIn: false }), ['cli']);
+  assert.deepEqual(copilotMissing({ available: false, unavailableReason: 'sdk_missing' }), ['sdk']);
+});
+
+// FR-087 AC-506: CLI を起動できないときの［設定］の状態と、SDK・Copilot CLI の導入・再導入の案内
+test('FR-087 AC-506: 原因が cli のとき［設定］に「Copilot CLI を起動できない」と導入・再導入の案内を示し、有効にできない', async () => {
+  const a = await mk({ provider: 'copilot', copilot: { ...READY_CP, available: false, unavailableReason: 'cli_unavailable', signedIn: false } });
+  const r = await a.app.requestLlmEnable();
+  assert.equal(r.ok, false); assert.deepEqual(r.missing, ['cli']);
+  a.app.commands['settings.open']();
+  const f = field(a.app, 'llm.enabled');
+  assert.match(f.status.text, /Copilot CLI を起動できない/);
+  assert.ok(!f.status.text.includes('GitHub Copilot SDK が導入されていない'));
+  const act = f.status.actions.find((x) => x.id === 'installGuide');
+  assert.ok(act && /Copilot CLI/.test(act.text) && /再導入|導入し直/.test(act.text));
+  assert.match(a.app.runSettingsAction('installGuide').text, /Copilot CLI/);
+  assert.equal(a.relay.llm().length, 0, 'LLM 向けの要求は 0 件');
+});
+
 // FR-087 AC-506: 失敗の原因の分類（認証・利用の上限・接続・タイムアウト・不正な応答）
 test('FR-087 AC-506: classifyLlmFailure は秘密を見ずに原因の分類を返す', () => {
   assert.equal(classifyLlmFailure({ status: 0, error: 'timeout' }), 'timeout');
@@ -43,6 +64,8 @@ test('FR-087 AC-506: classifyLlmFailure は秘密を見ずに原因の分類を�
   assert.equal(classifyLlmFailure({ status: 502, body: { error: { code: 'connection' } } }), 'connection');
   assert.equal(classifyLlmFailure({ status: 0, error: 'connection' }), 'connection');
   assert.equal(classifyLlmFailure({ status: 200, body: '<<not json>>' }), 'invalid');
+  // AC-518: 中継サーバーが CLI の起動を含めて PARAM-069 で打ち切ったときもタイムアウト
+  assert.equal(classifyLlmFailure({ status: 504, body: { error: { code: 'upstream_timeout' } } }), 'timeout');
 });
 
 // FR-068 AC-514: 初期値は Microsoft Foundry。選択は中継サーバーへ保存し、もう一方の設定を消す要求は送らない
