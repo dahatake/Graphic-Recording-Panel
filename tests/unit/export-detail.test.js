@@ -1,4 +1,4 @@
-// FR-006 FR-007 FR-026 AC-089（Q-029）/ AC-013 AC-014 AC-015 AC-047 AC-048 AC-077 AC-419:
+// FR-006 FR-007 FR-026 AC-089（Q-029）/ AC-013 AC-014 AC-015 AC-047 AC-077 AC-419:
 // 図の保存（PNG・SVG・PDF）の内容が、画面で選んでいる詳細度に従うことの単体・結合テスト
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -58,7 +58,29 @@ test('AC-089 AC-013 AC-015 AC-014: 大項目ではトピックだけで、シー
   for (const t of hidden) for (const out of [r.pngTexts, r.pdf]) assert.ok(!out.includes(t), `大項目で出ている: ${t}`);
 });
 
-test('AC-047 AC-048: 3D 表示中の PNG・PDF も画面の詳細度に従った 2D の図で、その旨が表示される', async () => {
+test('AC-047: 3D 表示中は PNG・SVG・PDF の 3 形式とも 2D の図（詳細では全シーンの見出しと要点）が得られ、その旨が表示される', async () => {
+  const factory = makeCanvasFactory();
+  const { app, env } = await newApp({ canvasFactory: factory });
+  const texts = await seedThreeScenes(app, env);
+  toDetail(app, 'detail');
+  app.setViewMode('3d');
+  const keys = [];
+  for (const cmd of ['save.png', 'save.svg', 'save.pdf']) {
+    const r = await app.commands[cmd]();
+    assert.equal(r.ok, true, cmd);
+    keys.push(app.getState().message.key);
+  }
+  assert.deepEqual(keys, ['msg.save3d', 'msg.save3d', 'msg.save3d']);
+  const [png, svg, pdf] = env.downloads;
+  assert.equal(png.mime, 'image/png'); assert.equal(svg.mime, 'image/svg+xml'); assert.equal(pdf.mime, 'application/pdf');
+  assert.ok(String(svg.data).includes('<svg'));
+  const outs = [factory.log.texts.join('\n'), String(svg.data), pdfTexts(pdf.data)];
+  for (const s of app.getState().scenes) for (const out of outs) assert.ok(out.includes(s.heading), s.heading);
+  for (const t of texts) for (const out of outs) assert.ok(out.includes(t), t);
+  assert.equal(app.getState().viewMode, '3d'); // 保存しても表示は 3D のまま
+});
+
+test('AC-047: 3D 表示中の PNG・PDF も画面の詳細度に従った 2D の図で、その旨が表示される', async () => {
   const factory = makeCanvasFactory();
   const { app, env } = await newApp({ canvasFactory: factory });
   await seedThreeScenes(app, env);
