@@ -340,9 +340,12 @@ export async function llmModule(ctx) {
   }
   api.testLlmConnection = () => track((async () => {
     // 「有効にできない」状態（同意の記録はある）では、接続テストを確かめ直しの契機にする（AC-506）
-    if (!enabled && provider === 'copilot' && consentValid('copilot')) await recheck();
+    // 起動時から原因があり、有効にする操作をしていない（unconfigured が null）ときも、状態の取得の結果で判断する（AC-354 の例外）
+    const st = !enabled && provider === 'copilot' && consentValid('copilot') ? await recheck() : null;
+    const blocked = !enabled && (st?.missing.length ? [...st.missing] : null);
+    if (blocked && !unconfigured?.length) unconfigured = blocked; // ［設定］の状態に原因と次の行動を示す（AC-506）
     // 有効かつ同意済み（有効化は同意の後にだけ成立する）のときだけ中継へ送る。それ以外は中継への要求を 0 件にする
-    if (!enabled) { testResult = { ok: false, cause: provider === 'copilot' && consentValid('copilot') && unconfigured?.length ? 'unconfigured' : 'consent' }; }
+    if (!enabled) { testResult = { ok: false, cause: blocked ? 'unconfigured' : 'consent' }; }
     else if ((await readStatus()).missing.length) { testResult = { ok: false, cause: 'unconfigured' }; }
     else {
       const res = await send('POST', RESPONSES_PATH, { input: 'ping' }, TEST_TIMEOUT_MS);
