@@ -249,3 +249,52 @@ test('FR-062 AC-312: 同意の記録があっても cli_unavailable の間は起
     if (!want) { const r = await b.requestLlmEnable(); assert.deepEqual([r.ok, r.missing], [false, ['cli']]); assert.equal(b.getLlmConsent(), null); }
   }
 });
+
+// FR-068 AC-354（例外。AC-506）: 起動時から「有効にできない」原因があり、有効にする操作をしていない（unconfigured が null）ときの接続テスト
+test('FR-068 AC-354 FR-087 AC-506: 同意の記録あり・起動時から有効にできないときの接続テストは状態の取得だけで「失敗（未設定）」、解消後は再同意なしに有効にしてから送る', async () => {
+  const cases = [
+    ['signin', { ...READY_CP, signedIn: false, account: null }],
+    ['token', { ...READY_CP, authMethod: 'token', tokenConfigured: false }],
+    ['cli', { ...READY_CP, available: false, unavailableReason: 'cli_unavailable' }],
+  ];
+  for (const [cause, cp] of cases) {
+    const a = await mk({ provider: 'copilot', copilot: cp });
+    a.env.storage.setItem(CONSENT_KEY_COPILOT, JSON.stringify({ version: CONSENT_VERSION, at: 1, provider: 'copilot' }));
+    const rec = a.env.storage.getItem(CONSENT_KEY_COPILOT);
+    const b = await a.createApp({ ...a.env.options, relay: a.relay.fn });
+    await b.flushLlm();
+    assert.equal(b.getLlmState().enabled, false);
+    a.relay.calls.length = 0;
+    const r = await b.testLlmConnection();
+    assert.deepEqual(r, { ok: false, cause: 'unconfigured' }, `${cause}: 失敗（未設定）`);
+    assert.deepEqual(a.relay.calls.map((c) => `${c.method} ${c.path}`), ['GET /api/llm/status'], `${cause}: 状態の取得だけ`);
+    assert.equal(a.relay.llm().length, 0, `${cause}: 送信 0 件`);
+    const m = b.getState().message;
+    assert.equal(m.key, 'llm.test.fail.unconfigured');
+    assert.doesNotMatch(m.text, /同意/, `${cause}: 「先に同意が必要」ではない`);
+    assert.equal(b.getLlmConsent(), null);
+    b.commands['settings.open'](); await b.flushLlm();
+    const st = field(b, 'llm.enabled').status;
+    assert.deepEqual(st.causes, [cause], `${cause}: 原因を示す`);
+    assert.ok(st.actions.length >= 1, `${cause}: 次の行動を示す`);
+    b.commands['settings.close']?.();
+    // 原因が解けたら、再同意なしに有効に戻してから通常の接続テストを行う
+    a.relay.copilot = { ...READY_CP };
+    a.relay.calls.length = 0;
+    const r2 = await b.testLlmConnection();
+    assert.deepEqual(r2, { ok: true, cause: null }, `${cause}: 解消後は成功`);
+    assert.equal(b.getLlmState().enabled, true, `${cause}: 再同意なしに有効`);
+    assert.equal(b.getLlmConsent(), null);
+    assert.deepEqual(a.relay.llm().map((c) => `${c.method} ${c.path}`), ['POST /api/llm/responses']);
+    assert.equal(a.env.storage.getItem(CONSENT_KEY_COPILOT), rec, '同意の記録は作り直さない');
+  }
+});
+
+// FR-068 AC-354: 同意の記録がないときは従来どおり「先に同意が必要」で中継への要求は 0 件
+test('FR-068 AC-354: Copilot で同意の記録がなく有効にできない原因があるときは「先に同意が必要」で中継への要求 0 件', async () => {
+  const a = await mk({ provider: 'copilot', copilot: { ...READY_CP, signedIn: false } });
+  a.relay.calls.length = 0;
+  const r = await a.app.testLlmConnection();
+  assert.deepEqual(r, { ok: false, cause: 'consent' });
+  assert.equal(a.relay.calls.length, 0);
+});
