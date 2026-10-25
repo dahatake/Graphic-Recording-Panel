@@ -39,7 +39,7 @@ test('FR-084 AC-483: モーダルが開いている間、背景のコマンド�
   assert.equal(app.getState().session, 'preparing');
   assert.equal(app.handleKey({ key: 'Escape' }), 'apiKeys.close');
   app.commands['session.start'](); assert.equal(app.getState().session, 'recording');
-  assert.equal(app.getState().focusReturn, 'apiKeys.open', 'AC-484: フォーカスは「接続キー」へ戻る');
+  assert.equal(app.getState().focusReturn, 'settings.open', 'AC-484: フォーカスは開く前の［設定］の操作へ戻る');
 });
 
 // FR-085 AC-487・AC-489: キーの形式の検査（空・空白だけ・制御文字・長さ超過）は送らずに拒否し、保存済みの状態は変えない
@@ -83,7 +83,7 @@ test('NFR-SEC-006 AC-490: 応答のキーらしい値は表示・保持しない
 // FR-084 AC-495: users-guide に接続キー画面の説明がある（日本語・［設定］とは別・実値を含まない）
 test('FR-084 AC-495: users-guide/10-api-keys.md に開き方・閉じ方・Azure Speech の使い方があり、プレースホルダだけ', () => {
   const t = fs.readFileSync(path.join(ROOT, 'users-guide', '10-api-keys.md'), 'utf8');
-  for (const w of ['［接続キー］', 'Esc', 'Azure Speech', '［設定］', 'とは別の画面']) assert.ok(t.includes(w), w);
+  for (const w of ['［接続キー］', 'Esc', 'Azure Speech', '［設定］', '［設定］の中']) assert.ok(t.includes(w), w);
   assert.ok(t.includes('<キー>') && t.includes('<リソース名>'));
   assert.ok(!/[0-9a-f]{32}/i.test(t), 'キーらしい 32 桁の値を含まない');
 });

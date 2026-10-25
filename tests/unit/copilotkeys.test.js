@@ -58,12 +58,14 @@ test('FR-084 AC-483: 接続キー画面の分類は foundry・copilot・azureSpe
   assert.ok(app.getApiKeysDialog().fields.every((f) => f.id.startsWith('apiKeys.copilot.')));
 });
 
-// FR-084 AC-482: 最上部の「接続キー」の説明に GitHub Copilot の認証を含み、「設定」の語を使わない（日英）
+// FR-084 AC-482: ［設定］の「接続キー」の分類の説明に GitHub Copilot の認証を含み、「設定」の語を使わない（日英）
 test('FR-084 AC-482: 接続キーの説明は Foundry・Azure Speech・GitHub Copilot を含み、「設定」「Settings」を含まない', async () => {
   const app = await createApp({ storage: mem() });
   for (const lang of ['ja', 'en']) {
     app.setLang(lang);
-    const it = app.getCommandBar().items.find((x) => x.command === 'apiKeys.open');
+    app.commands['settings.open']();
+    const it = app.getSettingsDialog().categories.find((x) => x.id === 'apiKeys'); // 2026-10-25: ［設定］の「接続キー」の分類
+    app.commands['settings.close']();
     for (const w of ['Foundry', 'Azure Speech', 'GitHub Copilot']) assert.ok(it.description.includes(w), `${lang}: ${w}`);
     assert.ok(!/設定|Settings/i.test(it.description));
   }

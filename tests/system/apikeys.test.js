@@ -1,3 +1,4 @@
+// 2026-10-25: 接続キーは［設定］の分類へ統合（リボンのグループ廃止）。`apiKeys.open` はリボン項目を持たないコマンドとして残り、［設定］を開いて「接続キー」分類を選ぶ。
 // FR-084 AC-482 AC-483 AC-484 AC-485 AC-486 / FR-085 AC-487 / FR-086 AC-496 / NFR-SEC-006 AC-490 AC-491
 // 接続キー画面の System Test。契約: tests/system/CONTRACT-API-KEYS.md。期待値は受入基準だけから決める。
 // 中継サーバーは注入したモック（Foundry のキーの API 付き）と、Azure Speech のモック（azurespeech-util.js）だけを使い、ネットワークに出ない。
@@ -89,46 +90,59 @@ const webFiles = (re) => fs.readdirSync(WEB, { recursive: true }).map(String).fi
 
 // ======================= FR-084 =======================
 // FR-084 AC-482
-test('FR-084 AC-482: 最上部に「接続キー」のアイコンと名称と説明が常時表示で並び、［設定］とは別のボタンで、「設定」の語を使わず、PARAM-011 文字以内', async () => {
+// 2026-10-25 の変更: リボンの独立した「接続キー」グループ・ボタンは廃止。入口は［設定］の分類「接続キー」だけ（契約: CONTRACT-API-KEYS.md「［設定］への統合」）。
+const apiKeysCategory = (app) => (app.getSettingsDialog()?.categories ?? []).find((c) => c.id === 'apiKeys');
+test('FR-084 AC-482: リボンに独立した「接続キー」のグループ・ボタンが 0 件で、［設定］の分類一覧に「接続キー」がアイコン・説明の文字つきで常に並び、選ぶと 3 分類が出る', async () => {
   const { app } = await boot();
-  assert.equal(app.getCommandBar().position, 'top');
-  const it = barItem(app, 'apiKeys.open');
-  assert.ok(it, 'コマンドバーに apiKeys.open がある');
-  assert.equal(it.label, '接続キー');
-  assert.ok(typeof it.icon === 'string' && it.icon.trim(), 'アイコンがある');
-  assert.match(it.description, /Foundry/); assert.match(it.description, /Azure Speech/); assert.match(it.description, /GitHub Copilot/, 'GitHub Copilot の認証も設定する旨（2026-10-24）');
-  assert.equal(it.descriptionVisible, true, 'ホバー・フォーカスを待たず常時表示');
-  assert.ok(it.accessibleName.includes(it.label) && it.accessibleName.trim());
-  assert.equal(it.tabbable, true);
-  assert.ok(weight(it.label) <= PARAM_011, `ラベルは ${PARAM_011} 文字以内`);
-  for (const s of [it.label, it.description, it.accessibleName]) assert.ok(!/設定|Settings/i.test(s), `「設定」の語を使わない: ${s}`);
-  const imp = barItem(app, 'import.file');
-  for (const k of Object.keys(imp)) if (['icon', 'description', 'descriptionVisible', 'accessibleName', 'tabbable'].includes(k)) assert.ok(k in it, `取り込み（FR-073）と同じ規則: ${k}`);
-  const st = barItem(app, 'settings.open');
-  assert.ok(st, '［設定］は並存する');
-  assert.notEqual(st.label, it.label, 'ラベルから区別できる');
-  assert.notEqual(st.command, it.command);
+  const bar = app.getCommandBar();
+  assert.equal(bar.position, 'top');
+  assert.equal(bar.items.filter((i) => i.command === 'apiKeys.open' || /^apiKeys\./.test(i.command) || i.group === 'apiKeys').length, 0, 'リボンに接続キーの項目は 0 件');
+  assert.equal(bar.groups.filter((g) => g.id === 'apiKeys' || g.name === '接続キー').length, 0, 'リボンに接続キーのグループは 0 件');
+  assert.equal(app.getCommandBarLayout({ viewportWidth: 1280 }).items.filter((i) => /^apiKeys\./.test(i.command)).length, 0);
+  assert.ok(barItem(app, 'settings.open'), '入口は［設定］');
+  assert.equal(app.getSettingsDialog(), null);
+  app.commands['settings.open'](); await flush();
+  const c = apiKeysCategory(app);
+  assert.ok(c, '［設定］の分類に「接続キー」が常に表示される');
+  assert.equal(c.label, '接続キー');
+  assert.ok(typeof c.icon === 'string' && c.icon.trim(), 'アイコンがある');
+  assert.match(c.description, /Foundry/); assert.match(c.description, /Azure Speech/); assert.match(c.description, /GitHub Copilot/);
+  assert.equal(c.descriptionVisible, true, '説明の文字つき（常時表示）');
+  assert.ok(c.accessibleName.includes(c.label));
+  assert.ok(weight(c.label) <= PARAM_011, `ラベルは ${PARAM_011} 文字以内`);
+  assert.equal(app.getApiKeysDialog(), null, '選ぶ前は接続キーの内容は出ない');
+  app.selectSettingsCategory('apiKeys'); await flush();
+  assert.deepEqual(dlg(app).categories.map((x) => x.id), ['foundry', 'copilot', 'azureSpeech'], '選ぶと 3 分類の内容が出る');
+  assert.equal(dlg(app).selected, 'foundry');
+  // 実 DOM: リボンに接続キーのボタンが無い
+  const html = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.ok(!/data-command=["']apiKeys\.open["']/.test(html), 'index.html のリボンに apiKeys.open のボタンがない');
 });
 
-test('FR-084 AC-482 異常系: 表示言語を切り替えると再読込なしで英語（API Keys）になり、「Settings」を使わず、戻すと日本語に戻る', async () => {
+test('FR-084 AC-482 異常系: 表示言語を切り替えると再読込なしで［設定］の分類が英語（API Keys）になり説明も英語に、戻すと日本語に戻る。切替後もリボンに接続キーは 0 件', async () => {
   const { app } = await boot();
-  const ja = barItem(app, 'apiKeys.open');
+  app.commands['settings.open'](); await flush();
+  const ja = apiKeysCategory(app);
   app.setLang('en');
-  const en = barItem(app, 'apiKeys.open');
+  const en = apiKeysCategory(app);
   assert.equal(en.label, 'API Keys');
   assert.ok(en.description.trim() && en.description !== ja.description, '説明も英語に切り替わる');
   assert.match(en.description, /Foundry/); assert.match(en.description, /GitHub Copilot/);
-  for (const s of [en.label, en.description, en.accessibleName]) assert.ok(!/Settings|設定/i.test(s), `Settings の語を使わない: ${s}`);
   assert.ok(weight(en.label) <= PARAM_011);
+  assert.equal(app.getCommandBar().items.filter((i) => /^apiKeys\./.test(i.command)).length, 0);
   app.setLang('ja');
-  assert.equal(barItem(app, 'apiKeys.open').label, '接続キー');
+  assert.equal(apiKeysCategory(app).label, '接続キー');
+  app.commands['settings.close']();
+  assert.equal(app.getCommandBar().items.filter((i) => /^apiKeys\./.test(i.command)).length, 0, '閉じた後もリボンに接続キーは 0 件');
 });
 
 // FR-084 AC-483
 test('FR-084 AC-483: 「接続キー」を操作すると中央のモーダル（role=dialog・aria-modal・見出し）が開き、背景は半透明のオーバーレイで覆われ inert・スクロール不可。左に 3 分類（Foundry・GitHub Copilot・Azure Speech）、開いた直後は先頭', async () => {
   const { app } = await boot();
   assert.equal(dlg(app), null, '開く前は閉じている');
-  app.commands['apiKeys.open'](); await flush();
+  app.commands['settings.open'](); await flush();
+  assert.equal(app.getSettingsDialog().role, 'dialog'); assert.equal(app.getSettingsDialog().modal, true);
+  app.selectSettingsCategory('apiKeys'); await flush();
   const d = dlg(app);
   assert.ok(d, '開く');
   assert.equal(d.open, true); assert.equal(d.role, 'dialog'); assert.equal(d.modal, true);
@@ -180,12 +194,13 @@ test('FR-084 AC-484: 右上の閉じるボタン・Esc・ダイアログ内の�
     assert.ok(dlg(app).closeButton.label.trim(), '右上の「閉じる」がある');
     app.apiKeysClick('overlay');
     assert.ok(dlg(app), 'オーバーレイのクリックでは閉じない');
-    if (how === 'escape') assert.equal(app.handleKey({ key: 'Escape' }), 'apiKeys.close');
+    if (how === 'escape') assert.ok(['apiKeys.close', 'settings.close'].includes(app.handleKey({ key: 'Escape' })));
     else if (how === 'closeButton') app.apiKeysClick('closeButton');
     else { app.focusApiKeysField('apiKeys.close'); app.handleKey({ key: 'Enter' }); }
     await flush();
     assert.equal(dlg(app), null, `${how}: 閉じる`);
-    assert.equal(app.getFocus().command, 'apiKeys.open', `${how}: フォーカスは「接続キー」に戻る`);
+    assert.equal(app.getFocus().command, 'settings.open', `${how}: フォーカスは開く前の［設定］の操作に戻る`);
+    assert.equal(app.getSettingsDialog(), null, `${how}: ［設定］のダイアログも閉じる`);
     assert.equal(dlg(app)?.overlay?.visible ?? false, false, `${how}: オーバーレイが消える`);
     app.setDraft(`閉じた後の入力 ${how}`);
     assert.equal(app.getState().input.draft, `閉じた後の入力 ${how}`, `${how}: 背景が操作できる状態に戻る`);
