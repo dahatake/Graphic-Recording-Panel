@@ -22,6 +22,7 @@ import hashlib
 import importlib
 import inspect
 import os
+import shutil
 import tempfile
 import threading
 import time
@@ -151,7 +152,11 @@ def _connection(sdk, env):
     if factory is None:
         return None
     try:
-        conn = factory(args=list(CLI_ARGS))
+        # SDK 同梱の runtime は CLI_ARGS を解釈できない版があるため、導入済みの Copilot CLI を優先する
+        cli = os.environ.get("COPILOT_CLI_PATH")
+        if not (cli and os.path.isfile(cli)):
+            cli = shutil.which("copilot")
+        conn = factory(path=cli, args=list(CLI_ARGS)) if cli else factory(args=list(CLI_ARGS))
         conn.env = env
     except Exception:  # noqa: BLE001 — 使えない版は従来の引数の形にする
         return None
