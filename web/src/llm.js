@@ -79,6 +79,7 @@ export async function llmModule(ctx) {
       'llm.failed.auth': 'LLM 連携に失敗しました（認証）。通常の描画で表示しています', 'llm.failed.rateLimit': 'LLM 連携に失敗しました（利用の上限）。通常の描画で表示しています',
       'llm.failed.connection': 'LLM 連携に失敗しました（接続）。通常の描画で表示しています', 'llm.failed.timeout': 'LLM 連携に失敗しました（タイムアウト）。通常の描画で表示しています',
       'llm.failed.invalid': 'LLM 連携に失敗しました（不正な応答）。通常の描画で表示しています',
+      'llm.guide.text': '生成 AI を使うと、発話の要点から図を描けます（既定はオフ）。使うには［設定］画面で LLM 連携を有効にし、送信内容を確認して同意してください。閉じても生成 AI なしの描画は続きます', 'llm.guide.dismiss': '閉じる', 'llm.guide.open': '設定を開く',
       'llm.failed.cli': 'LLM 連携に失敗しました（Copilot CLI を起動できない）。LLM 連携を無効にし、通常の描画で表示しています',
     },
     en: {
@@ -106,6 +107,7 @@ export async function llmModule(ctx) {
       'llm.failed.auth': 'LLM integration failed (authentication); showing the normal drawing', 'llm.failed.rateLimit': 'LLM integration failed (usage limit); showing the normal drawing',
       'llm.failed.connection': 'LLM integration failed (connection); showing the normal drawing', 'llm.failed.timeout': 'LLM integration failed (timeout); showing the normal drawing',
       'llm.failed.invalid': 'LLM integration failed (invalid response); showing the normal drawing',
+      'llm.guide.text': 'With generative AI, the diagram can be drawn from the key points of what is said (off by default). To use it, enable LLM integration in Settings, check what is sent and consent. Drawing without generative AI continues even if you close this', 'llm.guide.dismiss': 'Close', 'llm.guide.open': 'Open Settings',
       'llm.failed.cli': 'LLM integration failed (Copilot CLI cannot be started); disabled it and showing the normal drawing',
     },
   });
@@ -328,6 +330,11 @@ export async function llmModule(ctx) {
     })();
     return track(p);
   };
+  // ---- 初回の導入の案内（FR-062 AC-534）: 同意の記録がなく有効でないあいだ表示する。閉じても無効のまま（保存しない。再読込で再び出る） ----
+  let guideDismissed = false;
+  const anyConsentRecord = () => { try { return !!(ctx.storage.getItem(CONSENT_KEY) || ctx.storage.getItem(CONSENT_KEY_COPILOT)); } catch { return false; } };
+  api.getLlmGuide = () => ({ visible: !guideDismissed && !enabled && !anyConsentRecord(), text: t('llm.guide.text'), dismissLabel: t('llm.guide.dismiss'), openLabel: t('llm.guide.open') });
+  api.dismissLlmGuide = async () => { if (!guideDismissed) { guideDismissed = true; notify(); } return { ok: true }; };
   // 発話からの要求は llmdraw.js（FR-063）が、要点だけを最小化・マスキングして出す。
 
   // ---- 接続テスト（FR-068 AC-354）: 有効化の状態・図には影響しない ----
