@@ -10,7 +10,7 @@ export const P = {
   HOLD_MAX_SEC: 30, // PARAM-087
   GROUP_MAX: 7, // PARAM-088
   ALIGN_PX: 1, // PARAM-091
-  UPPER_SEC: 3, // PARAM-001
+  UPPER_SEC: 15, // PARAM-001（2026-10-26 に 3 から変更）
   RESUME_SEC: 2, // PARAM-008
   LABEL_MAX: 6, // PARAM-011（全角 1・半角 0.5）
 };

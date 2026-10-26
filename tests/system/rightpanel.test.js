@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp, PARAM, toDetail } from './helpers.js';
 
-const REFLECT_MS = 3 * 1000; // PARAM-001
+const REFLECT_MS = PARAM.UPPER_SEC * 1000; // PARAM-001（15 秒）
 const MB = 1024 * 1024;       // PARAM-003
 const finals = (app) => app.getTranscript().finals.map((f) => f.text);
 const startRec = (app) => { app.commands['session.start'](); app.startSpeech(); };
@@ -119,7 +119,7 @@ test('FR-014 AC-052 異常系: 記録中でないときの暫定結果は表示�
 });
 
 // FR-014 AC-053
-test('FR-014 AC-053: 確定結果で暫定表示が消えて確定一覧に移り、図が受付から 3 秒以内に画面へ反映される', async () => {
+test('FR-014 AC-053: 確定結果で暫定表示が消えて確定一覧に移り、図が受付から 15 秒（PARAM-001）以内に画面へ反映される', async () => {
   const { app, env } = await newApp();
   startRec(app);
   env.speech.emit('予算を見直す', false);
@@ -128,7 +128,7 @@ test('FR-014 AC-053: 確定結果で暫定表示が消えて確定一覧に移�
   assert.equal(app.getTranscript().interim, null, '暫定表示は消える');
   assert.deepEqual(finals(app), ['予算を見直す']);
   env.scheduler.advance(REFLECT_MS);
-  assert.ok(app.renderSvg().includes('予算を見直す'), '3 秒以内に図に反映');
+  assert.ok(app.renderSvg().includes('予算を見直す'), 'PARAM-001（15 秒）以内に図に反映');
   assert.ok(app.renderOutline().includes('予算を見直す'));
   assert.equal(app.getState().scenes.length >= 1, true);
 });
@@ -144,7 +144,7 @@ test('FR-014 AC-053 異常系: 一時停止中に届いた確定結果は一覧�
 });
 
 // FR-014 AC-054（件数は AC の文言から決まる範囲: 手入力 1 件、取込は 100 行（各 40 文字以下）。上限 1 MB 全行の負荷は AC から決まらないので範囲外）
-test('FR-014 AC-054: 手入力の確定結果が、送信から 3 秒以内に図へ反映される', async () => {
+test('FR-014 AC-054: 手入力の確定結果が、送信から 15 秒（PARAM-001）以内に図へ反映される', async () => {
   const { app, env } = await newApp(); toDetail(app);
   app.commands['session.start']();
   app.setDraft('手入力の要点');
@@ -153,7 +153,7 @@ test('FR-014 AC-054: 手入力の確定結果が、送信から 3 秒以内に�
   assert.ok(app.renderSvg().includes('手入力の要点'));
 });
 
-test('FR-014 AC-054: ファイル取込の確定結果（100 行）が、取込の完了から 3 秒以内に図へ反映される', async () => {
+test('FR-014 AC-054: ファイル取込の確定結果（100 行）が、取込の完了から 15 秒（PARAM-001）以内に図へ反映される', async () => {
   const { app, env } = await newApp(); toDetail(app);
   app.commands['session.start']();
   const lines = Array.from({ length: 100 }, (_, i) => `取込行${i + 1}の要点`);

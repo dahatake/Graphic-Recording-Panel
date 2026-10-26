@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { newApp, makeEnv, loadApp, WEB, toDetail } from './helpers.js';
+import { newApp, makeEnv, loadApp, WEB, toDetail, PARAM } from './helpers.js';
 
 const file = (name, text, extra = {}) => ({
   name, type: extra.type ?? 'text/vtt', size: extra.size ?? Buffer.byteLength(text), text,
@@ -152,12 +152,12 @@ test('FR-023 AC-120 異常系: 取込に失敗したあとも同じ名前のフ�
   assert.equal(app.getState().utterances.length, 2);
 });
 
-test('FR-023 AC-122: 取込の完了から 3 秒以内に認識文字列の一覧と図（SVG・テキスト一覧）に反映される', async () => {
+test('FR-023 AC-122: 取込の完了から 15 秒（PARAM-001）以内に認識文字列の一覧と図（SVG・テキスト一覧）に反映される', async () => {
   const { app, env } = await newApp(); toDetail(app);
   app.commands['session.start']();
   const r = await app.importTextFile(file('m.vtt', vttOf(3)));
   assert.equal(r.ok, true);
-  env.scheduler.advance(3000);
+  env.scheduler.advance(PARAM.UPPER_SEC * 1000);
   assert.deepEqual(app.getTranscript().finals.map((f) => f.text), ['発話0', '発話1', '発話2']);
   const svg = app.renderSvg(); const outline = app.renderOutline();
   assert.ok(app.getState().scenes.length >= 1);
