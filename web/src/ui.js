@@ -450,6 +450,13 @@ export function mountUI(app, doc = document) {
         bn.addEventListener('input', () => app.setSettingsFieldDraft('budget.yen', bn.value));
         bn.addEventListener('change', () => { const r = app.setBudget(bn.value); if (!r.ok) bn.value = String(app.getBudget().yen); });
         row('budget.yen', bf.label, bn);
+        for (const [pid, field] of [['budget.priceIn', 'in'], ['budget.priceOut', 'out']]) { // AC-524・AC-525: 単価（入力・出力）
+          const pf2 = d.fields.find((f) => f.id === pid); if (!pf2) continue;
+          const pn = doc.createElement('input'); pn.type = 'number'; pn.min = String(pf2.min); pn.step = String(pf2.step); pn.inputMode = 'numeric';
+          pn.addEventListener('input', () => app.setSettingsFieldDraft(pid, pn.value));
+          pn.addEventListener('change', () => { const r = app.setPricing({ inputPer1M: field === 'in' ? pn.value : app.getPricing().inputPer1M, outputPer1M: field === 'out' ? pn.value : app.getPricing().outputPer1M }); if (!r.ok) pn.value = String(field === 'in' ? app.getPricing().inputPer1M : app.getPricing().outputPer1M); });
+          row(pid, pf2.label, pn);
+        }
         const bc = doc.createElement('p'); bc.id = 'settings-budget-current'; bc.className = 'settings-status';
         form.append(bc);
       }
@@ -537,6 +544,10 @@ export function mountUI(app, doc = document) {
       if (bf && bn) {
         if (bn.value !== bf.input.value && doc.activeElement !== bn) bn.value = bf.input.value;
         setEl.querySelector('#settings-budget-current').textContent = `${bf.label}: ${bf.text}`;
+        for (const pid of ['budget.priceIn', 'budget.priceOut']) {
+          const pf2 = d.fields.find((f) => f.id === pid); const pn = setEl.querySelector(`#settings-${pid.replace('.', '\\.')}`);
+          if (pf2 && pn && pn.value !== pf2.input.value && doc.activeElement !== pn) pn.value = pf2.input.value;
+        }
       }
     }
     { // FR-014 AC-522: ライブの更新間隔の表示
@@ -714,6 +725,26 @@ export function mountUI(app, doc = document) {
     row.querySelector('[data-action="decline"]')?.focus();
   }
   app.on('change', syncConsent);
+
+  // FR-089 AC-526・AC-532・AC-533: 生成 AI の使用額（推定）と予算の警告。FR-062 AC-534: 初回の導入の案内
+  const statusBar = doc.querySelector('.statusbar');
+  if (statusBar && app.getBudgetStatus) {
+    const bs = doc.createElement('p'); bs.id = 'budget-status'; bs.className = 'status-chip'; bs.setAttribute('role', 'status');
+    const bw = doc.createElement('p'); bw.id = 'budget-warning'; bw.className = 'message'; bw.setAttribute('role', 'alert');
+    const gd = doc.createElement('div'); gd.id = 'llm-guide'; gd.className = 'message'; gd.setAttribute('role', 'region'); gd.hidden = true;
+    const gt = doc.createElement('span'); const gdo = doc.createElement('button'); gdo.type = 'button'; gdo.className = 'btn'; const gdc = doc.createElement('button'); gdc.type = 'button'; gdc.className = 'btn';
+    gdo.addEventListener('click', () => { app.commands['settings.open']?.(); });
+    gdc.addEventListener('click', () => { void app.dismissLlmGuide(); });
+    gd.append(gt, gdo, gdc);
+    statusBar.append(bs, bw, gd);
+    const syncBudget = () => {
+      bs.textContent = app.getBudgetStatus().text;
+      const w = app.getBudgetWarning(); bw.textContent = w ? w.text : ''; bw.hidden = !w;
+      const g = app.getLlmGuide(); gd.hidden = !g.visible;
+      if (g.visible) { gt.textContent = g.text; gdo.textContent = g.openLabel; gdc.textContent = g.dismissLabel; gd.setAttribute('aria-label', g.text); }
+    };
+    app.on('change', syncBudget); syncBudget();
+  }
 
   // FR-050: RPG風の仮想パッド（十字キー・A・B）とコマンドウィンドウ。状態は app が持ち、ここは描くだけ。
   const rpgEl = doc.createElement('div'); rpgEl.id = 'rpg-ui'; rpgEl.hidden = true;

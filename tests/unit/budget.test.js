@@ -27,7 +27,7 @@ test('FR-089 AC-525: 変更でき、保存され（予算の数値だけ）、�
   assert.equal(first.app.setBudget(0).ok, true);
   assert.equal(first.app.setBudget('3000').ok, true);
   assert.equal(field(first.app).value, 3000);
-  assert.deepEqual(JSON.parse(first.env.storage.getItem(BUDGET_KEY)), { budgetYen: 3000 });
+  assert.deepEqual(JSON.parse(first.env.storage.getItem(BUDGET_KEY)), { budgetYen: 3000, priceIn: 400, priceOut: 1600 });
   const second = await newApp({ storage: first.env.storage });
   assert.equal(second.app.getBudget().yen, 3000);
 });
@@ -44,7 +44,7 @@ test('FR-089 AC-525: 負の数・整数でない値・空は理由を示して�
     assert.equal(field(app).value, 5000);
     assert.equal(field(app).input.value, '5000');
   }
-  assert.deepEqual(JSON.parse(env.storage.getItem(BUDGET_KEY)), { budgetYen: 5000 });
+  assert.deepEqual(JSON.parse(env.storage.getItem(BUDGET_KEY)), { budgetYen: 5000, priceIn: 400, priceOut: 1600 });
 });
 
 test('FR-089 AC-525: ブラウザ内の保存にキー・トークンを含めない', async () => {
@@ -52,7 +52,7 @@ test('FR-089 AC-525: ブラウザ内の保存にキー・トークンを含め�
   app.setBudget(1234);
   const dump = env.storage.dump().filter(([k]) => k === BUDGET_KEY);
   assert.equal(dump.length, 1);
-  assert.deepEqual(Object.keys(JSON.parse(dump[0][1])), ['budgetYen']);
+  assert.deepEqual(Object.keys(JSON.parse(dump[0][1])), ['budgetYen', 'priceIn', 'priceOut']);
 });
 
 test('FR-089 AC-527: データの初期化と新しいセッションの開始で使用額はゼロに戻り、予算は保たれる', async () => {

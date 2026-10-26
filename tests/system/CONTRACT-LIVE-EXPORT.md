@@ -19,3 +19,10 @@ System Test（live.test.js・present-export.test.js）が前提にする観察�
   - シーンごとに 1 つの `<section data-slide data-scene-id="<id>">`。その中に見出し（`<h1>`〜`<h3>`）、要点（`<li>`）、図（`<svg>`）がある。
   - 実行時（ブラウザで開いたとき）: 現在のスライドの `section` は `data-active="true"`、他は `data-active="false"`（または属性なし）。初期は 1 枚目。`ArrowRight`／`ArrowLeft` で次／前のスライド（先頭・末尾で止まる）。自動送りは `[data-autoplay]` のボタンで入り（押すたびに切り替わる）、1 枚ごとに PARAM-004（8 秒）滞在して次へ進み、最後で止まる。
   - 会議の文字列はエスケープされて文字として入る（`<`・`>`・`&`・`"` が要素・属性として解釈されない。`<script>` タグ等が文字列に含まれていても、実行されず、DOM に要素として現れない）。
+
+## 予算・単価・使用額・導入の案内（FR-089 AC-524〜526・AC-532・AC-533、FR-062 AC-534。tests/system/budget.test.js。2026-10-26）
+既存の `budget.js`（`getBudget`／`setBudget`／`getBudgetUsage`／`addBudgetUsage`、設定項目 `budget.yen`、`grp.budget`）を前提に、次を追加する（実装役はこれに合わせる）。PARAM-101=10000 円、PARAM-102=入力 400 円、PARAM-103=出力 1600 円（いずれも 100 万トークンあたり）。
+- 単価: `app.getPricing()` → `{ inputPer1M, outputPer1M, default:{ inputPer1M:400, outputPer1M:1600 } }`。`app.setPricing({ inputPer1M, outputPer1M })` → `{ ok }`（0 以上の整数だけ。不正は `{ ok:false, reason:'invalid' }`、`state.message.text` に理由、直前の値を保つ）。［設定］画面の `fields` に `id:'budget.priceIn'`・`'budget.priceOut'`（`value`）。保存は `grp.budget` に `budgetYen`・単価の数値だけ（キー・トークン・使用額を含めない。セッションファイルにも含めない）。
+- 使用額: 中継モックの `/api/llm/extract`・`/api/llm/svg` の応答 body に `usage: { inputTokens:number, outputTokens:number }` が付く。アプリは `(inputTokens*inputPer1M + outputTokens*outputPer1M)/1e6` 円を `addBudgetUsage` で加算する（`getBudget().usedYen`・`getBudgetUsage().yen`）。`app.getBudgetStatus()` → `{ text, usedYen, budgetYen }`（記録中の画面に出す文字列。使用額の数値を含む）。
+- 停止・警告: `usedYen >= budgetYen`（予算 0 円は常に）のとき `/api/llm/*`（status を除く）を呼ばない。`app.getBudgetWarning()` → 警告なしは `null`、到達は `{ key:'budget.reached', text }`、予算 0 円は `{ key:'budget.zero', text }`。図の描画（生成 AI なし）は続く。予算を `usedYen` より大きくする、または `session:start`（使用額 0）で `null` に戻り、呼び出しが再開される。予算を使用額以下に変えても再開しない。
+- 導入の案内（AC-534）: `app.getLlmGuide()` → `{ visible:boolean, text }`（LLM の同意・設定が無いとき初期 true）。`await app.dismissLlmGuide()` で `visible:false`（LLM は無効のまま、`/api/llm/*`（status を除く）は 0 件）。保存しない（再読込で再び表示され、何度でも閉じられる）。有効化は従来どおり `requestLlmEnable`・設定画面 `llm.enabled`（AC-310）。
