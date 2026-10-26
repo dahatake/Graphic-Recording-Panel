@@ -23,14 +23,14 @@ test('FR-089 AC-525: 単価の保存は数値だけで、片方だけ不正で�
   assert.deepEqual(JSON.parse(env.storage.getItem(BUDGET_KEY)), { budgetYen: 10000, priceIn: 10, priceOut: 20 });
 });
 
-test('FR-089 AC-526: usage の無い応答は加算せず、あれば設定単価で加算する', async () => {
+test('FR-089 AC-526: usage の無い応答は文字数から概算して「概算」と表示し、あれば設定単価で加算する（概算表示なし）', async () => {
   const none = relayOf(null); const a = await enabled(none);
   a.app.llmCall('/api/llm/extract', { input: 'x' }); await a.app.flushLlm();
-  assert.equal(a.app.getBudgetUsage().yen, 0);
+  assert.ok(a.app.getBudgetUsage().yen > 0); assert.match(a.app.getBudgetStatus().text, /概算/);
   const h = relayOf({ inputTokens: 1_000_000, outputTokens: 500_000 }); const b = await enabled(h);
   await b.app.llmCall('/api/llm/extract', { input: 'x' });
   assert.equal(b.app.getBudgetUsage().yen, 400 + 800);
-  assert.match(b.app.getBudgetStatus().text, /1200/);
+  assert.match(b.app.getBudgetStatus().text, /1200/); assert.doesNotMatch(b.app.getBudgetStatus().text, /概算/);
 });
 
 test('FR-089 AC-532・AC-533: 予算 0 円は呼ばず、使用額以下への変更では再開せず、超える値で再開する', async () => {
@@ -42,7 +42,7 @@ test('FR-089 AC-532・AC-533: 予算 0 円は呼ばず、使用額以下への�
   app.setBudget(300); await app.llmCall('/api/llm/extract', { input: 'x' }); // 使用額 400 >= 300
   assert.equal(app.getBudgetWarning().key, 'budget.reached');
   app.setBudget(400); assert.notEqual(app.getBudgetWarning(), null);
-  app.setBudget(401); assert.equal(app.getBudgetWarning(), null);
+  app.setBudget(1000); assert.equal(app.getBudgetWarning(), null);
   assert.equal((await app.llmCall('/api/llm/extract', { input: 'x' })).ok, true);
 });
 
@@ -53,4 +53,22 @@ test('FR-062 AC-534: 案内は同意の記録があれば出ず、有効化で�
   assert.equal(c.app.getLlmGuide().visible, false);
   const again = await newApp({ storage: c.env.storage, options: { relay: h.relay } });
   assert.equal(again.app.getLlmGuide().visible, false, '同意の記録があるときは案内を出さない');
+});
+
+test('FR-089 AC-526: 予算の 80%（PARAM-105）で警告 budget.near、予算で budget.reached', async () => {
+  const h = relayOf({ inputTokens: 1_000_000, outputTokens: 0 }); const { app } = await enabled(h); // 400 円
+  app.setBudget(600); await app.llmCall('/api/llm/extract', { input: 'x' }); assert.equal(app.getBudgetWarning(), null); // 67%
+  app.setBudget(500); assert.equal(app.getBudgetWarning().key, 'budget.near'); // 80%
+  app.setBudget(400); assert.equal(app.getBudgetWarning().key, 'budget.reached');
+});
+
+test('FR-089 AC-527: 使用額は同じ storage で作り直しても保たれ、session.start でゼロ（予算は保つ）', async () => {
+  const h = relayOf({ inputTokens: 1_000_000, outputTokens: 0 }); const a = await enabled(h);
+  await a.app.llmCall('/api/llm/extract', { input: 'x' });
+  const b = await newApp({ storage: a.env.storage, options: { relay: h.relay } });
+  assert.equal(b.app.getBudgetUsage().yen, 400);
+  b.app.commands['session.start']();
+  assert.equal(b.app.getBudgetUsage().yen, 0);
+  const c = await newApp({ storage: a.env.storage, options: { relay: h.relay } });
+  assert.equal(c.app.getBudgetUsage().yen, 0, 'ゼロも保存される');
 });
