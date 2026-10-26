@@ -10,7 +10,7 @@
 |---|---|---|---|---|---|
 | FR-001 | 音声認識による発話の取込 | 承認済み | web/src/speech.js, web/src/commandbar.js, web/src/app.js, web/src/ui.js, web/index.html | tests/unit/speech.test.js, tests/system/input.test.js, tests/system/speech.test.js | 音声入力源, アプリ組立 |
 | FR-002 | 代替入力（手入力・ファイル取込） | 承認済み | web/src/input.js, web/src/app.js, web/src/ui.js, web/index.html | tests/unit/core.test.js, tests/system/input.test.js | アプリ組立 |
-| FR-022 | 字幕ファイル（.vtt）の取込 | 承認済み | web/src/vtt.js, web/src/input.js | tests/unit/vtt.test.js, tests/system/vtt.test.js | アプリ組立 |
+| FR-022 | 字幕ファイル（.vtt）の取込 | 承認済み | web/src/vtt.js, web/src/input.js, web/src/liverefresh.js | tests/unit/vtt.test.js, tests/unit/liverefresh.test.js, tests/system/vtt.test.js, tests/system/live.test.js | アプリ組立 |
 | FR-003 | 発話のシーン分割と要点抽出 | 承認済み | web/src/scenes.js, web/src/app.js | tests/unit/core.test.js, tests/system/scenes.test.js | アプリ組立 |
 | FR-004 | 2D のグラフィック・ファシリテーション表示 | 承認済み | web/src/diagram.js, web/src/emotion.js, web/styles/app.css | tests/unit/core.test.js, tests/system/scenes.test.js | アプリ組立, デザイン基盤, 感情語辞書 |
 | FR-005 | 図の手修正 | 承認済み | web/src/edit.js, web/src/edit-ui.js, web/src/persist.js, web/src/app.js | tests/unit/export-edit.test.js | アプリ組立 |
@@ -29,7 +29,7 @@
 | NFR-PERF-003 | 記録中・大きい図での応答性の維持 | 承認済み | web/src/frame.js, web/src/ui.js, web/src/edit-ui.js, web/src/diagram.js, web/sw.js | tests/unit/perf.test.js, tests/system/perf.test.js | アプリ組立, 音声入力源, 描画の合流 |
 | NFR-PERF-004 | アイドル時に CPU を使い続けない | 承認済み | web/src/frame.js, web/src/ui.js | tests/unit/perf.test.js, tests/system/perf.test.js | アプリ組立, 描画の合流 |
 | FR-013 | 右パネルでの認識文字列の表示（ファイル取込は画面最上部） | 承認済み | web/src/transcript.js, web/src/layout.js, web/src/input.js, web/src/ui.js, web/index.html, web/styles/app.css, web/sw.js | tests/unit/transcript.test.js, tests/system/rightpanel.test.js | アプリ組立, デザイン基盤, 認識文字列 |
-| FR-014 | 認識・取込の内容の図へのリアルタイム反映 | 承認済み | web/src/transcript.js, web/src/speech.js, web/src/input.js, web/src/app.js | tests/unit/transcript.test.js, tests/system/rightpanel.test.js | アプリ組立, 認識文字列 |
+| FR-014 | 認識・取込の内容の図へのリアルタイム反映 | 承認済み | web/src/transcript.js, web/src/speech.js, web/src/input.js, web/src/app.js, web/src/liverefresh.js, web/src/ui.js | tests/unit/transcript.test.js, tests/unit/liverefresh.test.js, tests/system/rightpanel.test.js, tests/system/live.test.js | アプリ組立, 認識文字列 |
 | NFR-BG-001 | バックグラウンドでの動作継続 | 承認済み | web/src/speech.js | tests/unit/background.test.js, tests/system/background.test.js, tests/system/speech.test.js | 音声入力源, アプリ組立 |
 | NFR-UX-001 | Fluent 2 に沿った UI の振る舞い | 承認済み | web/styles/tokens.css, web/styles/app.css, web/styles/view3d.css, web/src/commandbar.js, web/src/ui.js, web/src/app.js, web/index.html, web/sw.js | tests/unit/ux.test.js, tests/system/ux.test.js | アプリ組立, デザイン基盤, コマンドバー |
 | NFR-DOC-001 | 日本語の使い方ドキュメント | 承認済み | README.md, users-guide/README.md, users-guide/01-getting-started.md, users-guide/02-voice-and-import.md, users-guide/03-diagram.md, users-guide/04-export.md, users-guide/05-language-and-views.md, users-guide/06-troubleshooting.md, users-guide/07-new-features.md | tests/unit/docs.test.js, tests/unit/llmguide.test.js | - |
