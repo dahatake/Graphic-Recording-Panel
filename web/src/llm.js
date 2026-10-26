@@ -325,7 +325,7 @@ export async function llmModule(ctx) {
       }
       const recovered = failed; failed = false;
       if (recovered) notify();
-      ctx.emit('llm:result', { path, body: res.body });
+      ctx.emit('llm:result', { path, body: res.body, sentChars: [...text].length }); // sentChars: 使用額の概算用（AC-526）
       return { ok: true, body: res.body };
     })();
     return track(p);

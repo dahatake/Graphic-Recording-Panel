@@ -1,15 +1,18 @@
 // FR-089 AC-524・AC-525・AC-526・AC-527・AC-532・AC-533: 生成 AI を使う 1 回の会議の予算（既定 10,000 円。PARAM-101）と単価。
 // - ［設定］画面に予算と単価（入力・出力。既定 400 円・1,600 円／100 万トークン。PARAM-102・103）を表示し、0 以上の整数だけ受け付けてブラウザへ保存する
 //   （不正値は理由を示して直前の値を保つ）。
-// - 保存するのは予算・単価の数値だけ。キー・トークン・使用額は保存しない（NFR-SEC-006）。
-// - 使用額（推定）は会議ごとのメモリ上の値。中継の応答の usage（トークン数）× 単価を加算する。
-//   データの初期化（FR-018）・新しいセッションの開始でゼロに戻り、予算・単価は保たれる。
+// - 保存するのは予算・単価の数値（grp.budget。キー・トークンは保存しない。NFR-SEC-006）と、使用額（grp.budget.usage。セッションの保存データ。AC-527）。
+// - 使用額（推定）は中継の応答の usage（トークン数）× 単価を加算する。usage が無い応答は送受信の文字数から概算し「概算」と表示する。
+//   再読込後も保たれ、データの初期化（FR-018）・新しいセッションの開始でゼロに戻り、予算・単価は保たれる。
+// - 使用額が予算の 80%（PARAM-105）で警告 budget.near（呼び出しは続く）。
 // - 使用額が予算に達したとき（予算 0 円は常に）、/api/llm/*（status を除く）の呼び出しは行わない（図の描画は生成 AI なしで続く）。
 //   予算を使用額より大きくする、または新しいセッションを始めるまで再開せず、警告を出し続ける。
 import { readJson, writeJson } from './persist.js';
 
 export const BUDGET_KEY = 'grp.budget';
 export const BUDGET_DEFAULT_YEN = 10000; // PARAM-101
+export const USAGE_KEY = 'grp.budget.usage'; // AC-527: 使用額（セッションの保存データ。予算・単価の grp.budget とは別）
+export const WARN_PCT = 80; // PARAM-105
 export const PRICE_IN_DEFAULT = 400; // PARAM-102（円／100 万トークン）
 export const PRICE_OUT_DEFAULT = 1600; // PARAM-103（円／100 万トークン）
 export const isValidBudget = (v) => Number.isSafeInteger(v) && v >= 0;
@@ -23,6 +26,7 @@ const STRINGS = {
     'budget.priceChanged': '生成 AI の単価を変更しました', 'budget.priceInvalid': '単価は 0 以上の整数（円／100 万トークン）で入力してください。直前の値を保っています',
     'budget.status': '生成 AI の使用額（推定）: {u} 円／予算 {n} 円',
     'budget.reached': '生成 AI の予算に達したため、呼び出しを止めました。図の描画（生成 AI なし）は続きます。予算を引き上げるか、新しいセッションを始めると再開します',
+    'budget.near': '生成 AI の使用額が予算の 80% に達しました。予算に達すると呼び出しを止めます', 'budget.estimated': '（概算）',
     'budget.zero': '予算が 0 円のため、生成 AI は使えません。図の描画（生成 AI なし）は続きます',
     'budget.changed': '1 回の会議の予算を変更しました', 'budget.invalid': '1 回の会議の予算は 0 以上の整数（円）で入力してください。直前の値を保っています',
   },
@@ -33,6 +37,7 @@ const STRINGS = {
     'budget.priceChanged': 'Changed the generative AI prices', 'budget.priceInvalid': 'Enter each price as an integer of 0 or more (JPY per 1M tokens). The previous value is kept',
     'budget.status': 'Generative AI usage (estimate): {u} JPY / budget {n} JPY',
     'budget.reached': 'The generative AI budget was reached, so calls are stopped. Drawing without generative AI continues. Raise the budget or start a new session to resume',
+    'budget.near': 'Generative AI usage reached 80% of the budget. Calls stop when the budget is reached', 'budget.estimated': ' (estimated)',
     'budget.zero': 'The budget is 0 JPY, so generative AI is not used. Drawing without generative AI continues',
     'budget.changed': 'Changed the budget per meeting', 'budget.invalid': 'Enter the budget per meeting as an integer of 0 or more (JPY). The previous value is kept',
   },
@@ -52,17 +57,24 @@ export function budgetModule(ctx) {
     if (raw && isValidBudget(raw.priceIn)) priceIn = raw.priceIn;
     if (raw && isValidBudget(raw.priceOut)) priceOut = raw.priceOut;
   }
+  // 使用額はセッションの保存データ（grp.session とは別キー。データの初期化・新しい会議でゼロ）に保ち、再読込後も引き継ぐ（AC-527）
   let used = 0;
+  let estimated = false; // 使用額に概算（usage の無い応答）を含む
+  {
+    const raw = readJson(ctx.storage, USAGE_KEY);
+    if (raw && Number.isFinite(raw.usedYen) && raw.usedYen > 0) { used = raw.usedYen; estimated = raw.estimated === true; }
+  }
   let drafts = {};
   const save = () => writeJson(ctx.storage, BUDGET_KEY, { budgetYen: yen, priceIn, priceOut });
+  const saveUsage = () => writeJson(ctx.storage, USAGE_KEY, { usedYen: used, estimated });
 
   const text = () => t('budget.text').replace('{n}', String(yen)).replace('{u}', String(used));
   api.getBudget = () => ({ yen, default: BUDGET_DEFAULT_YEN, usedYen: used });
   api.getBudgetUsage = () => ({ yen: used });
   api.getPricing = () => ({ inputPer1M: priceIn, outputPer1M: priceOut, default: { inputPer1M: PRICE_IN_DEFAULT, outputPer1M: PRICE_OUT_DEFAULT } });
   // 使用額の加算（生成 AI の呼び出し側が使う。負・非数は無視）
-  api.addBudgetUsage = (amount) => { if (Number.isFinite(amount) && amount > 0) { used += amount; ctx.emit('change', api); } return used; };
-  const resetUsage = () => { if (used !== 0) { used = 0; ctx.emit('change', api); } };
+  api.addBudgetUsage = (amount) => { if (Number.isFinite(amount) && amount > 0)   { used += amount; saveUsage(); ctx.emit('change', api); } return used; };
+    const resetUsage = () => { if (used !== 0 || estimated) { used = 0; estimated = false; saveUsage(); ctx.emit('change', api); } };
 
   let msgKey = null;
   const say = (key, msg) => { msgKey = key; ctx.change((s) => { s.message = { key, text: msg }; }); };
@@ -88,10 +100,16 @@ export function budgetModule(ctx) {
   };
 
   // ---- 使用額の加算（AC-526）: 中継の応答の usage（入力・出力のトークン数）× 単価 ----
+  // usage の無い応答は、送受信の文字数（1 文字 = 1 トークンとして多めに見積もる）から概算し、「概算」を表示する
   const tokens = (v) => (Number.isFinite(v) && v > 0 ? v : 0);
   ctx.on('llm:result', (e) => {
     const u = e?.body?.usage;
-    if (!u || typeof u !== 'object') return;
+    if (!u || typeof u !== 'object') {
+      let outChars = 0; try { outChars = [...JSON.stringify(e?.body ?? {})].length; } catch { /* 概算できない分は 0 */ }
+      estimated = true;
+      api.addBudgetUsage((tokens(e?.sentChars) * priceIn + outChars * priceOut) / 1_000_000);
+      return;
+    }
     api.addBudgetUsage((tokens(u.inputTokens) * priceIn + tokens(u.outputTokens) * priceOut) / 1_000_000);
   });
 
@@ -101,11 +119,19 @@ export function budgetModule(ctx) {
   if (baseCall) api.llmCall = (path, body) => (blocked() ? Promise.resolve({ ok: false, reason: 'budget' }) : baseCall(path, body));
   const llmOn = () => api.getLlmState?.().enabled === true;
   api.getBudgetWarning = () => {
-    if (!llmOn() || !blocked()) return null;
+    if (!llmOn()) return null;
+    if (!blocked()) {
+      // 予算の PARAM-105（80%）に達したら警告（呼び出しは止めない）
+      if (used * 100 >= yen * WARN_PCT) return { key: 'budget.near', text: t('budget.near') };
+      return null;
+    }
     const key = yen === 0 ? 'budget.zero' : 'budget.reached';
     return { key, text: t(key) };
   };
-  api.getBudgetStatus = () => ({ text: t('budget.status').replace('{u}', String(Math.round(used * 100) / 100)).replace('{n}', String(yen)), usedYen: used, budgetYen: yen });
+  api.getBudgetStatus = () => ({
+    text: t('budget.status').replace('{u}', String(Math.round(used * 100) / 100)).replace('{n}', String(yen)) + (estimated ? t('budget.estimated') : ''),
+    usedYen: used, budgetYen: yen, estimated,
+  });
 
   // 新しいセッションの開始（準備中・停止からの開始）と、データの初期化で使用額をゼロに戻す（予算・単価は保つ）
   ctx.on('session:start', resetUsage);
