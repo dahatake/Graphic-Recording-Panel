@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const WEB = path.join(ROOT, 'web');
-export const PARAM = { UPPER_SEC: 15 /* PARAM-001（2026-10-26 に 3 から変更） */, LIVE_DEFAULT_SEC: 10 /* PARAM-100 */, LIVE_MIN_SEC: 10 /* PARAM-098 */, LIVE_MAX_SEC: 15 /* PARAM-099 */, BUDGET_DEFAULT_YEN: 10000 /* PARAM-101 */, SCENE_GAP_SEC: 20, MAX_FILE_MB: 1, DWELL_SEC: 8 };
+export const PARAM = { UPPER_SEC: 15 /* PARAM-001（2026-10-26 に 3 から変更） */, LIVE_DEFAULT_SEC: 10 /* PARAM-100 */, LIVE_MIN_SEC: 10 /* PARAM-098 */, LIVE_MAX_SEC: 15 /* PARAM-099 */, BUDGET_DEFAULT_YEN: 10000 /* PARAM-101 */, RENDER_SEC: 2 /* PARAM-104 */, WARN_PCT: 80 /* PARAM-105 */, SCENE_GAP_SEC: 20, MAX_FILE_MB: 1, DWELL_SEC: 8 };
 export const CJK = /[\u3000-\u30ff\u3400-\u9fff\uff00-\uffef]/;
 
 export async function loadApp() {

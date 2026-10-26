@@ -10,10 +10,11 @@ before(async () => { browser = await launch(); });
 after(async () => { await browser?.close(); });
 
 // FR-090 AC-528
-test('FR-090 AC-528: Markdown 保存で、トピック(#)→シーン(##)→要点(### か箇条書き)の階層と関係の種類・向きが、図の詳細度に従って保存される', async () => {
+test('FR-090 AC-528: Markdown 保存で、会議タイトル(#)→トピック(##)→要点(###)→詳細(箇条書き)の階層、末尾の決定事項・アクション項目の節、関係の種類・向きが、図の詳細度に従って保存される', async () => {
   for (const level of ['detail', 'middle', 'major']) {
     const { app, env } = await newApp();
     await seedThreeScenes(app, env); toDetail(app, level);
+    app.setTitleInfo({ theme: '予算見直し会議' });
     app.setDraft('案Aの採用を提案します。'); app.submitDraft(); env.tick(1); // 課題（コストが高くて困った）→ 提案の関係が付く（FR-053）
     await app.commands['save.markdown']();
     assert.equal(env.downloads.length, 1, level);
@@ -25,26 +26,27 @@ test('FR-090 AC-528: Markdown 保存で、トピック(#)→シーン(##)→要�
     const topics = app.getTopics();
     const scenes = app.getState().scenes;
     const idx = (s) => lines.findIndex((l) => l.includes(s));
-    let last = -1;
+    assert.equal(lines.filter((l) => /^# [^#]/.test(l)).length, 1, '# の見出しは会議タイトルの 1 つだけ');
+    assert.ok(lines.some((l) => /^# [^#]/.test(l) && l.includes('予算見直し会議')), '会議タイトルが # の見出し');
+    const decisionsAt = lines.findIndex((l) => /^#{2,3}\s*決定事項/.test(l));
+    const actionsAt = lines.findIndex((l) => /^#{2,3}\s*アクション項目/.test(l));
+    let last = lines.findIndex((l) => /^# [^#]/.test(l));
     for (const t of topics) {
-      const i = lines.findIndex((l, k) => k > last && /^# [^#]/.test(l) && l.includes(t.title));
-      assert.ok(i >= 0, `${level}: トピック「${t.title}」が # の見出し（出現順）`); last = i;
+      const i = lines.findIndex((l, k) => k > last && /^## [^#]/.test(l) && l.includes(t.title));
+      assert.ok(i >= 0, `${level}: トピック「${t.title}」が ## の見出し（出現順）`); last = i;
     }
-    if (level !== 'major') {
-      last = -1;
-      for (const s of scenes) {
-        const i = lines.findIndex((l, k) => k > last && /^## [^#]/.test(l) && l.includes(s.heading));
-        assert.ok(i >= 0, `${level}: シーン「${s.heading}」が ## の見出し（出現順）`); last = i;
-      }
-    } else {
-      assert.ok(!lines.some((l) => /^##\s/.test(l)), '大項目ではシーンの見出しを含まない');
-    }
+    assert.ok(decisionsAt > last && actionsAt > decisionsAt, `${level}: 末尾に「決定事項」「アクション項目」の節（この順）`);
+    if (level === 'major') assert.ok(!lines.some((l) => /^###\s/.test(l) && !/決定事項|アクション項目/.test(l)), '大項目では要点の見出し（###）を含まない');
     if (level === 'detail') {
-      for (const s of scenes) {
-        const h = lines.findIndex((l) => /^## [^#]/.test(l) && l.includes(s.heading));
-        const next = lines.findIndex((l, k) => k > h && /^#{1,2} [^#]/.test(l));
-        const block = lines.slice(h + 1, next < 0 ? undefined : next);
-        for (const p of s.points) assert.ok(block.some((l) => /^\s*(-|\*|#{3}) /.test(l) && l.includes(p.text)), `要点「${p.text}」が ${s.heading} の下の ### または箇条書き`);
+      const body = lines.slice(0, decisionsAt);
+      for (const t of topics) {
+        const h = body.findIndex((l) => /^## [^#]/.test(l) && l.includes(t.title));
+        const next = body.findIndex((l, k) => k > h && /^## [^#]/.test(l));
+        const block = body.slice(h + 1, next < 0 ? undefined : next);
+        for (const pid of t.pointIds) {
+          const text = scenes.flatMap((s) => s.points).find((p) => p.id === pid).text;
+          assert.ok(block.some((l) => /^### [^#]/.test(l) && l.includes(text)), `要点「${text}」がトピック「${t.title}」の下の ###`);
+        }
       }
       const rels = app.getOutlineRelations();
       assert.ok(rels.length >= 1, '前提: 関係がある（課題→提案 など）');
@@ -71,7 +73,7 @@ test('FR-090 AC-528 異常系: シーン 0 件では Markdown は保存されな
 });
 
 // FR-090 AC-530（AC-531 の外部リクエスト 0・文字として扱う、も同じ保存物で確かめる）
-test('FR-090 AC-530: HTML 保存でシーンごとに 1 枚のスライド（見出し・要点・図）の 1 ファイルが得られ、矢印キーで前後に移り、自動送りは 8 秒ごと。外部リクエスト 0・会議の文字列は文字としてだけ扱われる', async () => {
+test('FR-090 AC-530: HTML 保存で概要 1 枚＋トピックごとに 1 枚のスライド（見出し・要点・図）の 1 ファイルが得られ、矢印キーで前後に移り、自動送りは 8 秒ごと。外部リクエスト 0・会議の文字列は文字としてだけ扱われる', async () => {
   const { app, env } = await newApp();
   await seedThreeScenes(app, env); toDetail(app);
   app.setDraft('<script>window.__x=1</script><img src=x onerror="window.__x=2">'); app.submitDraft();
@@ -94,22 +96,27 @@ test('FR-090 AC-530: HTML 保存でシーンごとに 1 枚のスライド（見
     await page.clock.install();
     await page.setContent(html, { waitUntil: 'load' });
     const slides = page.locator('section[data-slide]');
-    assert.equal(await slides.count(), scenes.length + 0, 'シーンごとに 1 枚');
-    for (let i = 0; i < scenes.length; i++) {
-      const s = slides.nth(i);
-      assert.equal(await s.getAttribute('data-scene-id'), scenes[i].id);
-      assert.ok((await s.locator('h1,h2,h3').first().innerText()).includes(scenes[i].heading), `スライド ${i} の見出し`);
+    const topics = app.getTopics();
+    const pts = new Map(scenes.flatMap((s) => s.points).map((p) => [p.id, p.text]));
+    assert.equal(await slides.count(), topics.length + 1, '概要 1 枚＋トピックごとに 1 枚');
+    assert.equal(await slides.nth(0).getAttribute('data-slide-kind'), 'overview', '最初は概要');
+    assert.ok((await slides.nth(0).locator('h1,h2,h3').first().innerText()).length > 0, '概要の見出し');
+    for (let i = 0; i < topics.length; i++) {
+      const s = slides.nth(i + 1);
+      assert.equal(await s.getAttribute('data-topic-id'), topics[i].id);
+      assert.ok((await s.locator('h1,h2,h3').first().innerText()).includes(topics[i].title), `スライド ${i + 1} の見出し（トピック）`);
       const items = await s.locator('li').allInnerTexts();
-      for (const p of scenes[i].points) assert.ok(items.some((t) => t.includes(p.text)) || (await s.innerText()).includes(p.text), `スライド ${i} の要点`);
-      assert.ok((await s.locator('svg').count()) >= 1, `スライド ${i} の図`);
+      for (const pid of topics[i].pointIds) assert.ok(items.some((t) => t.includes(pts.get(pid))) || (await s.innerText()).includes(pts.get(pid)), `スライド ${i + 1} の要点`);
+      assert.ok((await s.locator('svg').count()) >= 1, `スライド ${i + 1} の図`);
     }
+    const last = topics.length;
     const active = () => page.evaluate(() => [...document.querySelectorAll('section[data-slide]')].findIndex((e) => e.getAttribute('data-active') === 'true'));
     assert.equal(await active(), 0, '初期は 1 枚目');
-    await page.keyboard.press('ArrowRight'); assert.equal(await active(), 1);
-    await page.keyboard.press('ArrowRight'); assert.equal(await active(), 2);
-    await page.keyboard.press('ArrowRight'); assert.equal(await active(), 2, '末尾で止まる');
-    await page.keyboard.press('ArrowLeft'); assert.equal(await active(), 1);
-    await page.keyboard.press('ArrowLeft'); await page.keyboard.press('ArrowLeft'); assert.equal(await active(), 0, '先頭で止まる');
+    for (let i = 1; i <= last; i++) { await page.keyboard.press('ArrowRight'); assert.equal(await active(), i); }
+    await page.keyboard.press('ArrowRight'); assert.equal(await active(), last, '末尾で止まる');
+    await page.keyboard.press('ArrowLeft'); assert.equal(await active(), last - 1);
+    for (let i = 0; i < last; i++) await page.keyboard.press('ArrowLeft');
+    assert.equal(await active(), 0, '先頭で止まる');
     await page.locator('[data-autoplay]').first().click();
     await page.clock.runFor((PARAM.DWELL_SEC - 1) * 1000);
     assert.equal(await active(), 0, '8 秒たつまで 1 枚目');
@@ -117,8 +124,8 @@ test('FR-090 AC-530: HTML 保存でシーンごとに 1 枚のスライド（見
     assert.equal(await active(), 1, '8 秒で次へ');
     await page.clock.runFor(PARAM.DWELL_SEC * 1000);
     assert.equal(await active(), 2);
-    await page.clock.runFor(PARAM.DWELL_SEC * 3000);
-    assert.equal(await active(), 2, '最後で止まる');
+    await page.clock.runFor(PARAM.DWELL_SEC * 1000 * (last + 1));
+    assert.equal(await active(), last, '最後で止まる');
     // AC-531: 外部リクエスト 0・文字としてだけ扱う
     assert.deepEqual(external, [], '外部のオリジンへのリクエスト 0 件');
     assert.equal(await page.evaluate(() => window.__x), undefined, '会議の文字列はスクリプトとして実行されない');

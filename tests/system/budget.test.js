@@ -97,6 +97,65 @@ test('FR-089 AC-526: 使用額（推定）は トークン数×単価 の合計�
   assert.equal(c2.app.getBudgetUsage().yen, 1000);
 });
 
+// FR-089 AC-526 警告（PARAM-105=80%）・概算表示
+test('FR-089 AC-526: 使用額が予算の 80%（PARAM-105）に達すると警告が出て（到達前は出ず、まだ呼び出しは続く）、usage の無い応答は文字数から概算し「概算」と表示する', async () => {
+  assert.equal(PARAM.WARN_PCT, 80);
+  const h = makeRelay({ inputTokens: 100_000, outputTokens: 50_000 }); // 120 円
+  const { app, env } = await enabledApp(h, { budget: 200 }); // 80% = 160 円
+  await say(app, env, '一つ目の発話です');
+  assert.equal(app.getBudgetUsage().yen, 120);
+  assert.equal(app.getBudgetWarning(), null, '80% 未満（60%）では警告なし');
+  assert.ok(!/概算/.test(app.getBudgetStatus().text), 'usage があるときは概算と表示しない');
+  await say(app, env, '二つ目の発話です'); // 240 円 >= 200
+  assert.equal(app.getBudgetWarning()?.key, 'budget.reached');
+  const h2 = makeRelay({ inputTokens: 100_000, outputTokens: 40_000 }); // 40 + 64 = 104 円（52%）
+  const c2 = await enabledApp(h2, { budget: 130 }); // 80% = 104 円ちょうど
+  await say(c2.app, c2.env, '境界の発話です');
+  assert.equal(c2.app.getBudgetUsage().yen, 104);
+  assert.equal(c2.app.getBudgetWarning()?.key, 'budget.near', '予算の 80% に達したときの警告（到達前）');
+  assert.equal(h2.llmReqs().length, 1);
+  await say(c2.app, c2.env, '警告後も呼び出しは続く');
+  assert.equal(h2.llmReqs().length, 2, '80% 警告だけでは停止しない');
+  // usage の無いモデル: 文字数から概算し、「概算」と表示する
+  const h3 = makeRelay(undefined); h3.relay = async (req) => { h3.log.push(req); return req.path.startsWith('/api/llm/status') ? { status: 200, body: CONFIGURED } : { status: 200, body: { objects: [], people: [], emotions: [], metaphors: [] } }; };
+  const c3 = await enabledApp(h3, { budget: 10000 });
+  await say(c3.app, c3.env, '使用トークン数の無い応答でも概算します');
+  assert.ok(c3.app.getBudgetUsage().yen > 0, '送受信の文字数から概算した使用額が加わる');
+  assert.ok(/概算/.test(c3.app.getBudgetStatus().text), '「概算」と表示する');
+});
+
+// FR-089 AC-527
+test('FR-089 AC-527: 使用額は再読込後も保たれ（0 に戻らず、到達後の停止も保たれる）、データの初期化・新しいセッションで 0 に戻り予算の設定値は保たれる', async () => {
+  const h = makeRelay({ inputTokens: 100_000, outputTokens: 50_000 }); // 120 円
+  const first = await enabledApp(h, { budget: 200 });
+  await say(first.app, first.env, '再読込の前の発話です');
+  assert.equal(first.app.getBudgetUsage().yen, 120);
+  const again = await newApp({ storage: first.env.storage, options: { relay: h.relay } });
+  assert.equal(again.app.getBudgetUsage().yen, 120, '再読込で 0 に戻らない');
+  assert.equal(again.app.getBudget().yen, 200);
+  // 到達後の停止も保たれる
+  await say(first.app, first.env, '到達させる発話です'); // 240
+  assert.equal(first.app.getBudgetWarning()?.key, 'budget.reached');
+  const reloaded = await newApp({ storage: first.env.storage, options: { relay: h.relay } });
+  assert.equal(reloaded.app.getBudgetUsage().yen, 240);
+  assert.equal(reloaded.app.getBudgetWarning()?.key, 'budget.reached', '予算到達の状態が保たれる');
+  const n = h.llmReqs().length;
+  // データの初期化（FR-018）: 使用額 0・予算の設定値は保つ
+  assert.equal(h.llmReqs().length, n, '再読込だけでは LLM 向けの要求は増えない');
+  const r = await newApp({ storage: first.env.storage, options: { relay: h.relay } });
+  assert.equal(r.app.getBudgetUsage().yen, 240);
+  await r.app.commands['data.reset']();
+  await r.app.dialogAction('confirm');
+  assert.equal(r.app.getBudgetUsage().yen, 0, 'データの初期化で使用額は 0 に戻る');
+  assert.equal(r.app.getBudget().yen, 200, '予算の設定値は保たれる');
+  assert.equal(r.app.getBudgetWarning(), null);
+  // 新しい会議（セッション）の開始
+  const s = await newApp({ storage: first.env.storage, options: { relay: h.relay } });
+  s.app.commands['session.start']();
+  assert.equal(s.app.getBudgetUsage().yen, 0, '新しいセッションの開始で使用額は 0');
+  assert.equal(s.app.getBudget().yen, 200);
+});
+
 // FR-089 AC-532
 test('FR-089 AC-532: 予算が 0 円のとき LLM 向けの要求は 0 件で、使えない旨が表示され、図の描画は続く', async () => {
   const h = makeRelay();

@@ -127,8 +127,11 @@ test('FR-014 AC-053: 確定結果で暫定表示が消えて確定一覧に移�
   env.speech.emit('予算を見直す', true);
   assert.equal(app.getTranscript().interim, null, '暫定表示は消える');
   assert.deepEqual(finals(app), ['予算を見直す']);
+  const before = app.getLiveRefresh().count;
   env.scheduler.advance(REFLECT_MS);
-  assert.ok(app.renderSvg().includes('予算を見直す'), 'PARAM-001（15 秒）以内に図に反映');
+  assert.ok(app.getLiveRefresh().count > before, '確定結果の受付から PARAM-001（15 秒）以内に図の更新の描画が始まる');
+  env.scheduler.advance(PARAM.RENDER_SEC * 1000);
+  assert.ok(app.renderSvg().includes('予算を見直す'), '描画が始まってから PARAM-104（2 秒）以内に図に反映');
   assert.ok(app.renderOutline().includes('予算を見直す'));
   assert.equal(app.getState().scenes.length >= 1, true);
 });

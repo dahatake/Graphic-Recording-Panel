@@ -28,7 +28,7 @@
     "AC-049": "sha256:b530880830288c02",
     "AC-050": "sha256:9d9068d925e207dd",
     "AC-052": "sha256:bf4a4635a20763f2",
-    "AC-053": "sha256:34676836dc75cfeb",
+    "AC-053": "sha256:970459e02942b52d",
     "AC-054": "sha256:d489cc7dc4fa8346",
     "AC-057": "sha256:ac812e004e7762a3",
     "AC-060": "sha256:906295de64a708e1",
@@ -241,14 +241,15 @@
     "AC-520": "sha256:14b573b98403a6ff",
     "AC-521": "sha256:52662eceeb1c94bf",
     "AC-523": "sha256:0a66bd7b2ff7dc98",
-    "AC-528": "sha256:0a46605ac28f0385",
-    "AC-530": "sha256:d5ef3368ff08eaba",
+    "AC-528": "sha256:85f3823e786d60e3",
+    "AC-530": "sha256:04ac763a7328a5ba",
     "AC-524": "sha256:a68adebbf25d3e76",
     "AC-525": "sha256:c73b607c2286a5c6",
-    "AC-526": "sha256:5561730d1311ddf6",
+    "AC-526": "sha256:c8c7414a35bb2a2d",
     "AC-532": "sha256:dee7ad5af0b1dfc8",
     "AC-533": "sha256:0ffb122154d8b2be",
-    "AC-534": "sha256:2c2b348c7e255ef3"
+    "AC-534": "sha256:2c2b348c7e255ef3",
+    "AC-527": "sha256:4260ada969c053ab"
   },
   "cases": [
     {
@@ -1046,7 +1047,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-053\" tests/system/rightpanel.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "f4b359d",
       "last_run_at": "2026-10-26T13:35:47+09:00",
       "evidence": "work/runs/202610261311/logs/system-test/E2E-028-202610261334.log",
@@ -1068,6 +1069,12 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "PARAM-001 変更に合わせてテストを更新（再実行が必要）"
+        },
+        {
+          "at": "2026-10-26T14:54:07+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC 変更に伴い再実行"
         }
       ]
     },
@@ -7727,7 +7734,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-528\" tests/system/present-export.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "f4b359d",
       "last_run_at": "2026-10-26T13:35:47+09:00",
       "evidence": "work/runs/202610261311/logs/system-test/E2E-261-202610261334.log",
@@ -7737,6 +7744,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-26T14:54:08+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC 変更に伴い再実行"
         }
       ]
     },
@@ -7752,7 +7765,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-530\" tests/system/present-export.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "f4b359d",
       "last_run_at": "2026-10-26T13:35:47+09:00",
       "evidence": "work/runs/202610261311/logs/system-test/E2E-262-202610261334.log",
@@ -7762,6 +7775,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-26T14:54:08+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC 変更に伴い再実行"
         }
       ]
     },
@@ -7804,12 +7823,13 @@
       ],
       "ac_ids": [
         "AC-526",
+        "AC-527",
         "AC-532",
         "AC-533"
       ],
       "title": "使用額（推定）の計算と予算到達での停止・警告・0円・再開（描画は継続）",
       "layer": "e2e",
-      "command": "node --test --test-name-pattern=\"AC-526|AC-532|AC-533\" tests/system/budget.test.js",
+      "command": "node --test --test-name-pattern=\"AC-526|AC-527|AC-532|AC-533\" tests/system/budget.test.js",
       "canary": false,
       "status": "blocked",
       "last_commit": null,
@@ -7827,6 +7847,24 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "AC は検証レベル=integration（System Test の対象外）。実装役が tests/unit・結合で担当。budget.test.js は受入の参照として残す"
+        },
+        {
+          "at": "2026-10-26T14:54:06+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test --test-name-pattern=\"AC-526|AC-532|AC-533\" tests/system/budget.test.js' -> 'node --test --test-name-pattern=\"AC-526|AC-527|AC-532|AC-533\" tests/system/budget.test.js'; ac_ids: ['AC-526', 'AC-532', 'AC-533'] -> ['AC-526', 'AC-527', 'AC-532', 'AC-533']",
+          "reason": "AC-526 警告 PARAM-105・概算、AC-527 使用額の保持を追加"
+        },
+        {
+          "at": "2026-10-26T14:54:09+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC 変更に伴い再実行"
+        },
+        {
+          "at": "2026-10-26T14:54:36+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-526/527/532/533 は検証レベル integration（System Test の対象外）。budget.test.js は結合テストとして維持"
         }
       ]
     },
