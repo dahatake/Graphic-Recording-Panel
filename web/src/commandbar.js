@@ -14,7 +14,7 @@ export const GROUPS = [
   ['toolbar.settings', ['settings.open', 'settings.layoutMode', 'sound.toggleMute', 'sound.setVolume', 'arrange.setInterval'], 'settings'],
   ['toolbar.presentation', ['presentation.start', 'presentation.pause', 'presentation.resume', 'presentation.stop', 'presentation.prev', 'presentation.next'], 'presentation'],
   // FR-078: 画像生成 AI 向けのプロンプトのコピーは、図の書き出し（PNG・SVG・PDF）の後ろ
-  ['toolbar.export', ['save.png', 'save.svg', 'save.pdf', 'save.markdown', 'save.html', 'prompt.copy'], 'export'],
+  ['toolbar.export', ['save.png', 'save.svg', 'save.pdf', 'prompt.copy'], 'export'],
   ['toolbar.data', ['file.save', 'file.load', 'data.reset'], 'data'],
   ['toolbar.environment', ['layout.tile', 'layout.focus', 'layout.maximize', 'layout.reset', 'theme.toggle', 'lang.ja', 'lang.en'], 'environment'],
 ];
@@ -24,7 +24,7 @@ const LABELS = {
   'session.start': ['記録開始', 'Record'], 'session.pause': ['一時停止', 'Pause'], 'session.resume': ['再開', 'Resume'],
   'session.stop': ['記録終了', 'Stop'], 'session.nextScene': ['次シーン', 'Next scene'], 'input.focus': ['入力', 'Type'],
   'import.file': ['取り込み', 'Import'],
-  'save.png': ['PNG保存', 'Save PNG'], 'save.svg': ['SVG保存', 'Save SVG'], 'save.pdf': ['PDF保存', 'Save PDF'], 'save.markdown': ['Markdown保存', 'Save Markdown'], 'save.html': ['HTML保存', 'Save HTML'],
+  'save.png': ['PNG保存', 'Save PNG'], 'save.svg': ['SVG保存', 'Save SVG'], 'save.pdf': ['PDF保存', 'Save PDF'],
   'lang.ja': ['日本語', 'Japanese'], 'lang.en': ['英語', 'English'],
   'view.2d': ['2D表示', '2D view'], 'view.3d': ['3D表示', '3D view'], 'view.timeline': ['時系列', 'Timeline'], 'view.arrange': ['整理', 'Arrange'], 'detail.next': ['詳細度', 'Detail'],
   'theme.toggle': ['配色', 'Theme'], 'drawStyle.pick': ['画風', 'Art style'],
@@ -74,7 +74,7 @@ export const KEY_ICON = P.key; // ［設定］の「接続キー」分類のア�
 export const ICONS = {
   'session.start': P.rec, 'session.pause': P.pause, 'session.resume': P.play, 'session.stop': P.stop,
   'session.nextScene': P.next, 'input.focus': P.edit, 'import.file': P.import,
-  'save.png': `M9 10h2`, 'save.svg': `M8 10l1.500 2L11 10`, 'save.pdf': `M8 10h4M8 12h4`, 'save.markdown': `M7 9h6M7 11h4`, 'save.html': `M7 9l-2 2 2 2M13 9l2 2-2 2`, 'lang.ja': P.lang, 'lang.en': `M5 5h10`,
+  'save.png': `M9 10h2`, 'save.svg': `M8 10l1.500 2L11 10`, 'save.pdf': `M8 10h4M8 12h4`, 'lang.ja': P.lang, 'lang.en': `M5 5h10`,
   'view.2d': P.square, 'view.3d': P.cube, 'theme.toggle': P.theme, 'drawStyle.pick': P.palette, 'view.timeline': 'M3 10h14M6 6v8M10 4v12M14 7v6', 'view.arrange': P.tile, 'detail.next': P.detail,
   // 発表（画面の枠＋記号）は記録（記号だけ）と別の形にする（同じ機能でない項目のアイコンを重ねない）
   'presentation.start': P.present, 'presentation.pause': 'M2 3h16v11H2zM8 6v5M12 6v5M7 17h6', 'presentation.resume': 'M2 3h16v11H2zM8 5.500v6l5-3zM7 17h6',
@@ -99,7 +99,7 @@ const TIP = {
   'import.file': ['テキスト・字幕のファイルを選んで、発話として取り込みます', 'Pick a text or caption file and import it as utterances'],
   'save.png': ['図を PNG 画像として保存します', 'Save the diagram as a PNG image'],
   'save.svg': ['図を SVG ファイルとして保存します', 'Save the diagram as an SVG file'],
-  'save.pdf': ['図を PDF として保存します', 'Save the diagram as a PDF'], 'save.markdown': ['トピック・シーン・要点を Markdown として保存します', 'Save the topics, scenes and points as Markdown'], 'save.html': ['シーンごとのスライド（HTML）として保存します', 'Save as an HTML presentation, one slide per scene'],
+  'save.pdf': ['図を PDF として保存します', 'Save the diagram as a PDF'],
   'lang.ja': ['表示言語を日本語に切り替えます', 'Switch the display language to Japanese'],
   'lang.en': ['表示言語を英語に切り替えます', 'Switch the display language to English'],
   'view.2d': ['図を平面（2D）で表示します', 'Show the diagram in flat 2D'],
