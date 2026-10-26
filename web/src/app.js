@@ -38,6 +38,8 @@ import { llmModule } from './llm.js';
 import { llmDrawModule } from './llmdraw.js';
 import { relayoutModule } from './relayout.js';
 import { liveRefreshModule } from './liverefresh.js';
+import { budgetModule } from './budget.js';
+import { presentExportModule } from './presentexport.js';
 import { speechSettingsModule } from './speechsettings.js';
 import { stylePresetModule } from './presetdiagram.js';
 import { imagePromptModule } from './imageprompt.js';
@@ -291,7 +293,7 @@ export async function createApp(options = {}) {
   app.subscribe = (fn) => on('change', fn);
   app.getPanelRenderer = (id) => panelRenderers.get(id) ?? null;
   app.use = async (mod) => { await mod(ctx); };
-  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, sessionModule, settingsModule, stylePickerModule, autoLayoutModule, layoutKindsModule, rpgModule, rpgAudioModule, llmModule, llmDrawModule, stylePresetModule, relayoutModule, liveRefreshModule, speechSettingsModule, ...(options.modules ?? [])]) await app.use(mod);
+  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, sessionModule, settingsModule, stylePickerModule, autoLayoutModule, layoutKindsModule, rpgModule, rpgAudioModule, llmModule, llmDrawModule, stylePresetModule, relayoutModule, liveRefreshModule, speechSettingsModule, budgetModule, presentExportModule, ...(options.modules ?? [])]) await app.use(mod);
 
   // FR-078: 画像生成 AI 向けのプロンプトのコピー（描画スタイル・レイアウト型・トピックの登録の後に足す）
   await app.use(imagePromptModule);
