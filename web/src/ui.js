@@ -431,6 +431,28 @@ export function mountUI(app, doc = document) {
         const cur = doc.createElement('p'); cur.id = 'settings-arrange-current'; cur.className = 'settings-status';
         form.append(cur);
       }
+      // FR-014 AC-522: ライブの更新間隔（10〜15 の整数・秒）。判定・保存・メッセージは app が行う
+      const lf = d.fields.find((f) => f.id === 'live.interval');
+      if (lf) {
+        const ln = doc.createElement('input'); ln.type = 'number'; ln.min = String(lf.min); ln.max = String(lf.max); ln.step = String(lf.step); ln.inputMode = 'numeric';
+        ln.setAttribute('aria-describedby', 'settings-live-current');
+        ln.addEventListener('input', () => app.setSettingsFieldDraft('live.interval', ln.value));
+        ln.addEventListener('change', () => app.setLiveInterval(ln.value));
+        row('live.interval', lf.label, ln);
+        const lc = doc.createElement('p'); lc.id = 'settings-live-current'; lc.className = 'settings-status';
+        form.append(lc);
+      }
+      // FR-089 AC-524・AC-525: 1 回の会議の予算（0 以上の整数・円）。判定・保存・メッセージは app が行う
+      const bf = d.fields.find((f) => f.id === 'budget.yen');
+      if (bf) {
+        const bn = doc.createElement('input'); bn.type = 'number'; bn.min = String(bf.min); bn.step = String(bf.step); bn.inputMode = 'numeric';
+        bn.setAttribute('aria-describedby', 'settings-budget-current');
+        bn.addEventListener('input', () => app.setSettingsFieldDraft('budget.yen', bn.value));
+        bn.addEventListener('change', () => { const r = app.setBudget(bn.value); if (!r.ok) bn.value = String(app.getBudget().yen); });
+        row('budget.yen', bf.label, bn);
+        const bc = doc.createElement('p'); bc.id = 'settings-budget-current'; bc.className = 'settings-status';
+        form.append(bc);
+      }
       // FR-068: LLM 連携の切替・状態・認証情報の有無（入力欄なし）・接続テスト。状態は色だけでなく文字とアイコンで示す
       // FR-068 AC-514: LLMのプロバイダーの選択（radiogroup。矢印キーで選べるネイティブのラジオボタン）
       const pf = d.fields.find((f) => f.id === 'llm.provider');
@@ -509,6 +531,22 @@ export function mountUI(app, doc = document) {
     syncAzureSpeech(d);
     const wasHidden = setEl.hidden; setEl.hidden = false;
     if (wasHidden) setEl.querySelector('select')?.focus();
+    { // FR-089 AC-524: 予算の表示
+      const bf = d.fields.find((f) => f.id === 'budget.yen');
+      const bn = setEl.querySelector('#settings-budget\\.yen');
+      if (bf && bn) {
+        if (bn.value !== bf.input.value && doc.activeElement !== bn) bn.value = bf.input.value;
+        setEl.querySelector('#settings-budget-current').textContent = `${bf.label}: ${bf.text}`;
+      }
+    }
+    { // FR-014 AC-522: ライブの更新間隔の表示
+      const lf = d.fields.find((f) => f.id === 'live.interval');
+      const ln = setEl.querySelector('#settings-live\\.interval');
+      if (lf && ln) {
+        if (ln.value !== lf.input.value && doc.activeElement !== ln) ln.value = lf.input.value;
+        setEl.querySelector('#settings-live-current').textContent = `${lf.label}: ${lf.text}`;
+      }
+    }
     { // FR-080: 再配置の周期の表示（現在の周期・入力中の文字列）と、コマンドから開いたときのフォーカス
       const af = d.fields.find((f) => f.id === 'arrange.interval');
       const num = setEl.querySelector('#settings-arrange\\.interval');

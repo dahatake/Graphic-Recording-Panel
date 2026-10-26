@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { WEB } from './helpers.js';
 
 // PARAM-076..080（docs/requirements-definition.md の PARAM 表）
-export const PERF = { RESPONSE_MS: 100, MIN_FPS: 30, BIG_UTTERANCES: 500, IDLE_CPU_PCT: 5, FIRST_SEC: 2, UPPER_SEC: 3 };
+export const PERF = { RESPONSE_MS: 100, MIN_FPS: 30, BIG_UTTERANCES: 500, IDLE_CPU_PCT: 5, FIRST_SEC: 2, UPPER_SEC: 15 /* PARAM-001（2026-10-26 に 3 から変更） */ };
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml' };
 

@@ -13,6 +13,8 @@ export const KEYMAP = [
   { key: '1', ...AS, command: 'save.png' },
   { key: '2', ...AS, command: 'save.svg' },
   { key: '3', ...AS, command: 'save.pdf' },
+  { key: 'F10', ...AS, ctrl: true, command: 'save.markdown' }, // Alt+Shift+F1〜F12・数字・英字は使用済みのため Ctrl+Alt+Shift
+  { key: 'F11', ...AS, ctrl: true, command: 'save.html' },
   { key: 'j', ...AS, command: 'lang.ja' },
   { key: 'k', ...AS, command: 'lang.en' },
   { key: 'd', ...AS, command: 'view.2d' },

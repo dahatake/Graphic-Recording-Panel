@@ -78,7 +78,7 @@ export async function createApp(options) -> app   // await 可能（同期で返
 - `app.getTranscript()` → `{ heading:string, interim:string|null, finals:[{id,text}] }`。`finals` は音声の確定結果とファイル取込の各行（受付順）。`interim` は直近の暫定結果で、確定結果が届く・記録中でなくなると `null`。
 - 暫定結果（`isFinal:false`）は記録中のときだけ `interim` に入り、発話・シーン・図には影響しない。記録中でないときは無視する。確定結果は `interim` を `null` にし `finals` に加える。
 - `app.renderTranscript()` → HTML 文字列。見出しを含み、暫定は `data-kind="interim"` の要素（クラス名に `interim` を含み、`app.t('transcript.interim')`（ja は「暫定」）の語を含む）、確定は `data-kind="final"` の要素（暫定とクラスが異なり、暫定の語を含まない）。
-- 図への反映: 確定結果（音声・手入力・ファイル取込）は、受付（取込は完了）から 3 秒（PARAM-001）以内に `renderSvg()`・`renderOutline()` に現れる。テストは `scheduler.advance(3000)` の後に確認する（同期反映でもよい）。受け付けられなかった入力は何も変えない。
+- 図への反映: 確定結果（音声・手入力・ファイル取込）は、受付（取込は完了）から 15 秒（PARAM-001）以内に `renderSvg()`・`renderOutline()` に現れる。テストは `scheduler.advance(PARAM.UPPER_SEC * 1000)`（15 秒＝PARAM-001。2026-10-26 に 3 秒から変更）の後に確認する（同期反映でもよい）。受け付けられなかった入力は何も変えない。
 - ファイル取込の反映のテストは 100 行（各 40 文字以下）。上限サイズ全行の負荷は AC から決まらないため範囲外。
 
 ## バックグラウンド動作の継続（NFR-BG-001 AC-063 / AC-064 / AC-065、追記。既存の契約は変えない）
