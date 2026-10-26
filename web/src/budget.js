@@ -11,11 +11,11 @@ export const isValidBudget = (v) => Number.isSafeInteger(v) && v >= 0;
 
 const STRINGS = {
   ja: {
-    'budget.label': '1 回の会議の予算（生成 AI）', 'budget.unit': '円', 'budget.text': '{n} 円（使用額 {u} 円）',
+    'budget.label': '会議の予算', 'budget.unit': '円', 'budget.text': '{n} 円（使用額 {u} 円）',
     'budget.changed': '1 回の会議の予算を変更しました', 'budget.invalid': '1 回の会議の予算は 0 以上の整数（円）で入力してください。直前の値を保っています',
   },
   en: {
-    'budget.label': 'Budget per meeting (generative AI)', 'budget.unit': 'JPY', 'budget.text': '{n} JPY (used {u} JPY)',
+    'budget.label': 'Budget', 'budget.unit': 'JPY', 'budget.text': '{n} JPY (used {u} JPY)',
     'budget.changed': 'Changed the budget per meeting', 'budget.invalid': 'Enter the budget per meeting as an integer of 0 or more (JPY). The previous value is kept',
   },
 };

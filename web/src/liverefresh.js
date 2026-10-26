@@ -13,11 +13,11 @@ export const isValidLiveSec = (v) => Number.isInteger(v) && v >= LIVE_MIN_SEC &&
 
 const STRINGS = {
   ja: {
-    'live.interval.label': 'ライブの更新間隔', 'live.interval.unit': '秒', 'live.interval.text': '{n} 秒（10〜15 秒）',
+    'live.interval.label': 'ライブ更新', 'live.interval.unit': '秒', 'live.interval.text': '{n} 秒（10〜15 秒）',
     'live.interval.changed': 'ライブの更新間隔を変更しました', 'live.interval.invalid': 'ライブの更新間隔は 10〜15 の整数（秒）で入力してください',
   },
   en: {
-    'live.interval.label': 'Live update interval', 'live.interval.unit': 's', 'live.interval.text': '{n} s (10 to 15 s)',
+    'live.interval.label': 'Live', 'live.interval.unit': 's', 'live.interval.text': '{n} s (10 to 15 s)',
     'live.interval.changed': 'Changed the live update interval', 'live.interval.invalid': 'Enter the live update interval as an integer from 10 to 15 (seconds)',
   },
 };
