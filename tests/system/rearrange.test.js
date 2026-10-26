@@ -25,9 +25,9 @@ test('FR-080 AC-435: 初期値の周期では、起動から 10 秒の時点ち�
   toDetail(app);
   app.commands['session.start']();
   scheduler.advanceTo(500); say(env, T.plain1);
-  scheduler.advanceTo(500 + P.UPPER_SEC * 1000);
+  scheduler.advanceTo(1500); // 暫定表示の検査は周期（10 秒）内の短い時間で行う（PARAM-001 の 15 秒は周期より長い）
   const e = elementOfPoint(app, pointIdOf(app, T.plain1));
-  assert.equal(e.provisional, true, '確定結果の受付から 3 秒以内に暫定の位置に表示される');
+  assert.equal(e.provisional, true, '確定結果の受付から PARAM-001 秒以内に暫定の位置に表示される');
   assert.equal(count(app), 0);
   assert.equal(app.getArrangeStatus().pending, true);
   scheduler.advanceTo(PERIOD - 1);
@@ -39,7 +39,7 @@ test('FR-080 AC-435: 初期値の周期では、起動から 10 秒の時点ち�
 });
 
 // FR-080 AC-435
-test('FR-080 AC-435: 新しい要点は 3 秒以内に追加先のまとまりの読み順の末尾・重ならない位置に暫定表示され、前のまとまりの要素は動かず、次の周期の時点で再配置される', async () => {
+test('FR-080 AC-435: 新しい要点は受付から PARAM-001 秒以内に追加先のまとまりの読み順の末尾・重ならない位置に暫定表示され、前のまとまりの要素は動かず、次の周期の時点で再配置される', async () => {
   const { app, env, scheduler } = await seededDetail();
   assert.equal(count(app), 1);
   const topics = app.getTopics();
@@ -52,7 +52,7 @@ test('FR-080 AC-435: 新しい要点は 3 秒以内に追加先のまとまり�
   assert.ok(prevTopicIds.length >= 2, '前のトピックの要素（シーンと要点）がある');
 
   scheduler.advanceTo(PERIOD + 1000); say(env, T.problem); // 2 シーン目（最後の受付から 20 秒以内）
-  scheduler.advanceTo(PERIOD + 1000 + P.UPPER_SEC * 1000);
+  scheduler.advanceTo(PERIOD + 2000); // 周期内の短い時間（PARAM-001 は周期より長い）
   const id = pointIdOf(app, T.problem);
   assert.equal(app.getState().scenes.length, 2, '同じシーンに加わる');
   const e = elementOfPoint(app, id);
@@ -209,7 +209,7 @@ test('FR-080 AC-439: 周期による再配置の前後で、記録中の状態�
   app.setDraft('入力中の文字列');
   assert.ok(app.setDiagramView({ zoom: 1.5, scrollX: 40, scrollY: 30 }).ok);
   scheduler.advanceTo(PERIOD + 1000); say(env, T.problem);
-  scheduler.advanceTo(PERIOD + 1000 + P.UPPER_SEC * 1000);
+  scheduler.advanceTo(PERIOD + 2000); // 周期内の短い時間（PARAM-001 は周期より長い）
   const k0 = keep(app); const c0 = count(app);
   scheduler.advanceTo(2 * PERIOD);
   assert.equal(count(app), c0 + 1, '再配置が行われた');
