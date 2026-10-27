@@ -48,7 +48,16 @@ import { ribbonSettingsModule } from './ribbonsettings.js';
 import { copilotKeysModule } from './copilotkeys.js';
 
 const GAP_MS_DEFAULT = 20_000; // PARAM-002
+// NFR-PERF-003 AC-539: 自動保存の間引き（PARAM-108。0 なら変更のたびに即時保存）
+export const SAVE_DELAY_MS_DEFAULT = 500;
 const clone = (v) => JSON.parse(JSON.stringify(v));
+
+// 同じ保存先を使う別のアプリ（再読込で作り直したもの）が読む前に、保留中の自動保存を確定する（ページを閉じる契機の保存と同じ扱い）。
+const pendingSaves = new WeakMap(); // storage -> Set<flush>
+function flushPendingSaves(storage) {
+  if (!storage || (typeof storage !== 'object' && typeof storage !== 'function')) return;
+  for (const flush of [...(pendingSaves.get(storage) ?? [])]) flush();
+}
 
 function defaultStorage() {
   try { return globalThis.localStorage ?? null; } catch { return null; }
@@ -84,6 +93,7 @@ export async function createApp(options = {}) {
   const nextId = (prefix) => `${prefix}${++seq}`;
 
   // 復元（FR-012）: 保存済みセッションは必ず paused で始まる。
+  flushPendingSaves(storage);
   const saved = P.parseSession(P.readJson(storage, P.SESSION_KEY));
   if (saved) {
     state.utterances = saved.utterances; state.scenes = saved.scenes;
@@ -104,10 +114,40 @@ export async function createApp(options = {}) {
       displayMode: state.displayMode, arrange: state.arrange, topicEdits: state.topicEdits,
     });
   }
-  // 状態を変える唯一の入口: 自動保存と再描画の通知。
+  // NFR-PERF-003 AC-539: 自動保存は入力の処理（change の中）では行わず、未保存の印とタイマーで間引く。
+  // タイマーは最初の未保存の変更で 1 度だけ掛け、延長しない（最初の変更から PARAM-108 以内に必ず保存＝max wait）。
+  // 保存の時点では最新の状態を直列化するので、最後の変更までが 1 回にまとまる。
+  const saveDelayMs = Number.isFinite(options.saveDelayMs) && options.saveDelayMs >= 0 ? options.saveDelayMs : SAVE_DELAY_MS_DEFAULT;
+  const saveSched = options.scheduler ?? { setTimeout: (f, ms) => globalThis.setTimeout(f, ms), clearTimeout: (id) => globalThis.clearTimeout(id) };
+  let saveDirty = false;
+  let saveTimer = null;
+  const registerPending = () => {
+    if (!storage || (typeof storage !== 'object' && typeof storage !== 'function')) return;
+    (pendingSaves.get(storage) ?? pendingSaves.set(storage, new Set()).get(storage)).add(flushSave);
+  };
+  const unregisterPending = () => { pendingSaves.get(storage)?.delete(flushSave); };
+  const clearSaveTimer = () => { if (saveTimer != null) { saveSched.clearTimeout(saveTimer); saveTimer = null; } };
+  // 保存の唯一の実行点: 保留中の保存があれば直ちに行う（タイマー・非表示・ページを閉じる・再読込の契機から呼ぶ）。
+  function flushSave() {
+    clearSaveTimer();
+    unregisterPending();
+    if (!saveDirty) return false;
+    saveDirty = false;
+    persistSession();
+    return true;
+  }
+  // 保留中の保存を取り消す（消去・初期化の直前の変更が、消去後に書き戻されないようにする。監査 C-1）。
+  function cancelPendingSave() { clearSaveTimer(); unregisterPending(); saveDirty = false; }
+  function scheduleSave() {
+    saveDirty = true;
+    if (saveDelayMs === 0) { flushSave(); return; }
+    registerPending();
+    if (saveTimer == null) saveTimer = saveSched.setTimeout(() => { saveTimer = null; flushSave(); }, saveDelayMs);
+  }
+  // 状態を変える唯一の入口: 自動保存の予約と再描画の通知。
   function change(fn) {
     fn(state);
-    persistSession();
+    scheduleSave();
     emit('change', app);
   }
   function setMessage(key) { state.message = key ? { key, text: i18n.t(key) } : null; }
@@ -117,6 +157,7 @@ export async function createApp(options = {}) {
   const ctx = {
     setSeq: (n) => { seq = n; }, getSeq: () => seq, clearBreak: () => { breakScene = false; },
     options, env, state, i18n, storage, now, api: app, on, emit, change, setMessage, nextId,
+    flushSave: () => flushSave(), cancelPendingSave: () => cancelPendingSave(),
     t: (k) => i18n.t(k),
     registerCommand(name, fn) { commands[name] = fn; },
     registerKey(k) {
@@ -199,7 +240,10 @@ export async function createApp(options = {}) {
     const groups = applied && state.scenes.length ? (app.getDiagramLayout?.().groups ?? []) : [];
     return groups.length ? `${html}<section class="outline-groups" aria-label="${i18n.t('outline.groups')}"><h2>${i18n.t('outline.groups')}</h2><ul>${groups.map((g) => `<li data-group-id="${escapeHtml(g.id)}">${escapeHtml(g.heading)}</li>`).join('')}</ul></section>` : html;
   };
-  app.clearSavedSession = () => { P.remove(storage, P.SESSION_KEY); };
+  app.clearSavedSession = () => { cancelPendingSave(); P.remove(storage, P.SESSION_KEY); };
+  // NFR-PERF-003 AC-539: 保留中の自動保存を直ちに行う（保存したら true）。
+  app.flushSave = () => flushSave();
+  app.hasPendingSave = () => saveDirty;
 
   // ---- 記録の状態 ----
   const lifecycle = {
@@ -303,6 +347,20 @@ export async function createApp(options = {}) {
   await app.use(ribbonSettingsModule);
   // FR-084・FR-085: 接続キー画面（Foundry・Azure Speech のキー）。背景の操作を止めるため、最後に足す
   await app.use(apiKeysModule);
+
+  // NFR-PERF-003 AC-539（監査 C-2）: 非表示・ページを閉じる・再読込の契機では保留中の保存を直ちに行う
+  // （非表示中はタイマーが間引かれるため、タイマーを待たない）。
+  const vis = options.visibility ?? null;
+  if (vis) {
+    const prev = vis.onchange;
+    vis.onchange = (...a) => { if (typeof prev === 'function') prev(...a); if (vis.hidden) flushSave(); };
+  } else {
+    globalThis.document?.addEventListener?.('visibilitychange', () => { if (globalThis.document.visibilityState === 'hidden' || globalThis.document.hidden) flushSave(); });
+  }
+  const win = options.window ?? globalThis;
+  if (typeof win?.addEventListener === 'function') {
+    for (const evt of ['pagehide', 'beforeunload']) win.addEventListener(evt, () => { flushSave(); });
+  }
   return app;
 }
 

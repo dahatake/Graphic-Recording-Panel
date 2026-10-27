@@ -23,7 +23,8 @@ class Fake {
 async function mk() {
   const sp = new Fake(); const sched = new Sched(); const vis = { hidden: false, onchange: null };
   let t = 1_000_000;
-  const app = await createApp({ storage: mem(), speechSource: sp, scheduler: sched, visibility: vis, now: () => (t += 1000) });
+  // NFR-PERF-003 AC-539: 自動保存の間引き（PARAM-108）のタイマーを再開の予約と区別するため、ここでは即時保存（0）にする
+  const app = await createApp({ storage: mem(), speechSource: sp, scheduler: sched, visibility: vis, now: () => (t += 1000), saveDelayMs: 0 });
   app.commands['session.start'](); app.startSpeech();
   return { app, sp, sched, vis };
 }
