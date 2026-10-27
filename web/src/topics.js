@@ -11,12 +11,23 @@ export const MIN_SHARED = 2; // PARAM-015: 話題が共通すると判定する�
 const SPLIT = /[\s、。，．,.!?！？「」『』（）()[\]［］:：;；・/／"'“”]+/u;
 
 // 見出し・要点から語句（空白と句読点で区切った塊）を取り出す。重複は除く（出現順）。
+// NFR-PERF-003 AC-400: 文ごとの分割結果を覚えておき、同じ文を毎回分割し直さない（結果は変えない）
+const splitCache = new Map();
+const SPLIT_CACHE_MAX = 20000;
+function splitWords(raw) {
+  const s = String(raw ?? '');
+  let ws = splitCache.get(s);
+  if (!ws) {
+    ws = s.replace(/…/g, ' ').split(SPLIT).filter(Boolean).map((w) => [w, w.toLowerCase()]);
+    if (splitCache.size >= SPLIT_CACHE_MAX) splitCache.clear();
+    splitCache.set(s, ws);
+  }
+  return ws;
+}
 export function tokenize(texts) {
   const seen = new Set(); const out = [];
   for (const raw of texts) {
-    for (const w of String(raw ?? '').replace(/…/g, ' ').split(SPLIT)) {
-      if (!w) continue;
-      const k = w.toLowerCase();
+    for (const [w, k] of splitWords(raw)) {
       if (!seen.has(k)) { seen.add(k); out.push(w); }
     }
   }
@@ -138,9 +149,23 @@ export function topicsModule(ctx) {
   ctx.on('lang', () => { if (state.message?.key === 'msg.detailChanged') ctx.change((s) => { s.message.text = `${t('detail.label')}: ${t(`detail.name.${level}`)}`; }); });
 
   // ---- トピック ----
-  const compute = () => classifyTopics(state.scenes, state.topicEdits);
-  api.getTopics = () => compute().map(({ manualTitle, ...tp }) => ({ ...tp, manualTitle, containsSelected: state.selectedSceneId != null && tp.sceneIds.includes(state.selectedSceneId) }));
-  api.getTopicRelations = () => topicRelations(compute(), state.scenes).map((r) => ({ ...r, label: t(`topic.rel.${r.kind}`) }));
+  // NFR-PERF-003 AC-538・AC-400: 分類はデータの版数ごとに 1 回だけ計算する（データを変えない操作では再計算しない）
+  let memo = { ver: null, topics: null, rels: null };
+  const version = () => ctx.getDataVersion?.() ?? null;
+  const classify = () => { ctx.countCall?.('classifyTopics'); return classifyTopics(state.scenes, state.topicEdits); };
+  const compute = () => {
+    const v = version();
+    if (v == null) return classify();
+    if (memo.ver !== v) memo = { ver: v, topics: classify(), rels: null };
+    return memo.topics;
+  };
+  const relations = () => {
+    const tops = compute();
+    if (memo.topics !== tops) return topicRelations(tops, state.scenes);
+    return (memo.rels ??= topicRelations(tops, state.scenes));
+  };
+  api.getTopics = () => compute().map(({ manualTitle, ...tp }) => ({ ...tp, sceneIds: [...tp.sceneIds], pointIds: [...tp.pointIds], manualTitle, containsSelected: state.selectedSceneId != null && tp.sceneIds.includes(state.selectedSceneId) }));
+  api.getTopicRelations = () => relations().map((r) => ({ ...r, label: t(`topic.rel.${r.kind}`) }));
 
   const fail = (key, reason) => { ctx.change(() => ctx.setMessage(key)); return { ok: false, reason }; };
   // 題名を手で変える（以後の自動の更新で元に戻さない）

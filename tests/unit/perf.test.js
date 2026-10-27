@@ -6,6 +6,7 @@ import { coalesceFrame } from '../../web/src/frame.js';
 
 const LIMIT_MS = 100; // PARAM-076
 const BIG = 500; // PARAM-078
+const HUGE = 5000; // PARAM-106
 
 const timeIt = (fn) => { const t = performance.now(); fn(); return performance.now() - t; };
 
@@ -21,23 +22,32 @@ async function bigApp() {
   return app;
 }
 
-// NFR-PERF-003 AC-400: 500 件に対する図の更新計算（シーン・要点・配置）の 1 回の連続実行が 100ms を超えない
-test('NFR-PERF-003 AC-400: 発話 500 件で、1 回の発話追加・図の算出・アウトラインの算出が各 100ms 以内', async () => {
-  const { app, ctx } = await mk();
-  const adds = [];
-  for (let i = 0; i < BIG; i++) {
-    const ms = timeIt(() => ctx.addUtterance(`発話${i} 予算とリリース計画について確認する`));
-    adds.push(ms);
-  }
-  assert.equal(app.getState().utterances.length, BIG);
-  // 並列実行する他のテストによる OS のスケジューリングの揺らぎ（実測の中央値は約 0.1ms）を除くため、99 パーセンタイルで判定する
-  const p99 = [...adds].sort((a, b) => a - b)[Math.ceil(adds.length * 0.99) - 1];
-  assert.ok(p99 <= LIMIT_MS, `発話追加 1 回の p99 ${p99.toFixed(1)}ms > ${LIMIT_MS}ms`);
-  for (const [name, fn] of [['renderSvg', () => app.renderSvg()], ['renderOutline', () => app.renderOutline()], ['renderTranscript', () => app.renderTranscript()]]) {
-    const ms = Math.min(timeIt(fn), timeIt(fn));
-    assert.ok(ms <= LIMIT_MS, `${name} 1 回 ${ms.toFixed(1)}ms > ${LIMIT_MS}ms`);
-  }
-});
+// NFR-PERF-003 AC-400: 500 件と 5000 件（PARAM-078・PARAM-106）に対する図の更新計算（シーン・要点・トピック分類・配置）の 1 回の連続実行が 100ms を超えない
+for (const N of [BIG, HUGE]) {
+  test(`NFR-PERF-003 AC-400: 発話 ${N} 件で、1 回の発話追加・図・トピック分類・配置・アウトラインの算出が各 100ms 以内`, async () => {
+    const { app, ctx } = await mk();
+    const adds = [];
+    for (let i = 0; i < N; i++) {
+      const ms = timeIt(() => ctx.addUtterance(`発話${i} 予算とリリース計画について確認する`));
+      adds.push(ms);
+    }
+    assert.equal(app.getState().utterances.length, N);
+    // 並列実行する他のテストによる OS のスケジューリングの揺らぎ（実測の中央値は約 0.1ms）を除くため、99 パーセンタイルで判定する
+    const p99 = [...adds].sort((a, b) => a - b)[Math.ceil(adds.length * 0.99) - 1];
+    assert.ok(p99 <= LIMIT_MS, `発話追加 1 回の p99 ${p99.toFixed(1)}ms > ${LIMIT_MS}ms`);
+    // 各算出は、直前にデータを変えて（キャッシュを無効にして）から 1 回の呼び出しの時間を測る。揺らぎを除くため 2 回の小さい方
+    const fresh = (fn) => () => { app.selectScene(app.getState().scenes[0].id); return timeIt(fn); };
+    for (const [name, fn] of [
+      ['renderSvg', () => app.renderSvg()], ['renderOutline', () => app.renderOutline()], ['renderTranscript', () => app.renderTranscript()],
+      ['getTopics', () => app.getTopics()], ['getTopicRelations', () => app.getTopicRelations()],
+      ['getArrangeView', () => app.getArrangeView()], ['getDiagramLayout', () => app.getDiagramLayout()],
+    ]) {
+      const once = fresh(fn);
+      const ms = Math.min(once(), once());
+      assert.ok(ms <= LIMIT_MS, `${N} 件: ${name} 1 回 ${ms.toFixed(1)}ms > ${LIMIT_MS}ms`);
+    }
+  });
+}
 
 // NFR-PERF-003 AC-400（異常系）: 描画合流を入れても、状態は同期で正しく更新される（描画だけが遅れる）
 test('NFR-PERF-003 AC-400: 描画の合流は状態の更新を遅らせない（発話は追加の呼び出しが返った時点で状態に入る）', async () => {

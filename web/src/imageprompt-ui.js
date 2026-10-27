@@ -89,7 +89,7 @@ export function mountPromptNotice(app, doc = globalThis.document) {
       }
     });
     el.append(box); doc.body.append(el);
-    lang = app.getState().lang;
+    lang = (app.getUiState?.() ?? app.getState()).lang;
   }
   function sync() {
     const n = app.getPromptNotice?.();
@@ -101,7 +101,7 @@ export function mountPromptNotice(app, doc = globalThis.document) {
       }
       return;
     }
-    if (!el) { returnFocus = doc.activeElement; build(n); } else if (lang !== app.getState().lang) build(n);
+    if (!el) { returnFocus = doc.activeElement; build(n); } else if (lang !== (app.getUiState?.() ?? app.getState()).lang) build(n);
     const cb = q('mask');
     cb.checked = n.mask.checked;
     const err = el.querySelector('.prompt-notice-error');

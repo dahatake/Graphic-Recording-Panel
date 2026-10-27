@@ -43,14 +43,15 @@ export function layout3D(scenes) {
 
 // 2D の代替提示: 全シーン分の強調表示を付ける（SVG の g[data-scene-id]）。
 function highlight2D(host, sceneId) {
+  // NFR-PERF-003: 変わらない属性・スタイルは書かない（毎回の書き込みでスタイルの再計算を起こさない）
   for (const g of host.querySelectorAll('[data-scene-id]')) {
     if (g.getAttribute('data-scene-id') === sceneId) {
       g.setAttribute('data-presenting', 'true');
       g.style.filter = 'drop-shadow(0 0 10px #f5a623)';
       g.scrollIntoView?.({ block: 'center', inline: 'center' });
-    } else {
+    } else if (g.hasAttribute?.('data-presenting') !== false || g.style.filter) {
       g.removeAttribute('data-presenting');
-      g.style.filter = '';
+      if (g.style.filter) g.style.filter = '';
     }
   }
 }

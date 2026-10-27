@@ -3,6 +3,7 @@
 // 図への反映は addUtterance(s) が同期で行う（NFR-PERF-001 の 3 秒以内を満たす）。DOM に依存しない。
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+export const TRANSCRIPT_CHUNK = 100; // 1 つのまとまりの件数（NFR-PERF-003）
 
 export function transcriptModule(ctx) {
   ctx.i18n.addStrings({
@@ -24,14 +25,21 @@ export function transcriptModule(ctx) {
     const interim = ctx.state.session === 'recording' && raw ? String(raw) : null;
     return { heading: ctx.t('panel.input'), interim, finals: finals.map((f) => ({ ...f })) };
   };
+  // NFR-PERF-003 AC-536: 確定結果は TRANSCRIPT_CHUNK 件ずつの番号つきリスト（start で番号を続ける）に分ける。
+  // 画面外のまとまりは配置・描画を省けるので（CSS の content-visibility）、パネルの幅が変わっても件数に比例して重くならない。
   ctx.api.renderTranscript = () => {
     const t = ctx.api.getTranscript();
-    const items = t.finals.map((f) => `<li class="transcript-item final" data-kind="final" data-id="${esc(f.id)}">${esc(f.text)}</li>`).join('');
+    const chunks = [];
+    for (let i = 0; i < t.finals.length; i += TRANSCRIPT_CHUNK) {
+      const part = t.finals.slice(i, i + TRANSCRIPT_CHUNK);
+      const items = part.map((f) => `<li class="transcript-item final" data-kind="final" data-id="${esc(f.id)}">${esc(f.text)}</li>`).join('');
+      chunks.push(`<ol class="transcript-chunk" start="${i + 1}" style="--n:${part.length}">${items}</ol>`);
+    }
     const interim = t.interim
       ? `<p class="transcript-item interim" data-kind="interim"><span class="transcript-tag">${esc(ctx.t('transcript.interim'))}</span> ${esc(t.interim)}</p>`
       : '';
     const empty = !t.finals.length && !t.interim ? `<p class="transcript-empty">${esc(ctx.t('transcript.empty'))}</p>` : '';
     return `<div class="transcript"><h3 class="transcript-heading">${esc(t.heading)}</h3>`
-      + `<ol class="transcript-list" role="log" aria-live="polite" aria-label="${esc(t.heading)}">${items}</ol>${interim}${empty}</div>`;
+      + `<div class="transcript-list" role="log" aria-live="polite" aria-label="${esc(t.heading)}">${chunks.join('')}</div>${interim}${empty}</div>`;
   };
 }

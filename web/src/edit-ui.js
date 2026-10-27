@@ -49,32 +49,38 @@ export function mountEditUI(app, doc = document) {
     panel.append(tform);
   }
 
+  // NFR-PERF-003 AC-538: データの版数が前回と同じなら、要点・トピックの選択肢を作り直さない。
+  // 版数が変わっても、選択肢の中身（ID と表示の文字列）が同じなら DOM に触れない（選択だけの変更で 5000 件を作り直さない）
+  let syncedVer;
+  const fillOptions = (sel, items) => {
+    const sig = items.map(([v, l]) => `${v}\u0001${l}`).join('\u0002');
+    if (sel._sig === sig) return;
+    sel._sig = sig;
+    const cur = sel.value;
+    sel.textContent = '';
+    for (const [v, l] of items) { const o = doc.createElement('option'); o.value = v; o.textContent = l; sel.append(o); }
+    if ([...sel.options].some((o) => o.value === cur)) sel.value = cur;
+  };
   function sync() {
     if (!panel) return;
     if (!form) build();
-    const st = app.getState();
+    const ver = app.getRenderVersion?.();
+    if (ver !== undefined && ver === syncedVer) return;
+    syncedVer = ver;
+    const st = { scenes: app.getScenesView?.() ?? app.getState().scenes };
     form.setAttribute('aria-label', app.t('edit.title'));
     for (const el of form.querySelectorAll('[data-k]')) el.textContent = app.t(`edit.${el.dataset.k}`);
     for (const b of form.querySelectorAll('[data-edit]')) b.textContent = app.t(`edit.${b.dataset.edit}`);
     const sel = form.querySelector('[data-f="point"]');
-    const cur = sel.value;
-    sel.textContent = '';
-    st.scenes.forEach((sc, i) => {
-      for (const p of sc.points) {
-        const o = doc.createElement('option'); o.value = p.id; o.textContent = `${app.t('edit.scene')} ${i + 1}: ${p.text}`;
-        sel.append(o);
-      }
-    });
-    if ([...sel.options].some((o) => o.value === cur)) sel.value = cur;
+    const items = [];
+    st.scenes.forEach((sc, i) => { for (const p of sc.points) items.push([p.id, `${app.t('edit.scene')} ${i + 1}: ${p.text}`]); });
+    fillOptions(sel, items);
     form.hidden = !st.scenes.length;
     if (tform) {
       tform.setAttribute('aria-label', app.t('topic.edit.title'));
       for (const el of tform.querySelectorAll('[data-k]')) el.textContent = app.t(`topic.edit.${el.dataset.k}`);
       for (const b of tform.querySelectorAll('[data-topic-edit]')) b.textContent = app.t(`topic.edit.${b.dataset.topicEdit}`);
-      const ts = tform.querySelector('[data-f="topic"]'); const tcur = ts.value;
-      ts.textContent = '';
-      for (const tp of app.getTopics()) { const o = doc.createElement('option'); o.value = tp.id; o.textContent = tp.title; ts.append(o); }
-      if ([...ts.options].some((o) => o.value === tcur)) ts.value = tcur;
+      fillOptions(tform.querySelector('[data-f="topic"]'), app.getTopics().map((tp) => [tp.id, tp.title]));
       tform.hidden = !st.scenes.length;
     }
 
