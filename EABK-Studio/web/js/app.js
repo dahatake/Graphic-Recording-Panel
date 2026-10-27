@@ -1,10 +1,10 @@
-import { t, lang, setLang, onLang, applyI18n } from './i18n.js';
+import { t, setLang, onLang, applyI18n, setDocName } from './i18n.js';
 import { store } from './store.js';
 import { el, esc, colorOf, typeLabel, toast, businessIcon, statePanel, icon } from './ui.js';
 import { initDrawer } from './drawer.js';
 import { installXref } from './xref.js';
 import { decorate, mountStructure, mountConsistency, mountMaintenance } from './insights.js';
-import { dimToggle, dimState, registerDim, hasDimHandler, runDim, headerDimToggle, publishDim, onHeaderDim } from './dim.js';
+import { dimToggle, dimState, registerDim, hasDimHandler, runDim, headerDimToggle, publishDim, onHeaderDim, headerDim } from './dim.js';
 import { cameraCommands } from './camera3d.js';
 import { changeLayout, resetLayout } from './layout.js';
 
@@ -27,6 +27,7 @@ const ROUTES = {
   map2d: { navKey: 'map', icon: 'map2d', dim: '2d', load: () => import('./map2d.js') },
   map3d: { navKey: 'map', icon: 'map3d', dim: '3d', load: () => import('./map3d.js') },
   maprpg: { navKey: 'map', icon: 'map2d', dim: 'rpg', load: () => import('./maprpg.js') },
+  mapgraph: { navKey: 'map', icon: 'map2d', dim: 'graph', load: () => import('./mapgraph.js') },
   diagrams: { icon: 'diagrams', load: () => import('./diagrams.js') },
   placement: { navKey: 'diagrams', alias: 'diagrams', load: () => import('./diagrams.js') },
   entities: { icon: 'entities', load: () => import('./entities.js') },
@@ -39,7 +40,7 @@ const ROUTES = {
 };
 // nav items in display order: key → route it opens (the map opens in the dimension chosen last)
 const NAV = ['dashboard', 'implstatus', 'map', 'diagrams', 'entities', 'integrations', 'source', 'tables', 'maintenance'];
-const MAP_ROUTE = { '2d': 'map2d', '3d': 'map3d', rpg: 'maprpg' };
+const MAP_ROUTE = { '2d': 'map2d', '3d': 'map3d', rpg: 'maprpg', graph: 'mapgraph' };
 const navTarget = (k) => (k === 'map' ? MAP_ROUTE[dimState.map] || 'map2d' : k);
 const navKeyOf = (route) => ROUTES[route]?.navKey || route;
 const view = document.getElementById('view');
@@ -49,13 +50,19 @@ let current = null, token = 0, fingerprint = null, modelError = null;
 const MODS = new Map();
 
 const personaBar = document.getElementById('personaBar');
-for (const [name, glyph] of [['Product Manager', 'goal'], ['Architect', 'structure'], ['Software Engineer', 'source']]) {
-  personaBar.append(el('button', { class: 'chip persona', 'aria-label': `${name} view`, onclick: () => {
-    if (name === 'Architect') location.hash = '#/map2d';
-    else if (name === 'Software Engineer') location.hash = '#/tables';
-    else location.hash = '#/dashboard';
-  } }, el('span', { class: 'biz-icon', 'aria-hidden': 'true' }, icon(glyph, { size: 16 })), name, el('span', { class: 'sr-only' }, ' view')));
+function renderPersonas() {
+  personaBar.replaceChildren();
+  for (const [id, glyph] of [['pm', 'goal'], ['arch', 'structure'], ['swe', 'source']]) {
+    const name = t('persona.' + id);
+    personaBar.append(el('button', { class: 'chip persona', 'aria-label': t('persona.view', { name }), onclick: () => {
+      if (id === 'arch') location.hash = '#/map2d';
+      else if (id === 'swe') location.hash = '#/tables';
+      else location.hash = '#/dashboard';
+    } }, el('span', { class: 'biz-icon', 'aria-hidden': 'true' }, icon(glyph, { size: 16 })), name, el('span', { class: 'sr-only' }, ' ' + t('persona.suffix'))));
+  }
 }
+renderPersonas();
+onLang(renderPersonas);
 
 const routeName = () => { const r = (location.hash.replace(/^#\/?/, '') || 'dashboard').split('?')[0]; return ROUTES[r] ? r : 'dashboard'; };
 // 画面撮影用の固定表示（ヘッダー非表示・アニメーション停止）は、明示した `snapshot` 付きのリンクだけ。
@@ -176,7 +183,7 @@ async function route() {
 
 // The map is one item: 2D (map2d), 3D (map3d) and RPG-style (maprpg) are three displays of it, switched here (FR-1040, FR-1053).
 // Selection, filter and the search box live in the store / shared view state, so they survive the switch (AC-221).
-const MAP_DIMS = ['2d', '3d', 'rpg'];
+const MAP_DIMS = ['2d', '3d', 'rpg', 'graph'];
 function mountMapDim(host, name, inner) {
   const go = (d) => {
     const q = location.hash.includes('?') ? '?' + location.hash.split('?')[1] : '';
@@ -196,7 +203,7 @@ async function loadModel(quiet) {
   const res = await fetch('/api/model', { cache: 'no-store' });
   const model = await res.json();
   store.load(model);
-  document.title = `EABK Studio · ${model.meta.name}`;
+  setDocName(model.meta.name);   // the project name is managed data: shown as written
   document.getElementById('repoBtn').replaceChildren(icon('folder', { size: 16 }), ' ' + model.meta.name);
   document.getElementById('repoBtn').title = model.meta.repo;
   const modelTime = document.getElementById('modelTime');
@@ -224,18 +231,18 @@ function navCommands() {
   if (hasDimHandler()) {
     list.push({ cmd: true, id: 'cmd:dim', label: t('cmd.dim'), key: '2D 3D', run: () => runDim() });
     if (ROUTES[routeName()]?.dim) list.push({ cmd: true, id: 'cmd:dim:rpg', label: t('cmd.dim.rpg'), key: 'RPG', run: () => runDim('rpg') });
+    if (headerDim.dims.includes('graph')) list.push({ cmd: true, id: 'cmd:dim:graph', label: t('cmd.dim.graph'), key: 'Graph', run: () => runDim('graph') });
   }
   list.push(...cameraCommands());   // FR-1070 AC-384: 3D のカメラのプリセットをコマンド検索から選ぶ
   return list;
 }
 // FR-1033 AC-197: command box. ">" followed by text lists commands; Enter runs one.
 function commandHits(val) {
-  const ja = lang() === 'ja';
   const needle = val.slice(1).trim().toLowerCase();
   const states = store.model.implStatus?.states || [];
-  const list = states.map((s) => ({ cmd: true, id: 'cmd:select:' + s, label: (ja ? '実装状態の区間を選択: ' : 'Select impl-status segment: ') + s,
+  const list = states.map((s) => ({ cmd: true, id: 'cmd:select:' + s, label: t('cmd.implsel') + s,
     run: () => { location.hash = '#/implstatus'; store.setImplFilter({ state: s, scope: null, group: null }); } }));
-  list.push({ cmd: true, id: 'cmd:clear', label: ja ? '実装状態の絞り込みを解除' : 'Clear impl-status filter', run: () => store.setImplFilter(null) });
+  list.push({ cmd: true, id: 'cmd:clear', label: t('cmd.implclear'), run: () => store.setImplFilter(null) });
   return [...list, ...navCommands()].filter((c) => c.label.toLowerCase().includes(needle));
 }
 function renderResults() {
@@ -253,8 +260,8 @@ function renderResults() {
   active = Math.min(active, Math.max(0, hits.length - 1));
   box.hidden = false;
   const resultBody = el('div', { class: 'result-body' },
-    el('div', { class: 'hd' }, el('span', {}, `${lastResult.total} ${lang() === 'ja' ? '件' : 'hits'}`),
-      lastResult.total ? el('button', { onclick: highlightAll }, '✦ ' + (lang() === 'ja' ? 'すべて図で強調' : 'Highlight all')) : ''),
+    el('div', { class: 'hd' }, el('span', {},     t('search.hits', { n: lastResult.total })),
+          lastResult.total ? el('button', { onclick: highlightAll }, '✦ ' + t('search.hlall')) : ''),
     ...hits.map((n, i) => n.cmd
       ? el('div', { class: 'res' + (i === active ? ' on' : ''), 'data-testid': 'command-item', onmouseenter: () => { active = i; mark(); }, onclick: () => runCommand(n) }, el('span', { class: 't' }, n.label))
       : el('div', { class: 'res' + (i === active ? ' on' : ''), onmouseenter: () => { active = i; mark(); }, onclick: () => choose(n.id) },
@@ -300,9 +307,11 @@ function renderTheme(announce) {
 document.querySelectorAll('[data-testid="theme-toggle"] [data-theme-choice]').forEach((b) => b.addEventListener('click', () => window.eabkTheme.set(b.dataset.themeChoice)));
 window.eabkTheme.onChange(() => renderTheme(true));
 renderTheme(false);
-document.getElementById('lang').addEventListener('click', () => setLang(lang() === 'ja' ? 'en' : 'ja'));
-function renderLangBtn() { document.getElementById('lang').innerHTML = lang() === 'ja' ? '<b>JA</b> | EN' : 'JA | <b>EN</b>'; }
-onLang(() => { renderLangBtn(); renderNav(); renderTheme(false); if (!box.hidden) renderResults(); });
+// FR-011 AC-430: the header language toggle (#lang) has one button per language (JA / EN); the current one is aria-pressed.
+document.querySelectorAll('#lang [data-lang]').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
+applyI18n(document);   // the first paint also fills the dictionary attributes (aria-label, title, placeholder) and the pressed state
+setDocName('');
+onLang(() => { renderNav(); renderTheme(false); if (!box.hidden) renderResults(); });
 // FR-010 AC-332..336: the header button opens the OS folder dialog (served by POST /api/repo/pick); no path-typing modal.
 const HDR = { 'Content-Type': 'application/json', 'X-EABK-Studio': '1' };
 function renderRepoBtnLabel() {
@@ -358,7 +367,6 @@ setInterval(async () => {
 const headerEl = document.querySelector('.top');
 new ResizeObserver(() => document.documentElement.style.setProperty('--hh', headerEl.offsetHeight + 'px')).observe(headerEl);
 applyI18n(document);
-renderLangBtn();
 renderNav();
 view.replaceChildren(statePanel({ state: 'loading', heading: t('loading'), description: t('state.loading.d') }));
 initDrawer(document.getElementById('drawer'));
