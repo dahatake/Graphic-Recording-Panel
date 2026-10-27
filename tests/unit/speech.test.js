@@ -87,6 +87,7 @@ test('NFR-PRIV-001 AC-033 FR-012 AC-029 AC-030: 保存内容に音声・暫定�
   app.startSpeech();
   sp.emit('暫定だけの語', false);
   sp.emit('保存される発話', true);
+  app.flushSave(); // NFR-PERF-003 AC-539: 自動保存は間引かれるので、保留中の保存を確定してから中身を確かめる
   const dump = storage.dump();
   assert.ok(dump.includes('保存される発話'));
   assert.ok(!dump.includes('暫定だけの語'));
