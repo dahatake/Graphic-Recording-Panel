@@ -7919,10 +7919,10 @@
       "layer": "nonfunctional",
       "command": "node --test --test-name-pattern=\"AC-536\" tests/system/perf.test.js",
       "canary": false,
-      "status": "not_run",
-      "last_commit": null,
-      "last_run_at": null,
-      "evidence": null,
+      "status": "fail",
+      "last_commit": "dc9c588",
+      "last_run_at": "2026-10-28T00:18:54+09:00",
+      "evidence": "work/runs/202610272326/logs/system-test/IT-027-202610280017.log",
       "history": [
         {
           "at": "2026-10-27T23:44:54+09:00",
