@@ -2,6 +2,7 @@
 import { PANEL_IDS, PANEL_COMMANDS, MIN_H } from './layout.js';
 
 import { coalesceFrame } from './frame.js';
+import { patchHtml } from './morph.js';
 import { GROUPS, ICONS, PRIMARY, tooltipId, labelKey } from './commandbar.js';
 
 function icon(doc, command) {
@@ -222,15 +223,20 @@ export function mountUI(app, doc = document) {
       $('#speech-consent-state').textContent = cu.stateText;
     }
     // FR-013/FR-014: 認識文字列。過去を読んでいる間はスクロール位置を奪わない（AC-051）
+    // NFR-PERF-003 AC-540: 全置換せず、キー（発話 ID）で既存のノードを残して差分だけを当てる。
+    // AC-538: データの版（app.getRenderVersion があるとき）が前回と同じなら、文字列の再生成も呼ばない
+    const ver = app.getRenderVersion?.();
+    const fresh = (el) => ver === undefined || el._ver !== ver;
     const tr = $('#transcript');
-    if (tr && !dragging) {
+    if (tr && !dragging && fresh(tr)) {
       const html = app.renderTranscript();
       if (tr._html !== html) {
         const atBottom = tr.scrollHeight - tr.scrollTop - tr.clientHeight <= 8;
         const keep = tr.scrollTop;
-        tr.innerHTML = html; tr._html = html;
+        patchHtml(tr, html, doc);
         tr.scrollTop = atBottom ? tr.scrollHeight : keep;
       }
+      tr._ver = ver;
     }
     if (doc.activeElement !== draft && draft.value !== st.input.draft) draft.value = st.input.draft;
     $('#message').textContent = st.message ? st.message.text : '';
@@ -239,7 +245,8 @@ export function mountUI(app, doc = document) {
       ise.textContent = is.text; ise.setAttribute('role', is.role); ise.setAttribute('aria-live', is.live);
       ise.dataset.state = is.state;
     }
-    if (!dragging) { const o = $('#outline'); const html = app.renderOutline(); if (o._html !== html) { o.innerHTML = html; o._html = html; } }
+    // NFR-PERF-003 AC-540: アウトラインもキー（シーン ID・要点 ID）で差分だけを当てる
+    if (!dragging) { const o = $('#outline'); if (fresh(o)) { patchHtml(o, app.renderOutline(), doc); o._ver = ver; } }
 
     const layout = app.getLayout();
     const mode = app.getLayoutMode();
