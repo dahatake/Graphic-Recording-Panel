@@ -104,11 +104,23 @@ export async function createApp(options = {}) {
   }
 
   const app = { commands, keymap };
+  // NFR-PERF-003 AC-538: データの版数。データ（発話・シーン・要点・選択・表示の設定、機能の状態）を変える通知でだけ増える。
+  // 見た目だけの変更（パネルの移動・大きさ・タブ・画面幅・図の拡大率と位置）は emitView で通知し、版数を変えない。
+  // 描画・計算のメモ化は、この版数が同じなら前回の結果を使う。change の関数の実行中は null（途中の状態をキャッシュしない）。
+  let dataVersion = 0;
+  let mutating = 0;
   const on = (evt, fn) => { (listeners.get(evt) ?? listeners.set(evt, []).get(evt)).push(fn); return () => { listeners.set(evt, listeners.get(evt).filter((f) => f !== fn)); }; };
-  const emit = (evt, payload) => { for (const fn of [...(listeners.get(evt) ?? [])]) fn(payload); };
+  const notify = (evt, payload) => { for (const fn of [...(listeners.get(evt) ?? [])]) fn(payload); };
+  const emit = (evt, payload) => { if (evt === 'change') dataVersion++; notify(evt, payload); };
+  const emitView = () => notify('change', app);
+  const getDataVersion = () => (mutating ? null : dataVersion);
+  // NFR-PERF-003 AC-538: 重い処理（自動保存の直列化・トピック分類など）の呼び出し回数（計測用。動作には使わない）
+  const callCounts = {};
+  const countCall = (name) => { callCounts[name] = (callCounts[name] ?? 0) + 1; };
 
   function persistSession() {
     if (!state.utterances.length && !state.scenes.length) return;
+    countCall('autosave');
     P.writeJson(storage, P.SESSION_KEY, {
       utterances: state.utterances, scenes: state.scenes, selectedSceneId: state.selectedSceneId, seq,
       displayMode: state.displayMode, arrange: state.arrange, topicEdits: state.topicEdits,
@@ -146,17 +158,20 @@ export async function createApp(options = {}) {
   }
   // 状態を変える唯一の入口: 自動保存の予約と再描画の通知。
   function change(fn) {
-    fn(state);
+    mutating++;
+    dataVersion++; // 実行中に読まれたキャッシュを無効にする
+    try { fn(state); } finally { mutating--; }
     scheduleSave();
     emit('change', app);
   }
   function setMessage(key) { state.message = key ? { key, text: i18n.t(key) } : null; }
   function saveLayout() { P.writeJson(storage, L.STORAGE_KEY, layout); }
-  function layoutChange(ok) { if (ok) { saveLayout(); emit('change', app); } return ok; }
+  // パネルの配置は見た目だけの変更（AC-538: 図・文字列・トピックの再計算をしない）
+  function layoutChange(ok) { if (ok) { saveLayout(); emitView(); } return ok; }
 
   const ctx = {
     setSeq: (n) => { seq = n; }, getSeq: () => seq, clearBreak: () => { breakScene = false; },
-    options, env, state, i18n, storage, now, api: app, on, emit, change, setMessage, nextId,
+    options, env, state, i18n, storage, now, api: app, on, emit, emitView, getDataVersion, countCall, change, setMessage, nextId,
     flushSave: () => flushSave(), cancelPendingSave: () => cancelPendingSave(),
     t: (k) => i18n.t(k),
     registerCommand(name, fn) { commands[name] = fn; },
@@ -197,6 +212,23 @@ export async function createApp(options = {}) {
 
   // ---- 状態・言語 ----
   app.getState = () => clone(state);
+  // NFR-PERF-003 AC-538: 画面の描画に要る小さい値だけの写し（発話・シーンの全件を複製しない）
+  app.getUiState = () => ({
+    lang: state.lang, session: state.session, viewMode: state.viewMode, displayMode: state.displayMode,
+    selectedSceneId: state.selectedSceneId, input: { draft: state.input.draft }, message: state.message ? { ...state.message } : null,
+    presentation: { ...state.presentation }, utteranceCount: state.utterances.length, sceneCount: state.scenes.length,
+  });
+  // シーンの読み取り専用の写し（NFR-PERF-003。データの版数ごとに 1 回だけ複製する。呼び出し側は変更しない）
+  let scenesView = { ver: -1, scenes: [] };
+  app.getScenesView = () => {
+    const v = getDataVersion();
+    if (v == null) return clone(state.scenes);
+    if (scenesView.ver !== v) scenesView = { ver: v, scenes: clone(state.scenes) };
+    return scenesView.scenes;
+  };
+  // NFR-PERF-003 AC-538: データの版数（データを変える操作でだけ増える）。同じなら描画の再生成を省ける
+  app.getRenderVersion = () => dataVersion;
+  app.getCallCounts = () => ({ ...callCounts });
   app.t = (k) => i18n.t(k);
   app.getStrings = () => i18n.getStrings();
   app.setLang = (lang) => {
@@ -295,7 +327,7 @@ export async function createApp(options = {}) {
   };
   app.setActivePanelTab = (id) => {
     if (!visiblePanels().includes(id)) return false;
-    activeTab = id; emit('change', app); return true;
+    activeTab = id; emitView(); return true;
   };
   on('speech:started', () => {
     activeTab = 'input';

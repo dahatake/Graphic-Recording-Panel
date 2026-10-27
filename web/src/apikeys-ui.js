@@ -89,7 +89,7 @@ export function mountApiKeysUI(app, doc = globalThis.document) {
     close.addEventListener('click', () => app.apiKeysClick('closeButton'));
     foot.append(live, close);
     dlg.append(head, body, foot);
-    built = `${d.selected}|${app.getState().lang}|${d.fields.map((f) => f.id).join(',')}`;
+    built = `${d.selected}|${(app.getUiState?.() ?? app.getState()).lang}|${d.fields.map((f) => f.id).join(',')}`;
   }
 
   function sync() {
@@ -99,7 +99,7 @@ export function mountApiKeysUI(app, doc = globalThis.document) {
       dlg.hidden = true; built = null;
       return;
     }
-    const key = `${d.selected}|${app.getState().lang}|${d.fields.map((f) => f.id).join(',')}`; // 項目が増減したとき（サインインの待機中など）も組み立て直す
+    const key = `${d.selected}|${(app.getUiState?.() ?? app.getState()).lang}|${d.fields.map((f) => f.id).join(',')}`; // 項目が増減したとき（サインインの待機中など）も組み立て直す
     const wasOpen = dlg.open;
     if (built !== key) {
       const keep = doc.activeElement && dlg.contains(doc.activeElement) ? doc.activeElement.dataset?.id : null;

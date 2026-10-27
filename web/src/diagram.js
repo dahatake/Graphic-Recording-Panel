@@ -481,6 +481,7 @@ export function mountDiagramPanel(host, app, doc = host.ownerDocument) {
     host.dataset.diagramBuilt = '1';
     host.innerHTML = '<div class="diagram-tools" role="group"></div><div class="diagram-canvas" tabindex="0" role="region"></div>';
     host._zoom = 1;
+    host._lastSvg = null; host._ver = undefined; host._svgEl = null; // 作り直した器には必ず描く
     const tools = host.querySelector('.diagram-tools');
     const mk = (cmd, label) => {
       const b = doc.createElement('button'); b.type = 'button'; b.className = 'btn btn-sm'; b.dataset.zoom = cmd; b.textContent = label;
@@ -527,14 +528,19 @@ export function mountDiagramPanel(host, app, doc = host.ownerDocument) {
 function paint(host, app) {
   const t = (k) => app.t(k);
   const tools = host.querySelector('.diagram-tools');
-  tools.setAttribute('aria-label', t('diagram.tools'));
+  const setAttr = (el, k, v) => { if (el.getAttribute(k) !== v) el.setAttribute(k, v); }; // 同じ値は書かない（NFR-PERF-003）
+  setAttr(tools, 'aria-label', t('diagram.tools'));
   const names = { out: t('diagram.zoomOut'), reset: t('diagram.zoomReset'), in: t('diagram.zoomIn') };
-  for (const b of tools.querySelectorAll('[data-zoom]')) { b.title = names[b.dataset.zoom]; b.setAttribute('aria-label', names[b.dataset.zoom]); }
+  for (const b of tools.querySelectorAll('[data-zoom]')) { setAttr(b, 'title', names[b.dataset.zoom]); setAttr(b, 'aria-label', names[b.dataset.zoom]); }
   const canvas = host.querySelector('.diagram-canvas');
-  canvas.setAttribute('aria-label', t('diagram.canvasLabel'));
+  setAttr(canvas, 'aria-label', t('diagram.canvasLabel'));
   const dv = app.getDiagramView?.() ?? null;
   if (dv) host._zoom = clampZoom(dv.zoom);
-  const svg = app.renderSvg();
+  // NFR-PERF-003 AC-538: データの版数が前回の描画と同じなら、SVG を作り直さない（パネルの移動・大きさ変更・スクロール・拡大縮小）
+  const ver = app.getRenderVersion?.();
+  const same = ver !== undefined && host._ver === ver && host._lastSvg != null;
+  const svg = same ? host._lastSvg : app.renderSvg();
+  host._ver = ver;
   // 同じ SVG・同じ拡大率・同じ幅なら、DOM を作り直さない（NFR-PERF-002/003: ドラッグ・ホバー中の全再構築を避ける）
   const sig = `${host._zoom}|${host._fit}|${canvas.clientWidth}`;
   if (host._lastSvg === svg && host._lastSig === sig) return;

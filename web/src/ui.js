@@ -2,6 +2,7 @@
 import { PANEL_IDS, PANEL_COMMANDS, MIN_H } from './layout.js';
 
 import { coalesceFrame } from './frame.js';
+import { patchHtml } from './morph.js';
 import { GROUPS, ICONS, PRIMARY, tooltipId, labelKey } from './commandbar.js';
 
 function icon(doc, command) {
@@ -27,7 +28,7 @@ export function mountUI(app, doc = document) {
 
   function syncTooltip() {
     const cur = app.getTooltip();
-    for (const t of toolbar.querySelectorAll('[role="tooltip"]')) t.hidden = !(cur && t.id === cur.id);
+    for (const t of toolbar.querySelectorAll('[role="tooltip"]')) { const h = !(cur && t.id === cur.id); if (t.hidden !== h) t.hidden = h; }
   }
 
   function buildToolbar() {
@@ -130,7 +131,7 @@ export function mountUI(app, doc = document) {
   }
 
   function applyStatic() {
-    doc.documentElement.lang = app.getState().lang;
+    doc.documentElement.lang = (app.getUiState?.() ?? app.getState()).lang;
     doc.title = app.t('app.title');
     for (const el of doc.querySelectorAll('[data-i18n]')) el.textContent = app.t(el.dataset.i18n);
     for (const el of doc.querySelectorAll('[data-i18n-attr]')) {
@@ -139,17 +140,31 @@ export function mountUI(app, doc = document) {
   }
 
   let dragging = false; // ドラッグ中は文字列・アウトラインの再構築を止め、位置の更新だけにする（終了時に 1 回描く）
+  let lastDataVer; // 前回の描画のデータの版数
   function render() {
-    const st = app.getState();
-    if (builtLang !== st.lang) { applyStatic(); buildToolbar(); buildPanelMenus(); builtLang = st.lang; }
-    doc.documentElement.dataset.theme = app.getTheme();
+    const st = app.getUiState?.() ?? app.getState(); // NFR-PERF-003: 発話・シーンの全件を複製しない
+    if (builtLang !== st.lang) { applyStatic(); buildToolbar(); buildPanelMenus(); builtLang = st.lang; lastDataVer = undefined; }
+    // NFR-PERF-003 AC-536・AC-538: データの版数が前回と同じ（パネルの移動・大きさ変更・タブ・図のスクロールだけ）なら、
+    // コマンドバー・状態・文字列・アウトラインの更新を省き、配置だけを当てる（DOM への無駄な書き込みでスタイルの再計算を起こさない）
+    // ドラッグ中は文字列・アウトラインを描かないので、その版数は描き終えたことにしない（ドラッグの後に 1 回描く）
+    const rv = app.getRenderVersion?.();
+    const viewOnly = rv !== undefined && rv === lastDataVer;
+    if (!dragging) lastDataVer = rv;
+    // 値が変わったときだけ書き込む（同じ値の書き込みでもスタイル・配置の再計算と再描画が起き、データ量に比例して重くなる）
+    const setText = (el, v) => { if (el && el.textContent !== v) el.textContent = v; };
+    const setAttr = (el, k, v) => { if (el && el.getAttribute(k) !== v) el.setAttribute(k, v); };
+    const setProp = (el, k, v) => { if (el && el[k] !== v) el[k] = v; };
+    const setStyle = (el, k, v) => { if (el.style[k] !== v) el.style[k] = v; };
+    if (!viewOnly) {
+    const theme = app.getTheme();
+    if (doc.documentElement.dataset.theme !== theme) doc.documentElement.dataset.theme = theme;
     const cs = app.getCommandStatus();
-    $('#session-status').textContent = cs.text;
-    $('#session-status').dataset.session = cs.session;
+    setText($('#session-status'), cs.text);
+    if ($('#session-status').dataset.session !== cs.session) $('#session-status').dataset.session = cs.session;
     for (const b of toolbar.querySelectorAll('[data-command]')) {
       const f = PRESSED[b.dataset.command];
-      if (f) b.setAttribute('aria-pressed', String(f(st)));
-      b.disabled = typeof app.commands[b.dataset.command] !== 'function';
+      if (f) setAttr(b, 'aria-pressed', String(f(st)));
+      setProp(b, 'disabled', typeof app.commands[b.dataset.command] !== 'function');
     }
     // FR-030 AC-519: ［設定］の値のある項目（決め方・音量・周期）の現在値。入力中の部品は書き換えない
     for (const it of app.getCommandBar().items) {
@@ -161,39 +176,45 @@ export function mountUI(app, doc = document) {
       if (!('pressed' in it)) continue;
       const b = toolbar.querySelector(`[data-command="${it.command}"]`);
       if (!b) continue;
-      b.setAttribute('aria-pressed', String(it.pressed));
-      if (it.selectedMark) b.dataset.selectedMark = it.selectedMark; else delete b.dataset.selectedMark;
+      setAttr(b, 'aria-pressed', String(it.pressed));
+      if (it.selectedMark) { if (b.dataset.selectedMark !== it.selectedMark) b.dataset.selectedMark = it.selectedMark; } else if ('selectedMark' in b.dataset) delete b.dataset.selectedMark;
       let mk = b.querySelector('.sel-mark');
       if (!mk) { mk = doc.createElement('span'); mk.className = 'sel-mark'; mk.setAttribute('aria-hidden', 'true'); b.append(mk); }
-      mk.textContent = it.selectedMark ? '✓' : '';
+      setText(mk, it.selectedMark ? '✓' : '');
     }
     // FR-077: 画風のボタンの現在値と、一覧の開閉
     for (const it of app.getCommandBar().items) {
       if (!('valueLabel' in it)) continue;
       const b = toolbar.querySelector(`[data-command="${it.command}"]`);
       if (!b) continue;
-      const v = b.querySelector('.btn-value'); if (v) v.textContent = it.valueLabel;
-      if ('expanded' in it) b.setAttribute('aria-expanded', String(!!it.expanded));
+      setText(b.querySelector('.btn-value'), it.valueLabel);
+      if ('expanded' in it) setAttr(b, 'aria-expanded', String(!!it.expanded));
     }
+    } // if (!viewOnly)
     // FR-074 AC-391: 狭い画面ではパネルをタブにまとめ、見える位置（選択中のタブ）のパネルだけを出す
     const pres = app.getPanelPresentation();
     const tabsEl = $('#panel-tabs');
     if (tabsEl) {
-      tabsEl.hidden = pres.mode !== 'tabs';
-      tabsEl.textContent = '';
-      if (pres.mode === 'tabs') {
-        for (const id of PANEL_IDS) {
-          if (!app.getLayout().panels[id].visible) continue;
-          const tb = doc.createElement('button');
-          tb.type = 'button'; tb.className = 'btn btn-subtle'; tb.setAttribute('role', 'tab'); tb.dataset.tab = id;
-          tb.setAttribute('aria-selected', String(id === pres.activeTab)); tb.textContent = app.t(`panel.${id}`);
-          tb.addEventListener('click', () => app.setActivePanelTab(id));
-          tabsEl.append(tb);
+      setProp(tabsEl, 'hidden', pres.mode !== 'tabs');
+      const tabSig = pres.mode === 'tabs' ? `${st.lang}|${pres.activeTab}|${PANEL_IDS.filter((id) => app.getLayout().panels[id].visible).join(',')}` : '';
+      if (tabsEl._sig !== tabSig) {
+        tabsEl._sig = tabSig;
+        tabsEl.textContent = '';
+        if (pres.mode === 'tabs') {
+          for (const id of PANEL_IDS) {
+            if (!app.getLayout().panels[id].visible) continue;
+            const tb = doc.createElement('button');
+            tb.type = 'button'; tb.className = 'btn btn-subtle'; tb.setAttribute('role', 'tab'); tb.dataset.tab = id;
+            tb.setAttribute('aria-selected', String(id === pres.activeTab)); tb.textContent = app.t(`panel.${id}`);
+            tb.addEventListener('click', () => app.setActivePanelTab(id));
+            tabsEl.append(tb);
+          }
         }
       }
     }
+    if (!viewOnly) {
     const interim = $('#interim');
-    if (interim) { const ss = app.getSpeechStatus(); interim.textContent = ss.state === 'unavailable' ? ss.text : ''; }
+    if (interim) { const ss = app.getSpeechStatus(); setText(interim, ss.state === 'unavailable' ? ss.text : ''); }
     // FR-081 AC-444: Azure Speech の失敗では、状態表示の直後に 1 回の操作（再試行・ブラウザ標準への切替）を置く
     const actEl = $('#speech-actions');
     if (actEl) {
@@ -209,57 +230,70 @@ export function mountUI(app, doc = document) {
           actEl.append(b);
         }
       }
-      actEl.hidden = acts.length === 0;
+      if (actEl.hidden !== (acts.length === 0)) actEl.hidden = acts.length === 0;
     }
     const cu = app.getConsentUi();
     const box = $('#speech-consent');
     if (box) {
-      $('#speech-consent-box').hidden = !cu.visible;
-      box.checked = cu.checked;
-      box.disabled = !!cu.disabled; // FR-081 AC-442: 送信先のホスト名が未取得の間は選べない
-      $('#speech-consent-label').textContent = cu.label;
-      $('#speech-consent-notice').textContent = cu.notice;
-      $('#speech-consent-state').textContent = cu.stateText;
+      setProp($('#speech-consent-box'), 'hidden', !cu.visible);
+      setProp(box, 'checked', cu.checked);
+      if (box.disabled !== !!cu.disabled) box.disabled = !!cu.disabled; // FR-081 AC-442: 送信先のホスト名が未取得の間は選べない
+      setText($('#speech-consent-label'), cu.label);
+      setText($('#speech-consent-notice'), cu.notice);
+      setText($('#speech-consent-state'), cu.stateText);
     }
     // FR-013/FR-014: 認識文字列。過去を読んでいる間はスクロール位置を奪わない（AC-051）
+    // NFR-PERF-003 AC-540: 全置換せず、キー（発話 ID）で既存のノードを残して差分だけを当てる。
+    // AC-538: データの版（app.getRenderVersion があるとき）が前回と同じなら、文字列の再生成も呼ばない
+    const ver = app.getRenderVersion?.();
+    const fresh = (el) => ver === undefined || el._ver !== ver;
     const tr = $('#transcript');
-    if (tr && !dragging) {
+    if (tr && !dragging && fresh(tr)) {
       const html = app.renderTranscript();
       if (tr._html !== html) {
         const atBottom = tr.scrollHeight - tr.scrollTop - tr.clientHeight <= 8;
         const keep = tr.scrollTop;
-        tr.innerHTML = html; tr._html = html;
+        patchHtml(tr, html, doc);
         tr.scrollTop = atBottom ? tr.scrollHeight : keep;
       }
+      tr._ver = ver;
     }
     if (doc.activeElement !== draft && draft.value !== st.input.draft) draft.value = st.input.draft;
-    $('#message').textContent = st.message ? st.message.text : '';
+    setText($('#message'), st.message ? st.message.text : '');
     const is = app.getImportStatus?.(); const ise = $('#import-status');
     if (is && ise) {
-      ise.textContent = is.text; ise.setAttribute('role', is.role); ise.setAttribute('aria-live', is.live);
-      ise.dataset.state = is.state;
+      setText(ise, is.text); setAttr(ise, 'role', is.role); setAttr(ise, 'aria-live', is.live);
+      if (ise.dataset.state !== is.state) ise.dataset.state = is.state;
     }
-    if (!dragging) { const o = $('#outline'); const html = app.renderOutline(); if (o._html !== html) { o.innerHTML = html; o._html = html; } }
+    // NFR-PERF-003 AC-540: アウトラインもキー（シーン ID・要点 ID）で差分だけを当てる
+    if (!dragging) { const o = $('#outline'); if (fresh(o)) { patchHtml(o, app.renderOutline(), doc); o._ver = ver; } }
+    } // if (!viewOnly)
 
+    // 配置（見た目だけの変更でも毎回当てる）
     const layout = app.getLayout();
     const mode = app.getLayoutMode();
-    workspace.dataset.mode = mode;
-    workspace.dataset.kind = layout.kind;
+    if (workspace.dataset.mode !== mode) workspace.dataset.mode = mode;
+    if (workspace.dataset.kind !== layout.kind) workspace.dataset.kind = layout.kind;
     const kindEl = $('#layout-kind');
-    if (kindEl) kindEl.textContent = `${app.t('layout.kind.label')}: ${app.t(`layout.kind.${layout.kind}`)}`;
+    setText(kindEl, `${app.t('layout.kind.label')}: ${app.t(`layout.kind.${layout.kind}`)}`);
     const showBar = $('[data-role="panel-show"]');
-    showBar.textContent = '';
+    const hiddenIds = PANEL_IDS.filter((id) => !layout.panels[id].visible);
+    const showSig = `${st.lang}|${hiddenIds.join(',')}`;
+    const rebuildShow = showBar._sig !== showSig;
+    if (rebuildShow) { showBar._sig = showSig; showBar.textContent = ''; }
     for (const id of PANEL_IDS) {
       const p = layout.panels[id];
       const el = $(`.panel[data-panel="${id}"]`);
-      el.hidden = !p.visible || (pres.mode === 'tabs' && !pres.inView.includes(id));
-      el.classList.toggle('is-maximized', p.maximized);
-      Object.assign(el.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${p.w}px`, height: `${p.h}px` });
+      const hide = !p.visible || (pres.mode === 'tabs' && !pres.inView.includes(id));
+      if (el.hidden !== hide) el.hidden = hide;
+      if (el.classList.contains('is-maximized') !== !!p.maximized) el.classList.toggle('is-maximized', p.maximized);
+      setStyle(el, 'left', `${p.x}px`); setStyle(el, 'top', `${p.y}px`); setStyle(el, 'width', `${p.w}px`); setStyle(el, 'height', `${p.h}px`);
       const max = $(`[data-act="max"][data-panel="${id}"]`);
-      max.textContent = p.maximized ? '▣' : '□';
+      setText(max, p.maximized ? '▣' : '□');
       const label = `${app.t(`panel.${id}`)}: ${app.t(p.maximized ? 'panel.restore' : 'panel.maximize')}`;
-      max.title = label; max.setAttribute('aria-label', label);
-      if (!p.visible) {
+      if (max.title !== label) max.title = label;
+      setAttr(max, 'aria-label', label);
+      if (!p.visible && rebuildShow) {
         const b = doc.createElement('button'); b.type = 'button';
         b.className = 'btn';
         b.textContent = `${app.t(`panel.${id}`)}: ${app.t('panel.show')}`;
@@ -270,18 +304,18 @@ export function mountUI(app, doc = document) {
       if (renderer && id !== 'outline' && id !== 'input') renderer($(`#${id}`), app);
     }
     if (!app.getPanelRenderer('diagram')) $('#diagram').textContent = app.t('diagram.empty');
-    showBar.hidden = !showBar.childElementCount;
+    if (showBar.hidden !== !showBar.childElementCount) showBar.hidden = !showBar.childElementCount;
     // 自由配置の作業領域は、はみ出したパネルの端まで広げる（スクロールで到達できる）。
     // タイル・フォーカス・最大化は、作業領域に固定する（FR-017）
     const fixed = layout.kind === 'tile' || layout.kind === 'focus' || layout.kind === 'maximized';
     if (mode === 'floating' && fixed) {
-      workspace.style.minHeight = '';
-      workspace.style.height = `${layout.workArea.h}px`;
+      setStyle(workspace, 'minHeight', '');
+      setStyle(workspace, 'height', `${layout.workArea.h}px`);
     } else if (mode === 'floating') {
-      workspace.style.height = '';
+      setStyle(workspace, 'height', '');
       const vis = PANEL_IDS.map((id) => layout.panels[id]).filter((p) => p.visible);
-      workspace.style.minHeight = `${Math.max(0, ...vis.map((p) => p.y + p.h)) + 24}px`;
-    } else { workspace.style.minHeight = ''; workspace.style.height = ''; }
+      setStyle(workspace, 'minHeight', `${Math.max(0, ...vis.map((p) => p.y + p.h)) + 24}px`);
+    } else { setStyle(workspace, 'minHeight', ''); setStyle(workspace, 'height', ''); }
     measureWorkArea();
   }
 
@@ -386,8 +420,8 @@ export function mountUI(app, doc = document) {
   function syncSettings() {
     if (!setEl) return;
     const d = app.getSettingsDialog();
-    if (!d) { setEl.hidden = true; setBuilt = null; return; }
-    const key = `${app.getState().lang}|${app.getDrawStyles().map((s) => s.id).join(',')}`; // 描画スタイルが登録されたら選択肢を作り直す（FR-077 AC-418）
+    if (!d) { if (!setEl.hidden) setEl.hidden = true; setBuilt = null; return; }
+    const key = `${(app.getUiState?.() ?? app.getState()).lang}|${app.getDrawStyles().map((s) => s.id).join(',')}`; // 描画スタイルが登録されたら選択肢を作り直す（FR-077 AC-418）
     if (setBuilt !== key) {
       setBuilt = key; setEl.textContent = '';
       const o = app.getSettingsOptions();
@@ -737,11 +771,13 @@ export function mountUI(app, doc = document) {
     gdc.addEventListener('click', () => { void app.dismissLlmGuide(); });
     gd.append(gt, gdo, gdc);
     statusBar.append(bs, bw, gd);
+    // 値が変わったときだけ書く（変更の通知のたびの書き込みで、件数に比例する再計算・再描画を起こさない。NFR-PERF-003）
+    const put = (el, v) => { if (el.textContent !== v) el.textContent = v; };
     const syncBudget = () => {
-      bs.textContent = app.getBudgetStatus().text;
-      const w = app.getBudgetWarning(); bw.textContent = w ? w.text : ''; bw.hidden = !w;
-      const g = app.getLlmGuide(); gd.hidden = !g.visible;
-      if (g.visible) { gt.textContent = g.text; gdo.textContent = g.openLabel; gdc.textContent = g.dismissLabel; gd.setAttribute('aria-label', g.text); }
+      put(bs, app.getBudgetStatus().text);
+      const w = app.getBudgetWarning(); put(bw, w ? w.text : ''); if (bw.hidden !== !w) bw.hidden = !w;
+      const g = app.getLlmGuide(); if (gd.hidden !== !g.visible) gd.hidden = !g.visible;
+      if (g.visible) { put(gt, g.text); put(gdo, g.openLabel); put(gdc, g.dismissLabel); if (gd.getAttribute('aria-label') !== g.text) gd.setAttribute('aria-label', g.text); }
     };
     app.on('change', syncBudget); syncBudget();
   }
@@ -758,9 +794,9 @@ export function mountUI(app, doc = document) {
   let padLang = null;
   function syncRpg() {
     const on = !!app.getRpgMap?.();
-    rpgEl.hidden = !on;
+    if (rpgEl.hidden !== !on) rpgEl.hidden = !on;
     if (!on) return;
-    const lang = app.getState().lang;
+    const lang = (app.getUiState?.() ?? app.getState()).lang;
     if (padLang !== lang) {
       padLang = lang; padEl.textContent = '';
       padEl.setAttribute('aria-label', app.t('rpg.pad.label'));
