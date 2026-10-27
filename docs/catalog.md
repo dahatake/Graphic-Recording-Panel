@@ -26,7 +26,7 @@
 | NFR-A11Y-001 | 視覚表現の代替手段 | 承認済み | web/src/keymap.js, web/src/outline.js, web/styles/app.css | tests/unit/shell.test.js, tests/system/view.test.js | キーマップ, デザイン基盤, アプリ組立 |
 | NFR-PERF-001 | ほぼリアルタイムの表示 | 承認済み | web/src/app.js | tests/unit/speech.test.js | アプリ組立 |
 | NFR-PERF-002 | マウス操作への応答性 | 承認済み | web/src/frame.js, web/src/ui.js, web/src/edit-ui.js, web/src/diagram.js, web/sw.js | tests/unit/perf.test.js, tests/system/perf.test.js | アプリ組立, 描画の合流 |
-| NFR-PERF-003 | 記録中・大きい図での応答性の維持 | 承認済み | web/src/frame.js, web/src/ui.js, web/src/edit-ui.js, web/src/diagram.js, web/sw.js | tests/unit/perf.test.js, tests/system/perf.test.js | アプリ組立, 音声入力源, 描画の合流 |
+| NFR-PERF-003 | 記録中・データ量が増えたときの応答性の維持 | 承認済み | web/src/frame.js, web/src/ui.js, web/src/edit-ui.js, web/src/diagram.js, web/sw.js | tests/unit/perf.test.js, tests/system/perf.test.js | アプリ組立, 音声入力源, 描画の合流 |
 | NFR-PERF-004 | アイドル時に CPU を使い続けない | 承認済み | web/src/frame.js, web/src/ui.js | tests/unit/perf.test.js, tests/system/perf.test.js | アプリ組立, 描画の合流 |
 | FR-013 | 右パネルでの認識文字列の表示（ファイル取込は画面最上部） | 承認済み | web/src/transcript.js, web/src/layout.js, web/src/input.js, web/src/ui.js, web/index.html, web/styles/app.css, web/sw.js | tests/unit/transcript.test.js, tests/system/rightpanel.test.js | アプリ組立, デザイン基盤, 認識文字列 |
 | FR-014 | 認識・取込の内容の図へのリアルタイム反映 | 承認済み | web/src/transcript.js, web/src/speech.js, web/src/input.js, web/src/app.js, web/src/liverefresh.js, web/src/ui.js | tests/unit/transcript.test.js, tests/unit/liverefresh.test.js, tests/system/rightpanel.test.js, tests/system/live.test.js | アプリ組立, 認識文字列 |
