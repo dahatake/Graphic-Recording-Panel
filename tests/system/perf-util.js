@@ -10,7 +10,9 @@ import { fileURLToPath } from 'node:url';
 import { WEB } from './helpers.js';
 
 // PARAM-076..080（docs/requirements-definition.md の PARAM 表）
-export const PERF = { RESPONSE_MS: 100, MIN_FPS: 30, BIG_UTTERANCES: 500, IDLE_CPU_PCT: 5, FIRST_SEC: 2, UPPER_SEC: 15 /* PARAM-001（2026-10-26 に 3 から変更） */ };
+export const PERF = { RESPONSE_MS: 100, MIN_FPS: 30, BIG_UTTERANCES: 500, IDLE_CPU_PCT: 5, FIRST_SEC: 2, UPPER_SEC: 15 /* PARAM-001（2026-10-26 に 3 から変更） */,
+  // PARAM-005（性能測定時の事前入力の件数）、PARAM-106（データ量の検証規模）、PARAM-107（増分の上限 %）、PARAM-109（ばらつきとして無視する増分 ms）
+  BASE_UTTERANCES: 100, HUGE_UTTERANCES: 5000, GROWTH_PCT: 20, GROWTH_FLOOR_MS: 16 };
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml' };
 
@@ -182,6 +184,19 @@ export async function startRecording(page) {
 }
 
 export const emit = (page, text) => page.evaluate((t) => window.__emit(t, true), text);
+
+// 注入した入力源で記録中に発話を追加し、件数が total に達するまで待つ（NFR-PERF-003 AC-536・AC-537）。
+export async function growTo(page, total, timeout = 180000) {
+  const cur = await page.evaluate(() => globalThis.__app.getState().utterances.length);
+  if (cur >= total) return;
+  await page.evaluate(async ({ from, to }) => {
+    for (let i = from; i < to; i++) { window.__emit(`発話${i} 予算とリリース計画について確認する`, true); if (i % 50 === 49) await new Promise((r) => setTimeout(r, 0)); }
+  }, { from: cur, to: total });
+  await page.waitForFunction((n) => globalThis.__app.getState().utterances.length >= n, total, { timeout });
+}
+
+export const sessionOf = (page) => page.evaluate(() => globalThis.__app.getState().session);
+export const command = (page, name) => page.evaluate((c) => globalThis.__app.commands[c](), name);
 
 export async function emitMany(page, n, prefix = '発話') {
   await page.evaluate(async ({ n, prefix }) => {

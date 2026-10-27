@@ -249,7 +249,9 @@
     "AC-532": "sha256:dee7ad5af0b1dfc8",
     "AC-533": "sha256:0ffb122154d8b2be",
     "AC-534": "sha256:2c2b348c7e255ef3",
-    "AC-527": "sha256:4260ada969c053ab"
+    "AC-527": "sha256:4260ada969c053ab",
+    "AC-536": "sha256:e20824a8d9e4d877",
+    "AC-537": "sha256:dc72a9e396a4d0da"
   },
   "cases": [
     {
@@ -7887,6 +7889,56 @@
       "history": [
         {
           "at": "2026-10-26T13:19:23+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "IT-027",
+      "requirement_ids": [
+        "NFR-PERF-003"
+      ],
+      "ac_ids": [
+        "AC-536"
+      ],
+      "title": "一時停止の 5000 件で操作応答 100ms 以内・100 件からの増分 20% 以内・30fps・長いタスク 0 件",
+      "layer": "nonfunctional",
+      "command": "node --test --test-name-pattern=\"AC-536\" tests/system/perf.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-27T23:44:54+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-266",
+      "requirement_ids": [
+        "NFR-PERF-003"
+      ],
+      "ac_ids": [
+        "AC-537"
+      ],
+      "title": "5000 件のセッションの再読込後 2 秒以内にコマンドバーのクリックが反映され内容が復元される",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-537\" tests/system/perf.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-27T23:44:56+09:00",
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
