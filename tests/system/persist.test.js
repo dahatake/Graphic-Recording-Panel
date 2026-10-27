@@ -1,24 +1,38 @@
 // FR-012 AC-029 AC-043 AC-030（契約: 保存キー grp.session、createApp が復元、clearSavedSession、復元後は paused）
+// NFR-PERF-003 AC-539 との両立（CONTRACT.md「保存」）: 自動保存は PARAM-108 以内にまとめて行われるため、保存の確定は
+// 注入スケジューラの時間送り、または app.flushSave()（pagehide・非表示・再読込の契機）で行う。helpers の createApp は
+// 再読込の模擬として、同じ storage の前の app に flushSave() を行ってから新しい app を作る。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { newApp, seedThreeScenes, FakeSpeech } from './helpers.js';
+import { newApp, seedThreeScenes, FakeSpeech, PARAM, flushSaves } from './helpers.js';
 
 const core = (app) => { const s = app.getState(); return JSON.stringify({ u: s.utterances.map((x) => x.text), s: s.scenes.map((x) => ({ h: x.heading, p: x.points.map((q) => q.text) })) }); };
 
-test('FR-012 AC-029: 再読込で発話・シーン・要点が復元される（音声は含まれない）', async () => {
+// FR-012 AC-029（保存の確定は NFR-PERF-003 AC-539 の所定の手段で行う）
+test('FR-012 AC-029: 再読込で発話・シーン・要点が復元される（音声は含まれない。最後の変更までが欠落しない）', async () => {
   const { app, env, createApp } = await newApp();
+  assert.equal(typeof app.flushSave, 'function', '契約: app.flushSave()（保留中の自動保存を直ちに確定する）');
+  assert.equal(typeof app.hasPendingSave, 'function', '契約: app.hasPendingSave()');
   const texts = await seedThreeScenes(app, env);
+  // 保存の確定 1: 最後の変更から PARAM-108 ミリ秒の時間送りで、まとめた保存が行われている
+  env.scheduler.advance(PARAM.SAVE_DEBOUNCE_MS);
+  assert.equal(app.hasPendingSave(), false, `最後の変更から ${PARAM.SAVE_DEBOUNCE_MS} ms 以内に保存される`);
+  const saved = env.storage.getItem('grp.session');
+  assert.ok(saved, 'grp.session に保存される');
+  assert.ok(!/audio|blob|wav|pcm/i.test(saved), '音声は含まれない');
+  // 保存の確定 2: 時間送りなしの直後の変更も、再読込（前のページの pagehide＝flushSave）で失われない
+  app.setDraft('再読込の直前の発話'); assert.equal(app.submitDraft().ok, true);
   const before = core(app);
-  assert.ok(env.storage.getItem('grp.session'), 'grp.session に保存される');
-  assert.ok(!/audio|blob|wav|pcm/i.test(env.storage.getItem('grp.session')));
   const app2 = await createApp({ ...env.options, speechSource: new FakeSpeech() });
   assert.equal(core(app2), before);
-  assert.deepEqual(app2.getState().utterances.map((u) => u.text), texts);
+  assert.deepEqual(app2.getState().utterances.map((u) => u.text), [...texts, '再読込の直前の発話']);
+  assert.ok(!/audio|blob|wav|pcm/i.test(env.storage.getItem('grp.session')), '音声は含まれない');
 });
 
 test('FR-012 AC-029 異常系: 保存されたセッションがないとき、また保存内容が壊れているとき、空の状態で起動する', async () => {
   const { app, env, createApp } = await newApp();
   assert.equal(app.getState().utterances.length, 0);
+  flushSaves(env.storage); // 前のページの保存を確定させてから、保存内容を壊す
   env.storage.setItem('grp.session', '}{壊れている');
   const app2 = await createApp(env.options);
   assert.equal(app2.getState().utterances.length, 0);

@@ -753,11 +753,11 @@
       "ac_ids": [
         "AC-029"
       ],
-      "title": "再読込で発話・シーン・要点が復元される",
+      "title": "再読込で発話・シーン・要点が復元される（保存の確定は NFR-PERF-003 AC-539 の所定の手段: PARAM-108 の時間送り・flushSave/pagehide。最後の変更まで欠落しない）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-029\" tests/system/persist.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "75decb0",
       "last_run_at": "2026-10-26T15:11:45+09:00",
       "evidence": "work/runs/202610261447/logs/system-test/E2E-018-202610261511.log",
@@ -767,6 +767,18 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-28T00:16:07+09:00",
+          "by": "test-designer",
+          "change": "title: '再読込で発話・シーン・要点が復元される' -> '再読込で発話・シーン・要点が復元される（保存の確定は NFR-PERF-003 AC-539 の所定の手段: PARAM-108 の時間送り・flushSave/pagehide。最後の変更まで欠落しない）'",
+          "reason": "NFR-PERF-003 AC-539（自動保存は PARAM-108 以内にまとめて行う）と両立させるため、変更直後の grp.session の同期読みをやめ、時間送り・再読込（pagehide=flushSave）で保存を確定して検証。期待値は弱めず、再読込直前の変更の復元を追加"
+        },
+        {
+          "at": "2026-10-28T00:16:27+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC-539 との両立でテストを変更（flushSave の契約を追加）。再実行が必要"
         }
       ]
     },

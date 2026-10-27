@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const WEB = path.join(ROOT, 'web');
-export const PARAM = { UPPER_SEC: 15 /* PARAM-001（2026-10-26 に 3 から変更） */, LIVE_DEFAULT_SEC: 10 /* PARAM-100 */, LIVE_MIN_SEC: 10 /* PARAM-098 */, LIVE_MAX_SEC: 15 /* PARAM-099 */, BUDGET_DEFAULT_YEN: 10000 /* PARAM-101 */, RENDER_SEC: 2 /* PARAM-104 */, WARN_PCT: 80 /* PARAM-105 */, SCENE_GAP_SEC: 20, MAX_FILE_MB: 1, DWELL_SEC: 8 };
+export const PARAM = { UPPER_SEC: 15 /* PARAM-001（2026-10-26 に 3 から変更） */, LIVE_DEFAULT_SEC: 10 /* PARAM-100 */, LIVE_MIN_SEC: 10 /* PARAM-098 */, LIVE_MAX_SEC: 15 /* PARAM-099 */, BUDGET_DEFAULT_YEN: 10000 /* PARAM-101 */, RENDER_SEC: 2 /* PARAM-104 */, WARN_PCT: 80 /* PARAM-105 */, SCENE_GAP_SEC: 20, MAX_FILE_MB: 1, DWELL_SEC: 8, SAVE_DEBOUNCE_MS: 500 /* PARAM-108（NFR-PERF-003 AC-539） */ };
 export const CJK = /[\u3000-\u30ff\u3400-\u9fff\uff00-\uffef]/;
 
 export async function loadApp() {
@@ -15,7 +15,29 @@ export async function loadApp() {
   if (!fs.existsSync(file)) throw new Error('web/src/app.js がありません（CONTRACT.md の createApp が未実装）');
   const mod = await import(pathToFileURL(file).href);
   if (typeof mod.createApp !== 'function') throw new Error('web/src/app.js は createApp を export する必要があります');
-  return mod.createApp;
+  // 再読込の模擬（CONTRACT.md「保存」）: 同じ storage で新しい app を作る前に、前のページの pagehide に当たる
+  // app.flushSave() をその storage の既存の app すべてに対して行う（保留中の自動保存を確定させる）。
+  const raw = mod.createApp;
+  return async (options = {}) => {
+    if (options && options.storage) flushSaves(options.storage);
+    const app = await raw(options);
+    if (options && options.storage && app) {
+      if (!liveApps.has(options.storage)) liveApps.set(options.storage, new Set());
+      liveApps.get(options.storage).add(app);
+    }
+    return app;
+  };
+}
+
+// storage ごとに生きている app（同じブラウザの別ページ・再読込前のページに当たる）。
+const liveApps = new WeakMap();
+// NFR-PERF-003 AC-539: セッションの自動保存は PARAM-108 以内にまとめて行われる。保存の確定には契約の
+// app.flushSave()（pagehide・非表示・再読込の契機と同じ）を使う。storage を読む前・再読込の前に呼ぶ。
+// flushSave を持たない実装は「変更のたびに即時保存」とみなす（保存の確定を厳密に確かめるのは persist.test.js）。
+export function flushSaves(storage) {
+  const set = liveApps.get(storage);
+  if (!set) return;
+  for (const app of set) if (typeof app.flushSave === 'function') app.flushSave();
 }
 
 export class FakeStorage {
@@ -26,7 +48,8 @@ export class FakeStorage {
   setItem(k, v) { this.m.set(String(k), String(v)); }
   removeItem(k) { this.m.delete(k); }
   clear() { this.m.clear(); }
-  dump() { return [...this.m.entries()]; }
+  // テスト専用（Web Storage にない）。保留中の自動保存を確定させてから全件を返す（ブラウザに残る内容の確認用）。
+  dump() { flushSaves(this); return [...this.m.entries()]; }
 }
 
 export class FakeScheduler {

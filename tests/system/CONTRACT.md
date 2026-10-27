@@ -48,8 +48,14 @@ export async function createApp(options) -> app   // await 可能（同期で返
 - `app.get3D()` → `{ nodes:[{sceneId, position:{x,y,z}}], selectedSceneId, camera:{targetSceneId:string|null, animated:boolean} }`。2 シーン以上のとき `z` は全て同一にしない。`viewMode==='3d'` でない場合も呼べる。
 - `app.getLayout()` → `{panels:{input,diagram,outline}}`（各 `{x,y,w,h,visible:boolean,maximized:boolean}`）。`app.movePanel(id,{x,y})`、`app.resizePanel(id,{w,h})`、`app.setPanelVisible(id,bool)`、`app.setPanelMaximized(id,bool)`、`app.resetLayout()`。
   メニュー/キーボード用: `app.panelCommand(id, 'move-left'|'move-right'|'move-up'|'move-down'|'grow'|'shrink')`（move-right は x 増、move-left は x 減、move-down は y 増、move-up は y 減、grow は w・h 増、shrink は w・h 減）。
-- `app.clearSavedSession()`：`grp.session` を取り除く。レイアウトは対象外。
-- 保存: 状態が変わるたびに `grp.session` へ自動保存（発話・シーン・要点。音声は含めない）。`createApp` が復元したセッションの状態は必ず `paused`。`resume` で `startSpeech` 相当（`speechSource.start`）を改めて行う。
+- `app.clearSavedSession()`：`grp.session` を取り除く。レイアウトは対象外。保留中のセッションの自動保存も取り消す（消去の後に古い内容を書き戻さない）。
+- 保存（NFR-PERF-003 AC-539 と FR-012 AC-029 の両立）: 発話・シーン・要点（音声は含めない）が変わると `grp.session` へ自動保存する。保存（直列化と `storage.setItem`）は入力イベントを処理する呼び出し（`submitDraft`・`commands[...]`・`onresult` など）の中では行わず、`options.scheduler.setTimeout` で掛けたタイマーで、最後の変更から PARAM-108（500 ms。`tests/system/helpers.js` の `PARAM.SAVE_DEBOUNCE_MS`）以内に 1 回にまとめて行う。PARAM-108 が 0 のときは変更のたびに即時保存してよい。
+  - `app.flushSave()`（同期）: 保留中の自動保存を直ちに確定する。保留がなければ何も書かない（`storage` を変えない）。実ブラウザでは `pagehide`・`beforeunload`・`visibilitychange`（hidden）で、注入時は `options.visibility` が hidden になったときに、これと同じ保存を行う。
+  - `app.hasPendingSave()` → boolean。未保存の変更があれば `true`。
+  - テストが保存の確定に使う所定の手段（いずれか）: `env.scheduler.advance(PARAM.SAVE_DEBOUNCE_MS)`（時間送り）、`app.flushSave()`、`options.visibility` の hidden。再読込は「前のページの pagehide → 同じ storage で `createApp`」とみなし、`helpers.js` の `createApp`（`loadApp()`・`newApp()` が返すもの）は、同じ storage で作った既存の app に `flushSave()` を行ってから新しい app を作る。`FakeStorage.dump()` も読む前に同じ確定を行う。変更の直後に `grp.session` を同期で読むことは前提にしない。
+  - `grp.layout`・`grp.settings`・`grp.llm.consent` など `grp.session` 以外のキーの保存は、この間引きの対象外（従来どおり変更時に保存）。
+  - データの初期化（FR-018、`data.reset`）は保留中のセッションの自動保存を取り消してから行う。
+  - `createApp` が復元したセッションの状態は必ず `paused`。`resume` で `startSpeech` 相当（`speechSource.start`）を改めて行う。
 
 ### コマンドとキーボード（NFR-A11Y-001 AC-036、FR-010 AC-023）
 `app.commands[name]()`（ボタン相当）。`app.keymap = [{key, ctrl?, alt?, shift?, command}]`。`app.handleKey({key,ctrlKey,altKey,shiftKey})` は実行したコマンド名を返す（該当なしは `null`）。
