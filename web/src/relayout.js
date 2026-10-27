@@ -271,7 +271,7 @@ export function relayoutModule(ctx) {
     if ('zoom' in v) { if (!(typeof v.zoom === 'number' && Number.isFinite(v.zoom) && v.zoom > 0)) return { ok: false }; next.zoom = v.zoom; }
     for (const k of ['scrollX', 'scrollY']) if (k in v) { if (!(typeof v[k] === 'number' && Number.isFinite(v[k]))) return { ok: false }; next[k] = Math.max(0, v[k]); }
     diagramView = next;
-    if (!opts.silent) ctx.emit('change', api);
+    if (!opts.silent) (ctx.emitView ?? (() => ctx.emit('change', api)))(); // 拡大率・位置は見た目だけ（NFR-PERF-003 AC-538）
     return { ok: true };
   };
 

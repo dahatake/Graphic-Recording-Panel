@@ -123,6 +123,7 @@ export function sessionModule(ctx) {
       ctx.setMessage('msg.resetDone');
     });
     P.remove(ctx.storage, P.SESSION_KEY);
+    ctx.cancelPendingSave?.(); // NFR-PERF-003 AC-539（監査 C-1）: 初期化の前の変更を保留中の保存で書き戻さない
   }
 
   function applySession(sess) {

@@ -83,7 +83,9 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 /* 認識文字列（FR-013/FR-014）: 暫定は斜体・点線枠・「暫定」の語、確定は通常の文字（色だけに頼らない） */
 .transcript-host { max-height: 16rem; overflow: auto; border: var(--stroke) solid var(--color-border-subtle); border-radius: var(--radius-control); padding: var(--space-2); margin-bottom: var(--space-3); }
 .transcript-heading { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.transcript-list { margin: 0; padding-left: var(--space-5); }
+.transcript-list { margin: 0; }
+/* NFR-PERF-003 AC-536: 確定結果は 100 件ずつのまとまり。画面外のまとまりは配置・描画を省く（件数に比例して操作が重くならない） */
+.transcript-chunk { margin: 0; padding-left: var(--space-5); content-visibility: auto; contain-intrinsic-size: auto calc(var(--n, 100) * 1.75rem); }
 .transcript-item.final { font-style: normal; margin-bottom: var(--space-1); }
 .transcript-item.interim { font-style: italic; border: 1px dashed var(--color-border); border-radius: var(--radius-control); padding: var(--space-1) var(--space-2); margin: var(--space-1) 0 0; }
 .transcript-tag { font-size: var(--font-size-caption); border: var(--stroke) solid var(--color-border); border-radius: var(--radius-control); padding: 0 var(--space-1); font-style: normal; }
@@ -112,6 +114,10 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .outline-topics { margin: 0 0 var(--space-3); padding: var(--space-2); border: var(--stroke) solid var(--color-border-subtle); border-radius: var(--radius-control); }
 .outline-topics h2 { font-size: var(--font-size-body); margin: 0 0 var(--space-1); }
 .outline-topics ol, .outline-topics ul { margin: 0; padding-left: var(--space-5); }
+/* NFR-PERF-003 AC-536: 要点は 100 件ずつのリスト。並べても 1 つのリストと同じ余白にし、画面外のまとまりは配置・描画を省く */
+.outline-points { margin: 0; content-visibility: auto; contain-intrinsic-size: auto calc(var(--n, 100) * 1.75rem); }
+.outline-points:first-of-type { margin-top: 1em; }
+.outline-points:last-of-type { margin-bottom: 1em; }
 .badge { display: inline-block; font-size: var(--font-size-caption); padding: 0 var(--space-2); border: var(--stroke) solid var(--color-border); border-radius: var(--radius-control); margin-left: var(--space-1); }
 .badge-confirmed { font-weight: var(--font-weight-semibold); }
 .badge-selected { font-weight: var(--font-weight-semibold); text-decoration: underline; }
