@@ -32,6 +32,7 @@ import { settingsModule } from './settings.js';
 import { stylePickerModule } from './stylepicker.js';
 import { autoLayoutModule } from './autolayout.js';
 import { layoutKindsModule } from './layoutkinds.js';
+import { workshopModule } from './workshop.js';
 import { rpgModule } from './rpg.js';
 import { rpgAudioModule } from './rpgaudio.js';
 import { llmModule } from './llm.js';
@@ -270,7 +271,8 @@ export async function createApp(options = {}) {
     // FR-036 AC-167: 各まとまり（トピック・区画・囲み）の小見出しを文字でも示す（時系列の表示のとき）
     const applied = app.getLayoutInfo?.().applied;
     const groups = applied && state.scenes.length ? (app.getDiagramLayout?.().groups ?? []) : [];
-    return groups.length ? `${html}<section class="outline-groups" aria-label="${i18n.t('outline.groups')}"><h2>${i18n.t('outline.groups')}</h2><ul>${groups.map((g) => `<li data-group-id="${escapeHtml(g.id)}">${escapeHtml(g.heading)}</li>`).join('')}</ul></section>` : html;
+    const ws = applied ? (app.getWorkshopOutline?.() ?? '') : ''; // FR-091: ワークショップ型のラベル・問い・注記を文字でも示す
+    return groups.length ? `${html}${ws}<section class="outline-groups" aria-label="${i18n.t('outline.groups')}"><h2>${i18n.t('outline.groups')}</h2><ul>${groups.map((g) => `<li data-group-id="${escapeHtml(g.id)}">${escapeHtml(g.heading)}</li>`).join('')}</ul></section>` : `${html}${ws}`;
   };
   app.clearSavedSession = () => { cancelPendingSave(); P.remove(storage, P.SESSION_KEY); };
   // NFR-PERF-003 AC-539: 保留中の自動保存を直ちに行う（保存したら true）。
@@ -369,7 +371,7 @@ export async function createApp(options = {}) {
   app.subscribe = (fn) => on('change', fn);
   app.getPanelRenderer = (id) => panelRenderers.get(id) ?? null;
   app.use = async (mod) => { await mod(ctx); };
-  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, sessionModule, settingsModule, stylePickerModule, autoLayoutModule, layoutKindsModule, rpgModule, rpgAudioModule, llmModule, llmDrawModule, stylePresetModule, relayoutModule, liveRefreshModule, speechSettingsModule, budgetModule, presentExportModule, ...(options.modules ?? [])]) await app.use(mod);
+  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, sessionModule, settingsModule, stylePickerModule, autoLayoutModule, layoutKindsModule, rpgModule, rpgAudioModule, llmModule, llmDrawModule, stylePresetModule, workshopModule, relayoutModule, liveRefreshModule, speechSettingsModule, budgetModule, presentExportModule, ...(options.modules ?? [])]) await app.use(mod);
 
   // FR-078: 画像生成 AI 向けのプロンプトのコピー（描画スタイル・レイアウト型・トピックの登録の後に足す）
   await app.use(imagePromptModule);

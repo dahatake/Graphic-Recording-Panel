@@ -156,12 +156,12 @@ test('NFR-PERF-003 AC-536: 認識文字列は 100 件ずつの番号の続くリ
   const texts = Array.from({ length: 250 }, (_, i) => `分割の確認${i} 予算を決める`);
   ctx.addUtterances(texts); ctx.transcript.addFinals(texts);
   const tr = app.renderTranscript();
-  const chunks = [...tr.matchAll(/<ol class="transcript-chunk" start="(\d+)" style="--n:(\d+)">/g)].map((m) => [Number(m[1]), Number(m[2])]);
+  const chunks = [...tr.matchAll(/<ol class="transcript-chunk" data-chunk="[^"]*" start="(\d+)" style="--n:(\d+)">/g)].map((m) => [Number(m[1]), Number(m[2])]);
   assert.deepEqual(chunks, [[1, 100], [101, 100], [201, 50]]);
   assert.deepEqual([...tr.matchAll(/data-id="[^"]+">([^<]+)</g)].map((m) => m[1]), texts, '全件が受付順');
   assert.match(tr, /role="log"/);
   const ol = app.renderOutline();
-  const pointLists = [...ol.matchAll(/<ul class="outline-points" style="--n:(\d+)">/g)].map((m) => Number(m[1]));
+  const pointLists = [...ol.matchAll(/<ul class="outline-points" data-chunk="[^"]*" style="--n:(\d+)">/g)].map((m) => Number(m[1]));
   assert.equal(pointLists.reduce((a, b) => a + b, 0), app.getState().scenes.reduce((n, s) => n + s.points.length, 0));
   assert.ok(pointLists.every((n) => n <= 100));
 });
