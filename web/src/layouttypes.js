@@ -2,7 +2,7 @@
 // 5 つの型（タイムライン・吹き出し・発散・区画・比喩テンプレート）を登録し、型ごとの配置（layout）を差し替えられる。
 // 型ごとの実装（FR-031〜035 など）は registry.register(id, { layout }) で足す。未実装の型は暫定でタイムラインの配置にフォールバックする。
 
-export const LAYOUT_TYPE_IDS = ['timeline', 'bubble', 'diverge', 'zone', 'metaphor'];
+export const LAYOUT_TYPE_IDS = ['timeline', 'bubble', 'diverge', 'zone', 'metaphor', 'workshop'];
 export const DEFAULT_LAYOUT_TYPE = 'timeline';
 
 // 名称ラベル（ja は全角換算 6 以内・en は半角 12 以内。型ごとに異なる）・ツールチップ・コマンド検索用の名称。
@@ -31,6 +31,12 @@ export const LAYOUT_TYPE_META = {
     icon: 'M2 16l5-8 3 4 3-6 5 10zM14 3m-1.500 0a1.500 1.500 0 1 0 3 0 1.500 1.500 0 1 0-3 0',
     ja: { label: '比喩', tip: '道のりや山などの比喩の背景に重ねる比喩テンプレート型で図を描きます', cmd: '比喩テンプレート型にする' },
     en: { label: 'Metaphor', tip: 'Draw the diagram over a metaphor background such as a road or a mountain', cmd: 'Use the metaphor template layout' },
+  },
+  // FR-091: 手書きワークショップホワイトボード（クリーム色の紙・番号付きステージ・未解決の問い・7 つのレンズの注記）
+  workshop: {
+    icon: 'M3 3h14v10H3zM6 16l2-3M14 16l-2-3M6 6h3v3H6zM11 6h3M11 9h3',
+    ja: { label: 'ボード', tip: '手描き風のホワイトボードに、番号付きの場面と未解決の問いを並べるワークショップ型で図を描きます', cmd: 'ワークショップホワイトボード型にする' },
+    en: { label: 'Workshop', tip: 'Draw the diagram as a hand-drawn workshop whiteboard with numbered stages and open questions', cmd: 'Use the workshop whiteboard layout' },
   },
 };
 

@@ -63,9 +63,9 @@ test('FR-029 AC-147: 手書き調は揺らぎがあり同じ入力から同じ�
 });
 
 // FR-027 AC-139〜141: レジストリ（未実装の型はタイムライン相当）
-test('FR-027 AC-139: 5 つの型が登録され、未実装の型はタイムライン相当の配置にフォールバックし、型の実装を足せる', () => {
+test('FR-027 AC-139: 6 つの型が登録され、未実装の型はタイムライン相当の配置にフォールバックし、型の実装を足せる', () => {
   const reg = createLayoutTypeRegistry();
-  assert.deepEqual(reg.ids(), ['timeline', 'bubble', 'diverge', 'zone', 'metaphor']);
+  assert.deepEqual(reg.ids(), ['timeline', 'bubble', 'diverge', 'zone', 'metaphor', 'workshop']);
   for (const id of LAYOUT_TYPE_IDS) { assert.equal(reg.isImplemented(id), false); assert.equal(reg.layoutFor(id), timelineLayout); }
   const impl = () => ({ marker: 1 });
   assert.deepEqual(reg.register('zone', { layout: impl }), { ok: true });
@@ -81,9 +81,14 @@ test('FR-027 AC-141: 型を切り替えても内容・選択・記録中の状�
   await seedThreeScenes(app, env);
   app.setDetailLevel('middle');
   app.selectScene(app.getState().scenes[1].id);
-  const snap = () => { const s = app.getState(); return JSON.stringify([s.utterances, s.scenes, s.selectedSceneId, s.session, s.viewMode, app.getDetailLevel(), app.get3D(), app.renderOutline(), app.getScenePopup()]); };
+  // FR-091: ワークショップ型だけは、AC-542 により図の文字（ラベル・問い・レンズ・注記）の節がテキスト一覧に加わる。その節を除けば一覧は変わらない
+  const snap = (id) => {
+    const s = app.getState();
+    const outline = app.renderOutline().replace(/<section class="outline-workshop"[\s\S]*?<\/section>/, '');
+    return JSON.stringify([s.utterances, s.scenes, s.selectedSceneId, s.session, s.viewMode, app.getDetailLevel(), app.get3D(), outline, app.getScenePopup()]);
+  };
   const base = snap();
-  for (const id of LAYOUT_TYPE_IDS) { assert.ok(app.setLayoutTypes([id]).ok); assert.equal(snap(), base, id); }
+  for (const id of LAYOUT_TYPE_IDS) { assert.ok(app.setLayoutTypes([id]).ok); assert.equal(snap(id), base, id); }
   app.setLayoutTypes(['zone', 'bubble', 'metaphor']);
   assert.equal(snap(), base);
   for (const s of app.getState().scenes) for (const p of s.points) assert.ok(app.renderOutline().includes(p.text), '要点は文字でも確認できる');
