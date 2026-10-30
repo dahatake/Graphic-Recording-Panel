@@ -10,7 +10,7 @@ const weight = (s) => [...String(s)].reduce((n, ch) => n + (CJK.test(ch) ? 1 : 0
 const items = (app) => app.getCommandBar().items;
 const bySetting = (app, id) => items(app).filter((i) => i.settingsField === id);
 const sfield = (app, id) => app.getSettingsDialog().fields.find((f) => f.id === id);
-const TYPES = ['timeline', 'bubble', 'diverge', 'zone', 'metaphor'];
+const TYPES = ['timeline', 'bubble', 'diverge', 'zone', 'metaphor', 'workshop'];
 const PANEL_FIELDS = ['layout.mode', 'layout.types', 'drawStyle', 'sound.muted', 'sound.volume', 'arrange.interval'];
 
 // FR-030 AC-519
@@ -21,7 +21,7 @@ test('FR-030 AC-519: リボンに［設定］パネルの全項目（決め方�
   for (const id of PANEL_FIELDS) assert.ok(ids.includes(id), `［設定］に ${id} がある`);
   app.commands['settings.close']();
   for (const id of PANEL_FIELDS) assert.ok(bySetting(app, id).length >= 1, `リボンに ${id} の項目がある`);
-  assert.deepEqual(TYPES.filter((t) => bySetting(app, 'layout.types').some((i) => i.command === `layoutType.${t}`)), TYPES, '型の各チェックは 5 つ');
+  assert.deepEqual(TYPES.filter((t) => bySetting(app, 'layout.types').some((i) => i.command === `layoutType.${t}`)), TYPES, '型の各チェックは 6 つ');
   for (const id of PANEL_FIELDS) for (const it of bySetting(app, id)) {
     assert.ok(typeof it.icon === 'string' && it.icon.trim(), `${it.command}: アイコン`);
     assert.ok(it.accessibleName?.trim() && it.accessibleName.includes(it.label), `${it.command}: アクセシブルな名前`);

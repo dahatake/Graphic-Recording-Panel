@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp, makeEnv, keyFor, toDetail, CJK } from './helpers.js';
 
-const TYPES = ['timeline', 'bubble', 'diverge', 'zone', 'metaphor'];
+const TYPES = ['timeline', 'bubble', 'diverge', 'zone', 'metaphor', 'workshop'];
 const weight = (s) => [...s].reduce((n, ch) => n + (CJK.test(ch) ? 1 : 0.5), 0);
 // 空白区切りの語を 2 語以上共有するシーンが同じトピック（PARAM-015）。順序の語・ビジョンの語は含めない。
 const TWO_TOPICS = [['予算 コスト 見直し 必要'], ['予算 コスト 削減 検討'], ['リリース 計画 決定 日程'], ['リリース 計画 担当 確認']];
@@ -27,7 +27,7 @@ const inside = (r, o) => r.x >= o.x && r.y >= o.y && r.x + r.w <= o.x + o.w + 0.
 const overlap = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
 // FR-027 AC-139
-test('FR-027 AC-139: 上部に 5 つの型のアイコンがあり、名称ラベル（PARAM-011 以内）とツールチップを持ち、選択中は色以外でも識別できる', async () => {
+test('FR-027 AC-139: 上部に 6 つの型のアイコン（FR-091 の追加後）があり、名称ラベル（PARAM-011 以内）とツールチップを持ち、選択中は色以外でも識別できる', async () => {
   const { app } = await newApp();
   assert.equal(app.getCommandBar().position, 'top');
   const labels = [];
@@ -40,7 +40,7 @@ test('FR-027 AC-139: 上部に 5 つの型のアイコンがあり、名称ラ�
     app.hideTooltip(it.command, 'leave');
     labels.push(it.label);
   }
-  assert.equal(new Set(labels).size, 5, 'ラベルは型ごとに異なる');
+  assert.equal(new Set(labels).size, 6, 'ラベルは型ごとに異なる');
   const sel = TYPES.filter((id) => barItem(app, id).selected);
   assert.deepEqual(sel, ['timeline'], '初期は固定のタイムラインが選択中');
   for (const id of TYPES) {

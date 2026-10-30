@@ -83,8 +83,8 @@
     "AC-131": "sha256:a16d3de259554f88",
     "AC-133": "sha256:bd912fe37a65725f",
     "AC-137": "sha256:fc3fb6a046a5a16e",
-    "AC-139": "sha256:d92ff20bcefcf0b3",
-    "AC-140": "sha256:2ad6897fb30004c4",
+    "AC-139": "sha256:f4afe441087b88d7",
+    "AC-140": "sha256:5be987d95045a761",
     "AC-145": "sha256:e5246af6ca8a6d0a",
     "AC-146": "sha256:3a206e807dc64097",
     "AC-149": "sha256:7beeaef69388171f",
@@ -238,7 +238,7 @@
     "AC-514": "sha256:0faa36632a862ea8",
     "AC-511": "sha256:b882f15318d530fb",
     "AC-519": "sha256:e59a5839d6fa8676",
-    "AC-520": "sha256:14b573b98403a6ff",
+    "AC-520": "sha256:3f494c793a29f5b2",
     "AC-521": "sha256:52662eceeb1c94bf",
     "AC-523": "sha256:0a66bd7b2ff7dc98",
     "AC-528": "sha256:85f3823e786d60e3",
@@ -251,7 +251,10 @@
     "AC-534": "sha256:2c2b348c7e255ef3",
     "AC-527": "sha256:4260ada969c053ab",
     "AC-536": "sha256:e20824a8d9e4d877",
-    "AC-537": "sha256:dc72a9e396a4d0da"
+    "AC-537": "sha256:dc72a9e396a4d0da",
+    "AC-541": "sha256:23f9420b94c5b58d",
+    "AC-542": "sha256:154aa45b8dfa50ae",
+    "AC-543": "sha256:7fe6f80b98295f5c"
   },
   "cases": [
     {
@@ -2944,7 +2947,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-139\" tests/system/layouttype.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "de1e6cd",
       "last_run_at": "2026-10-30T18:52:50+09:00",
       "evidence": "work/runs/202610301550/logs/system-test/E2E-087-202610301852.log",
@@ -2954,6 +2957,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-30T20:16:23+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "6 型化でテストを拡張。実装待ち"
         }
       ]
     },
@@ -7648,7 +7657,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=AC-519 tests/system/ribbon-settings.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "de1e6cd",
       "last_run_at": "2026-10-30T18:52:50+09:00",
       "evidence": "work/runs/202610301550/logs/system-test/E2E-257-202610301852.log",
@@ -7658,6 +7667,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-30T20:16:23+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "6 型化でテストを拡張。実装待ち"
         }
       ]
     },
@@ -7673,7 +7688,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=AC-520 tests/system/ribbon-settings.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "de1e6cd",
       "last_run_at": "2026-10-30T18:52:50+09:00",
       "evidence": "work/runs/202610301550/logs/system-test/E2E-258-202610301852.log",
@@ -7683,6 +7698,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-30T20:16:24+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "6 型化でテストを拡張。実装待ち"
         }
       ]
     },
@@ -7951,6 +7972,93 @@
       "history": [
         {
           "at": "2026-10-27T23:44:56+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-267",
+      "requirement_ids": [
+        "FR-091"
+      ],
+      "ac_ids": [
+        "AC-541"
+      ],
+      "title": "FR-091 AC-541 ワークショップホワイトボード型",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-541\" tests/system/workshop.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-30T20:16:06+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-30T20:16:36+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-541 は検証レベル integration（System Test の対象外。実装役の結合テストで確認）。tests/system/workshop.test.js の契約テストは参考として残す"
+        }
+      ]
+    },
+    {
+      "id": "E2E-268",
+      "requirement_ids": [
+        "FR-091"
+      ],
+      "ac_ids": [
+        "AC-542"
+      ],
+      "title": "FR-091 AC-542 ワークショップホワイトボード型",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-542\" tests/system/workshop.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-30T20:16:08+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-10-30T20:16:37+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-542 は検証レベル integration（System Test の対象外）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-269",
+      "requirement_ids": [
+        "FR-091"
+      ],
+      "ac_ids": [
+        "AC-543"
+      ],
+      "title": "FR-091 AC-543 ワークショップホワイトボード型",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-543\" tests/system/workshop.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-10-30T20:16:09+09:00",
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
