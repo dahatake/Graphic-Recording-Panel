@@ -63,7 +63,7 @@ h1 { font-size: var(--font-size-title); } h2 { font-size: var(--font-size-subtit
 .workspace[data-mode="stacked"] { display: flex; flex-direction: column; gap: var(--space-3); overflow-x: hidden; }
 .workspace[data-mode="stacked"] .panel { position: static; width: auto !important; height: auto !important; }
 .panel[hidden] { display: none; }
-.panel-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-1) var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: var(--stroke) solid var(--color-border-subtle); cursor: grab; touch-action: none; }
+.panel-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-1) var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: var(--stroke) solid var(--color-border-subtle); cursor: grab; touch-action: none; user-select: none; }
 .panel-head h2 { white-space: nowrap; }
 .panel-menu { display: flex; flex-wrap: wrap; gap: 2px; margin-left: auto; }
 .panel-body { padding: var(--space-3); overflow: auto; flex: 1; min-height: 0; min-width: 0; overflow-wrap: anywhere; will-change: transform; /* 専用レイヤー: パネルを動かしても本文（数千件の発話・要点）を再描画しない（NFR-PERF-003 AC-536） */ }
