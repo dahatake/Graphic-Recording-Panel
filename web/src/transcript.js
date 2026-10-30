@@ -33,7 +33,7 @@ export function transcriptModule(ctx) {
     for (let i = 0; i < t.finals.length; i += TRANSCRIPT_CHUNK) {
       const part = t.finals.slice(i, i + TRANSCRIPT_CHUNK);
       const items = part.map((f) => `<li class="transcript-item final" data-kind="final" data-id="${esc(f.id)}">${esc(f.text)}</li>`).join('');
-      chunks.push(`<ol class="transcript-chunk" start="${i + 1}" style="--n:${part.length}">${items}</ol>`);
+      chunks.push(`<ol class="transcript-chunk" data-chunk="t:${i}" start="${i + 1}" style="--n:${part.length}">${items}</ol>`);
     }
     const interim = t.interim
       ? `<p class="transcript-item interim" data-kind="interim"><span class="transcript-tag">${esc(ctx.t('transcript.interim'))}</span> ${esc(t.interim)}</p>`

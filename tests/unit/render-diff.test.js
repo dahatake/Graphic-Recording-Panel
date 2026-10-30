@@ -130,3 +130,16 @@ test('NFR-PERF-003 AC-540 AC-538: ui.js は innerHTML の全置換をせず、�
   assert.match(ui, /fresh\(tr\)/);
   assert.match(ui, /fresh\(o\)/);
 });
+
+// NFR-PERF-003 AC-540: 内容が変わらないまとまり（data-chunk）は解析・比較を省き、変わったまとまりだけを当てる
+test('NFR-PERF-003 AC-540: patchHtml は変わらないまとまりのノードを残し、変わったまとまりだけを更新する', () => {
+  const r = root();
+  const ch = (k, items) => `<ul data-chunk="${k}">${items.map((i) => `<li data-point-id="${i}">${i}</li>`).join('')}</ul>`;
+  patchHtml(r, `<div>${ch('s:0', ['a', 'b'])}${ch('s:1', ['c'])}</div>`, doc);
+  const [c0, c1] = r.childNodes[0].childNodes;
+  patchHtml(r, `<div>${ch('s:0', ['a', 'b'])}${ch('s:1', ['c', 'd'])}</div>`, doc);
+  const [n0, n1] = r.childNodes[0].childNodes;
+  assert.equal(n0, c0); assert.equal(n1, c1);
+  assert.equal(n0.childNodes.length, 2); assert.equal(n1.childNodes.length, 2);
+  assert.equal(n0.hasAttribute('data-chunk-keep'), false);
+});

@@ -4,7 +4,10 @@
 // 変わっていない項目のノードはそのまま残し（同一性を保つ）、追加・変更されるノードの数はデータ量に比例しない。
 // DOM の標準の API（childNodes・insertBefore・removeChild・attributes・isEqualNode）だけを使う。
 
-const KEY_ATTRS = ['data-id', 'data-scene-id', 'data-point-id', 'data-group-id', 'data-kind'];
+const KEY_ATTRS = ['data-chunk', 'data-id', 'data-scene-id', 'data-point-id', 'data-group-id', 'data-kind'];
+
+// まとまりの要素（ul・ol）は入れ子にならず、最初の閉じタグで終わる
+const CHUNK_RE = /<(ul|ol) [^>]*?data-chunk="([^"]*)"[^>]*>[\s\S]*?<\/\1>/g;
 
 // 要素のキー。data-kind は認識文字列の暫定・確定の区別（data-id のない暫定結果を 1 つに対応づける）
 export function keyOf(node) {
@@ -31,6 +34,7 @@ function morphNode(oldNode, newNode) {
     if (oldNode.nodeValue !== newNode.nodeValue) oldNode.nodeValue = newNode.nodeValue;
     return;
   }
+  if (newNode.hasAttribute('data-chunk-keep')) return;
   if (oldNode.isEqualNode(newNode)) return;
   syncAttributes(oldNode, newNode);
   morphChildren(oldNode, newNode);
@@ -71,9 +75,17 @@ export function morphChildren(oldParent, newParent) {
 // container の中身を html にする。前回と同じ HTML なら何もしない（早期 return）。変わったら差分だけを当てる。
 export function patchHtml(container, html, doc = container.ownerDocument) {
   if (container._html === html) return false;
+  // 内容が変わっていないまとまり（data-chunk）は解析も比較もせず、空の目印に置き換えて既存のノードを残す
+  const prev = container._chunks;
+  const chunks = new Map();
+  const slim = html.replace(CHUNK_RE, (m, tag, key) => {
+    chunks.set(key, m);
+    return prev && prev.get(key) === m ? `<${tag} data-chunk="${key}" data-chunk-keep></${tag}>` : m;
+  });
   const tpl = doc.createElement('template');
-  tpl.innerHTML = html;
+  tpl.innerHTML = slim;
   morphChildren(container, tpl.content);
+  container._chunks = chunks;
   container._html = html;
   return true;
 }
