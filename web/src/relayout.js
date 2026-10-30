@@ -73,8 +73,25 @@ export function relayoutModule(ctx) {
   const level = () => api.getDetailLevel?.() ?? 'detail';
   const topics = () => api.getTopics?.() ?? [];
   const ids = () => state.scenes.flatMap((s) => [s.id, ...s.points.map((p) => p.id)]);
-  // 新しい要素（シーン・要点）が前回の再配置の後に加わったか
-  const pending = () => (snap ? ids().some((id) => !snap.known.has(id)) : state.scenes.length > 0);
+  // 新しい要素（シーン・要点）が前回の再配置の後に加わったか。
+  // NFR-PERF-003 AC-536/538: change は見た目だけの通知（パネルの移動など）でも届く。そのたびに全件の ID 配列を作ると、
+  // 件数に比例した使い捨てのメモリが増え、GC が操作の応答に割り込む。配列を作らず走査し、データの版・前回の再配置が同じなら結果を使い回す。
+  let pendingMemo = null; // { ver, snap, value }
+  const computePending = () => {
+    if (!snap) return state.scenes.length > 0;
+    for (const s of state.scenes) {
+      if (!snap.known.has(s.id)) return true;
+      for (const p of s.points) if (!snap.known.has(p.id)) return true;
+    }
+    return false;
+  };
+  const pending = () => {
+    const ver = ctx.getDataVersion?.() ?? null;
+    if (ver != null && pendingMemo && pendingMemo.ver === ver && pendingMemo.snap === snap) return pendingMemo.value;
+    const value = computePending();
+    pendingMemo = ver != null ? { ver, snap, value } : null;
+    return value;
+  };
 
   function canonical() {
     return {
