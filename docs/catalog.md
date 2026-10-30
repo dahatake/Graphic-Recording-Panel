@@ -100,6 +100,7 @@
 | FR-088 | GitHub Copilot の認証（サインイン・トークン）とモデル名の、接続キー画面での設定 | 承認済み | web/src/copilotkeys.js, web/src/apikeys.js, web/src/apikeys-ui.js, web/src/llm.js, web/src/i18n.js, web/styles/app.css, web/sw.js, server/relay.py, server/relay_copilot_signin.py, server/relay_copilot.py, server/relay_proctree.py, server/relay_config.py, server/relay_llmstore.py, users-guide/10-api-keys.md | tests/unit/copilotkeys.test.js, tests/relay/test_relay_copilot_auth.py, tests/relay/test_relay_copilot_cli.py, tests/system/copilot.test.js, tests/system/copilot-relay.test.js | アプリ組立, i18n, デザイン基盤, 中継サーバー |
 | FR-089 | 生成 AI の 1 回の会議の予算 | 承認済み | web/src/budget.js, web/src/llm.js, web/src/app.js, web/src/ui.js, web/sw.js | tests/unit/budget.test.js, tests/unit/budget-usage.test.js, tests/system/budget.test.js | アプリ組立, LLM 連携の制御 |
 | FR-090 | 構造化 Markdown と HTML プレゼンテーションの出力 | 承認済み | web/src/presentexport.js, web/src/commandbar.js, web/src/i18n.js, web/src/app.js, web/sw.js | tests/unit/presentexport.test.js, tests/system/present-export.test.js | アプリ組立 |
+| FR-091 | ワークショップホワイトボード型の描画（手書きワークショップホワイトボードのビジュアル言語） | 承認済み | 未実装 | 未実装 | - |
 
 ## API・イベント
 
