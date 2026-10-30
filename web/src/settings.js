@@ -119,8 +119,9 @@ export function settingsModule(ctx) {
   }
   ctx.registerCommand('layoutType.clear', () => api.clearManualLayout());
   // Ctrl+Alt+Shift+1〜5: その型だけを選ぶ、Ctrl+Alt+Shift+6〜0: 併用に加える／外す、Ctrl+Alt+Shift+Backspace: 手動の選択を解除（Alt+Shift+英字はほかの機能が使用済み）
-  const ONLY_KEYS = { timeline: '1', bubble: '2', diverge: '3', zone: '4', metaphor: '5' };
-  const ADD_KEYS = { timeline: '6', bubble: '7', diverge: '8', zone: '9', metaphor: '0' };
+  // FR-091: ワークショップ型は Ctrl+Alt+Shift+-（その型だけ）と Ctrl+Alt+Shift+=（併用に加える／外す）
+  const ONLY_KEYS = { timeline: '1', bubble: '2', diverge: '3', zone: '4', metaphor: '5', workshop: '-' };
+  const ADD_KEYS = { timeline: '6', bubble: '7', diverge: '8', zone: '9', metaphor: '0', workshop: '=' };
   for (const id of LAYOUT_TYPE_IDS) {
     ctx.registerKey({ key: ONLY_KEYS[id], ctrl: true, alt: true, shift: true, command: `layoutType.${id}` });
     ctx.registerKey({ key: ADD_KEYS[id], ctrl: true, alt: true, shift: true, command: `layoutType.add.${id}` });
