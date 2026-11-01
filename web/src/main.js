@@ -5,6 +5,7 @@ import { mountEditUI } from './edit-ui.js';
 import { mountMinutesUI } from './minutes-ui.js';
 import { mountPromptFallback, mountPromptNotice } from './imageprompt-ui.js';
 import { mountApiKeysUI } from './apikeys-ui.js';
+import { mountRibbonToggle } from './ribbontoggle.js';
 import { relayRequest } from './relayclient.js';
 
 const mq = (q) => (globalThis.matchMedia ? globalThis.matchMedia(q).matches : false);
@@ -32,6 +33,7 @@ mountMinutesUI(app); // FR-094 AC-553〜555: 議事項目の一覧（候補の�
 mountApiKeysUI(app); // FR-084・FR-085: 接続キー画面（中央のモーダル）
 mountPromptNotice(app); // FR-078 AC-470〜473: コピーの前の注意（伏せ字の選択・コピー・キャンセル）
 mountPromptFallback(app); // FR-078 AC-423: クリップボードに書けないときの手でコピーする表示
+mountRibbonToggle(app); // NFR-UX-003 AC-579: 窓の高さが小さいときのリボンの開閉
 ui.measureWorkArea();
 // FR-076 AC-456: 実行中にハイコントラストを切り替えたら、図の配色をシステム色と風の配色の間で切り替える
 globalThis.matchMedia?.('(forced-colors: active)').addEventListener?.('change', (e) => app.setForcedColors?.(e.matches));
