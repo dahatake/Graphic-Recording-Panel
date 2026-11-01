@@ -16,6 +16,12 @@ async function feed(texts, over) {
   return ctx;
 }
 
+// FR-092 AC-544: 漢数字は数の語として妥当な並びだけ（十分・万一・一方などの慣用語は要確認にしない）
+test('FR-092 AC-544: 慣用語の「十分」「万一」「一方」は数として扱わず、二十・三万・十二は数', () => {
+  for (const t of ['十分に進めた', '万一のときは', '一方で進める', '百聞は一見にしかず']) assert.equal(judgeReview(t, {}).reasons.includes('number'), false, t);
+  for (const t of ['二十人', '三万円', '十二個', '千五百件']) assert.equal(judgeReview(t, {}).reasons.includes('number'), true, t);
+});
+
 // FR-092 AC-544
 test('FR-092 AC-544: 数字・日付・固有名詞らしい語で要確認、通常の文は付かず、判定は決定的', () => {
   for (const t of ['予算は100万円です', '予算は１００万円です', '三百人が来る', '2026年11月1日に実施', '11月3日です', '金曜日に会う', '来週やる', '明日までに', '田中さんが来る', '山田様へ', '株式会社テストの案件', 'サーバーを増やす', 'APIを呼ぶ']) {
