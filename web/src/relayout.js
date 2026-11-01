@@ -403,4 +403,7 @@ export function relayoutModule(ctx) {
   // FR-079: 図の情報デザインの記述（種類の順・上限・文字の大きさの階層）
   api.getInfoDesign = () => ({ kindOrder: [...KIND_ORDER], groupMax: GROUP_MAX, typeScale: { ...TYPE_SCALE } });
   api.getArrangedPointOrder = (sceneId) => { const tr = view().trees.get(sceneId); return tr ? leaves(tr).map((l) => [...l.refIds]) : null; };
+  // FR-092: 再配置でまだ位置が確定していない（暫定の表示の）要点か
+  // 最初の再配置の前は、すべての要点が初回の描画であり暫定との区別がないため暫定とはしない（ASSUMPTION）
+  api.isProvisionalPoint = (pointId) => !!snap && !snap.known.has(pointId);
 }

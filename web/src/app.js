@@ -47,6 +47,8 @@ import { imagePromptModule } from './imageprompt.js';
 import { apiKeysModule } from './apikeys.js';
 import { ribbonSettingsModule } from './ribbonsettings.js';
 import { copilotKeysModule } from './copilotkeys.js';
+import { glossaryModule, emptyGlossary } from './glossary.js';
+import { reviewModule } from './review.js';
 import { meetingModule } from './meeting.js';
 import { agendaTimerModule } from './agendatimer.js';
 import { editHistoryModule } from './edithistory.js';
@@ -89,6 +91,7 @@ export async function createApp(options = {}) {
     lang: 'ja', session: 'preparing', utterances: [], scenes: [], selectedSceneId: null,
     viewMode: '2d', input: { draft: '' }, message: null,
     presentation: { status: 'idle', index: null, sceneId: null },
+    glossary: emptyGlossary(), // FR-093: 用語集（セッションに保存）
   };
   let seq = 0;
   let breakScene = false;
@@ -107,6 +110,7 @@ export async function createApp(options = {}) {
     state.selectedSceneId = saved.scenes.some((s) => s.id === saved.selectedSceneId) ? saved.selectedSceneId : null;
     seq = saved.seq;
     state.displayMode = saved.displayMode; state.arrange = saved.arrange; state.topicEdits = saved.topicEdits;
+    state.glossary = saved.glossary; // FR-093 AC-552
     if (saved.utterances.length || saved.scenes.length) state.session = 'paused';
   }
 
@@ -134,11 +138,11 @@ export async function createApp(options = {}) {
   };
   function persistSession() {
     const extras = collectExtras();
-    if (!state.utterances.length && !state.scenes.length && !Object.keys(extras).length) return;
+    if (!state.utterances.length && !state.scenes.length && !state.glossary?.terms?.length && !Object.keys(extras).length) return;
     countCall('autosave');
     P.writeJson(storage, P.SESSION_KEY, {
       utterances: state.utterances, scenes: state.scenes, selectedSceneId: state.selectedSceneId, seq,
-      displayMode: state.displayMode, arrange: state.arrange, topicEdits: state.topicEdits,
+      displayMode: state.displayMode, arrange: state.arrange, topicEdits: state.topicEdits, glossary: state.glossary,
       ...(Object.keys(extras).length ? { extras } : {}),
     });
   }
@@ -218,19 +222,22 @@ export async function createApp(options = {}) {
       if ((state.session !== 'recording' && !opts.anyState) || !list.length) return 0; // FR-039: ファイル取込は状態によらず可（opts.anyState）
       const at0 = opts.at ?? now();
       change((s) => {
-        for (const [i, t] of list.entries()) {
+        for (const [i, raw] of list.entries()) {
           const at = Array.isArray(opts.ats) && opts.ats.length === list.length ? opts.ats[i] : at0;
-          s.utterances.push({ id: nextId('u'), text: t, receivedAt: at });
+            // FR-093 AC-550: 用語集の別表記は、発話として記録する時点で正しい表記に置き換える（置き換える前は rawText に残す。FR-024 AC-572）
+            const t = ctx.applyGlossary ? (ctx.applyGlossary(raw).trim() || raw) : raw;
+            const uid = nextId('u');
+            s.utterances.push({ id: uid, text: t, rawText: raw, receivedAt: at });
           const cur = s.scenes[s.scenes.length - 1];
           const prevAt = s.utterances.length > 1 ? s.utterances[s.utterances.length - 2].receivedAt : null;
           const gap = !opts.noGapSplit && prevAt != null && at - prevAt > gapMs;
           if (cur && cur.status === 'in_progress' && !breakScene && !gap) {
             const n0 = cur.points.length;
-            appendPoints(cur, extractPoints(t), nextId);
+            appendPoints(cur, extractPoints(t), nextId, uid);
             tagNew(cur.points.slice(n0));
           } else {
             if (cur && cur.status === 'in_progress') cur.status = 'confirmed';
-            const sc = newScene(t, nextId);
+            const sc = newScene(t, nextId, uid);
             tagNew(sc.points);
             s.scenes.push(sc);
             if (!s.selectedSceneId) s.selectedSceneId = sc.id;
@@ -299,7 +306,7 @@ export async function createApp(options = {}) {
     return true;
   };
   app.renderOutline = () => {
-    const html = renderOutline(state.scenes, state.selectedSceneId, i18n.t, app.getOutlineAnnotation?.() ?? null, app.getTopicOutline?.() ?? null, { label: (text, p) => kindLabelOf(classifyPoint(p ?? text), state.lang), relations: app.getOutlineRelations?.() ?? [], agendaOf: (id) => app.getSceneAgenda?.(id) ?? null, agendaLabel: i18n.t('timer.sceneAgenda'), markOf: (p) => app.getPointMark?.(p) ?? null });
+    const html = renderOutline(state.scenes, state.selectedSceneId, i18n.t, app.getOutlineAnnotation?.() ?? null, app.getTopicOutline?.() ?? null, { label: (text, p) => kindLabelOf(classifyPoint(p ?? text), state.lang), relations: app.getOutlineRelations?.() ?? [], agendaOf: (id) => app.getSceneAgenda?.(id) ?? null, agendaLabel: i18n.t('timer.sceneAgenda'), markOf: (p) => app.getPointMark?.(p) ?? null, extra: app.getPointExtraHtml ?? null, headingExtra: app.getHeadingExtraHtml ?? null });
     // FR-036 AC-167: 各まとまり（トピック・区画・囲み）の小見出しを文字でも示す（時系列の表示のとき）
     const applied = app.getLayoutInfo?.().applied;
     const groups = applied && state.scenes.length ? (app.getDiagramLayout?.().groups ?? []) : [];
@@ -405,7 +412,7 @@ export async function createApp(options = {}) {
   app.subscribe = (fn) => on('change', fn);
   app.getPanelRenderer = (id) => panelRenderers.get(id) ?? null;
   app.use = async (mod) => { await mod(ctx); };
-  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, sessionModule, settingsModule, stylePickerModule, autoLayoutModule, layoutKindsModule, rpgModule, rpgAudioModule, llmModule, llmDrawModule, stylePresetModule, workshopModule, relayoutModule, liveRefreshModule, speechSettingsModule, budgetModule, presentExportModule, meetingModule, agendaTimerModule, editHistoryModule, facilitationModule, kindStylesModule, ...(options.modules ?? [])]) await app.use(mod);
+  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, sessionModule, settingsModule, stylePickerModule, autoLayoutModule, layoutKindsModule, rpgModule, rpgAudioModule, llmModule, llmDrawModule, stylePresetModule, workshopModule, relayoutModule, liveRefreshModule, speechSettingsModule, budgetModule, presentExportModule, meetingModule, agendaTimerModule, editHistoryModule, facilitationModule, kindStylesModule, glossaryModule, reviewModule, ...(options.modules ?? [])]) await app.use(mod);
 
   // 機能ごとの保存項目の復元（モジュールが保存項目を登録した後）
   if (saved?.extras) ctx.importExtras(saved.extras);

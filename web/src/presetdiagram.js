@@ -3,7 +3,7 @@
 // 図の内容・配置・型・文字は既存の描画と同じで、見た目（配色・紙面・書体・見出しの飾り・吹き出し・線・線画人物）だけが変わる。
 // 見た目の項目を持たない既存の定義（手書き調・アニメ調・シンプル・RPG風）は、従来の描画（diagram.js）のまま（AC-406）。
 // 端末のハイコントラスト（強制カラー）が有効な間は、どの描画スタイルでも図の色を CSS のシステム色にする（AC-456）。
-import { KINDS, STATUS_MARK, classifyPoint, kindLabelOf, textWidth, outline, rng, iconGlyph } from './diagram.js';
+import { KINDS, STATUS_MARK, classifyPoint, kindLabelOf, textWidth, outline, rng, iconGlyph, reviewMarkSvg } from './diagram.js';
 import { sceneEmotions } from './emotion.js';
 import { matchParts, getPartGroup } from './parts.js';
 import {
@@ -317,6 +317,14 @@ export function renderPresetDiagram(scenes, opts, look) {
       g.push(textEl(tx, y + 25, p.text, { size: FS, weight: concl ? 800 : lk.weight, fill: concl ? lk.emphText : lk.textOn(back), back, boxes }));
       g.push(textEl(x + w - 8, y + 13, kindLabelOf(kind, opts.lang), { size: FS_LABEL, weight: lk.labelWeight, fill: lk.textOn(surface), back: surface, anchor: 'end', boxes, extra: ' data-role="kind-label"' }));
       if (hl) g.push(`<g data-role="highlight-icon" transform="translate(${r1(x + w - 18)} ${r1(y - 18)})" fill="none" stroke="${lk.frame}" stroke-width="2" stroke-linejoin="round">${iconGlyph('star')}</g>`);
+      { // FR-092 AC-545: 「要確認」の印（どの画風でも文字「要確認」と枠つきの記号。色だけにしない）
+        const rm = opts.reviewOf?.([p.id]);
+        if (rm?.needsReview) {
+          const label = String(rm.label ?? '要確認'); const bw = Math.min(Math.max(60, label.length * 12 + 26), w); const rx0 = x + w - bw; const ry0 = y + PT_H + 3;
+          g.push(`<rect data-review-mark="1" data-review-reasons="${attr(rm.reasons.join(' '))}" data-style-role="review-frame" x="${r1(rx0)}" y="${r1(ry0)}" width="${r1(bw)}" height="16" rx="3" fill="${lk.frameFill}" stroke="${lk.frame}" stroke-width="1.5"/>`
+            + textEl(rx0 + 6, ry0 + 12, `▲ ${label}`, { size: 11, weight: 700, fill: lk.textOn(lk.frameFill), back: lk.frameFill, boxes, extra: ' data-role="review-label"' }));
+        }
+      }
       sb.push(`<g data-point-id="${attr(p.id)}" data-kind="${kind}"${opts.kindLooks ? ` data-point-style="${attr(lk.styleId ?? '')}" data-font-kind="${pk.font}" font-family="${attr(fontFamilyOf(pk.font))}"` : ''}${hl ? ' data-highlight="1"' : ''}>${g.join('')}</g>`);
       y += PT_H + PT_GAP;
     });
@@ -622,7 +630,7 @@ export function renderPresetSvg(ctx, spec, forced, legacyBase) {
   const api = ctx.api;
   const look = forced ? forcedLook(spec) : buildLook(spec);
   if (ctx.state.displayMode === 'arrange' && api.getArrangement) return finishPresetSvg(restyleLegacy(legacyBase(), look, spec), look);
-  const o = { lang: ctx.state.lang, relations: api.getDiagramRelations?.() ?? [], selectedSceneId: ctx.state.selectedSceneId, highlightPointId: api.getHighlight?.()?.pointId ?? null, t: ctx.t, emotionScenes: emotionBalloonSceneIds(api, ctx.state.scenes), noEmphasis: api.isPhaseHold?.() === true, kindLooks: api.getKindLooks?.() ?? null };
+  const o = { lang: ctx.state.lang, reviewOf: (ids) => api.getReviewMark?.(ids) ?? null, relations: api.getDiagramRelations?.() ?? [], selectedSceneId: ctx.state.selectedSceneId, highlightPointId: api.getHighlight?.()?.pointId ?? null, t: ctx.t, emotionScenes: emotionBalloonSceneIds(api, ctx.state.scenes), noEmphasis: api.isPhaseHold?.() === true, kindLooks: api.getKindLooks?.() ?? null };
   const level = api.getDetailLevel?.() ?? 'detail';
   const main = level !== 'detail' && ctx.state.scenes.length
     ? renderPresetTopics(api.getTopics(), api.getTopicRelations(), ctx.state.scenes, { ...o, level }, look)

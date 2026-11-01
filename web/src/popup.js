@@ -6,13 +6,13 @@ import { NARROW_PX } from './view3d.js';
 
 const MAX_W = 360; const MARGIN = 8; const LINE_PX = 24; const CHROME_PX = 72;
 
-export function renderPopupHtml(scene) {
-  const pts = scene.points.map((p) => `<li data-point-id="${escapeHtml(p.id)}">${escapeHtml(p.text)}</li>`).join('');
-  return `<h3>${escapeHtml(scene.heading)}</h3><ul>${pts}</ul>`;
+export function renderPopupHtml(scene, extra = null, headingExtra = null, li = null) {
+  const pts = scene.points.map((p) => (li ? li(p) : `<li data-point-id="${escapeHtml(p.id)}">${escapeHtml(p.text)}${extra ? extra(p) : ''}</li>`)).join('');
+  return `<h3>${escapeHtml(scene.heading)}</h3>${headingExtra ? headingExtra(scene) : ''}<ul>${pts}</ul>`;
 }
 
-export function renderTopicPopupHtml(topic, scenes) {
-  const body = scenes.map((s) => `<h4>${escapeHtml(s.heading)}</h4><ul>${s.points.map((p) => `<li data-point-id="${escapeHtml(p.id)}">${escapeHtml(p.text)}</li>`).join('')}</ul>`).join('');
+export function renderTopicPopupHtml(topic, scenes, extra = null, headingExtra = null) {
+  const body = scenes.map((s) => `<h4>${escapeHtml(s.heading)}</h4>${headingExtra ? headingExtra(s) : ''}<ul>${s.points.map((p) => `<li data-point-id="${escapeHtml(p.id)}">${escapeHtml(p.text)}${extra ? extra(p) : ''}</li>`).join('')}</ul>`).join('');
   return `<h3>${escapeHtml(topic.title)}</h3>${body}`;
 }
 
@@ -36,6 +36,8 @@ export function popupModule(ctx) {
   let chosenId = null; // 利用者が明示的に選んだシーン（自動の初期選択では開かない）
   let topicId = null; // 2D の大項目で選んだトピック（FR-026 AC-137。シーンの選択は変えない）
   const notify = () => ctx.emit('change', api);
+  // FR-024 AC-572・AC-573・FR-092: 要点に元の発話（sources）・手追加（manual）・AI 要約（aiSummary）・確認状態（review）を添える
+  const pointView = (p) => { const i = api.getPointInfo?.(p.id) ?? { sources: [], manual: false, aiSummary: false }; return { id: p.id, text: p.text, sources: i.sources, manual: i.manual, aiSummary: i.aiSummary, ...(i.review ? { review: i.review } : {}) }; };
   const sel = () => state.scenes.find((s) => s.id === state.selectedSceneId) ?? null;
   const close = () => { if (!open && !focused) return; open = false; focused = false; topicId = null; notify(); };
 
@@ -58,8 +60,8 @@ export function popupModule(ctx) {
     const flat = { points: scenes.flatMap((s) => [{ text: s.heading }, ...s.points]) };
     return {
       open: true, topicId: tp.id, title: tp.title,
-      scenes: scenes.map((s) => ({ id: s.id, heading: s.heading, points: s.points.map((p) => ({ id: p.id, text: p.text })) })),
-      html: renderTopicPopupHtml(tp, scenes), role: 'dialog', label: `${t('popup.label')}: ${tp.title}`, focused, placement: popupPlacement(flat, ctx.env),
+      scenes: scenes.map((s) => ({ id: s.id, heading: s.heading, points: s.points.map(pointView) })),
+      html: renderTopicPopupHtml(tp, scenes, api.getPointExtraHtml, api.getHeadingExtraHtml), role: 'dialog', label: `${t('popup.label')}: ${tp.title}`, focused, placement: popupPlacement(flat, ctx.env),
     };
   };
   api.getScenePopup = () => {
@@ -68,8 +70,8 @@ export function popupModule(ctx) {
     if (!sc) return null;
     const label = `${t('popup.label')}: ${sc.heading}`;
     return {
-      open: true, sceneId: sc.id, heading: sc.heading, points: sc.points.map((p) => ({ id: p.id, text: p.text })),
-      html: renderPopupHtml(sc), role: 'dialog', label, focused,
+      open: true, sceneId: sc.id, heading: sc.heading, points: sc.points.map(pointView),
+      html: renderPopupHtml(sc, api.getPointExtraHtml, api.getHeadingExtraHtml, api.getPointLiHtml), role: 'dialog', label, focused,
       placement: popupPlacement(sc, ctx.env),
     };
   };
