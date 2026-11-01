@@ -52,6 +52,8 @@ const STRINGS = {
     'minutes.reason': '理由', 'minutes.decider': '決定者', 'minutes.related': '関連する決定事項',
     'minutes.assignee': '担当者', 'minutes.due': '期限', 'minutes.doneCriteria': '完了条件',
     'minutes.candidates': '未確定の候補', 'minutes.count': '件', 'minutes.review': '要確認',
+    'minutes.ui.confirm': '確定', 'minutes.ui.reject': '却下', 'minutes.ui.edit': '編集', 'minutes.ui.delete': '削除', 'minutes.ui.save': '保存', 'minutes.ui.cancel': '取り消し',
+    'minutes.ui.add': '議事項目を追加', 'minutes.ui.addButton': '追加', 'minutes.ui.kind': '種類', 'minutes.ui.text': '本文',
     'msg.minutesEmpty': '内容が空です', 'msg.minutesConfirmed': '議事項目を確定しました', 'msg.minutesRejected': '候補を却下しました', 'msg.minutesSaved': '議事項目を保存しました',
   },
   en: {
@@ -60,6 +62,8 @@ const STRINGS = {
     'minutes.reason': 'Reason', 'minutes.decider': 'Decided by', 'minutes.related': 'Related decision',
     'minutes.assignee': 'Owner', 'minutes.due': 'Due', 'minutes.doneCriteria': 'Done when',
     'minutes.candidates': 'Unconfirmed candidates', 'minutes.count': '', 'minutes.review': 'Needs review',
+    'minutes.ui.confirm': 'Confirm', 'minutes.ui.reject': 'Reject', 'minutes.ui.edit': 'Edit', 'minutes.ui.delete': 'Delete', 'minutes.ui.save': 'Save', 'minutes.ui.cancel': 'Cancel',
+    'minutes.ui.add': 'Add a meeting item', 'minutes.ui.addButton': 'Add', 'minutes.ui.kind': 'Type', 'minutes.ui.text': 'Text',
     'msg.minutesEmpty': 'The text is empty', 'msg.minutesConfirmed': 'The item was confirmed', 'msg.minutesRejected': 'The candidate was rejected', 'msg.minutesSaved': 'The item was saved',
   },
 };
