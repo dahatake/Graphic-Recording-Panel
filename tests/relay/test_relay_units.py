@@ -156,8 +156,15 @@ def test_loopback_flag_does_not_open_other_hosts():
     assert cfg.validate_endpoint("https://169.254.169.254/x", True)
 
 
+def _no_saved_llm(monkeypatch):
+    """端末に保存済みの LLM 設定（relay_llmstore.load）から切り離す（GRS07-20）。"""
+    import relay_llmstore
+    monkeypatch.setattr(relay_llmstore, "load", lambda: dict.fromkeys(relay_llmstore.FIELDS))
+
+
 # FR-067 AC-364 既定オフ
 def test_loopback_flag_default_off(monkeypatch):
+    _no_saved_llm(monkeypatch)
     monkeypatch.delenv("RELAY_ALLOW_LOOPBACK_UPSTREAM", raising=False)
     monkeypatch.setenv("LLM_ENDPOINT", "http://127.0.0.1:9/x")
     assert cfg.load_settings().allow_loopback is False
@@ -165,6 +172,7 @@ def test_loopback_flag_default_off(monkeypatch):
 
 # FR-066 AC-345 設定なしでも読める / FR-067 AC-349 環境変数が優先
 def test_load_settings_env_over_file_and_repr_hides_secret(tmp_path, monkeypatch):
+    _no_saved_llm(monkeypatch)
     f = tmp_path / "llm.local.json"
     f.write_text('{"endpoint":"https://a/openai/v1","deployment":"d-file","apiKey":"KEYFILE1234"}', encoding="utf-8")
     for k in ("LLM_ENDPOINT", "LLM_DEPLOYMENT", "LLM_AUTH_METHOD", "LLM_API_KEY"):

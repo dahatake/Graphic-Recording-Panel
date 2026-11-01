@@ -38,6 +38,7 @@ const BASE = {
     'cmd.theme.toggle': '配色の切替（ダーク／ライト）',
     'cmd.layout.reset': '既定のレイアウトに戻す',
   'cmd.review.confirm': '選択中のシーンの要点を確認済みにする',
+  'cmd.point.confidential': '選択した要点の機密の印を付け外し',
   'cmd.edit.undo': '直前の手修正を元に戻す',
     'cmd.layout.tile': 'タイル配置に整列',
     'cmd.layout.focus': 'フォーカス（メインを大きく表示）',
@@ -106,6 +107,7 @@ const BASE = {
     'outline.empty': 'まだシーンがありません',
     'outline.groups': 'まとまりの小見出し',
     'diagram.empty': 'まだ図がありません。記録を開始して発話を入力してください',
+    'diagram.relMore': '他 {n} 件', // FR-053 AC-584
     'cmd.settings.arrangeInterval': '再配置の周期を設定', // FR-080 AC-440
     'cmd.settings.layoutMode': 'レイアウトの決め方を切り替え', 'cmd.sound.toggleMute': '音のミュートを切り替え', 'cmd.sound.setVolume': '音量を上げる', 'cmd.arrange.setInterval': '再配置の周期を切り替え', // FR-030 AC-519
     // FR-098・FR-005・FR-091・FR-097: 議題タイマー・手修正を元に戻す・進行の段階・種類別スタイル
@@ -144,6 +146,7 @@ const BASE = {
     'cmd.theme.toggle': 'Switch color theme (dark/light)',
     'cmd.layout.reset': 'Restore default layout',
   'cmd.review.confirm': 'Confirm the points of the selected scene',
+  'cmd.point.confidential': 'Toggle the confidential mark of the selected point',
   'cmd.edit.undo': 'Undo the last manual edit',
     'cmd.layout.tile': 'Arrange panels as tiles',
     'cmd.layout.focus': 'Focus (enlarge the main panel)',
@@ -210,6 +213,7 @@ const BASE = {
     'outline.empty': 'No scenes yet',
     'outline.groups': 'Group subheadings',
     'diagram.empty': 'No diagram yet. Start recording and enter an utterance',
+    'diagram.relMore': '+{n} more', // FR-053 AC-584
     'cmd.settings.arrangeInterval': 'Set the rearrange interval', // FR-080 AC-440
     'cmd.settings.layoutMode': 'Switch how the layout is decided', 'cmd.sound.toggleMute': 'Toggle sound mute', 'cmd.sound.setVolume': 'Raise the volume', 'cmd.arrange.setInterval': 'Switch the rearrange interval', // FR-030 AC-519
     'cmd.timer.start': 'Start the agenda timer', 'cmd.timer.pause': 'Pause the agenda timer', 'cmd.timer.resume': 'Resume the agenda timer', 'cmd.timer.next': 'Switch to the next agenda item', 'cmd.timer.stop': 'End the agenda timer',

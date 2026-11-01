@@ -43,6 +43,7 @@ export function parseSession(raw) {
         ...(isStr(p.uid) ? { uid: p.uid } : {}), // FR-024 AC-572: 元の発話
         ...(isStr(p.confirmedAt) && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(p.confirmedAt) ? { confirmedAt: p.confirmedAt } : {}), // FR-092 AC-546
         ...(p.aiSummary === true ? { aiSummary: true, aiRaw: isStr(p.aiRaw) ? p.aiRaw : '' } : {}), // FR-024 AC-573
+        ...(p.confidential === true ? { confidential: true } : {}), // FR-104 AC-605: 機密の印
       })),
       relations: s.relations.map((r) => ({ from: r.from, to: r.to })),
       status: s.status,

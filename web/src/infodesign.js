@@ -8,8 +8,8 @@ import { classifyPoint, kindLabelOf } from './diagram.js';
 
 export const GROUP_MAX = 7; // PARAM-088: 1 つのまとまりの要素の数の上限
 export const ALIGN_TOLERANCE_PX = 1; // PARAM-091: 整列の許容差（実装は同じ値で揃えるので差は 0）
-// AC-426: 種類の順（結論・課題・提案・アイデア・未決定・補足）
-export const KIND_ORDER = ['conclusion', 'issue', 'proposal', 'idea', 'undecided', 'note'];
+// AC-426: 種類の順（結論・課題・提案・アイデア・未決定・質問・根拠・行動・補足。AC-427 の 9 種類）
+export const KIND_ORDER = ['conclusion', 'issue', 'proposal', 'idea', 'undecided', 'question', 'evidence', 'action', 'note'];
 // AC-431: 強調のない基準の文字の大きさの階層（コントラスト）。同じ階層は図のどこでも同じ大きさ（反復）。
 export const TYPE_SCALE = Object.freeze({ title: 22, theme: 22, topic: 20, scene: 18, point: 14 });
 
