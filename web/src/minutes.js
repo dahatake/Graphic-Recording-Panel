@@ -61,7 +61,7 @@ const STRINGS = {
     'minutes.candidate': 'Candidate', 'minutes.undecided': 'TBD', 'minutes.none': 'None', 'minutes.heading': 'Meeting items',
     'minutes.reason': 'Reason', 'minutes.decider': 'Decided by', 'minutes.related': 'Related decision',
     'minutes.assignee': 'Owner', 'minutes.due': 'Due', 'minutes.doneCriteria': 'Done when',
-    'minutes.candidates': 'Unconfirmed candidates', 'minutes.count': '', 'minutes.review': 'Needs review',
+    'minutes.candidates': 'Unconfirmed candidates', 'minutes.count': ' items', 'minutes.review': 'Needs review',
     'minutes.ui.confirm': 'Confirm', 'minutes.ui.reject': 'Reject', 'minutes.ui.edit': 'Edit', 'minutes.ui.delete': 'Delete', 'minutes.ui.save': 'Save', 'minutes.ui.cancel': 'Cancel',
     'minutes.ui.add': 'Add a meeting item', 'minutes.ui.addButton': 'Add', 'minutes.ui.kind': 'Type', 'minutes.ui.text': 'Text',
     'msg.minutesEmpty': 'The text is empty', 'msg.minutesConfirmed': 'The item was confirmed', 'msg.minutesRejected': 'The candidate was rejected', 'msg.minutesSaved': 'The item was saved',
