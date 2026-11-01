@@ -101,6 +101,13 @@
 | FR-089 | 生成 AI の 1 回の会議の予算 | 承認済み | web/src/budget.js, web/src/llm.js, web/src/app.js, web/src/ui.js, web/sw.js | tests/unit/budget.test.js, tests/unit/budget-usage.test.js, tests/system/budget.test.js | アプリ組立, LLM 連携の制御 |
 | FR-090 | 構造化 Markdown と HTML プレゼンテーションの出力 | 承認済み | web/src/presentexport.js, web/src/commandbar.js, web/src/i18n.js, web/src/app.js, web/sw.js | tests/unit/presentexport.test.js, tests/system/present-export.test.js | アプリ組立 |
 | FR-091 | ワークショップホワイトボード型の描画（手書きワークショップホワイトボードのビジュアル言語） | 承認済み | web/src/workshop.js, web/src/layouttypes.js, web/src/settings.js, web/src/app.js, web/sw.js | tests/unit/workshop.test.js, tests/unit/layoutsettings.test.js, tests/system/workshop.test.js | アプリ組立, レイアウト型レジストリ, コマンドバー, i18n, キーマップ |
+| FR-092 | 「要確認」の印と確認状態 | 承認済み | 未実装 | 未実装 | - |
+| FR-093 | 用語集と認識語彙の事前登録 | 承認済み | 未実装 | 未実装 | - |
+| FR-094 | 決定事項・保留事項・異論・アクション項目の構造化 | 承認済み | 未実装 | 未実装 | - |
+| FR-095 | 会議の文脈（目的・議題・対象読者）の保存と出力 | 承認済み | 未実装 | 未実装 | - |
+| FR-096 | 画像の出力への構造化した説明 | 承認済み | 未実装 | 未実装 | - |
+| FR-097 | 1 つの図での複数の手書きスタイルの併用（要点の種類ごと） | 承認済み | 未実装 | 未実装 | - |
+| FR-098 | 議題ごとの持ち時間のタイマー | 承認済み | 未実装 | 未実装 | - |
 
 ## API・イベント
 
