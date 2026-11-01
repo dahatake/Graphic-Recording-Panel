@@ -6,6 +6,9 @@
 .scene3d-card ul { margin: 0; padding-left: 1.1em; font-size: .85rem; }
 .scene3d-card.is-selected { border-color: var(--color-primary); }
 .scene3d-card.is-presenting { outline: 3px solid var(--color-warn); }
+/* FR-100 AC-590: プレゼンテーション中に表示される文字は 24 px（図の幅 1920 px 換算＝幅の 1.25%）を下回らない。収まらないときは文字を縮めず、カードを広げる（ダイナミックカメラが拡大して示す） */
+.scene3d-card.is-presenting { width: 480px; margin-left: -240px; }
+.scene3d-card.is-presenting h3, .scene3d-card.is-presenting ul, .scene3d-card.is-presenting .scene3d-values { font-size: max(24px, 1.25vw); }
 .scene3d-card:focus-visible { outline: 3px solid var(--color-primary); }
 
 /* FR-020/021: 評価軸の選択・目盛り・各シーンの値、画面下部の操作説明（トークンのみ使用）。3D の領域が縮むだけで他の表示は隠さない。 */
