@@ -13,8 +13,9 @@ const DATE_RE = /\d{4}\s*[-/年.]\s*\d{1,2}\s*[-/月.]\s*\d{1,2}/;
 async function saveAll(app, env) {
   const out = {};
   env.canvasFactory.log.texts.length = 0;
+  env.downloads.length = 0; // 呼び出しごとに数え直す（累積させない）
   await app.commands['save.png'](); out.png = env.canvasFactory.log.texts.join('\n');
-  await app.commands['save.pdf'](); out.pdf = pdfTexts(env.downloads.at(-1).data).join('\n');
+  await app.commands['save.pdf'](); out.pdf = pdfTexts(env.downloads.at(-1).data);
   await app.commands['save.svg'](); out.svg = String(env.downloads.at(-1).data);
   await app.commands['save.markdown'](); out.md = String(env.downloads.at(-1).data);
   await app.commands['save.html'](); out.html = String(env.downloads.at(-1).data);
