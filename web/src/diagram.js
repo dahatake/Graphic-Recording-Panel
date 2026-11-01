@@ -213,6 +213,27 @@ export function detailGeometry(scenes, trees = null, lang = 'ja', originX = 0) {
   return out;
 }
 
+export const REL_MAX_PER_ELEMENT = 4; // PARAM-136: 1 つの要素に付けて描く関係線の本数の上限
+// FR-053 AC-584: 優先度（明示を推測より先、同じなら話順）で図に残す線を決める。残らない関係は hidden に回り（テキスト一覧には全部ある）、要素ごとの件数が moreCount に入る。
+// 決定的で、入力の関係の並び（話順）だけで決まる（再配置の前後で同じ規則）。
+export function limitRelations(relations, max = REL_MAX_PER_ELEMENT) {
+  const list = relations ?? [];
+  const order = list.map((r, i) => ({ r, i })).sort((x, y) => (x.r.basis === 'inferred') - (y.r.basis === 'inferred') || x.i - y.i);
+  const used = new Map(); const keep = new Set(); const moreCount = new Map();
+  for (const { r, i } of order) {
+    if ((used.get(r.from) ?? 0) < max && (used.get(r.to) ?? 0) < max) { keep.add(i); used.set(r.from, (used.get(r.from) ?? 0) + 1); used.set(r.to, (used.get(r.to) ?? 0) + 1); }
+    else for (const id of new Set([r.from, r.to])) moreCount.set(id, (moreCount.get(id) ?? 0) + 1);
+  }
+  return { drawn: list.filter((_, i) => keep.has(i)), hidden: list.filter((_, i) => !keep.has(i)), moreCount };
+}
+// 関係線の線種（色だけに頼らない）: 種類ごとに線の形を変え、推測は破線。対立は両端が矢印。
+export function relationStroke(r) {
+  if (r.basis === 'inferred') return { dash: '5 4', width: 2 };
+  return { dash: { opposition: '9 3 2 3', evidence: '2 4' }[r.kind] ?? '', width: r.kind === 'next-step' ? 3.2 : 2 };
+}
+export const relationLabelText = (r) => `${r.kindLabel}（${r.basisLabel}）`;
+export const relationArrow = (r) => (r.bidirectional ? '↔' : '→');
+
 // scenes: アプリの状態のシーン配列。opts: { selectedSceneId, t, title, trees（FR-079 の再配置の木） }
 export function renderDiagramSvg(scenes, opts = {}) {
   ST = opts.style ?? HAND;
@@ -300,12 +321,13 @@ export function renderDiagramSvg(scenes, opts = {}) {
     x += w + SCENE_GAP;
   });
   // FR-053: 要点どうしの関係線（種類のラベル・向き=始点→終点の矢印・明示/推測）。推測は破線＋文字「推測」で、明示と見分ける。
-  const relSvg = (opts.relations ?? []).map((r, ri) => {
+  const limited = limitRelations(opts.relations ?? []);
+  const relSvg = limited.drawn.map((r, ri) => {
     const a = rects.get(r.from); const b = rects.get(r.to);
     if (!a || !b || (a.x === b.x && a.y === b.y)) return '';
-    const inferred = r.basis === 'inferred';
-    const dashA = inferred ? ' stroke-dasharray="5 4"' : '';
-    const label = `${r.kindLabel}（${r.basisLabel}）`;
+    const st = relationStroke(r);
+    const dashA = st.dash ? ` stroke-dasharray="${st.dash}"` : '';
+    const label = relationLabelText(r);
     const ya = a.y + BUBBLE_H / 2; const yb = b.y + BUBBLE_H / 2;
     let d; let lx; let ly;
     if (a.sceneId === b.sceneId) {
@@ -315,9 +337,11 @@ export function renderDiagramSvg(scenes, opts = {}) {
       const fwd = b.x >= a.x; const x1 = fwd ? a.x + a.w : a.x; const x2 = fwd ? b.x - 3 : b.x + b.w + 3;
       d = `M${r1(x1)} ${r1(ya)} L${r1(x2)} ${r1(yb)}`; lx = (x1 + x2) / 2; ly = (ya + yb) / 2 - 4;
     }
-    return `<g data-role="point-relation"><path data-relation-kind="${attr(r.kind)}" data-relation-from="${attr(r.from)}" data-relation-to="${attr(r.to)}" data-relation-basis="${attr(r.basis)}" d="${d}" fill="none" stroke="${INK}" stroke-width="2"${dashA} marker-end="url(#arrow-flow)"/>`
+    return `<g data-role="point-relation"><path data-relation-kind="${attr(r.kind)}" data-relation-from="${attr(r.from)}" data-relation-to="${attr(r.to)}" data-relation-basis="${attr(r.basis)}"${r.bidirectional ? ' data-relation-bidirectional="1"' : ''} d="${d}" fill="none" stroke="${INK}" stroke-width="${st.width}"${dashA} marker-end="url(#arrow-flow)"${r.bidirectional ? ' marker-start="url(#arrow-flow)"' : ''}/>`
       + `<text data-relation-label x="${r1(lx)}" y="${r1(ly)}" font-size="11" font-weight="700" fill="${INK}">${esc(label)}</text></g>`;
-  }).join('');
+  }).join('')
+    // AC-584: 図に描かない関係の件数を、要素の脇に文字で示す（関係はテキスト一覧にある）
+    + [...limited.moreCount].map(([id, n]) => { const a = rects.get(id); return a ? `<text data-role="relation-more" data-relation-more-for="${attr(id)}" x="${r1(a.x + a.w - 4)}" y="${r1(a.y + BUBBLE_H + 11)}" font-size="10" text-anchor="end" fill="${INK}">${esc(t('diagram.relMore').replace('{n}', String(n)))}</text>` : ''; }).join('');
   // シーン間の矢印（時系列）
   const flows = heads.slice(0, -1).map((h, i) => {
     const y = MARGIN + HEAD_H / 2; const nx = heads[i + 1].x;
@@ -327,7 +351,7 @@ export function renderDiagramSvg(scenes, opts = {}) {
   const width = Math.max(320, emptyW, x - SCENE_GAP + MARGIN);
   const height = Math.max(160, maxH);
   const markers = PALETTE.map((c, i) => `<marker id="arrow-${i}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`).join('')
-    + `<marker id="arrow-flow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="${INK}"/></marker>`
+      + `<marker id="arrow-flow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${INK}"/></marker>`
     + `<marker id="arrow-hl" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="${HL_COLOR}"/></marker>`;
   const title = esc(opts.title ?? '');
   const empty = scenes.length ? '' : `<text x="${MARGIN}" y="${MARGIN + 24}" font-size="${FS}" fill="${INK}">${esc(t('diagram.empty'))}</text>`;
