@@ -165,7 +165,7 @@ test('FR-077 AC-419: 上部で選んだ描画スタイルで PNG・SVG・PDF を
     await app.commands['save.svg'](); await app.commands['save.pdf']();
     const [png, svg, pdf] = env.downloads.slice(n);
     assert.equal(png.mime, 'image/png'); assert.equal(pdf.mime, 'application/pdf');
-    assert.equal(svg.data, app.renderSvg(), `${id}: 保存した SVG は画面の図と同じ`);
+    assert.equal(svg.data.replace(/<desc>[\s\S]*?<\/desc>/, ''), app.renderSvg(), `${id}: 保存した SVG は画面の図と同じ（FR-096: <desc> の説明だけが加わる）`);
     assert.match(svg.data, new RegExp(`data-draw-style="${id}"`));
     const texts = [...svg.data.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)].map((m) => m[1].replace(/<[^>]+>/g, '')).join('');
     for (const s of strings) { assert.ok(texts.includes(s), `${id}: SVG に「${s}」`); assert.ok(pdfTexts(pdf.data).includes(s), `${id}: PDF に「${s}」`); assert.ok(cv.ops.some((o) => o[0] === 'fillText' && o[1] === s), `${id}: PNG に「${s}」`); }
@@ -263,7 +263,7 @@ test('FR-077 AC-419: 強制カラーの間も、保存する SVG・PNG・PDF は
   assert.match(app.renderSvg(), /CanvasText/);
   await app.commands['save.svg']();
   const svg = env.downloads.at(-1).data;
-  assert.equal(svg, before.svg, '保存する SVG は風の配色（強制カラーでないときの図と同じ）');
+  assert.equal(svg.replace(/<desc>[\s\S]*?<\/desc>/, ''), before.svg.replace(/<desc>[\s\S]*?<\/desc>/, ''), '保存する SVG は風の配色（強制カラーでないときの図と同じ。FR-096 の <desc> を除く）');
   assert.doesNotMatch(svg, /CanvasText|ButtonText/);
   await app.commands['save.png'](); assert.equal(JSON.stringify(cv.ops), before.png, 'PNG は風の配色');
   await app.commands['save.pdf'](); assert.equal(Buffer.from(env.downloads.at(-1).data).toString('latin1'), before.pdf, 'PDF は風の配色');

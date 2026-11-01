@@ -2,6 +2,8 @@ import { paintRpgCanvas } from './rpgmap.js';
 import { buildLook, jaggedPoints, emotionBalloonSceneIds } from './presetdiagram.js';
 import { presetOf, fontFamilyOf, LEGACY_FONT_FAMILY } from './stylepresets.js';
 import { classifyPoint } from './diagram.js';
+import { layoutHeader, headerModel, meetingLabels } from './meetingout.js';
+import { addPngText } from './pngmeta.js';
 // FR-006（PNG・SVG 保存）/ FR-007（PDF 保存）。外部通信なし・依存なし（PDF は自前で生成する）。
 // 保存は「表示中のビュー」ではなく常に 2D の図の内容（全シーンの見出しと要点）を出力する。3D 表示中はその旨を表示する（AC-014）。
 // シーンが 0 件のときは保存できず、理由を表示する（AC-046）。
@@ -90,7 +92,7 @@ export function wrapLines(text, fs, width) {
 const rgb = (v) => [1, 3, 5].map((i) => (parseInt(hex6(v).slice(i, i + 2), 16) / 255).toFixed(3)).join(' ');
 const JAG_PX = 3; // 保存（PNG・PDF）の感情の吹き出しの歯の高さ（行の間隔に収める）
 // FR-076 AC-467: emotion（吹き出し型で感情語を含むトピックのシーンの id の集合）のシーンの要点は、ギザギザの吹き出し（jaggedPoints）で描く
-export function buildPdf(scenes, { title = '', arrange = null, parts = null, look = null, emotion = null } = {}) {
+export function buildPdf(scenes, { title = '', arrange = null, parts = null, look = null, emotion = null, header = null, desc = '', descLabel = '', infoTitle = '' } = {}) {
   const FS_H = 15; const FS_P = 11; const LH_H = 22; const LH_P = 16;
   const width = A4.w - A4.margin * 2;
   // FR-077 AC-419: 描画スタイルの紙面（背景色・方眼・罫線）を各ページの最初に描く
@@ -141,6 +143,7 @@ export function buildPdf(scenes, { title = '', arrange = null, parts = null, loo
     y -= lines.length * lh + 4;
   };
   if (title) block(title, 12, 18, 0, look ? 'title' : null);
+  for (const l of header?.lines ?? []) block(l, FS_P, LH_P, 0); // FR-095 AC-560: 日付・議題（日付が空・議題が 0 件なら行がない）
   if (arrange) {
     // FR-016 AC-089: 整理の表示。軸の名前・区分の見出しと、区分（未分類を含む）ごとのオブジェクトを出力する。
     const g = arrange.geometry;
@@ -168,6 +171,13 @@ export function buildPdf(scenes, { title = '', arrange = null, parts = null, loo
     block(parts.map((p) => p.label).join(' / '), FS_P, LH_P, 0);
   }
 
+  // FR-096 AC-562: 末尾の「図の説明」の項（SVG の <desc> と同じ内容）
+  if (desc) {
+    y -= 10;
+    if (descLabel) block(descLabel, FS_H, LH_H, 0);
+    for (const l of String(desc).split('\n')) block(l, FS_P, LH_P, 0);
+  }
+
   const objs = []; // 1 起点の番号 → 本文
   const add = (body) => { objs.push(body); return objs.length; };
   add('<< /Type /Catalog /Pages 2 0 R >>'); // 1
@@ -183,12 +193,14 @@ export function buildPdf(scenes, { title = '', arrange = null, parts = null, loo
     kids.push(`${p} 0 R`);
   }
   objs[1] = `<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${kids.length} >>`;
+  // FR-096 AC-562: 文書情報の Title・Subject（UTF-16BE の PDF 文字列）
+  const infoNo = desc ? add(`<< /Title <FEFF${utf16Hex(infoTitle || title)}> /Subject <FEFF${utf16Hex(desc)}> >>`) : 0;
 
   let out = '%PDF-1.4\n'; const offsets = [];
   objs.forEach((b, i) => { offsets.push(out.length); out += `${i + 1} 0 obj\n${b}\nendobj\n`; });
   const xref = out.length;
   out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n${offsets.map((o) => `${String(o).padStart(10, '0')} 00000 n \n`).join('')}`;
-  out += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  out += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R${infoNo ? ` /Info ${infoNo} 0 R` : ''} >>\nstartxref\n${xref}\n%%EOF\n`;
   return Uint8Array.from(out, (ch) => ch.charCodeAt(0) & 0xff); // 全体が ASCII
 }
 
@@ -225,9 +237,22 @@ async function partsBand(items, width, imageFactory) {
 }
 
 // ---- PNG（canvasFactory に全シーンの見出しと要点を描く） ----
-export async function renderPng(scenes, canvasFactory, { title = '', arrange = null, parts = null, imageFactory = null, look = null, emotion = null } = {}) {
-  if (arrange) return renderArrangedPng(scenes, arrange, canvasFactory, parts, imageFactory);
-  if (look) return renderStyledPng(scenes, canvasFactory, look, parts, imageFactory, emotion);
+// FR-095 AC-560: header（表題・日付・議題。meetingout.headerModel）を上端に描く。FR-096 AC-562: meta（{ title, description }）を iTXt（UTF-8）で付ける。
+export async function renderPng(scenes, canvasFactory, opts = {}) {
+  const bytes = await renderPngBody(scenes, canvasFactory, opts);
+  const meta = opts.meta;
+  return meta ? addPngText(bytes, [['Title', meta.title], ['Description', meta.description]]) : bytes;
+}
+// 見出しの帯を描く（呼び出し側が先に紙面を塗る）。以降の描画は帯の高さだけ下へずらす。
+function drawHeader(g, hdr, ink, w) {
+  if (!hdr.height) return;
+  g.textBaseline = 'alphabetic'; g.fillStyle = ink;
+  for (const r of hdr.rows) { g.font = `${r.bold ? '700 ' : ''}${r.size}px ${LEGACY_FONT_FAMILY}`; g.fillText(r.text, hdr.margin, r.y, Math.max(40, w - hdr.margin * 2)); }
+  g.translate?.(0, hdr.height);
+}
+async function renderPngBody(scenes, canvasFactory, { title = '', arrange = null, parts = null, imageFactory = null, look = null, emotion = null, header = null } = {}) {
+  if (arrange) return renderArrangedPng(scenes, arrange, canvasFactory, parts, imageFactory, header);
+  if (look) return renderStyledPng(scenes, canvasFactory, look, parts, imageFactory, emotion, header);
   const FS_H = 18; const FS_P = 15; const ROW_H = 30; const HEAD_H = 40; const GAP = 22;
   const font = (px, bold) => `${bold ? '700 ' : ''}${px}px ${LEGACY_FONT_FAMILY}`;
   const probe = canvasFactory(8, 8).getContext('2d');
@@ -239,10 +264,12 @@ export async function renderPng(scenes, canvasFactory, { title = '', arrange = n
   w = Math.ceil(w + MARGIN * 2);
   const band = await partsBand(parts, w, imageFactory);
   const baseH = Math.ceil(MARGIN * 2 + scenes.reduce((a, sc) => a + HEAD_H + sc.points.length * ROW_H + GAP, 0));
-  const h = baseH + band.h;
+  const hdr = layoutHeader(header, w, { margin: MARGIN });
+  const h = baseH + band.h + hdr.height;
   const canvas = canvasFactory(w, h);
   const g = canvas.getContext('2d');
   g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h);
+  drawHeader(g, hdr, '#15191f', w);
   let y = MARGIN;
   scenes.forEach((sc, i) => {
     const color = PALETTE[i % PALETTE.length];
@@ -265,7 +292,7 @@ export async function renderPng(scenes, canvasFactory, { title = '', arrange = n
 
 // FR-075・FR-077 AC-419: 画風プリセットの見た目で描く PNG（紙面と質感・配色・見出しの飾り・吹き出し・線の太さ・書体の系統）。文字は fillText で全部描く
 // FR-076 AC-467: emotion（吹き出し型で感情語を含むトピックのシーンの id の集合）のシーンの吹き出しは、画面の図と同じギザギザ（jaggedPoints）で描く
-async function renderStyledPng(scenes, canvasFactory, look, parts, imageFactory, emotion = null) {
+async function renderStyledPng(scenes, canvasFactory, look, parts, imageFactory, emotion = null, header = null) {
   const FS_H = 18; const FS_P = 15; const ROW_H = 34; const HEAD_H = 44; const GAP = 22;
   const font = (px, weight, family = look.fontFamily) => `${weight ? `${weight} ` : ''}${px}px ${family}`;
   const probe = canvasFactory(8, 8).getContext('2d');
@@ -275,11 +302,13 @@ async function renderStyledPng(scenes, canvasFactory, look, parts, imageFactory,
   w = Math.ceil(w + MARGIN * 2);
   const band = await partsBand(parts, w, imageFactory);
   const baseH = Math.ceil(MARGIN * 2 + scenes.reduce((a, sc) => a + HEAD_H + sc.points.length * ROW_H + GAP, 0));
-  const h = baseH + band.h;
+  const hdr = layoutHeader(header, w, { margin: MARGIN });
+  const h = baseH + band.h + hdr.height;
   const canvas = canvasFactory(w, h);
   const g = canvas.getContext('2d');
   g.fillStyle = look.background; g.fillRect(0, 0, w, h);
   for (const t of paperTexture(look, w, h)) { g.strokeStyle = t.color; g.lineWidth = t.width; g.beginPath(); g.moveTo(t.x1, t.y1); g.lineTo(t.x2, t.y2); g.stroke(); } // 紙面の質感
+  drawHeader(g, hdr, look.text, w);
   const round = (x, y, rw, rh, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + rw, y, x + rw, y + rh, r); g.arcTo(x + rw, y + rh, x, y + rh, r); g.arcTo(x, y + rh, x, y, r); g.arcTo(x, y, x + rw, y, r); g.closePath(); };
   let y = MARGIN;
   scenes.forEach((sc, i) => {
@@ -313,13 +342,15 @@ async function renderStyledPng(scenes, canvasFactory, look, parts, imageFactory,
 }
 
 // FR-016 AC-089: 整理の表示の PNG（軸の名前・区分の見出し・未分類の領域・各オブジェクトを、整理の配置どおりに描く）
-async function renderArrangedPng(scenes, model, canvasFactory, parts = null, imageFactory = null) {
+async function renderArrangedPng(scenes, model, canvasFactory, parts = null, imageFactory = null, header = null) {
   const g = model.geometry;
   const font = (px, bold) => `${bold ? '700 ' : ''}${px}px ${LEGACY_FONT_FAMILY}`;
   const band = await partsBand(parts, g.width, imageFactory);
-  const canvas = canvasFactory(g.width, g.height + band.h);
+  const hdr = layoutHeader(header, g.width, { margin: MARGIN });
+  const canvas = canvasFactory(g.width, g.height + band.h + hdr.height);
   const c = canvas.getContext('2d');
-  c.fillStyle = '#ffffff'; c.fillRect(0, 0, g.width, g.height + band.h);
+  c.fillStyle = '#ffffff'; c.fillRect(0, 0, g.width, g.height + band.h + hdr.height);
+  drawHeader(c, hdr, '#15191f', g.width);
   band.draw(c, g.height);
   c.textBaseline = 'middle';
   const ink = '#15191f';
@@ -440,10 +471,17 @@ export function exportModule(ctx) {
     for (const tp of ctx.api.getTopics?.() ?? []) if (tp.sceneIds.some((id) => ids.has(id))) out.add(tp.id); // 大項目・中項目の行はトピックの id
     return out;
   };
-  ctx.registerCommand('save.pdf', () => run('pdf', 'application/pdf', () => buildPdf(arranged() ? ctx.state.scenes : scenes(), { title: ctx.t('app.title'), arrange: arranged(), parts: drawn(), look: look(), emotion: emotion() })));
+  // FR-095・FR-096: 会議の文脈（表題・日付・議題）と図の説明。meeting.js が api に置く（なければ従来の表題だけ）
+  const meetingOut = () => ctx.api.getMeetingOutput?.() ?? null;
+  const pdfMeeting = () => {
+    const mo = meetingOut(); const fd = ctx.api.getFigureDescription?.() ?? null;
+    return { title: mo?.title || ctx.t('app.title'), header: headerModel(mo, ctx.state.lang), desc: fd?.text ?? '', descLabel: meetingLabels(ctx.state.lang).desc, infoTitle: mo?.title || ctx.t('app.title') };
+  };
+  ctx.registerCommand('save.pdf', () => run('pdf', 'application/pdf', () => buildPdf(arranged() ? ctx.state.scenes : scenes(), { ...pdfMeeting(), arrange: arranged(), parts: drawn(), look: look(), emotion: emotion() })));
   ctx.registerCommand('save.png', () => run('png', 'image/png', async () => {
     const factory = ctx.options.canvasFactory ?? browserCanvasFactory();
     if (!factory) throw new Error('no canvas');
-    return renderPng(arranged() ? ctx.state.scenes : scenes(), factory, { arrange: arranged(), rpg: ctx.api.getRpgMap?.() ?? null, parts: drawn(), imageFactory: ctx.options.imageFactory ?? null, look: look(), emotion: emotion() });
+    const mo = meetingOut(); const fd = ctx.api.getFigureDescription?.() ?? null;
+    return renderPng(arranged() ? ctx.state.scenes : scenes(), factory, { arrange: arranged(), rpg: ctx.api.getRpgMap?.() ?? null, parts: drawn(), imageFactory: ctx.options.imageFactory ?? null, look: look(), emotion: emotion(), header: mo ? headerModel(mo, ctx.state.lang) : null, meta: fd ? { title: fd.title || mo?.title || ctx.t('app.title'), description: fd.text } : null });
   }));
 }
