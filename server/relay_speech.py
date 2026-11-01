@@ -437,9 +437,60 @@ def parse_phrases(header):
     return out
 
 
+FAST_PATH = "/speechtotext/transcriptions:transcribe?api-version=2025-10-15"
+
+
+def build_fast_request(language, audio, phrases, boundary=None):
+    """fast transcription API の multipart/form-data（audio=WAV、definition=JSON）。(content_type, body bytes)。"""
+    boundary = boundary or "grp" + os.urandom(12).hex()
+    definition = json.dumps({"locales": [language], "phraseList": {"phrases": list(phrases)}}, ensure_ascii=False)
+    crlf = b"\r\n"
+    body = (b"--" + boundary.encode() + crlf
+            + b'Content-Disposition: form-data; name="audio"; filename="audio.wav"' + crlf
+            + b"Content-Type: audio/wav" + crlf + crlf + audio + crlf
+            + b"--" + boundary.encode() + crlf
+            + b'Content-Disposition: form-data; name="definition"' + crlf
+            + b"Content-Type: application/json" + crlf + crlf + definition.encode("utf-8") + crlf
+            + b"--" + boundary.encode() + b"--" + crlf)
+    return "multipart/form-data; boundary=" + boundary, body
+
+
+def parse_fast_response(body):
+    """fast transcription の応答を認識結果の文字列にする。形式が違えば None。"""
+    try:
+        data = json.loads(body.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    combined = data.get("combinedPhrases")
+    if isinstance(combined, list) and combined and isinstance(combined[0], dict) and isinstance(combined[0].get("text"), str):
+        return combined[0]["text"]
+    phrases = data.get("phrases")
+    if isinstance(phrases, list):
+        return "".join(p["text"] for p in phrases if isinstance(p, dict) and isinstance(p.get("text"), str))
+    return None
+
+
+def _recognize_fast(cfg, ep, language, audio, phrases, deadline):
+    """語彙つきの認識。成功で文字列、失敗（404・400・接続・形式違い）で None（呼び出し側が従来の REST に戻す）。"""
+    base, host = ep["token"]  # 同じリージョン／カスタムドメインの cognitive エンドポイントだけ
+    ctype, body = build_fast_request(language, audio, phrases)
+    try:
+        status, resp = _request(base, host, "POST", FAST_PATH,
+                                {"Ocp-Apim-Subscription-Key": cfg.key, "Content-Type": ctype, "Accept": "application/json"},
+                                body, deadline)
+    except _Fail:
+        return None
+    if status != 200:
+        return None
+    return parse_fast_response(resp)
+
+
 def recognize(language, audio, phrases=None):
     """POST /api/speech/recognize。音声を認識のホストだけへ送り、確定結果の文字列を返す。音声・文字列は保存・ログ出力しない。
-    phrases: 認識語彙（parse_phrases の結果）。認識の要求に phraseList として付ける（新しい通信先は増やさない）。"""
+    phrases: 認識語彙（parse_phrases の結果）。1 件以上あるときだけ fast transcription API（phraseList）を使い、
+    失敗したら語彙なしの短い音声の REST に戻す。"""
     if language not in LANGUAGES:
         return 400, {"ok": False, "result": "invalid", "reason": "language は ja-JP か en-US にしてください。"}
     cfg = load()
@@ -447,11 +498,12 @@ def recognize(language, audio, phrases=None):
     if not ep or not cfg.key:
         return 200, {"ok": False, "result": "unconfigured"}
     deadline = time.time() + RECOGNIZE_TIMEOUT_SEC
+    if phrases:
+        fast = _recognize_fast(cfg, ep, language, audio, phrases, time.time() + RECOGNIZE_TIMEOUT_SEC / 2)
+        if fast is not None:
+            return 200, {"ok": True, "result": "success", "text": fast}
     base, host = ep["stt"]
     path = "%s?language=%s&format=simple" % (ep["stt_path"], language)
-    if phrases:
-        from urllib.parse import quote
-        path += "&phraseList=" + quote(json.dumps(phrases, ensure_ascii=False), safe="")
     headers = {"Content-Type": "audio/wav; codecs=audio/pcm; samplerate=16000", "Accept": "application/json"}
     try:
         for attempt in (0, 1):
