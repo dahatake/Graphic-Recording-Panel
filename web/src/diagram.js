@@ -643,7 +643,7 @@ function applyProjectionWarnings(canvas, app) {
   const w = app.getProjectionWarnings?.();
   const svg = canvas.querySelector('svg');
   if (!w || !w.count || !svg || !svg.ownerDocument.createElementNS) return;
-  const NS = 'http://www.w3.org/2000/svg'; const doc = svg.ownerDocument;
+  const NS = svg.namespaceURI; const doc = svg.ownerDocument;
   for (const it of w.items) {
     const host = it.kind === 'scene' ? svg.querySelector(`text[data-role="scene-heading"][data-scene-id="${CSS.escape?.(it.id) ?? it.id}"]`) : svg.querySelector(`g[data-point-id="${CSS.escape?.(it.id) ?? it.id}"]`);
     if (!host || !host.getBBox) continue;

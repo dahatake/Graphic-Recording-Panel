@@ -34,7 +34,7 @@ export function findSmallText(elements, preset, { presenting = false } = {}) {
 
 const STRINGS = {
   ja: {
-    'projection.label': '投影のプリセット', 'projection.none': '使わない',
+    'projection.label': '投影', 'projection.none': '使わない',
     'projection.meeting-small': '会議室（小）', 'projection.meeting-large': '会議室（大）', 'projection.hall': 'ホール',
     'projection.small': '小さい文字', 'projection.unit': 'px',
     'projection.optionText': '{name}（幅 {w} px・{d} m・最小 {min} px）',
@@ -44,7 +44,7 @@ const STRINGS = {
     'projection.invalid': '投影のプリセットは、リストの中から選んでください',
   },
   en: {
-    'projection.label': 'Projection preset', 'projection.none': 'Not used',
+    'projection.label': 'Projection', 'projection.none': 'Not used',
     'projection.meeting-small': 'Small meeting room', 'projection.meeting-large': 'Large meeting room', 'projection.hall': 'Hall',
     'projection.small': 'Small text', 'projection.unit': 'px',
     'projection.optionText': '{name} (width {w} px, {d} m, minimum {min} px)',
@@ -87,7 +87,9 @@ export function projectionModule(ctx) {
   const presenting = () => (state.presentation?.status ?? 'idle') !== 'idle';
 
   let memo = null; // NFR-PERF-003: データの版数・プリセット・プレゼン状態が同じなら判定をやり直さない
+  const NONE = { preset: null, minPx: null, count: 0, items: [], ids: new Set() };
   api.getProjectionWarnings = () => {
+    if (!preset) return NONE;
     const key = `${ctx.getDataVersion?.() ?? 'x'}|${preset?.id ?? ''}|${presenting()}|${state.lang}`;
     if (memo && memo.key === key && memo.key.indexOf('x|') !== 0) return memo.value;
     const items = findSmallText(elements(), preset, { presenting: presenting() }).map((w) => ({
