@@ -460,6 +460,17 @@ export function mountUI(app, doc = document) {
           row(`meeting.${f.id}`, f.label, c);
         }
       }
+      // FR-104 AC-603・AC-606: 公開範囲（社内・参加者のみ・公開）と、保存で機密の要点を除く選択。記録中・一時停止でも変えられる
+      const vf = app.getVisibilityForm?.();
+      if (vf) {
+        const vs = doc.createElement('select'); vs.dataset.visibilityField = 'level';
+        for (const o2 of vf.options) { const op = doc.createElement('option'); op.value = o2.value; op.textContent = o2.label; vs.append(op); }
+        vs.addEventListener('change', () => app.setVisibility(vs.value));
+        row('visibility.level', vf.label, vs);
+        const ve = doc.createElement('input'); ve.type = 'checkbox'; ve.setAttribute('role', 'switch'); ve.dataset.visibilityField = 'exclude';
+        ve.addEventListener('change', () => app.setExcludeConfidential(ve.checked));
+        row('visibility.exclude', vf.excludeLabel, ve);
+      }
       // FR-051 AC-228: RPG風の音（端末ごとに保存。ミュート・音量）
       const mute = doc.createElement('input'); mute.type = 'checkbox';
       mute.addEventListener('change', () => app.setRpgMuted(mute.checked));
@@ -565,6 +576,13 @@ export function mountUI(app, doc = document) {
     { // FR-095 AC-558: 入力欄の値を保存値に合わせる（入力中の欄は触らない）
       const mv = app.getMeetingFormValues?.();
       if (mv) for (const c of setEl.querySelectorAll('[data-meeting-field]')) if (doc.activeElement !== c && c.value !== (mv[c.dataset.meetingField] ?? '')) c.value = mv[c.dataset.meetingField] ?? '';
+    }
+    { // FR-104: 公開範囲と「機密の要点を除く」の表示
+      const vf = app.getVisibilityForm?.();
+      if (vf) {
+        const vs = setEl.querySelector('[data-visibility-field="level"]'); if (vs && vs.value !== vf.value) vs.value = vf.value;
+        const ve = setEl.querySelector('[data-visibility-field="exclude"]'); if (ve) ve.checked = vf.exclude;
+      }
     }
     const au = app.getRpgAudio();
     setEl.querySelector('#settings-rpg\\.mute').checked = au.muted;
@@ -770,6 +788,11 @@ export function mountUI(app, doc = document) {
 
   // FR-098・FR-091: テキスト一覧の中の議題タイマーのボタン・進行の段階のボタン（キーボードでも Enter・Space で押せる）
   doc.addEventListener('click', (e) => {
+    // FR-104 AC-605: テキスト一覧・ポップアップの要点を選ぶ／機密の印を付け外す（キーボードは point.confidential）
+    const ct = e.target.closest?.('[data-conf-toggle]');
+    if (ct) { app.setPointConfidential?.(ct.dataset.confToggle); return; }
+    const li = e.target.closest?.('#outline li[data-point-id]');
+    if (li && !e.target.closest?.('button, a, input, select, textarea') && app.getSelectedPointId?.() !== li.dataset.pointId) app.selectPoint?.(li.dataset.pointId);
     const b = e.target.closest?.('#outline button[data-command]');
     if (!b || b.disabled) return;
     const cmd = b.dataset.command;
@@ -862,6 +885,73 @@ export function mountUI(app, doc = document) {
   // 地図にフォーカスがあるときだけ RPG のキーが効く（図・仮想パッドに入ると真、それ以外へ移ると偽）
   doc.addEventListener('focusin', (e) => { app.setRpgFocus?.(!!e.target.closest?.('#diagram, #rpg-ui')); });
   doc.addEventListener('pointerdown', (e) => { app.setRpgFocus?.(!!e.target.closest?.('#diagram, #rpg-ui')); });
+
+  // FR-101・FR-102: 図・テキスト一覧・地図の要素のホバー／フォーカスでのプレビューと、クリック・Enter・タップでの固定のポップアップ。
+  // 状態は app が持ち、ここは DOM の出来事を渡して描くだけ。入力欄・ドラッグ・スクロール中はプレビューを出さない（AC-594）。
+  const targetOf = (node) => {
+    const el = node?.closest?.('#diagram [data-point-id], #diagram [data-scene-id], #outline [data-point-id], #outline [data-scene-id]');
+    if (!el) return null;
+    const surface = el.closest('#diagram') ? 'diagram' : 'list';
+    const pid = el.getAttribute('data-point-id');
+    return { el, target: pid ? { kind: 'point', id: pid, surface } : { kind: 'scene', id: el.getAttribute('data-scene-id'), surface } };
+  };
+  const isField = (n) => { const tg = String(n?.tagName ?? '').toUpperCase(); return tg === 'INPUT' || tg === 'TEXTAREA' || tg === 'SELECT' || n?.isContentEditable === true; };
+  let lastPointer = 'mouse';
+  doc.addEventListener('pointerdown', (e) => { lastPointer = e.pointerType || 'mouse'; if (lastPointer !== 'touch') app.setPreviewBlock?.('drag', true); }, true);
+  for (const ev of ['pointerup', 'pointercancel']) doc.addEventListener(ev, () => app.setPreviewBlock?.('drag', false), true);
+  doc.addEventListener('scroll', () => { app.closePreview?.(); }, true);
+  doc.addEventListener('mouseover', (e) => {
+    if (lastPointer === 'touch') return;
+    if (e.target?.closest?.('#preview-tip')) { app.hoverPreview?.(); return; }
+    const hit = targetOf(e.target); if (hit) app.hoverElement?.(hit.target);
+  });
+  doc.addEventListener('mouseout', (e) => {
+    if (e.target?.closest?.('#preview-tip')) { if (!e.relatedTarget?.closest?.('#preview-tip')) app.leavePreview?.(); return; }
+    const hit = targetOf(e.target); if (!hit) return;
+    if (e.relatedTarget?.closest?.('#preview-tip') || hit.el.contains(e.relatedTarget)) return;
+    app.unhoverElement?.(hit.target);
+  });
+  doc.addEventListener('focusin', (e) => {
+    app.setPreviewBlock?.('input', isField(e.target));
+    const hit = targetOf(e.target); if (hit && e.target === hit.el) app.focusElement?.(hit.target);
+  });
+  doc.addEventListener('focusout', (e) => { const hit = targetOf(e.target); if (hit && e.target === hit.el) app.blurElement?.(hit.target); });
+  doc.addEventListener('click', (e) => {
+    const outline = e.target?.closest?.('#outline');
+    if (!outline || e.target.closest('button, a, input, select, textarea, summary')) return;
+    const hit = targetOf(e.target); if (hit) app.activateElement?.(hit.target, 'click');
+  });
+  doc.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || e.ctrlKey || e.altKey || e.shiftKey || isField(e.target)) return;
+    const hit = targetOf(e.target);
+    if (!hit || e.target !== hit.el || e.target.closest('button, a')) return;
+    if (app.activateElement?.(hit.target, 'enter')?.ok) { e.preventDefault(); e.stopImmediatePropagation(); }
+  });
+  app.on('map:focus', (tg) => {
+    const sel = tg.kind === 'point' ? `#diagram [data-rpg-place][data-point-id="${tg.id}"]` : `#diagram [data-rpg-place][data-scene-id="${tg.id}"]`;
+    doc.querySelector(sel)?.focus?.();
+  });
+  let tipEl = null; let describedEl = null;
+  function syncPreview() {
+    const p = app.getPreview?.();
+    if (describedEl && (!p || !describedEl.isConnected)) { describedEl.removeAttribute('aria-describedby'); describedEl = null; }
+    if (!p) { if (tipEl) { tipEl.remove(); tipEl = null; } return; }
+    const anchor = [...doc.querySelectorAll(p.target.kind === 'point' ? `[data-point-id]` : `[data-scene-id]`)].find((n) => n.getAttribute(p.target.kind === 'point' ? 'data-point-id' : 'data-scene-id') === p.target.id && !!n.closest('#diagram') === (p.target.surface === 'diagram'));
+    if (!tipEl) { tipEl = doc.createElement('div'); tipEl.id = p.describedBy; tipEl.className = 'preview-tip'; doc.body.append(tipEl); }
+    tipEl.setAttribute('role', p.role);
+    tipEl.textContent = ''; // 会議の文字列は textContent で入れる（escape 済みの扱い）
+    const h = doc.createElement('strong'); h.textContent = p.heading; tipEl.append(h);
+    if (p.kindLabel) { const k = doc.createElement('span'); k.className = 'badge badge-kind'; k.textContent = p.kindLabel; tipEl.append(' ', k); }
+    if (p.needsReview) { const r = doc.createElement('span'); r.className = 'badge badge-review'; r.textContent = `⚠ ${app.t('preview.review')}`; tipEl.append(' ', r); }
+    if (p.lead) { const l = doc.createElement('p'); l.textContent = p.lead; tipEl.append(l); }
+    if (anchor) {
+      if (describedEl && describedEl !== anchor) describedEl.removeAttribute('aria-describedby');
+      anchor.setAttribute('aria-describedby', p.describedBy); describedEl = anchor;
+      const r = anchor.getBoundingClientRect?.(); const vw = doc.defaultView?.innerWidth ?? 1280; const vh = doc.defaultView?.innerHeight ?? 720;
+      if (r) { tipEl.style.left = `${Math.max(8, Math.min(vw - 328, r.left))}px`; tipEl.style.top = `${Math.max(8, Math.min(vh - 120, r.bottom + 4))}px`; }
+    }
+  }
+  app.on('change', syncPreview);
 
   app.on('ui:focusInput', () => draft.focus());
   doc.addEventListener('keydown', (e) => {

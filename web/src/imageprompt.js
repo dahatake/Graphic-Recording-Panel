@@ -8,6 +8,7 @@
 //   伏せ字の選択は注意を開くたびに簡易マスキングの設定（getLlmMasking）から始まり、設定は変えず、保存もしない。
 import { LAYOUT_TYPE_META } from './layouttypes.js';
 import { matchKey } from './keymap.js';
+import { withoutConfidential } from './visibility.js';
 
 export const MAX_CONTENT_CHARS = 2000; // PARAM-082
 export const SECTION_KEYS = ['purpose', 'palette', 'typography', 'illustration', 'mood', 'composition', 'content'];
@@ -175,7 +176,7 @@ export function imagePromptModule(ctx) {
     if (!state.scenes.length) return null;
     const styles = styleBodies();
     const comp = composition();
-    const content = buildContent(state.scenes, api.getTopics?.() ?? [], t, MAX_CONTENT_CHARS, mask ? maskFn() : undefined);
+    const content = buildContent(withoutConfidential(state.scenes, state.lang).map((s) => ({ ...s })), api.getTopics?.() ?? [], t, MAX_CONTENT_CHARS, mask ? maskFn() : undefined); // FR-104 AC-606: 機密の要点は含めない
     const bodies = { purpose: t('prompt.purpose'), ...styles, composition: comp.body, content: content.body };
     const sections = SECTION_KEYS.map((key) => {
       const s = { key, heading: t(`prompt.head.${key}`), body: bodies[key] };

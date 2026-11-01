@@ -2,7 +2,7 @@
 // 純粋関数 renderDiagramSvg（単体で SVG ファイルとしても自立する。色は属性で持つ）と、パネル描画（拡大・縮小・移動）。
 import { sceneEmotions } from './emotion.js';
 import { matchParts, getPartGroup } from './parts.js';
-import { renderRpgSvg, RPG_STYLE_ID } from './rpgmap.js';
+import { renderRpgSvg, enhanceRpgDom, RPG_STYLE_ID } from './rpgmap.js';
 import { provisionalTree, leaves, subgroupLabel, countMark, TYPE_SCALE } from './infodesign.js';
 // NFR-UX-012 AC-466: 既存の 4 つの描画スタイルの図の書体の指定（欧文専用の書体がないため Yu Gothic UI が先頭。stylepresets.js の LEGACY_FONT_FAMILY と同じ）
 const SVG_FONT_FAMILY = `font-family="'Yu Gothic UI', system-ui, 'Hiragino Sans', Meiryo, sans-serif"`;
@@ -139,11 +139,21 @@ const attr = (s) => esc(s).replace(/"/g, '&quot;');
 
 // FR-092 AC-545: 「要確認」の印。文字「要確認」＋枠つきの記号（▲）で示し、色だけに頼らない（AC-231 と同じ方針）。吹き出しの下の余白に置く。
 export function reviewMarkSvg(mark, x, y, w, h = BUBBLE_H) {
-  if (!mark || !mark.needsReview) return '';
+  if (!mark) return '';
+  const by = y + h + 3;
+  let confSvg = ''; let confW = 0;
+  if (mark.confidential) { // FR-104 AC-605: 「機密」＋錠の記号（色だけに頼らない）
+    const cl = String(mark.confidentialLabel ?? '機密');
+    confW = Math.min(Math.max(60, cl.length * 12 + 26), w);
+    const cx = x + w - confW;
+    confSvg = `<rect data-confidential-mark="1" x="${cx}" y="${by}" width="${confW}" height="16" rx="3" fill="#ffffff" stroke="${INK}" stroke-width="1.5"/>`
+      + `<text data-role="confidential-label" x="${cx + 6}" y="${by + 12}" font-size="11" font-weight="700" fill="${INK}">🔒 ${esc(cl)}</text>`;
+  }
+  if (!mark.needsReview) return confSvg;
   const label = String(mark.label ?? '要確認');
-  const bw = Math.min(Math.max(60, label.length * 12 + 26), w);
-  const bx = x + w - bw; const by = y + h + 3;
-  return `<rect data-review-mark="1" data-review-reasons="${attr(mark.reasons.join(' '))}" x="${bx}" y="${by}" width="${bw}" height="16" rx="3" fill="#ffffff" stroke="${INK}" stroke-width="1.5"/>`
+  const bw = Math.min(Math.max(60, label.length * 12 + 26), Math.max(60, w - confW - 4));
+  const bx = x + w - confW - (confW ? 4 : 0) - bw;
+  return confSvg + `<rect data-review-mark="1" data-review-reasons="${attr(mark.reasons.join(' '))}" x="${bx}" y="${by}" width="${bw}" height="16" rx="3" fill="#ffffff" stroke="${INK}" stroke-width="1.5"/>`
     + `<text data-role="review-label" x="${bx + 6}" y="${by + 12}" font-size="11" font-weight="700" fill="${INK}">▲ ${esc(label)}</text>`; // 枠（rect）と文字・記号（▲）の 2 要素だけ（5000 件でも DOM を増やしすぎない）
 }
 export function textWidth(s, size) {
@@ -575,7 +585,7 @@ export function mountDiagramPanel(host, app, doc = host.ownerDocument) {
     });
     canvas.addEventListener('click', (ev) => {
       const g = ev.target?.closest?.('[data-point-id]');
-      if (g) { app.highlightPoint(g.getAttribute('data-point-id'), 'pointer'); return; }
+      if (g) { app.highlightPoint(g.getAttribute('data-point-id'), 'pointer'); app.activateElement?.({ kind: 'point', id: g.getAttribute('data-point-id'), surface: 'diagram' }, 'click'); return; } // FR-101 AC-592・AC-595: クリック・タップで固定のポップアップ
       app.clearHighlight();
       // FR-026 AC-137: 2D でトピック（大項目）・シーン（中項目）を選ぶ
       const tp = ev.target?.closest?.('[data-topic-id]'); const sc = ev.target?.closest?.('[data-scene-id]');
@@ -618,6 +628,10 @@ function paint(host, app) {
   host._lastSvg = svg; host._lastSig = sig;
   if (!reuse) canvas.innerHTML = svg;
   const el = reuse ? host._svgEl : canvas.querySelector('svg');
+  if (el && !reuse) { // FR-102: RPG風の地図の選べる要素に名前・役割・Tab の順序を足す（書き出す SVG は変えない）
+    const places = app.getRpgMap?.()?.places;
+    if (places) { const names = new Map(places.map((p) => [p.refId, p.label])); enhanceRpgDom(el, (id) => names.get(id)); }
+  }
   if (el) {
     if (!reuse) { host._svgEl = el; host._base = { w: Number(el.getAttribute('width')), h: Number(el.getAttribute('height')), vb: el.getAttribute('viewBox') }; }
     const { w, h, vb } = host._base;
