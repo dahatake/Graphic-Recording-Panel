@@ -139,11 +139,21 @@ const attr = (s) => esc(s).replace(/"/g, '&quot;');
 
 // FR-092 AC-545: 「要確認」の印。文字「要確認」＋枠つきの記号（▲）で示し、色だけに頼らない（AC-231 と同じ方針）。吹き出しの下の余白に置く。
 export function reviewMarkSvg(mark, x, y, w, h = BUBBLE_H) {
-  if (!mark || !mark.needsReview) return '';
+  if (!mark) return '';
+  const by = y + h + 3;
+  let confSvg = ''; let confW = 0;
+  if (mark.confidential) { // FR-104 AC-605: 「機密」＋錠の記号（色だけに頼らない）
+    const cl = String(mark.confidentialLabel ?? '機密');
+    confW = Math.min(Math.max(60, cl.length * 12 + 26), w);
+    const cx = x + w - confW;
+    confSvg = `<rect data-confidential-mark="1" x="${cx}" y="${by}" width="${confW}" height="16" rx="3" fill="#ffffff" stroke="${INK}" stroke-width="1.5"/>`
+      + `<text data-role="confidential-label" x="${cx + 6}" y="${by + 12}" font-size="11" font-weight="700" fill="${INK}">🔒 ${esc(cl)}</text>`;
+  }
+  if (!mark.needsReview) return confSvg;
   const label = String(mark.label ?? '要確認');
-  const bw = Math.min(Math.max(60, label.length * 12 + 26), w);
-  const bx = x + w - bw; const by = y + h + 3;
-  return `<rect data-review-mark="1" data-review-reasons="${attr(mark.reasons.join(' '))}" x="${bx}" y="${by}" width="${bw}" height="16" rx="3" fill="#ffffff" stroke="${INK}" stroke-width="1.5"/>`
+  const bw = Math.min(Math.max(60, label.length * 12 + 26), Math.max(60, w - confW - 4));
+  const bx = x + w - confW - (confW ? 4 : 0) - bw;
+  return confSvg + `<rect data-review-mark="1" data-review-reasons="${attr(mark.reasons.join(' '))}" x="${bx}" y="${by}" width="${bw}" height="16" rx="3" fill="#ffffff" stroke="${INK}" stroke-width="1.5"/>`
     + `<text data-role="review-label" x="${bx + 6}" y="${by + 12}" font-size="11" font-weight="700" fill="${INK}">▲ ${esc(label)}</text>`; // 枠（rect）と文字・記号（▲）の 2 要素だけ（5000 件でも DOM を増やしすぎない）
 }
 export function textWidth(s, size) {

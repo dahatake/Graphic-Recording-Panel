@@ -113,7 +113,7 @@
 | FR-101 | ホバーでの詳細のプレビュー | 承認済み | 未実装 | 未実装 | - |
 | FR-102 | 地図（RPG風）の要素の操作の同等性 | 承認済み | 未実装 | 未実装 | - |
 | FR-103 | 初回の案内・ヘルプ・練習用のサンプル | 承認済み | 未実装 | 未実装 | - |
-| FR-104 | 公開範囲の選択と表示・機密の要点の除外 | 承認済み | 未実装 | 未実装 | - |
+| FR-104 | 公開範囲の選択と表示・機密の要点の除外 | 承認済み | web/src/visibility.js, web/src/meeting.js, web/src/meetingout.js, web/src/figuredesc.js, web/src/diagram.js, web/src/presetdiagram.js, web/src/imageprompt.js, web/src/persist.js, web/src/ui.js, web/src/app.js, web/styles/app.css, web/sw.js | tests/unit/visibility.test.js | キーマップ |
 | FR-105 | 読み順の型の選択（Z 型・F 型・左右比較・フロー） | 承認済み | 未実装 | 未実装 | - |
 
 ## API・イベント
@@ -162,7 +162,7 @@
 | デザイン基盤 | web/styles/tokens.css, web/styles/app.css, web/styles/view3d.css | Fluent 2 のトークン（colorNeutral/Brand 系・角丸 4/8・4px 余白・Type ramp・影・モーション。書体 --font-sans は Segoe UI 系 → Yu Gothic UI → システムの書体の順。NFR-UX-012）・ライト/ダーク/forced-colors・フォーカス 3px・積み重ね・カード風パネル・ボタン（primary/subtle） | FR-004、FR-011、FR-013、FR-017、FR-018、FR-020、FR-021、FR-024、FR-026、FR-027、FR-029、FR-030、FR-050、FR-051、FR-068、FR-073、FR-077、FR-078、NFR-A11Y-001、NFR-UX-001、NFR-UX-002、NFR-UX-003、NFR-UX-011、NFR-UX-012、FR-080、FR-081、FR-082、FR-084、FR-085、FR-086、FR-088、NFR-PERF-003 |
 | コマンドバー | web/src/commandbar.js, web/src/ribbonsettings.js | コマンドの作業順 9 グループ（接続キーのグループなし。設定グループ＝［設定］・決め方・ミュート・音量・周期は ribbonsettings.js の operateBarItem で操作。各グループ 12 個以内）（GROUPS・getCommandBar().groups/focusOrder・getCommandBarLayout の rect）・インライン SVG アイコン・主要コマンド（getCommandBar / getCommandStatus）。ステータスバーの文言（記録状態・音声認識・言語・表示）。ボタンの簡易説明（showTooltip / hideTooltip / getTooltip、tooltip.<command>）。FR-077 の画風の一覧を開く drawStyle.pick は「表示」の末尾、FR-078 の prompt.copy は「図の書き出し」の末尾 | FR-016、FR-017、FR-018、FR-019、FR-026、FR-027、FR-030、FR-072、FR-073、NFR-UX-001、NFR-UX-002、NFR-UX-003、NFR-UX-011、FR-077、FR-078、FR-081、FR-084、FR-091 |
 | 認識文字列 | web/src/transcript.js | 右パネル（パネル ID input）の確定結果一覧・暫定結果の区別表示（getTranscript / renderTranscript） | FR-013, FR-014 |
-| キーマップ | web/src/keymap.js | 全操作の Alt+Shift+キー割り当て | NFR-A11Y-001, FR-015, FR-017, FR-021, FR-018, FR-019, FR-025, FR-026, FR-027, FR-030, FR-091, FR-092 |
+| キーマップ | web/src/keymap.js | 全操作の Alt+Shift+キー割り当て | NFR-A11Y-001, FR-015, FR-017, FR-021, FR-018, FR-019, FR-025, FR-026, FR-027, FR-030, FR-091, FR-092, FR-104 |
 | 感情語辞書 | web/src/emotion.js | 日英の感情・様子の語 → 絵記号の対応（決定的） | FR-004, FR-015, FR-032, FR-064, FR-075, FR-076 |
 | SVG サニタイズ | web/src/svgsanitize.js, server/relay_security.py | 許可リスト（parts.js の OK_TAGS・OK_ATTRS と同一）で SVG を無害化。アプリ側は sanitizeSvg・acceptGeneratedSvg（上限 PARAM-072）、中継サーバー側は sanitize_svg・extract_svg。同じ規則を両方で二重に行い、セッション読込時にも再サニタイズする | FR-065, NFR-SEC-004 |
 | 同梱部品 | web/src/parts.js | 同梱の汎用物体の SVG 部品 134 点（部品キーで引く: getPartKeys・getPartInfo・getPartSvg・getPartGroup・isPartKey）、語の辞書 → 部品（matchParts）、許可リスト検査（isAllowedPartSvg）、実在人物を特定しない汎用キャラのビルダー（buildCharacter・expressionForText。候補は CHARACTER_OPTIONS）。後続の LLM 抽出はキーを isPartKey で検証して対応づける | FR-063, FR-064, FR-075, FR-076, NFR-SEC-004 |
