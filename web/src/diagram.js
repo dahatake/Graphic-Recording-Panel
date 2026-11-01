@@ -27,14 +27,18 @@ export const KINDS = {
   // FR-052: 提案・未決定は結論と別の種類（色・形・絵記号が異なる）
   proposal: { color: '#6b2a8f', shape: 'tab', icon: 'bolt' },
   undecided: { color: '#0b6070', shape: 'slant', icon: 'cloud' },
+  // FR-079 AC-427・AC-580: 質問（？の絵記号＋二重の枠）・根拠（例の絵記号＋左の太い縦線）・行動（チェックボックス＋角の丸い枠）。形・絵記号・ラベルで見分ける（色だけに頼らない）
+  question: { color: '#8a1f5c', shape: 'double', icon: 'question' },
+  evidence: { color: '#5a4a00', shape: 'bar', icon: 'example' },
+  action: { color: '#0a5c4a', shape: 'rounded', icon: 'checkbox' },
 };
 // FR-015 の 4 種類（3D の評価軸などの従来の集計用）。提案はアイデア、未決定は補足に含める。
 export const BASE_KIND_IDS = ['conclusion', 'issue', 'idea', 'note'];
-export const baseKind = (k) => (k === 'proposal' ? 'idea' : k === 'undecided' ? 'note' : k);
+export const baseKind = (k) => (k === 'proposal' ? 'idea' : (k === 'undecided' || k === 'question' || k === 'evidence' || k === 'action') ? 'note' : k);
 // FR-052 AC-231: 種類の文字のラベル（図と一覧で同じ語）
 export const KIND_LABELS = {
-  ja: { conclusion: '結論', issue: '課題', idea: 'アイデア', note: '補足', proposal: '提案', undecided: '未決定' },
-  en: { conclusion: 'Conclusion', issue: 'Issue', idea: 'Idea', note: 'Note', proposal: 'Proposal', undecided: 'Undecided' },
+  ja: { conclusion: '結論', issue: '課題', idea: 'アイデア', note: '補足', proposal: '提案', undecided: '未決定', question: '質問', evidence: '根拠', action: '行動' },
+  en: { conclusion: 'Conclusion', issue: 'Issue', idea: 'Idea', note: 'Note', proposal: 'Proposal', undecided: 'Undecided', question: 'Question', evidence: 'Evidence', action: 'Action' },
 };
 export const kindLabelOf = (kind, lang) => KIND_LABELS[lang === 'en' ? 'en' : 'ja'][kind] ?? kind;
 // ASSUMPTION: 種類は語のパターンで決める（決定的・外部通信なし）。上から順に最初に合うもの、どれにも合わなければ補足。
@@ -46,8 +50,14 @@ const KIND_RULES = [
   // AC-231: 「〜と決まりました」など合意済みの決定は、アイデア・案の語を含んでいても結論
   ['conclusion', /決ま(りまし|った)|決定しまし|決めまし|合意しまし|採用(が)?決定/],
   ['idea', /アイデア|ひらめ|\bidea\b/i],
+  // FR-079 AC-427: 上の 5 種類に当てはまらない要点だけを、質問（PARAM-131）→ 根拠（PARAM-132）→ 行動（PARAM-129）の順に判定する。
+  // 日本語は部分一致、英語の語は語境界つきの単語単位（how は however・show に、what は whatever に一致しない）。大文字小文字は区別しない。
+  // 下の弱い規則（「します」「どう」など）より先に判定する（「依頼しますか」は結論でなく質問、「連絡します」は結論でなく行動）。
+  ['question', /[?？]|でしょうか|ですか|ますか|ませんか|でしょう|(?<![a-z0-9])(why|how|what)(?![a-z0-9])/i],
+  ['evidence', /なぜなら|たとえば|例えば|根拠|理由は|データでは|実績|(?<![a-z0-9])because(?![a-z0-9])|(?<![a-z0-9])for example(?![a-z0-9])|(?<![a-z0-9])e\.g\./i],
+  ['action', /お願いします|してください|対応する|やります|確認します|共有します|調整します|対応します|連絡します|までに|担当|todo|action item/i], // PARAM-129（minutes.js と同じ語）
   ['conclusion', /決め|決定|決ま|結論|合意|方針|採用|にする|します|decid|conclu|agree|resolv|chose/i],
-  ['idea', /案|しよう|してみ|かも|どう|how about|what if|maybe|[?？]/i],
+  ['idea', /案|しよう|してみ|かも|どう|how about|what if|maybe/i],
 ];
 // FR-091 AC-577: 語のパターンに当てはまる種類（当てはまらなければ null）。進行の段階の既定はここが null のときだけ使う。
 export function classifyPointRule(text) {
@@ -99,6 +109,18 @@ function wobblyD(pts, seed, closed, amp0 = 1.2) {
   if (!closed) { const [lx, ly] = pts[n - 1]; out.push([lx + (rand() - 0.5) * amp, ly + (rand() - 0.5) * amp]); }
   return out.map(([x, y], i) => `${i ? 'L' : 'M'}${r1(x)} ${r1(y)}`).join('') + (closed ? 'Z' : '');
 }
+// 角の丸い長方形の頂点（各角 3 点）
+function roundedPts(x, y, w, h, r) {
+  const k = r * 0.29;
+  return [[x + r, y], [x + w - r, y], [x + w - k, y + k], [x + w, y + r], [x + w, y + h - r], [x + w - k, y + h - k], [x + w - r, y + h],
+    [x + r, y + h], [x + k, y + h - k], [x, y + h - r], [x, y + r], [x + k, y + k]];
+}
+// AC-580: 質問の二重の枠（内側の枠）・根拠の左の太い縦線。外形のあとに足す（スタイルによらず保つ）。
+export function kindExtraSvg(shape, x, y, w, h, color, sw = 2) {
+  if (shape === 'double') return `<rect data-role="kind-inner-frame" x="${x + 4}" y="${y + 4}" width="${w - 8}" height="${h - 8}" rx="2" fill="none" stroke="${color}" stroke-width="${Math.max(1, sw * 0.6)}"/>`;
+  if (shape === 'bar') return `<rect data-role="kind-bar" x="${x}" y="${y}" width="7" height="${h}" fill="${color}" stroke="${color}" stroke-width="1"/>`;
+  return '';
+}
 export function outline(shape, x, y, w, h) {
   switch (shape) {
     case 'banner': return [[x, y], [x + w - 14, y], [x + w, y + h / 2], [x + w - 14, y + h], [x, y + h]];
@@ -106,6 +128,7 @@ export function outline(shape, x, y, w, h) {
     case 'hexagon': return [[x + 14, y], [x + w - 14, y], [x + w, y + h / 2], [x + w - 14, y + h], [x + 14, y + h], [x, y + h / 2]];
     case 'tab': return [[x, y], [x + w - 22, y], [x + w, y + 12], [x + w, y + h], [x, y + h]];
     case 'slant': return [[x + 14, y], [x + w, y], [x + w - 14, y + h], [x, y + h]];
+    case 'rounded': return roundedPts(x, y, w, h, 9); // AC-580 行動: 角の丸い枠
     default: return [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
   }
 }
@@ -143,6 +166,9 @@ export const ICON_GLYPHS = {
   note: '<path d="M5 3h10l4 4v14H5z"/><path d="M8 11h8M8 15h8"/>',
   star: '<path d="M12 2l3 7 7 .5-5.500 4.500 2 7.500-6.500-4-6.500 4 2-7.500L2 9.500 9 9z"/>',
   drop: '<path d="M12 2q7 8 7 13a7 7 0 0 1-14 0q0-5 7-13z"/>',
+  question: '<circle cx="12" cy="12" r="10"/><path d="M9 9.500a3 3 0 1 1 4.500 2.600c-1 .6-1.500 1.200-1.500 2.400M12 17.500v.5"/>',
+  example: '<path d="M7 4L4 10M5.500 8v12M9.500 7h6M12.500 7L9.500 12h6M12.500 12v8M20 6v12M17.500 7v8"/>',
+  checkbox: '<rect x="3" y="3" width="18" height="18" rx="4"/><path d="M7.500 12.500l3 3 6-7"/>',
 };
 export const iconGlyph = (shape) => ICON_GLYPHS[shape] ?? '<circle cx="12" cy="12" r="9"/>';
 // 絵記号（24x24 の枠に収まる図形）。(x,y) は左上。
@@ -256,6 +282,7 @@ export function renderDiagramSvg(scenes, opts = {}) {
       const dupSvg = dup ? `<text data-role="dup-count" x="${r1(px + pw - 14 - textWidth(label, 11))}" y="${y + 12}" font-size="11" font-weight="700" text-anchor="end" fill="${INK}">${esc(dup)}</text>` : '';
       body.push(`<g data-point-id="${attr(p.id)}"${g1.refIds.length > 1 ? ` data-point-ids="${attr(g1.refIds.join(' '))}"` : ''} data-kind="${kind}"${hl ? ' data-highlight="1"' : ''}${g1.provisional ? ' data-provisional="1"' : ''}>${frame}`
         + `<path d="${wobblyD(outline(k.shape, px, y, pw, BUBBLE_H), p.id, true)}" fill="${paper}" stroke="${stroke}" stroke-width="${sWidth}" stroke-linejoin="round"${dash}/>`
+        + kindExtraSvg(k.shape, px, y, pw, BUBBLE_H, stroke, sWidth)
         + `<path d="${wobblyD([[px + 18, y + BUBBLE_H], [px + 12, y + BUBBLE_H + 8], [px + 26, y + BUBBLE_H]], `${p.id}:t`, false, 0.4)}"         fill="${paper}" stroke="${stroke}" stroke-width="${sw(2.5)}" stroke-linejoin="round"/>`
         + decoIcon(k.icon, px + 8, y + 7, stroke)
         + `<text x="${px + 8 + ICON_W}" y="${y + 24}" font-size="${FS}"${concl ? ' ' + 'font-weight="800"' : ''} fill="${INK}">${esc(p.text)}</text>`
@@ -499,6 +526,7 @@ export function renderArrangedSvg(scenes, model, opts = {}) {
       const dup = countMark(refIds.length); // FR-079 AC-429: 同一の要点のまとめの件数
       parts.push(`<g data-point-id="${attr(p.id)}"${refIds.length > 1 ? ` data-point-ids="${attr(refIds.join(' '))}"` : ''} data-kind="${kind}" data-assigned="${it.unclassified ? 'unclassified' : 'assigned'}"${hl ? ' data-highlight="1"' : ''}>${reason}`
         + `<path d="${wobblyD(outline(k.shape, it.x, it.y, it.w, BUBBLE_H), p.id, true)}" fill="${PAPER}" stroke="${stroke}" stroke-width="${hl ? 5 : 2.5}" stroke-linejoin="round"/>`
+        + kindExtraSvg(k.shape, it.x, it.y, it.w, BUBBLE_H, stroke, 2.5)
         + iconShape(k.icon, it.x + 8, it.y + 7, stroke)
         + `<text x="${it.x + 8 + ICON_W}" y="${it.y + 24}" font-size="${FS}" fill="${INK}">${esc(p.text)}</text>`
         + (dup ? `<text data-role="dup-count" x="${it.x + it.w - 8}" y="${it.y + 12}" font-size="11" font-weight="700" text-anchor="end" fill="${INK}">${esc(dup)}</text>` : '')

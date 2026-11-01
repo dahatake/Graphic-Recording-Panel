@@ -3,7 +3,7 @@
 // 図の内容・配置・型・文字は既存の描画と同じで、見た目（配色・紙面・書体・見出しの飾り・吹き出し・線・線画人物）だけが変わる。
 // 見た目の項目を持たない既存の定義（手書き調・アニメ調・シンプル・RPG風）は、従来の描画（diagram.js）のまま（AC-406）。
 // 端末のハイコントラスト（強制カラー）が有効な間は、どの描画スタイルでも図の色を CSS のシステム色にする（AC-456）。
-import { KINDS, STATUS_MARK, classifyPoint, kindLabelOf, textWidth, outline, rng, iconGlyph, reviewMarkSvg, limitRelations, relationStroke } from './diagram.js';
+import { KINDS, STATUS_MARK, classifyPoint, kindLabelOf, textWidth, outline, rng, iconGlyph, reviewMarkSvg, kindExtraSvg, limitRelations, relationStroke } from './diagram.js';
 import { sceneEmotions } from './emotion.js';
 import { matchParts, getPartGroup } from './parts.js';
 import {
@@ -98,7 +98,7 @@ const box = (x, y, w, h) => `${r1(x)} ${r1(y)} ${r1(w)} ${r1(h)}`;
 function shapeEl(look, a, x, y, w, h, shape, seed, rx = 6) {
   const { wobble } = look.pr.stroke;
   if (wobble > 0) return `<path ${a} d="${wobD(outline(shape, x, y, w, h), seed, true, 1.1 * wobble)}"/>`;
-  return `<rect ${a} x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" rx="${rx}"/>`;
+  return `<rect ${a} x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" rx="${shape === 'rounded' ? 10 : rx}"/>`;
 }
 // 手で切ったような縁（クラフト紙の付箋）
 function tornD(x, y, w, h, seed) {
@@ -273,7 +273,7 @@ export function renderPresetDiagram(scenes, opts, look) {
     const status = `${STATUS_MARK[s.status] ?? ''}${isSel ? SELECTED_MARK : ''}`;
     const emos = sceneEmotions(s);
     const kinds = s.points.map((p) => classifyPoint(p));
-    const order = ['conclusion', 'issue', 'proposal', 'undecided', 'idea', 'note'];
+    const order = ['conclusion', 'issue', 'proposal', 'undecided', 'idea', 'question', 'evidence', 'action', 'note'];
     const main = kinds.length ? [...kinds].sort((a, b) => order.indexOf(a) - order.indexOf(b))[0] : null;
     // 吹き出しの中身: その場の様子の語（従来の絵記号の語）。なければ主な要点の種類の文字。
     const words = emos.length ? emos.map((e) => e.word) : main ? [kindLabelOf(main, opts.lang)] : [];
@@ -305,6 +305,7 @@ export function renderPresetDiagram(scenes, opts, look) {
       }
       const sw = r1(W0p * (hl ? 1.8 : concl ? 1.3 : 1));
       g.push(shapeEl(lk, `data-style-role="point-frame" data-box="${box(x, y, w, PT_H)}" fill="${lk.stickyFills ? 'none' : surface}" stroke="${lk.frame}" stroke-width="${sw}" stroke-linejoin="round"${dash}`, x, y, w, PT_H, k.shape, p.id));
+      { const ex = kindExtraSvg(k.shape, x, y, w, PT_H, lk.frame, sw); if (ex) g.push(ex.replace('<rect ', '<rect data-style-role="kind-extra" ')); } // AC-580: 外形の二重枠・太い縦線はスタイルによらず保つ
       if (hl) g.push(`<path data-role="highlight-frame" d="${wobD(outline(k.shape, x - 6, y - 6, w + 12, PT_H + 12), `${p.id}:f`, true, 0.8)}" fill="none" stroke="${lk.frame}" stroke-width="2" stroke-dasharray="3 3"/>`);
       const tx = x + 8 + ICON + 10;
       let back = surface;
