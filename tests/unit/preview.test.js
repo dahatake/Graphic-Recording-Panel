@@ -130,6 +130,19 @@ test('FR-102 AC-597: 地図の選べる要素は名前（見出し）と role=bu
   assert.equal(places[0].getAttribute('aria-label'), scenes[0].heading, '名前は一覧の見出しと同じ語');
 });
 
+// NFR-OFFLINE-001: rpgmap.js は外部 URL の文字列を持たず、判定の矩形は親 SVG の名前空間で作る
+test('NFR-OFFLINE-001: rpgmap.js に外部 URL がなく、enhanceRpgDom は親の namespaceURI で rect を作る', async () => {
+  const fsm = await import('node:fs');
+  const src = fsm.readFileSync(new URL('../../web/src/rpgmap.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /https?:\/\//);
+  let ns = null;
+  const kid = { hasAttribute: (k) => k === 'data-rpg-place', getAttribute: (k) => ({ 'data-ref-id': 'a', 'data-kind': 'scene', 'data-x': 1, 'data-y': 1 }[k] ?? null), setAttribute() {}, querySelector: () => null, append() {} };
+  const root = { removeAttribute() {}, children: [kid] };
+  const svgEl = { namespaceURI: 'NS-OF-PARENT', getAttribute: () => '16', querySelector: () => root, ownerDocument: { createElementNS: (n) => { ns = n; return { setAttribute() {} }; } } };
+  assert.equal(enhanceRpgDom(svgEl, () => 'x'), 1);
+  assert.equal(ns, 'NS-OF-PARENT');
+});
+
 test('FR-101・FR-102: キー割り当て（preview.show・map.focusNext・map.focusPrev・map.activate）がある', async () => {
   const { app } = await seeded();
   for (const c of ['preview.show', 'map.focusNext', 'map.focusPrev', 'map.activate']) {

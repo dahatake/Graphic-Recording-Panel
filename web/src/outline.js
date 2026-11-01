@@ -40,3 +40,24 @@ export function renderOutline(scenes, selectedSceneId, t, annot = null, topics =
   const relBlock = kinds?.relations?.length ? `<ul class="outline-relations">${kinds.relations.map((r) => `<li data-relation-from="${escapeHtml(r.from)}" data-relation-to="${escapeHtml(r.to)}" data-relation-kind="${escapeHtml(r.kind)}" data-relation-basis="${escapeHtml(r.basis)}">${escapeHtml(r.kindLabel)}: ${escapeHtml(texts.get(r.from) ?? '')} ${r.bidirectional ? '↔' : '→'} ${escapeHtml(texts.get(r.to) ?? '')} （${escapeHtml(r.basisLabel)}${r.evidence ? `: ${escapeHtml([...String(r.evidence.text)].slice(0, EVIDENCE_MAX).join(''))}` : ''}）</li>`).join('')}</ul>` : '';
   return `${topicBlock}${head}<ol class="outline">${items.join('')}</ol>${relBlock}`;
 }
+
+// FR-099 AC-585〜588: 対立の組（確定した「比較」・候補）のテキスト一覧。側ごとの列（◀ 名前（件数）／▶ 名前（件数））、少数の側も省かず同じ形で並べる。
+// 0 件の側は「異論の記録なし」と書く（「合意」とは書かない）。候補は文字「候補」と記号 ◇、確定は「対立」と記号 ⇄ で見分ける（色に頼らない）。
+// model: { heading, list:[{ id, status, label, summary, sceneHeading, sides:[{ id, name, count, points:[{id,text}], empty, emptyLabel }] }], objectionLine, selection, labels }
+export function renderConflictOutline(model) {
+  const L = model.labels ?? {};
+  const btn = (act, id, label) => `<button type="button" class="btn btn-small" data-conflict-act="${escapeHtml(act)}" data-id="${escapeHtml(id)}">${escapeHtml(label)}</button>`;
+  const sel = model.selection
+    ? `<div class="outline-conflict-selection" data-conflict-selection="${model.selection.count}"><p>${escapeHtml(model.selection.label)}</p><ul>${model.selection.items.map((i) => `<li>${escapeHtml(i.text)}</li>`).join('')}</ul>${model.selection.count >= 2 ? btn('group', '', model.selection.makeLabel) : ''}</div>` : '';
+  const items = model.list.map((c) => {
+    const sides = c.sides.map((s, i) => `<section class="outline-conflict-side" data-conflict-side="${escapeHtml(s.id)}"><h4><span aria-hidden="true">${i === 0 ? '◀' : '▶'}</span> ${escapeHtml(s.name)}（${s.count}）</h4>`
+      + (s.empty ? `<p data-conflict-empty="1">${escapeHtml(s.emptyLabel)}</p>`
+        : `<ul>${s.points.map((p) => `<li data-conflict-point="${escapeHtml(p.id)}">${escapeHtml(p.text)}${c.status === 'confirmed' ? ` ${btn('flip', p.id, L.flip ?? '')}` : ''}</li>`).join('')}</ul>`) + '</section>').join('');
+    const acts = c.status === 'candidate' ? `${btn('confirm', c.id, L.confirm ?? '')} ${btn('dismiss', c.id, L.dismiss ?? '')}` : btn('ungroup', c.id, L.ungroup ?? '');
+    return `<li class="outline-conflict" data-conflict-id="${escapeHtml(c.id)}" data-conflict-status="${escapeHtml(c.status)}" data-conflict-scene="${escapeHtml(c.sceneId)}">`
+      + `<h3><span aria-hidden="true">${c.status === 'candidate' ? '◇' : '⇄'}</span> ${escapeHtml(c.label)}: ${escapeHtml(c.summary)}${c.sceneHeading ? ` <span class="outline-conflict-scene">（${escapeHtml(L.scene ?? '')}: ${escapeHtml(c.sceneHeading)}）</span>` : ''}</h3>`
+      + `<div class="outline-conflict-sides">${sides}</div><div class="outline-conflict-actions">${acts}</div></li>`;
+  }).join('');
+  const obj = model.objectionLine ? `<p class="outline-objection" data-objection="1">${escapeHtml(model.objectionLine)}</p>` : '';
+  return `<section class="outline-conflicts" aria-label="${escapeHtml(model.heading)}"><h2>${escapeHtml(model.heading)}</h2>${sel}${items ? `<ul class="outline-conflict-list">${items}</ul>` : ''}${obj}</section>`;
+}
