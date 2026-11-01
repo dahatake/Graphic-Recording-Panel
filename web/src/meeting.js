@@ -92,7 +92,7 @@ export function meetingModule(ctx) {
   // FR-095 AC-560: 出力（PNG・PDF・SVG・Markdown・HTML）が載せる会議の文脈。表題は演題（未入力は従来の表題）、日付は入力のまま（出力日を補わない）
   api.getMeetingOutput = () => {
     const ti = api.getTitleInfo?.() ?? {};
-    return { title: String(ti.theme ?? '').trim() || ctx.t('app.title'), date: ti.date ?? '', series: ti.series ?? '', venue: ti.venue ?? '', agenda: state.meeting.agenda.map((a) => a.name), purpose: state.meeting.purpose, audience: state.meeting.audience, ...(api.getVisibilityLines?.() ?? {}) }; // FR-104: 公開範囲（と除外の件数）の行
+    return { title: String(ti.theme ?? '').trim() || ctx.t('app.title'), date: ti.date ?? '', series: ti.series ?? '', venue: ti.venue ?? '', agenda: state.meeting.agenda.map((a) => a.name), purpose: state.meeting.purpose, audience: state.meeting.audience, ...(api.getVisibilityLines?.() ?? {}), ...(api.getConflictLines?.() ?? {}) }; // FR-104: 公開範囲（と除外の件数）の行。FR-099 AC-588: 対立の組・異論の状況の行
   };
   // FR-096 AC-561〜563: 図の説明。画面の詳細度（FR-026）に従い、その詳細度で出ない要点は含めない（生成 AI・外部通信なし）
   api.getFigureDescription = () => {
@@ -116,7 +116,7 @@ export function meetingModule(ctx) {
       conclusions = shown.filter((p) => classifyPoint(p) === 'conclusion').map((p) => p.text);
       open = shown.filter((p) => classifyPoint(p) === 'undecided').map((p) => p.text);
     }
-    return buildFigureDescription({ title: mo.title, purpose: mo.purpose, audience: mo.audience, topics: topics.length ? topics : state.scenes.map((s) => s.heading), relations: rels, conclusions, unresolved: open, lang: state.lang, extra: [mo.visibilityLine, mo.excludedLine] });
+    return buildFigureDescription({ title: mo.title, purpose: mo.purpose, audience: mo.audience, topics: topics.length ? topics : state.scenes.map((s) => s.heading), relations: rels, conclusions, unresolved: open, lang: state.lang, extra: [mo.visibilityLine, mo.excludedLine, mo.conflictLine, mo.objectionLine] });
   };
   // 保存する SVG: <title>（表題）・<desc>（説明）と、表題・日付・議題の見出しを付ける
   {
@@ -128,7 +128,7 @@ export function meetingModule(ctx) {
         const fd = api.getFigureDescription();
         const mo = api.getMeetingOutput();
         // 表題・日付・議題などの入力があるときだけ、見出しの帯を足す（入力がなければ従来の図のまま、<title>・<desc> だけを付ける）
-        const any = ['series', 'date', 'venue'].some((k) => String(mo[k]).trim()) || mo.agenda.length > 0 || String(api.getTitleInfo?.()?.theme ?? '').trim();
+        const any = ['series', 'date', 'venue'].some((k) => String(mo[k]).trim()) || mo.agenda.length > 0 || String(api.getTitleInfo?.()?.theme ?? '').trim() || !!mo.conflictLine || !!mo.objectionLine;
         return decorateSvg(svg, { title: fd.title, desc: fd.text, header: any ? headerModel(mo, state.lang) : null });
       };
     }

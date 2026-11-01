@@ -3,7 +3,7 @@
 import { sceneEmotions } from './emotion.js';
 import { matchParts, getPartGroup } from './parts.js';
 import { renderRpgSvg, enhanceRpgDom, RPG_STYLE_ID } from './rpgmap.js';
-import { provisionalTree, leaves, subgroupLabel, countMark, TYPE_SCALE } from './infodesign.js';
+import { provisionalTree, leaves, subgroupLabel, countMark, TYPE_SCALE, COMPARE_EMPTY } from './infodesign.js';
 // NFR-UX-012 AC-466: 既存の 4 つの描画スタイルの図の書体の指定（欧文専用の書体がないため Yu Gothic UI が先頭。stylepresets.js の LEGACY_FONT_FAMILY と同じ）
 const SVG_FONT_FAMILY = `font-family="'Yu Gothic UI', system-ui, 'Hiragino Sans', Meiryo, sans-serif"`;
 
@@ -142,18 +142,26 @@ export function reviewMarkSvg(mark, x, y, w, h = BUBBLE_H) {
   if (!mark) return '';
   const by = y + h + 3;
   let confSvg = ''; let confW = 0;
+  if (mark.conflict) { // FR-099 AC-585・AC-587: 対立の組の候補は「◇ 候補」、確定した組は「⇄ 対立」＋側の名前（文字と形。色だけに頼らない）。吹き出しの左下
+    const cf = mark.conflict;
+    const text = `${cf.status === 'candidate' ? '◇' : '⇄'} ${cf.label}`;
+    const cw = Math.min(Math.max(60, textWidth(text, 11) + 14), Math.max(60, w - 40));
+    confSvg += `<rect data-conflict-mark="${attr(cf.status)}" x="${x + 30}" y="${by}" width="${cw}" height="16" rx="${cf.status === 'candidate' ? 8 : 3}" fill="#ffffff" stroke="${INK}" stroke-width="1.5"${cf.status === 'candidate' ? ' stroke-dasharray="3 2"' : ''}/>`
+      + `<text data-role="conflict-label" x="${x + 36}" y="${by + 12}" font-size="11" font-weight="700" fill="${INK}">${esc(text)}</text>`;
+  }
+  let secSvg = ''; // 機密・要確認の印と並べる（右下）。左下の対立の印を壊さない
   if (mark.confidential) { // FR-104 AC-605: 「機密」＋錠の記号（色だけに頼らない）
     const cl = String(mark.confidentialLabel ?? '機密');
     confW = Math.min(Math.max(60, cl.length * 12 + 26), w);
     const cx = x + w - confW;
-    confSvg = `<rect data-confidential-mark="1" x="${cx}" y="${by}" width="${confW}" height="16" rx="3" fill="#ffffff" stroke="${INK}" stroke-width="1.5"/>`
+    secSvg = `<rect data-confidential-mark="1" x="${cx}" y="${by}" width="${confW}" height="16" rx="3" fill="#ffffff" stroke="${INK}" stroke-width="1.5"/>`
       + `<text data-role="confidential-label" x="${cx + 6}" y="${by + 12}" font-size="11" font-weight="700" fill="${INK}">🔒 ${esc(cl)}</text>`;
   }
-  if (!mark.needsReview) return confSvg;
+  if (!mark.needsReview) return confSvg + secSvg;
   const label = String(mark.label ?? '要確認');
   const bw = Math.min(Math.max(60, label.length * 12 + 26), Math.max(60, w - confW - 4));
   const bx = x + w - confW - (confW ? 4 : 0) - bw;
-  return confSvg + `<rect data-review-mark="1" data-review-reasons="${attr(mark.reasons.join(' '))}" x="${bx}" y="${by}" width="${bw}" height="16" rx="3" fill="#ffffff" stroke="${INK}" stroke-width="1.5"/>`
+  return confSvg + secSvg + `<rect data-review-mark="1" data-review-reasons="${attr(mark.reasons.join(' '))}" x="${bx}" y="${by}" width="${bw}" height="16" rx="3" fill="#ffffff" stroke="${INK}" stroke-width="1.5"/>`
     + `<text data-role="review-label" x="${bx + 6}" y="${by + 12}" font-size="11" font-weight="700" fill="${INK}">▲ ${esc(label)}</text>`; // 枠（rect）と文字・記号（▲）の 2 要素だけ（5000 件でも DOM を増やしすぎない）
 }
 export function textWidth(s, size) {
@@ -190,6 +198,9 @@ function iconShape(shape, x, y, color) {
 // 描画（renderDiagramSvg）と図の要素の外枠（app.getDiagramElements）が同じ値を使う。trees: Map(sceneId → 木。infodesign.js)。
 // 木がないシーンは話順のまま（まとめない）。列の幅と高さはそのシーンの内容だけで決まるので、後ろのシーンの変化で前の列は動かない（AC-432(b)）。
 const SUB_HEAD = 26; const SUB_PAD = 10; const SUB_GAP = 20; const FS_SUB = 15;
+const CMP_COL_HEAD = 24; const CMP_COL_GAP = 12; const CMP_EMPTY_H = 28; // FR-099: 比較（2 列）の列の見出しの高さ・列の間隔・0 件の列の文字の高さ
+const sideMark = (i) => (i === 0 ? '◀' : '▶'); // 列の記号（色だけに頼らない）
+const columnHead = (side, i) => `${sideMark(i)} ${side.name}（${side.count}）`;
 export function detailGeometry(scenes, trees = null, lang = 'ja', originX = 0) {
   const out = []; let x = MARGIN + originX;
   for (const s of scenes) {
@@ -202,11 +213,34 @@ export function detailGeometry(scenes, trees = null, lang = 'ja', originX = 0) {
     const pw = (leaf) => { const p = byId.get(leaf.refIds[0]); const c = countMark(leaf.refIds.length); return textWidth(p?.text ?? '', FS) + 32 + ICON_W + textWidth(kindLabelOf(classifyPoint(p), lang), 11) + 12 + (c ? textWidth(c, 11) + 8 : 0) + inset * 2; };
     const count = (n) => n.children.reduce((a, l) => a + l.refIds.length, 0);
     const subs = tree.children.filter((n) => n.type === 'subgroup').map((n) => textWidth(subgroupLabel(n, lang, count(n)), FS_SUB) + SUB_PAD * 2 + 8);
-    const w = Math.ceil(Math.max(240, textWidth(s.heading, FS_HEAD) + 70, ...leaves(tree).map(pw), ...subs, emoW + 32));
+    // FR-099 AC-587: 比較は 2 列（同じ幅・同じ基準の文字の大きさ）。1 列の幅は、列の中で最も長い要点・列の見出しに合わせてそろえる。
+    const cmps = tree.children.filter((n) => n.compare);
+    const colNeed = (n) => Math.max(...n.children.map((l) => pw(l) - inset * 2), ...n.compare.sides.map((sd, si) => textWidth(columnHead(sd, si), FS_SUB) + 16), 120);
+    const cmpW = cmps.map((n) => colNeed(n) * 2 + CMP_COL_GAP + SUB_PAD * 2);
+    const w = Math.ceil(Math.max(240, textWidth(s.heading, FS_HEAD) + 70, ...leaves(tree).map(pw), ...subs, ...cmpW, emoW + 32));
     const points = []; const subgroups = [];
     let y = MARGIN + HEAD_H + GAP;
-    const place = (leaf, parent, idx, px, ww) => { points.push({ key: leaf.key, refIds: [...leaf.refIds], parent, readIndex: idx, x: px, y, w: ww, h: BUBBLE_H, provisional: leaf.provisional === true }); y += BUBBLE_H + GAP; };
+    const place = (leaf, parent, idx, px, ww, column = null) => { points.push({ key: leaf.key, refIds: [...leaf.refIds], parent, readIndex: idx, x: px, y, w: ww, h: BUBBLE_H, provisional: leaf.provisional === true, ...(column == null ? {} : { column }) }); y += BUBBLE_H + GAP; };
     tree.children.forEach((n, ci) => {
+      if (n.compare) {
+        const top = y; y += SUB_HEAD;
+        const colW = Math.floor((w - SUB_PAD * 2 - CMP_COL_GAP) / 2);
+        const colTop = y; let colBottom = colTop + CMP_COL_HEAD; let idx = 0;
+        const columns = n.compare.sides.map((sd, si) => {
+          const cx0 = x + SUB_PAD + si * (colW + CMP_COL_GAP);
+          y = colTop + CMP_COL_HEAD;
+          const leafOf = new Map(n.children.map((l) => [l.key, l]));
+          for (const key of sd.keys) { place(leafOf.get(key), n.key, idx++, cx0, colW, si); }
+          if (!sd.keys.length) y += CMP_EMPTY_H + GAP; // 0 件の列: 「異論の記録なし」の文字の行
+          colBottom = Math.max(colBottom, y - GAP + 8 + 4);
+          return { id: sd.id, name: sd.name, count: sd.count, index: si, x: cx0, w: colW, label: columnHead(sd, si), empty: sd.keys.length === 0, emptyLabel: COMPARE_EMPTY[lang === 'en' ? 'en' : 'ja'] };
+        });
+        for (const c of columns) { c.y = colTop; c.h = colBottom - colTop; }
+        const bottom = colBottom + SUB_PAD;
+        subgroups.push({ key: n.key, node: n, readIndex: ci, x, y: top, w, h: bottom - top, label: subgroupLabel(n, lang, count(n)), refIds: n.children.flatMap((l) => l.refIds), provisional: false, compare: { id: n.compare.id, columns } });
+        y = bottom + SUB_GAP;
+        return;
+      }
       if (n.type !== 'subgroup') { place(n, null, ci, x, w); return; }
       const top = y; y += SUB_HEAD;
       n.children.forEach((l, li) => place(l, n.key, li, x + SUB_PAD, w - SUB_PAD * 2));
@@ -271,6 +305,15 @@ export function renderDiagramSvg(scenes, opts = {}) {
     const dash = s.status === 'in_progress' ? ' stroke-dasharray="6 4"' : '';
     const byId = new Map(s.points.map((p) => [p.id, p]));
     for (const sg of g.subgroups) {
+      if (sg.compare) { // FR-099 AC-587: 文字「比較」と対の記号（⇄）の見出し、側ごとの 2 列（列の枠の線種・記号・文字で見分ける。色だけに頼らない）
+        const cols = sg.compare.columns.map((c) => `<g data-compare-column="${attr(c.id)}" data-side-index="${c.index}">`
+          + `<path d="${wobblyD(outline('rect', c.x - 4, c.y, c.w + 8, c.h), `${sg.key}:${c.id}`, true, 0.6)}" fill="none" stroke="${INK}" stroke-width="${sw(1.4)}"${c.index === 0 ? '' : ' stroke-dasharray="7 3"'} data-role="compare-column-frame"/>`
+          + `<text x="${c.x + 4}" y="${c.y + 17}" font-size="${FS_SUB}" font-weight="700" fill="${INK}" data-role="compare-column-heading">${esc(c.label)}</text>`
+          + (c.empty ? `<text x="${c.x + 8}" y="${c.y + 24 + 20}" font-size="${FS}" fill="${INK}" data-role="compare-empty">${esc(c.emptyLabel)}</text>` : '') + '</g>').join('');
+        body.push(`<g data-subgroup="${attr(sg.key)}" data-subgroup-kind="compare" data-conflict-id="${attr(sg.compare.id)}"><path d="${wobblyD(outline('rect', sg.x, sg.y, sg.w, sg.h), `${sg.key}:g`, true, 0.8)}" fill="none" stroke="${INK}" stroke-width="${sw(2.2)}" data-role="subgroup-frame"/>`
+          + `<text x="${sg.x + SUB_PAD}" y="${sg.y + 18}" font-size="${FS_SUB}" font-weight="700" fill="${INK}" data-role="subgroup-heading">${esc(sg.label)}</text>${cols}</g>`);
+        continue;
+      }
       body.push(`<g data-subgroup="${attr(sg.key)}" data-subgroup-kind="${attr(sg.node.kind)}"><path d="${wobblyD(outline('rect', sg.x, sg.y, sg.w, sg.h), `${sg.key}:g`, true, 0.8)}" fill="none" stroke="${color}" stroke-width="${sw(1.2)}" stroke-dasharray="4 3" data-role="subgroup-frame"/>`
         + `<text x="${sg.x + SUB_PAD}" y="${sg.y + 18}" font-size="${FS_SUB}" font-weight="700" fill="${INK}" data-role="subgroup-heading">${esc(sg.label)}</text></g>`);
     }
@@ -305,7 +348,7 @@ export function renderDiagramSvg(scenes, opts = {}) {
       const a = top.get(r.from); const b = top.get(r.to);
       if (a == null || b == null || a === b) continue; // FR-079 AC-429: まとめた要素の中の関係は描かない
       const sa = slot.get(r.from); const sb = slot.get(r.to);
-      if (sa.parent !== sb.parent || Math.abs(sa.readIndex - sb.readIndex) !== 1) continue;
+      if (sa.parent !== sb.parent || Math.abs(sa.readIndex - sb.readIndex) !== 1 || sa.column != null || sb.column != null) continue; // FR-099: 比較の列の中の要点は、列をまたぐので縦の線を引かない（関係はテキスト一覧にある）
       const [from, to] = a <= b ? [a, b] : [b, a];
       const hot = hlId != null && (r.from === hlId || r.to === hlId);
       body.push(`<path data-relation="${attr(r.from)}>${attr(r.to)}"${hot ? ' data-highlight="1"' : ''} d="${wobblyD([[cx, from + BUBBLE_H + 4], [cx, to - 3]], `${r.from}>${r.to}`, false, 1)}" fill="none" stroke="${hot ? HL_COLOR : color}" stroke-width="${sw(hot ? 5 : 2.5)}" stroke-linecap="round" marker-end="url(#${hot ? 'arrow-hl' : `arrow-${i % PALETTE.length}`})"/>`);
