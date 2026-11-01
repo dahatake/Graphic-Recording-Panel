@@ -408,8 +408,38 @@ def connection_test():
     return 200, {"ok": True, "result": "success"}
 
 
-def recognize(language, audio):
-    """POST /api/speech/recognize。音声を認識のホストだけへ送り、確定結果の文字列を返す。音声・文字列は保存・ログ出力しない。"""
+PHRASE_HEADER_MAX = 6000  # azurespeech.js の PHRASE_HEADER_MAX と同じ
+PHRASE_MAX_COUNT = 100
+PHRASE_MAX_LEN = 100
+
+
+def parse_phrases(header):
+    """x-grp-phrases（JSON 配列を UTF-8 で百分率符号化した値）を語の一覧にする。不正・超過は無視（空を返す）。値は記録しない。"""
+    from urllib.parse import unquote
+    if not isinstance(header, str) or not header or len(header) > PHRASE_HEADER_MAX:
+        return []
+    try:
+        data = json.loads(unquote(header, errors="strict"))
+    except (ValueError, UnicodeDecodeError):
+        return []
+    if not isinstance(data, list):
+        return []
+    out = []
+    for p in data:
+        if not isinstance(p, str):
+            continue
+        s = p.strip()
+        if not s or len(s) > PHRASE_MAX_LEN or any(ord(c) < 32 for c in s) or s in out:
+            continue
+        out.append(s)
+        if len(out) >= PHRASE_MAX_COUNT:
+            break
+    return out
+
+
+def recognize(language, audio, phrases=None):
+    """POST /api/speech/recognize。音声を認識のホストだけへ送り、確定結果の文字列を返す。音声・文字列は保存・ログ出力しない。
+    phrases: 認識語彙（parse_phrases の結果）。認識の要求に phraseList として付ける（新しい通信先は増やさない）。"""
     if language not in LANGUAGES:
         return 400, {"ok": False, "result": "invalid", "reason": "language は ja-JP か en-US にしてください。"}
     cfg = load()
@@ -419,6 +449,9 @@ def recognize(language, audio):
     deadline = time.time() + RECOGNIZE_TIMEOUT_SEC
     base, host = ep["stt"]
     path = "%s?language=%s&format=simple" % (ep["stt_path"], language)
+    if phrases:
+        from urllib.parse import quote
+        path += "&phraseList=" + quote(json.dumps(phrases, ensure_ascii=False), safe="")
     headers = {"Content-Type": "audio/wav; codecs=audio/pcm; samplerate=16000", "Accept": "application/json"}
     try:
         for attempt in (0, 1):
