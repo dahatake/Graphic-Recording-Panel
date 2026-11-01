@@ -52,6 +52,20 @@ test('NFR-UX-003 AC-579: ボタンの操作で折りたたみ・展開し、aria
   assert.equal(btn.attrs['aria-expanded'], 'true'); assert.equal(nav.dataset.collapsed, 'false');
 });
 
+test('NFR-UX-003 AC-579: 折りたたみ中に言語を切り替えても、文字は「開く」で aria-expanded=false と一致する（data-i18n で上書きしない）', () => {
+  assert.doesNotMatch(html, /id="ribbon-toggle"[\s\S]*?data-i18n="ribbon\.toggle/);
+  const i = createI18n();
+  const { btn, doc } = fakeDoc();
+  let notify = () => {};
+  mountRibbonToggle({ t: i.t, subscribe(f) { notify = f; } }, doc);
+  btn.click();
+  for (const lang of ['en', 'ja']) {
+    i.setLang(lang); notify();
+    assert.equal(btn.attrs['aria-expanded'], 'false');
+    assert.equal(btn.children['.ribbon-toggle-text'].textContent, i.t('ribbon.toggle.show'));
+  }
+});
+
 test('NFR-UX-003 AC-579: 低い窓ではリボンの高さに上限（スクロール）があり、折りたたみは低い窓でだけ効く（重ならない・広い窓に影響しない）', () => {
   const block = /@media \(max-height: 600px\) \{([\s\S]*?)\n\}/.exec(css)?.[1] ?? '';
   assert.match(block, /\.commandbar \{[^}]*max-height: 40vh[^}]*overflow-y: auto/);
