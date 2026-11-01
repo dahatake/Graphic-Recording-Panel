@@ -258,8 +258,7 @@
     "AC-546": "sha256:1ac96bc515ec6adc",
     "AC-572": "sha256:83e7309a57d1ef40",
     "AC-560": "sha256:2ee665544ee95f16",
-    "AC-166": "sha256:a513268d3e98d038",
-    "AC-559": "sha256:a43c920b4f1bc83f"
+    "AC-569": "sha256:04134336b0865378"
   },
   "cases": [
     {
@@ -8154,6 +8153,31 @@
           "by": "test-designer",
           "change": "ac_ids: ['AC-560', 'AC-166', 'AC-559'] -> ['AC-560']",
           "reason": "AC-166・AC-559 は検証レベル integration のため台帳の対象外。同じテストファイルの観察点として残す（契約メモ CONTRACT-MEETING.md）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-273",
+      "requirement_ids": [
+        "FR-098"
+      ],
+      "ac_ids": [
+        "AC-569"
+      ],
+      "title": "議題タイマー: 表示・キーボード操作・時刻差・復元後は待機",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"FR-098\" tests/system/agenda-timer.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-11-01T16:40:14+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "システムレベルのケースを作成"
         }
       ]
     }
