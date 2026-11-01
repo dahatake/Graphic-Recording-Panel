@@ -28,22 +28,49 @@ export function causalEvidence(text) {
 }
 // FR-053: 要点の並び（話順）の隣り合う 2 つから関係を決定的に導く。向きは原因・課題が始点、結果・提案が終点。
 // 明示: 後ろの発話に因果の語（evidence=word）／課題の次にアイデア・提案（evidence=kinds）。推測: 課題の次に結論が続くだけで根拠の語がない（evidence=null）。
+// FR-053 AC-583: 関係の種類「根拠」(PARAM-132)・「対立」(PARAM-133)・「次の段階」(PARAM-134) の言い回し。日本語は部分一致、英語の語は語境界つき・大文字小文字を区別しない。
+export const RELATION_PHRASES = {
+  evidence: ['なぜなら', 'たとえば', '例えば', '根拠', '理由は', 'データでは', '実績', 'because', 'for example', 'e.g.'],
+  opposition: ['一方', 'それに対して', '対して', '反対に', 'しかし', '賛成', '反対', 'メリット', 'デメリット', 'トレードオフ', '比べ', 'vs', 'however', 'on the other hand'],
+  'next-step': ['まず', '次に', 'その後', 'そのあと', '最後に', 'ステップ', '次は', 'first', 'then', 'next', 'finally'],
+};
+export function phraseEvidence(text, kind) {
+  const s = String(text ?? '').toLowerCase();
+  for (const w of RELATION_PHRASES[kind] ?? []) {
+    const lw = w.toLowerCase();
+    if (/^[\x20-\x7e]+$/.test(lw)) {
+      const esc = lw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // 「next month」のような時間の語が続く next は手順の言い回しではない（AC-237 の例が関係にならないように）
+      const tail = lw === 'next' ? '(?!\\s+(?:month|week|year|day|time|quarter|monday|tuesday|wednesday|thursday|friday|saturday|sunday))' : '';
+      if (new RegExp(`(?<![a-z0-9])${esc}(?![a-z0-9])${tail}`).test(s)) return w;
+    } else if (s.includes(lw)) return w;
+  }
+  return null;
+}
+const wordEv = (w) => ({ type: 'word', text: [...w].slice(0, EVIDENCE_MAX).join('') });
 export function deriveRelations(points) {
   const out = [];
   const kinds = points.map((p) => classifyPoint(p));
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1]; const b = points[i];
     const word = causalEvidence(b.text);
-    if (word) { out.push({ kind: 'cause-effect', from: a.id, to: b.id, basis: 'explicit', evidence: { type: 'word', text: [...word].slice(0, EVIDENCE_MAX).join('') } }); continue; }
-    if (kinds[i - 1] === 'issue' && (kinds[i] === 'idea' || kinds[i] === 'proposal')) out.push({ kind: 'problem-proposal', from: a.id, to: b.id, basis: 'explicit', evidence: { type: 'kinds', text: `${kinds[i - 1]}→${kinds[i]}` } });
-    else if (kinds[i - 1] === 'issue' && kinds[i] === 'conclusion') out.push({ kind: 'problem-proposal', from: a.id, to: b.id, basis: 'inferred', evidence: null });
+    if (word) { out.push({ kind: 'cause-effect', from: a.id, to: b.id, basis: 'explicit', evidence: wordEv(word) }); continue; }
+    if (kinds[i - 1] === 'issue' && (kinds[i] === 'idea' || kinds[i] === 'proposal')) { out.push({ kind: 'problem-proposal', from: a.id, to: b.id, basis: 'explicit', evidence: { type: 'kinds', text: `${kinds[i - 1]}→${kinds[i]}` } }); continue; }
+    // AC-582・AC-583: 根拠（根拠が始点・主張が終点）→ 対立（双方向）→ 次の段階（前の段階が始点）の順に、後ろの発話の言い回しで決める
+    const ev = phraseEvidence(b.text, 'evidence');
+    if (ev) { out.push({ kind: 'evidence', from: b.id, to: a.id, basis: 'explicit', evidence: wordEv(ev) }); continue; }
+    const op = phraseEvidence(b.text, 'opposition');
+    if (op) { out.push({ kind: 'opposition', from: a.id, to: b.id, basis: 'explicit', evidence: wordEv(op), bidirectional: true }); continue; }
+    const ns = phraseEvidence(b.text, 'next-step');
+    if (ns) { out.push({ kind: 'next-step', from: a.id, to: b.id, basis: 'explicit', evidence: wordEv(ns) }); continue; }
+    if (kinds[i - 1] === 'issue' && kinds[i] === 'conclusion') out.push({ kind: 'problem-proposal', from: a.id, to: b.id, basis: 'inferred', evidence: null });
     else if (causalEvidence(a.text)) out.push({ kind: 'cause-effect', from: a.id, to: b.id, basis: 'inferred', evidence: null }); // 理由を述べた発話の直後の発話は、話順だけから結果の候補とする（推測）
   }
   return out;
 }
 const REL_LABELS = {
-  ja: { 'cause-effect': '原因→結果', 'problem-proposal': '課題→提案', explicit: '明示', inferred: '推測' },
-  en: { 'cause-effect': 'Cause→Effect', 'problem-proposal': 'Issue→Proposal', explicit: 'Explicit', inferred: 'Inferred' },
+  ja: { 'cause-effect': '原因→結果', 'problem-proposal': '課題→提案', opposition: '対立', evidence: '根拠', 'next-step': '次の段階', explicit: '明示', inferred: '推測' },
+  en: { 'cause-effect': 'Cause→Effect', 'problem-proposal': 'Issue→Proposal', opposition: 'Opposition', evidence: 'Evidence', 'next-step': 'Next step', explicit: 'Explicit', inferred: 'Inferred' },
 };
 export function labelRelations(rels, lang) {
   const L = REL_LABELS[lang === 'en' ? 'en' : 'ja'];

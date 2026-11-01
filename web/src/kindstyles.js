@@ -8,6 +8,8 @@ import { buildLook, renderPresetSvg } from './presetdiagram.js';
 import { hasVisualFields } from './stylepresets.js';
 
 export const KIND_IDS = ['conclusion', 'issue', 'proposal', 'idea', 'undecided', 'note'];
+// AC-427・AC-564: 割り当てられるのは 6 種類。質問・根拠・行動は「補足」に割り当てたスタイルで描く（外形・絵記号・ラベルは AC-580 のまま）
+export const EXTRA_KIND_IDS = ['question', 'evidence', 'action'];
 // 手書き系スタイル（AC-564）
 export const HANDWRITTEN_STYLE_IDS = ['handwritten', 'yellowBlack', 'chalkboard', 'stickyNotes', 'colorPencil', 'kraftPaper'];
 // AC-565: 推奨セット（強調の強い種類に太い輪郭のスタイルを当てる）
@@ -88,6 +90,7 @@ export function kindStylesModule(ctx) {
     if (!state.kindStyles.enabled) return null;
     const out = {};
     for (const k of KIND_IDS) out[k] = presetify(api.getDrawStyleSpec?.(state.kindStyles.assign[k]));
+    for (const k of EXTRA_KIND_IDS) out[k] = out.note; // AC-564・AC-581: 質問・根拠・行動は「補足」に割り当てたスタイル
     return out;
   };
   // 種類 → look（描画用。強制カラーの間は従来どおりシステム色）
@@ -96,6 +99,7 @@ export function kindStylesModule(ctx) {
     const specs = api.getKindStyleSpecs();
     const out = {};
     for (const k of KIND_IDS) out[k] = { ...buildLook(specs[k]), styleId: specs[k].id };
+    for (const k of EXTRA_KIND_IDS) out[k] = out.note;
     return out;
   };
 
