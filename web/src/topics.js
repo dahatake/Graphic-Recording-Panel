@@ -47,14 +47,16 @@ export function parseEdits(raw) {
 }
 
 // scenes → トピックの配列（時系列順）。edits: 利用者の手修正（題名 titles、所属 moves: シーン id → 移し先のシーン id、'' は新しいトピック）。
-export function classifyTopics(scenes, edits = emptyEdits(), min = MIN_SHARED) {
+// breaks: 議題の切替で確定したシーンの id の集合（FR-098 AC-571）。そのシーンの後ろでは、語句が共通でもトピックを区切る（議題をまたがない）。
+export function classifyTopics(scenes, edits = emptyEdits(), min = MIN_SHARED, breaks = null) {
   const words = new Map(scenes.map((s) => [s.id, sceneWords(s)]));
   const groups = [];
   for (const sc of scenes) {
     const w = words.get(sc.id);
     const last = groups[groups.length - 1];
-    if (last && sharedCount(w, last.keys) >= min) { last.scenes.push(sc); for (const x of w) last.keys.add(x.toLowerCase()); }
-    else groups.push({ scenes: [sc], keys: keySet(w) });
+    const crossing = breaks && breaks.size && last && last.lastId != null && breaks.has(last.lastId);
+    if (last && !crossing && sharedCount(w, last.keys) >= min) { last.scenes.push(sc); last.lastId = sc.id; for (const x of w) last.keys.add(x.toLowerCase()); }
+    else groups.push({ scenes: [sc], keys: keySet(w), lastId: sc.id });
   }
   // 手修正の所属（以後の自動分類で元に戻さない）
   const idx = new Map(scenes.map((s, i) => [s.id, i]));
@@ -152,7 +154,7 @@ export function topicsModule(ctx) {
   // NFR-PERF-003 AC-538・AC-400: 分類はデータの版数ごとに 1 回だけ計算する（データを変えない操作では再計算しない）
   let memo = { ver: null, topics: null, rels: null };
   const version = () => ctx.getDataVersion?.() ?? null;
-  const classify = () => { ctx.countCall?.('classifyTopics'); return classifyTopics(state.scenes, state.topicEdits); };
+  const classify = () => { ctx.countCall?.('classifyTopics'); return classifyTopics(state.scenes, state.topicEdits, undefined, api.getAgendaBreaks?.() ?? null); };
   const compute = () => {
     const v = version();
     if (v == null) return classify();
@@ -190,7 +192,7 @@ export function topicsModule(ctx) {
     }
     ctx.change((s) => {
       s.topicEdits.moves[sceneId] = anchor;
-      const after = classifyTopics(s.scenes, s.topicEdits);
+      const after = classifyTopics(s.scenes, s.topicEdits, undefined, api.getAgendaBreaks?.() ?? null);
       const titles = {};
       for (const tp of before) {
         if (!(tp.id in s.topicEdits.titles)) continue;

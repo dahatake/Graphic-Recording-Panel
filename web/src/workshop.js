@@ -60,7 +60,7 @@ function stageQuestion(group) {
   for (const s of group) {
     for (const p of s.points) {
       last = p;
-      const kind = classifyPoint(p.text);
+      const kind = classifyPoint(p);
       if (QUESTION_RE.test(p.text) || kind === 'undecided') return p.text;
       if (kind === 'issue' && !issue) issue = p.text;
       if (kind === 'conclusion') hasConclusion = true;
@@ -73,7 +73,7 @@ function stageQuestion(group) {
 }
 function stageKind(group) {
   let n = 0; const seen = new Set();
-  for (const s of group) for (const p of s.points) { seen.add(classifyPoint(p.text)); if (++n >= 24) break; }
+  for (const s of group) for (const p of s.points) { seen.add(classifyPoint(p)); if (++n >= 24) break; }
   for (const k of ['conclusion', 'issue', 'idea', 'proposal', 'undecided']) if (seen.has(k)) return k;
   return 'note';
 }

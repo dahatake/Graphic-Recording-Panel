@@ -736,6 +736,15 @@ export function mountUI(app, doc = document) {
   for (const ev of ['resize', 'scroll']) doc.defaultView?.addEventListener?.(ev, () => { if (dsEl) syncStylePicker(); }, { passive: true, capture: true }); // 画面の大きさ・スクロールが変わったら置き直す
   doc.addEventListener('pointerdown', (e) => { if (dsEl && !e.target.closest?.('#drawstyle-list, [data-command="drawStyle.pick"]')) app.closeDrawStylePicker(null); });
 
+  // FR-098・FR-091: テキスト一覧の中の議題タイマーのボタン・進行の段階のボタン（キーボードでも Enter・Space で押せる）
+  doc.addEventListener('click', (e) => {
+    const b = e.target.closest?.('#outline button[data-command]');
+    if (!b || b.disabled) return;
+    const cmd = b.dataset.command;
+    if (cmd === 'phase.set') app.setFacilitationPhase?.(b.dataset.phase);
+    else if (typeof app.commands[cmd] === 'function') app.commands[cmd]();
+  });
+
   // FR-062: LLM 連携の同意の表示（送る項目の種類・送信先ホスト名・送らないもの）。同意するまで有効にならない
   let consentEl = null;
   function syncConsent() {

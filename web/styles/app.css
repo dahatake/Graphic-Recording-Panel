@@ -120,6 +120,8 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .outline-points:last-of-type { margin-bottom: 1em; }
 .badge { display: inline-block; font-size: var(--font-size-caption); padding: 0 var(--space-2); border: var(--stroke) solid var(--color-border); border-radius: var(--radius-control); margin-left: var(--space-1); }
 .badge-confirmed { font-weight: var(--font-weight-semibold); }
+/* FR-092・FR-024: 「要確認」「AI 要約」「手追加」の印は、枠と文字・記号で示す（色だけに頼らない。AC-231 と同じ方針） */
+.badge-review, .badge-ai, .badge-manual { font-weight: var(--font-weight-semibold); border-color: currentColor; }
 .badge-selected { font-weight: var(--font-weight-semibold); text-decoration: underline; }
 
 /* 手修正フォーム（テキスト一覧パネルの下のカード） */

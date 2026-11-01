@@ -27,6 +27,7 @@ export function mountEditUI(app, doc = document) {
     });
     mk('merge', (pid) => { const sc = find(pid); if (sc) app.mergeScenes(sc.id); });
     mk('split', (pid) => { const sc = find(pid); if (sc) app.splitScene(sc.id, pid); });
+    mk('undo', () => { app.undoManualEdit?.(); }); // FR-005 AC-575
     panel.append(form);
     buildTopicForm();
   }
@@ -71,6 +72,9 @@ export function mountEditUI(app, doc = document) {
     form.setAttribute('aria-label', app.t('edit.title'));
     for (const el of form.querySelectorAll('[data-k]')) el.textContent = app.t(`edit.${el.dataset.k}`);
     for (const b of form.querySelectorAll('[data-edit]')) b.textContent = app.t(`edit.${b.dataset.edit}`);
+    // FR-005 AC-575: 履歴がないときは元に戻す操作は無効で、理由を示す
+    const ub = form.querySelector('[data-edit="undo"]');
+    if (ub) { const can = app.canUndoManualEdit?.() === true; ub.disabled = !can; if (can) ub.removeAttribute('title'); else ub.title = app.t('msg.undoNone'); }
     const sel = form.querySelector('[data-f="point"]');
     const items = [];
     st.scenes.forEach((sc, i) => { for (const p of sc.points) items.push([p.id, `${app.t('edit.scene')} ${i + 1}: ${p.text}`]); });

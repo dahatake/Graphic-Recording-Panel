@@ -34,17 +34,17 @@ export function makeHeading(text) {
   return chars.length <= HEADING_MAX ? chars.join('') : `${chars.slice(0, HEADING_MAX).join('')}…`;
 }
 
-export function appendPoints(scene, texts, nextId) {
+export function appendPoints(scene, texts, nextId, uid = null) {
   for (const text of texts) {
     const prev = scene.points[scene.points.length - 1];
-    const pt = { id: nextId('p'), text };
+    const pt = { id: nextId('p'), text, ...(uid ? { uid } : {}) }; // uid: 元の発話（FR-024 AC-572）
     scene.points.push(pt);
     if (prev) scene.relations.push({ from: prev.id, to: pt.id });
   }
 }
 
-export function newScene(firstUtterance, nextId) {
+export function newScene(firstUtterance, nextId, uid = null) {
   const scene = { id: nextId('s'), heading: makeHeading(firstUtterance), points: [], relations: [], status: 'in_progress' };
-  appendPoints(scene, extractPoints(firstUtterance), nextId);
+  appendPoints(scene, extractPoints(firstUtterance), nextId, uid);
   return scene;
 }
