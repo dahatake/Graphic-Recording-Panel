@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { judgeReview } from '../../web/src/review.js';
-import { encodePhrases } from '../../web/src/azurespeech.js';
+import { createRelayAzureSpeechSource } from '../../web/src/azurespeech.js';
 import { newApp, toDetail } from '../system/helpers.js';
 import { bootAzure, startAzureRecording, flush, DUMMY_ENDPOINT } from '../system/azurespeech-util.js';
 
@@ -128,26 +128,65 @@ test('FR-093 AC-550: 手入力・ファイル取込の記録時に別表記が�
   env.speech.emit?.('くべるねてす', true); // 音声（ブラウザ標準）でも addUtterance を通る
 });
 
-// FR-093 AC-551
-test('FR-093 AC-551: Azure Speech かつ同意があるときだけ term だけを phrase list として渡す。同意なし・ブラウザ標準は渡さない', async () => {
+// FR-093 AC-551（案 A）: 用語集の語は Azure Speech でも外部へ送らない。認識の開始・クライアントの fetch・結果の表記統一（AC-550）。
+test('FR-093 AC-551: Azure Speech の開始に用語集の語を渡さない（同意の前後とも）。認識結果は別表記が正しい表記に統一される', async () => {
   const c = await bootAzure();
   c.app.addGlossaryTerm({ term: 'Kubernetes', variants: ['くべるねてす'] });
   await startAzureRecording(c.app, { consent: false });
   assert.equal(c.azure.startCalls.length, 0, '同意前は開始しない');
   c.app.setSpeechConsent(true); await flush();
   assert.equal(c.azure.startCalls.length, 1);
-  assert.deepEqual(c.azure.startCalls[0].phrases, ['Kubernetes']);
-  assert.equal(JSON.stringify(c.azure.startCalls[0]).includes('くべるねてす'), false, '別表記は含まれない');
+  assert.equal('phrases' in c.azure.startCalls[0], false);
+  assert.equal(JSON.stringify(c.azure.startCalls[0]).includes('Kubernetes'), false);
+  // AC-550: Azure の認識結果（記録の入口）でも別表記が正しい表記になり、rawText に元が残る
+  c.azure.emit('くべるねてす を使う', true); await flush();
+  const u = c.app.getState().utterances.at(-1);
+  assert.equal(u.text, 'Kubernetes を使う');
+  assert.equal(u.rawText, 'くべるねてす を使う');
   // ブラウザ標準: 用語集を渡さない
   const b = await newApp();
   b.app.addGlossaryTerm({ term: 'Kubernetes' });
   b.app.commands['session.start']();
   b.app.startSpeech?.();
   for (const call of b.env.speech.startCalls) assert.equal('phrases' in call, false);
-  // ヘッダーの値: 語だけ
-  assert.deepEqual(JSON.parse(decodeURIComponent(encodePhrases(['A', 'B', '']))), ['A', 'B']);
-  assert.equal(encodePhrases([]), '');
   assert.ok(DUMMY_ENDPOINT);
+});
+
+// FR-093 AC-551: クライアントの認識リクエスト（relay への fetch 相当）に用語集の語がない
+test('FR-093 AC-551: createRelayAzureSpeechSource の認識リクエストにヘッダー・本文・パスとも用語集の語が含まれない', async () => {
+  const reqs = [];
+  const relay = async (req) => { reqs.push(req); return { status: 200, body: { ok: true, result: 'success', text: '結果' } }; };
+  let proc = null;
+  const stream = { getTracks: () => [{ stop() {} }], getAudioTracks: () => [{}] };
+  const g = {
+    navigator: { mediaDevices: { getUserMedia: async () => stream } },
+    AudioContext: class {
+      constructor() { this.sampleRate = 16000; this.destination = {}; }
+      createMediaStreamSource() { return { connect() {}, disconnect() {} }; }
+      createScriptProcessor() { proc = { connect() {}, disconnect() {}, onaudioprocess: null }; return proc; }
+      close() { return Promise.resolve(); }
+    },
+  };
+  const src = createRelayAzureSpeechSource({ relay, g });
+  const got = [];
+  src.onresult = (e) => got.push(e.text);
+  src.start({ lang: 'ja-JP', phrases: ['Kubernetes', 'くべるねてす'] }); // 渡されても使わない
+  await flush();
+  const frame = (v) => ({ inputBuffer: { getChannelData: () => new Float32Array(4096).fill(v) } });
+  proc.onaudioprocess(frame(0.3));
+  for (let i = 0; i < 4; i++) proc.onaudioprocess(frame(0));
+  await flush();
+  assert.equal(reqs.length, 1);
+  const r = reqs[0];
+  assert.equal(r.path, '/api/speech/recognize?language=ja-JP');
+  assert.equal(r.headers?.['x-grp-phrases'], undefined);
+  assert.deepEqual(Object.keys(r.headers ?? {}), []);
+  for (const w of ['Kubernetes', 'くべるねてす', 'phrase']) {
+    assert.equal(JSON.stringify({ ...r, body: undefined }).includes(w), false, w);
+    assert.equal(Buffer.from(r.body).includes(Buffer.from(w)), false, w);
+  }
+  assert.deepEqual(got, ['結果']);
+  src.stop();
 });
 
 // FR-093 AC-552
