@@ -23,7 +23,7 @@
 ## 用語集（FR-093）
 - `app.addGlossaryTerm({ term, variants?:[string] })` → `{ok, reason?}`（空・重複（前後の空白と全角・半角の違いを除く）・上限 PARAM-122 超は `ok:false`）。`app.updateGlossaryTerm(id, {term, variants})`、`app.removeGlossaryTerm(id)`、`app.getGlossary()` → `{ terms:[{id, term, variants}], count, limit }`。
 - 発話の記録時（音声・手入力・ファイル取込）に別表記を `term` へ置換する。`getState().utterances[i]` は `{ id, text（置換後）, rawText（置換前の認識文字列）, receivedAt }`。
-- AC-551: Azure Speech かつ同意（FR-081）があるときだけ、認識の開始時に `term` だけを phrase list として送る（variants・会議の内容は含めない）。同意なし・ブラウザ標準・LLM 送信には含めない（外部リクエスト 0 件）。
+- AC-551: Azure Speech でも、同意（FR-081）があっても、用語集の語（term・variants）は外部へ送らない。観察点: 外部へ送る認識リクエストに用語集の語が 0 件（phrase list・fast transcription API は使わない。API `getGlossaryPhrases` は削除済み）。LLM 送信にも含めない。認識結果の表記統一は AC-550 の認識後の統一のみ。
 - AC-552: `grp.session`・`file.save` に含まれ復元後も有効。`data.reset` で消える。
 
 ## 元の発話（FR-024 AC-572）
