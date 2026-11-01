@@ -8,10 +8,10 @@ export const KINDS = ['decision', 'pending', 'objection', 'action'];
 export const KIND_LIST = { decision: 'decisions', pending: 'pendings', objection: 'objections', action: 'actions' };
 // PARAM-126〜129: 言い回し（部分一致・大文字小文字を区別しない）
 export const PHRASES = {
-  decision: ['決まりました', '決定', '合意', '採用する', 'に決めた', 'agreed', 'decided'], // PARAM-126
+  decision: ['決まりました', '決めました', '決定', '確定', '承認', '合意', '採用する', 'に決めた', 'agreed', 'decided'], // PARAM-126
   pending: ['保留', '未定', '持ち帰り', '次回', '検討中', 'pending', 'tbd'], // PARAM-127
   objection: ['反対', '懸念', '心配', '問題がある', '難しい', 'concern', 'object'], // PARAM-128
-  action: ['お願いします', 'してください', '対応する', 'やります', '確認します', 'todo', 'action item'], // PARAM-129
+  action: ['お願いします', 'してください', '対応する', 'やります', '確認します', '共有します', '調整します', '対応します', '連絡します', 'までに', '担当', 'todo', 'action item'], // PARAM-129
 };
 const FIELDS = { decision: ['reason', 'decider'], pending: [], objection: ['relatedDecisionId'], action: ['assignee', 'due', 'doneCriteria'] };
 const MAX_ITEMS = 2000;
