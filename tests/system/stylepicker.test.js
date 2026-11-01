@@ -205,7 +205,7 @@ test('FR-077 AC-416: コマンドの検索から描画スタイルの名前で�
   assert.equal(app.getDrawStyle(), 'handwritten');
 });
 
-// FR-077 AC-417
+// FR-077 AC-417（例外: ユーザーの明示操作によるリボンの折りたたみ中（AC-579）は除く。ここは折りたたまない状態で省かれないことを検証し、折りたたみ中は AC-579 のケースで検証する）
 test('FR-077 AC-417: 画面幅 640px 以下でも選ぶボタンとラベルは省かれず、一覧の全候補へ横スクロールなしで到達できる', async () => {
   const { app } = await newApp();
   for (const w of [NARROW, 480, 320]) {
