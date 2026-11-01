@@ -3,6 +3,7 @@
 import { classifyPoint } from './diagram.js';
 import { deriveRelations, labelRelations } from './layoutkinds.js';
 import { buildFigureDescription } from './figuredesc.js';
+import { scenesForDetail } from './export.js';
 import { decorateSvg, headerModel } from './meetingout.js';
 export const DEFAULT_MINUTES = 10; // PARAM-124
 const AGENDA_MAX = 50;
@@ -93,16 +94,28 @@ export function meetingModule(ctx) {
     const ti = api.getTitleInfo?.() ?? {};
     return { title: String(ti.theme ?? '').trim() || ctx.t('app.title'), date: ti.date ?? '', series: ti.series ?? '', venue: ti.venue ?? '', agenda: state.meeting.agenda.map((a) => a.name), purpose: state.meeting.purpose, audience: state.meeting.audience };
   };
-  // FR-096 AC-561〜563: 図の説明。画面の詳細度によらず全体を対象にする（生成 AI・外部通信なし）
+  // FR-096 AC-561〜563: 図の説明。画面の詳細度（FR-026）に従い、その詳細度で出ない要点は含めない（生成 AI・外部通信なし）
   api.getFigureDescription = () => {
     const mo = api.getMeetingOutput();
-    const pts = state.scenes.flatMap((s) => s.points);
-    const text = new Map(pts.map((p) => [p.id, p.text]));
-    const topics = (api.getTopics?.() ?? []).map((tp) => tp.title);
-    const rels = labelRelations(deriveRelations(pts), state.lang).map((r) => `${r.kindLabel}: ${text.get(r.from)} → ${text.get(r.to)}`);
-    const conclusions = pts.filter((p) => classifyPoint(p) === 'conclusion').map((p) => p.text);
-    const open = pts.filter((p) => classifyPoint(p) === 'undecided').map((p) => p.text);
-    for (const it of api.getMeetingItems?.()?.pendings ?? []) if (it.state === 'confirmed') open.push(it.text);
+    const level = api.getDetailLevel?.() ?? 'detail';
+    const topicList = api.getTopics?.() ?? [];
+    const topics = topicList.map((tp) => tp.title);
+    let rels; let conclusions; let open;
+    if (level === 'detail' || !topicList.length) {
+      const pts = state.scenes.flatMap((s) => s.points);
+      const text = new Map(pts.map((p) => [p.id, p.text]));
+      rels = labelRelations(deriveRelations(pts), state.lang).map((r) => `${r.kindLabel}: ${text.get(r.from)} → ${text.get(r.to)}`);
+      conclusions = pts.filter((p) => classifyPoint(p) === 'conclusion').map((p) => p.text);
+      open = pts.filter((p) => classifyPoint(p) === 'undecided').map((p) => p.text);
+      for (const it of api.getMeetingItems?.()?.pendings ?? []) if (it.state === 'confirmed') open.push(it.text);
+    } else {
+      // 大項目・中項目: 画面に出る単位（大項目はトピックの題名、中項目は加えてシーンの見出し）だけを対象にする
+      const shown = scenesForDetail(state.scenes, level, topicList).flatMap((s) => s.points);
+      const tt = new Map(topicList.map((tp) => [tp.id, tp.title]));
+      rels = (api.getTopicRelations?.() ?? []).filter((r) => tt.has(r.from) && tt.has(r.to)).map((r) => `${r.label}: ${tt.get(r.from)} → ${tt.get(r.to)}`);
+      conclusions = shown.filter((p) => classifyPoint(p) === 'conclusion').map((p) => p.text);
+      open = shown.filter((p) => classifyPoint(p) === 'undecided').map((p) => p.text);
+    }
     return buildFigureDescription({ title: mo.title, purpose: mo.purpose, audience: mo.audience, topics: topics.length ? topics : state.scenes.map((s) => s.heading), relations: rels, conclusions, unresolved: open, lang: state.lang });
   };
   // 保存する SVG: <title>（表題）・<desc>（説明）と、表題・日付・議題の見出しを付ける

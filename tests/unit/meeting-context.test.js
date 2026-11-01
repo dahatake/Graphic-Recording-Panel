@@ -109,15 +109,36 @@ test('FR-095 AC-558 AC-559: 目的・対象読者・議題を入力でき、未�
   assert.ok(app.getMeetingFormSpec().fields.some((f) => f.id === 'agenda'));
 });
 
-test('FR-096 AC-561 AC-562 AC-563 AC-578: 保存した SVG・PNG・PDF に同じ説明が付き、画面の詳細度によらず、会議の文字は escape される', async () => {
+// FR-096 AC-561 AC-562: 説明の対象は画面の詳細度（FR-026）に従い、その詳細度で出ない要点は含めない
+test('FR-096 AC-561 AC-562: 説明は詳細度ごとに絞られ、大項目・中項目では要点の文字を含まず、詳細では含む。保存物も同じ', async () => {
+  const { app, env } = await newApp();
+  const texts = await seedThreeScenes(app, env);
+  const heads = app.getState().scenes.map((s) => s.heading);
+  toDetail(app, 'detail');
+  const full = app.getFigureDescription().text;
+  assert.ok(full.includes('コストが高くて困った'), '詳細では要点を含む');
+  for (const lvl of ['major', 'middle']) {
+    toDetail(app, lvl);
+    const d = app.getFigureDescription().text;
+    assert.ok(!d.includes('コストが高くて困った'), `${lvl}: 画面に出ない要点を含まない`);
+    assert.ok(d.includes('主なテーマ') && d.includes('結論') && d.includes('未解決事項'), `${lvl}: 4 項目の見出しは残る`);
+    await app.commands['save.svg']();
+    const svg = String(env.downloads.at(-1).data);
+    assert.ok(!svg.includes('コストが高くて困った'), `${lvl}: SVG の説明にも出ない`);
+  }
+  toDetail(app, 'middle');
+  const mid = app.getFigureDescription().text;
+  assert.ok(mid.length > 0 && heads.length === 3);
+});
+
+test('FR-096 AC-561 AC-562 AC-563 AC-578: 保存した SVG・PNG・PDF に同じ説明が付き、詳細度（詳細）の内容で、会議の文字は escape される', async () => {
   const { app, env } = await newApp();
   await seedThreeScenes(app, env);
   app.setTitleInfo({ theme: EVIL });
   app.setMeetingContext({ purpose: EVIL, audience: '経営層', agenda: [{ name: EVIL }] });
   const descAt = (lvl) => { toDetail(app, lvl); return app.getFigureDescription().text; };
   const full = descAt('detail');
-  assert.equal(descAt('major'), full, '詳細度によらず同じ説明');
-  assert.equal(app.getFigureDescription().text, full, '決定的');
+  assert.equal(descAt('detail'), full, '決定的');
   for (const w of ['主なテーマ', '関係', '結論', '未解決事項', '目的', '対象読者']) assert.ok(full.includes(w), w);
   await app.commands['save.svg']();
   const svg = String(env.downloads.at(-1).data);
