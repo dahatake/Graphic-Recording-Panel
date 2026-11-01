@@ -94,9 +94,12 @@ export function relayoutModule(ctx) {
   };
 
   function canonical() {
+    // FR-091 AC-576: 発散の間は、要点を話順に並べるだけ（昇格・分割・まとめを保留。トピックの分割も保留）
+    const hold = api.isPhaseHold?.() === true;
+    const flat = (s) => ({ children: (s.points ?? []).map((p) => ({ type: 'point', key: p.id, refIds: [p.id] })) });
     return {
-      scenes: new Map(state.scenes.map((s) => [s.id, sceneTree(s, GROUP_MAX)])),
-      topics: new Map(topics().map((tp) => [tp.id, topicChunks(tp.sceneIds, GROUP_MAX)])),
+      scenes: new Map(state.scenes.map((s) => [s.id, hold ? flat(s) : sceneTree(s, GROUP_MAX)])),
+      topics: new Map(topics().map((tp) => [tp.id, hold ? null : topicChunks(tp.sceneIds, GROUP_MAX)])),
       known: new Set(ids()),
     };
   }
@@ -278,6 +281,8 @@ export function relayoutModule(ctx) {
   api.getArrangeStatus = () => ({ count, pending: pending(), lastTransition: lastTransition ? { ...lastTransition } : null });
   // 再配置をすぐ行う（新しい要素がなければ何もしない＝冪等。AC-432(c)）。
   api.rearrangeNow = () => { if (!pending()) return false; rearrange(); return true; };
+  // FR-091: 進行の段階の切替など、新しい要素がなくても今の規則で並べ直す
+  api.requestRearrange = () => { if (!state.scenes.length) return false; rearrange(); return true; };
 
   // ---- 図の拡大率と表示位置（2D。再配置の前後で変えない。AC-439） ----
   let diagramView = { zoom: 1, scrollX: 0, scrollY: 0 };
@@ -398,4 +403,7 @@ export function relayoutModule(ctx) {
   // FR-079: 図の情報デザインの記述（種類の順・上限・文字の大きさの階層）
   api.getInfoDesign = () => ({ kindOrder: [...KIND_ORDER], groupMax: GROUP_MAX, typeScale: { ...TYPE_SCALE } });
   api.getArrangedPointOrder = (sceneId) => { const tr = view().trees.get(sceneId); return tr ? leaves(tr).map((l) => [...l.refIds]) : null; };
+  // FR-092: 再配置でまだ位置が確定していない（暫定の表示の）要点か
+  // 最初の再配置の前は、すべての要点が初回の描画であり暫定との区別がないため暫定とはしない（ASSUMPTION）
+  api.isProvisionalPoint = (pointId) => !!snap && !snap.known.has(pointId);
 }

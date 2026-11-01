@@ -7,6 +7,7 @@ import { parseAxes, DEFAULT_AXES } from './axes3d.js';
 import { INITIAL_VIEWPOINT } from './view3d.js';
 import { stampName, browserDownload } from './export.js';
 import { acceptGeneratedSvg } from './svgsanitize.js';
+import { emptyGlossary } from './glossary.js';
 
 export const FORMAT = 'grp-session';
 export const VERSION = 1;
@@ -116,8 +117,10 @@ export function sessionModule(ctx) {
       s.utterances = []; s.scenes = []; s.selectedSceneId = null; s.session = 'preparing';
       s.viewMode = '2d'; s.displayMode = 'timeline'; s.arrange = presetArrange(); s.topicEdits = emptyEdits();
       s.axes3d = { ...DEFAULT_AXES }; s.viewpoint = { ...INITIAL_VIEWPOINT };
+      s.glossary = emptyGlossary(); // FR-093 AC-552: データの初期化で用語集も消える
       api.importViewSettings?.(null);
       api.importGeneratedSvgs?.(null);
+      ctx.resetExtras();
       s.input.draft = '';
       if (s.speech) s.speech.interim = '';
       ctx.setMessage('msg.resetDone');
@@ -137,8 +140,10 @@ export function sessionModule(ctx) {
       s.selectedSceneId = sess.scenes.some((x) => x.id === sess.selectedSceneId) ? sess.selectedSceneId : null;
       s.displayMode = sess.displayMode;       s.arrange = parseArrange(sess.arrange); s.topicEdits = parseEdits(sess.topicEdits);
       s.viewMode = sess.viewMode; s.axes3d = sess.axes3d; s.viewpoint = { ...INITIAL_VIEWPOINT };
+      s.glossary = sess.glossary ?? emptyGlossary(); // FR-093 AC-552
       api.importViewSettings?.(sess.viewSettings);
       api.importGeneratedSvgs?.(sess.generatedSvgs);
+      ctx.importExtras(sess.extras);
       s.session = 'paused';
       s.input.draft = '';
       ctx.setMessage('msg.fileLoaded');
@@ -175,7 +180,8 @@ export function sessionModule(ctx) {
     const data = JSON.stringify({
       format: FORMAT, version: VERSION,
       utterances: state.utterances, scenes: state.scenes, selectedSceneId: state.selectedSceneId, seq: ctx.getSeq(),
-      displayMode: state.displayMode, arrange: state.arrange, topicEdits: state.topicEdits, viewMode: state.viewMode, axes3d: state.axes3d,
+      displayMode: state.displayMode, arrange: state.arrange, topicEdits: state.topicEdits, glossary: state.glossary, viewMode: state.viewMode, axes3d: state.axes3d,
+            ...(Object.keys(ctx.exportExtras()).length ? { extras: ctx.exportExtras() } : {}),
             ...(api.exportViewSettings?.() ?? {}),
             ...(api.exportGeneratedSvgs?.().length ? { generatedSvgs: api.exportGeneratedSvgs() } : {}),
           });

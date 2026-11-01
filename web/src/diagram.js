@@ -49,10 +49,16 @@ const KIND_RULES = [
   ['conclusion', /決め|決定|決ま|結論|合意|方針|採用|にする|します|decid|conclu|agree|resolv|chose/i],
   ['idea', /案|しよう|してみ|かも|どう|how about|what if|maybe|[?？]/i],
 ];
-export function classifyPoint(text) {
+// FR-091 AC-577: 語のパターンに当てはまる種類（当てはまらなければ null）。進行の段階の既定はここが null のときだけ使う。
+export function classifyPointRule(text) {
   const s = String(text ?? '');
   for (const [k, re] of KIND_RULES) if (re.test(s)) return k;
-  return 'note';
+  return null;
+}
+// 引数は要点の文字列か、要点（{text, kind?}）。語のパターンが先で、当てはまらない要点だけ、追加した時点の段階で決めた kind（FR-091）を使う。
+export function classifyPoint(x) {
+  if (x && typeof x === 'object') return classifyPointRule(x.text) ?? (typeof x.kind === 'string' && KINDS[x.kind] ? x.kind : 'note');
+  return classifyPointRule(x) ?? 'note';
 }
 // FR-029: 描画スタイル（drawstyles.js の定義）。描画の間だけ有効（同期処理）。既定は手書き調＝従来の見た目。
 const HAND = { line: { width: 1, jitter: 1 }, fill: { mode: 'paper' }, text: { decor: 'standard', icons: true } };
@@ -107,6 +113,16 @@ const PAD = 20; const HEAD_H = 44; const BUBBLE_H = 38; const GAP = 30; const SC
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const attr = (s) => esc(s).replace(/"/g, '&quot;');
+
+// FR-092 AC-545: 「要確認」の印。文字「要確認」＋枠つきの記号（▲）で示し、色だけに頼らない（AC-231 と同じ方針）。吹き出しの下の余白に置く。
+export function reviewMarkSvg(mark, x, y, w, h = BUBBLE_H) {
+  if (!mark || !mark.needsReview) return '';
+  const label = String(mark.label ?? '要確認');
+  const bw = Math.min(Math.max(60, label.length * 12 + 26), w);
+  const bx = x + w - bw; const by = y + h + 3;
+  return `<rect data-review-mark="1" data-review-reasons="${attr(mark.reasons.join(' '))}" x="${bx}" y="${by}" width="${bw}" height="16" rx="3" fill="#ffffff" stroke="${INK}" stroke-width="1.5"/>`
+    + `<text data-role="review-label" x="${bx + 6}" y="${by + 12}" font-size="11" font-weight="700" fill="${INK}">▲ ${esc(label)}</text>`; // 枠（rect）と文字・記号（▲）の 2 要素だけ（5000 件でも DOM を増やしすぎない）
+}
 export function textWidth(s, size) {
   let w = 0;
   for (const ch of String(s)) w += ch.codePointAt(0) >= 0x2e80 ? size : size * 0.56;
@@ -147,7 +163,7 @@ export function detailGeometry(scenes, trees = null, lang = 'ja', originX = 0) {
     const inset = grouped ? SUB_PAD : 0;
     const emos = sceneEmotions(s);
     const emoW = Math.max(0, ...emos.map((e) => 34 + textWidth(e.word, FS)));
-    const pw = (leaf) => { const p = byId.get(leaf.refIds[0]); const c = countMark(leaf.refIds.length); return textWidth(p?.text ?? '', FS) + 32 + ICON_W + textWidth(kindLabelOf(classifyPoint(p?.text), lang), 11) + 12 + (c ? textWidth(c, 11) + 8 : 0) + inset * 2; };
+    const pw = (leaf) => { const p = byId.get(leaf.refIds[0]); const c = countMark(leaf.refIds.length); return textWidth(p?.text ?? '', FS) + 32 + ICON_W + textWidth(kindLabelOf(classifyPoint(p), lang), 11) + 12 + (c ? textWidth(c, 11) + 8 : 0) + inset * 2; };
     const count = (n) => n.children.reduce((a, l) => a + l.refIds.length, 0);
     const subs = tree.children.filter((n) => n.type === 'subgroup').map((n) => textWidth(subgroupLabel(n, lang, count(n)), FS_SUB) + SUB_PAD * 2 + 8);
     const w = Math.ceil(Math.max(240, textWidth(s.heading, FS_HEAD) + 70, ...leaves(tree).map(pw), ...subs, emoW + 32));
@@ -206,11 +222,11 @@ export function renderDiagramSvg(scenes, opts = {}) {
       if (!p) continue;
       const { x: px, y, w: pw } = g1;
       for (const id of g1.refIds) { top.set(id, y); rects.set(id, { x: px, y, w: pw, sceneId: s.id }); }
-      const kind = classifyPoint(p.text);
+      const kind = classifyPoint(p);
       const k = KINDS[kind];
       const hl = hlId != null && g1.refIds.includes(hlId);
       const stroke = hl ? HL_COLOR : k.color;
-      const concl = kind === 'conclusion'; const sWidth = sw(hl ? 5 : concl ? 4.5 : 2.5);
+      const concl = kind === 'conclusion' && !opts.noEmphasis; const sWidth = sw(hl ? 5 : concl ? 4.5 : 2.5);
       const frame = hl ? `<path d="${wobblyD(outline(k.shape, px - 6, y - 6, pw + 12, BUBBLE_H + 12), `${p.id}:f`, true, 1.2)}" fill="none" stroke="${HL_COLOR}" stroke-width="2" stroke-dasharray="3 3" data-role="highlight-frame"/>` : '';
       const star = hl ? `<g data-role="highlight-icon">${iconShape('star', px + pw - 20, y - 16, HL_COLOR)}</g>` : '';
       const paper = paperFor(k.color);
@@ -222,7 +238,7 @@ export function renderDiagramSvg(scenes, opts = {}) {
         + `<path d="${wobblyD([[px + 18, y + BUBBLE_H], [px + 12, y + BUBBLE_H + 8], [px + 26, y + BUBBLE_H]], `${p.id}:t`, false, 0.4)}"         fill="${paper}" stroke="${stroke}" stroke-width="${sw(2.5)}" stroke-linejoin="round"/>`
         + decoIcon(k.icon, px + 8, y + 7, stroke)
         + `<text x="${px + 8 + ICON_W}" y="${y + 24}" font-size="${FS}"${concl ? ' ' + 'font-weight="800"' : ''} fill="${INK}">${esc(p.text)}</text>`
-        + `<text data-role="kind-label" x="${px + pw - 8}" y="${y + 12}" font-size="11" font-weight="700" text-anchor="end" fill="${INK}">${esc(label)}</text>${dupSvg}${star}</g>`);
+        + `<text data-role="kind-label" x="${px + pw - 8}" y="${y + 12}" font-size="11" font-weight="700" text-anchor="end" fill="${INK}">${esc(label)}</text>${dupSvg}${star}${reviewMarkSvg(opts.reviewOf?.(g1.refIds), px, y, pw)}</g>`);
     }
     let y = g.contentEnd;
     // 関係線（手描き風の矢印）。FR-079: 再配置で並びが変わったときは、同じまとまりの隣り合う要素の間だけに引く（ほかの要素を横切らない）
@@ -452,7 +468,7 @@ export function renderArrangedSvg(scenes, model, opts = {}) {
       parts.push(`<text x="${it.x + 4}" y="${it.y + 24}" font-size="${FS_SUB}" font-weight="700" fill="${INK}" data-role="subgroup-heading" data-subgroup="${attr(it.id)}">${esc(it.text)}</text>`);
     } else {
       const p = scenes.flatMap((s) => s.points).find((q) => q.id === it.id);
-      const kind = classifyPoint(p.text); const k = KINDS[kind];
+      const kind = classifyPoint(p); const k = KINDS[kind];
       const refIds = it.refIds ?? [p.id];
       const hl = hlId != null && refIds.includes(hlId);
       const stroke = hl ? HL_COLOR : k.color;
@@ -462,6 +478,7 @@ export function renderArrangedSvg(scenes, model, opts = {}) {
         + iconShape(k.icon, it.x + 8, it.y + 7, stroke)
         + `<text x="${it.x + 8 + ICON_W}" y="${it.y + 24}" font-size="${FS}" fill="${INK}">${esc(p.text)}</text>`
         + (dup ? `<text data-role="dup-count" x="${it.x + it.w - 8}" y="${it.y + 12}" font-size="11" font-weight="700" text-anchor="end" fill="${INK}">${esc(dup)}</text>` : '')
+        + reviewMarkSvg(opts.reviewOf?.(refIds), it.x, it.y, it.w)
         + '</g>');
     }
   }
@@ -697,7 +714,7 @@ export function diagramModule(ctx) {
     return map ? renderRpgSvg(base, map) : base;
   };
   ctx.api.renderBaseSvg = () => {
-    const o = { lang: ctx.state.lang, relations: ctx.api.getDiagramRelations?.() ?? [], selectedSceneId: ctx.state.selectedSceneId, highlightPointId: currentHighlight()?.pointId ?? null, t: ctx.t, title: ctx.t('app.title'), style: ctx.api.getDrawStyleSpec?.() };
+    const o = { lang: ctx.state.lang, reviewOf: (ids) => ctx.api.getReviewMark?.(ids) ?? null, relations: ctx.api.getDiagramRelations?.() ?? [], selectedSceneId: ctx.state.selectedSceneId, highlightPointId: currentHighlight()?.pointId ?? null, t: ctx.t, title: ctx.t('app.title'), style: ctx.api.getDrawStyleSpec?.(), noEmphasis: ctx.api.isPhaseHold?.() === true };
     const level = ctx.api.getDetailLevel?.() ?? 'detail';
     const units = level !== 'detail' && ctx.state.scenes.length ? { topics: ctx.api.getTopics(), relations: ctx.api.getTopicRelations(), level } : null;
     // FR-029 AC-146: 現在の描画スタイル、FR-027 AC-140: 時系列の 2D の図に適用している型を、ルートの属性で示す（整理の表示に型は適用されない）
@@ -731,7 +748,7 @@ export function diagramModule(ctx) {
       id: s.id,
       heading: { fontSize: FS_HEAD, fontWeight: 800, framed: true },
       typeScale: { ...TYPE_SCALE }, // FR-079 AC-431: 階層ごとの基準の文字の大きさ（タイトル・テーマ＞トピック＞シーン＞要点）
-      points: s.points.map((p) => { const kind = classifyPoint(p.text); const k = KINDS[kind]; const icons = ctx.api.getDrawStyleSpec?.()?.text.icons !== false; return { id: p.id, kind, kindLabel: kindLabelOf(kind, ctx.state.lang), emphasized: kind === 'conclusion', color: k.color, shape: k.shape, icon: icons ? k.icon : 'none', fontSize: FS, fontWeight: kind === 'conclusion' ? 800 : 400 }; }),
+      points: s.points.map((p) => { const kind = classifyPoint(p); const k = KINDS[kind]; const icons = ctx.api.getDrawStyleSpec?.()?.text.icons !== false; return { id: p.id, kind, kindLabel: kindLabelOf(kind, ctx.state.lang), emphasized: kind === 'conclusion' && !ctx.api.isPhaseHold?.(), color: k.color, shape: k.shape, icon: icons ? k.icon : 'none', fontSize: FS, fontWeight: kind === 'conclusion' && !ctx.api.isPhaseHold?.() ? 800 : 400 }; }),
     })),
   });
 

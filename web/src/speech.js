@@ -245,7 +245,8 @@ export async function speechModule(ctx) {
   const cancelAzRestart = () => { if (azTimer != null) { sched.clearTimeout(azTimer); azTimer = null; } };
   const azRunning = () => speech.active && engine === 'azure';
   const azCanRestart = () => azRunning() && isAzure() && consent && !azFailed && !!azHostName() && ctx.state.session === 'recording';
-  const azBegin = () => azSource.start({ lang: curLang() });
+  // FR-093 AC-551: 認識の開始時に、登録した正しい表記（term）だけを認識語彙（phrase list）として渡す。同意なしでは azBegin に到達しない。
+  const azBegin = () => { const phrases = ctx.api.getGlossaryPhrases?.() ?? []; azSource.start(phrases.length ? { lang: curLang(), phrases } : { lang: curLang() }); };
   if (azSource) {
     azSource.onresult = (e) => { if (azRunning() && isAzure()) accept(e); }; // 未同意・停止中に届いた結果は使わない
     azSource.onerror = ({ code } = {}) => {

@@ -78,6 +78,11 @@ export function editModule(ctx) {
     });
     return { ok: true, pointId: id };
   };
+  // FR-005: 手で要点を追加する（sources なし・manual）。不明なシーン・空白だけは追加しない
+  ctx.api.addManualPoint = (sceneId, text) => {
+    const r = ctx.api.addPoint(sceneId, text);
+    return r.ok ? { ok: true, pointId: r.pointId } : { ok: false, pointId: null, reason: r.reason };
+  };
   // sceneId のシーンを、時系列で次のシーンと結合する（見出しは前のシーン、状態は後のシーン）。
   ctx.api.mergeScenes = (sceneId) => {
     const list = ctx.state.scenes;

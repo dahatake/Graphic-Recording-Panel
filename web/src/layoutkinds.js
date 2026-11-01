@@ -30,7 +30,7 @@ export function causalEvidence(text) {
 // 明示: 後ろの発話に因果の語（evidence=word）／課題の次にアイデア・提案（evidence=kinds）。推測: 課題の次に結論が続くだけで根拠の語がない（evidence=null）。
 export function deriveRelations(points) {
   const out = [];
-  const kinds = points.map((p) => classifyPoint(p.text));
+  const kinds = points.map((p) => classifyPoint(p));
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1]; const b = points[i];
     const word = causalEvidence(b.text);
@@ -69,7 +69,7 @@ export function timelineTypeLayout(input) {
   const detail = input.level === 'detail';
   const sceneById = new Map(input.scenes.map((s) => [s.id, s]));
   const topicById = new Map(input.topics.map((tp) => [tp.id, tp]));
-  const kindsOf = (u) => (u.kind === 'scene' ? sceneById.get(u.id)?.points.map((p) => classifyPoint(p.text)) ?? [] : []);
+  const kindsOf = (u) => (u.kind === 'scene' ? sceneById.get(u.id)?.points.map((p) => classifyPoint(p)) ?? [] : []);
   L.units = L.units.map((u, i) => {
     const text = u.kind === 'topic' ? (topicById.get(u.id)?.title ?? u.id) : (sceneById.get(u.id)?.heading ?? u.id);
     let emphasis = null; let badge = null;
@@ -273,7 +273,7 @@ export function divergeLayout(input) {
 
     // ---- FR-035 比喩テンプレート型: 比喩（道・山・橋・太陽 / 4 象限）が先に描かれ、その上に区分と内容が載る。外部の画像は使わない ----
     const GOAL_RE = /ビジョン|ゴール|目標|道のり|ロードマップ|\bvision\b|\bgoal\b|\broadmap\b|\bjourney\b/i;
-    function pointKinds(s) { return (s.points ?? []).map((p) => classifyPoint(p.text)); }
+    function pointKinds(s) { return (s.points ?? []).map((p) => classifyPoint(p)); }
 // トピックごとの囲み（そのトピックの単位をすべて含む外接矩形）。小見出し・テキスト一覧はこの囲みの題名を使う（型を替えても一覧が変わらない）
 function topicGroups(input, units) {
   const tOf = topicOfScene(input.topics);

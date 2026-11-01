@@ -120,6 +120,8 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .outline-points:last-of-type { margin-bottom: 1em; }
 .badge { display: inline-block; font-size: var(--font-size-caption); padding: 0 var(--space-2); border: var(--stroke) solid var(--color-border); border-radius: var(--radius-control); margin-left: var(--space-1); }
 .badge-confirmed { font-weight: var(--font-weight-semibold); }
+/* FR-092・FR-024: 「要確認」「AI 要約」「手追加」の印は、枠と文字・記号で示す（色だけに頼らない。AC-231 と同じ方針） */
+.badge-review, .badge-ai, .badge-manual { font-weight: var(--font-weight-semibold); border-color: currentColor; }
 .badge-selected { font-weight: var(--font-weight-semibold); text-decoration: underline; }
 
 /* 手修正フォーム（テキスト一覧パネルの下のカード） */
@@ -129,6 +131,18 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .edit-form label > select, .edit-form label > input { display: block; margin-top: var(--space-1); }
 .edit-form select, .edit-form input[type="text"] { font: inherit; color: var(--color-text); background: var(--color-surface); border: var(--stroke) solid var(--color-border); border-bottom-width: 2px; border-radius: var(--radius-control); padding: var(--space-1) var(--space-2); width: 100%; min-width: 0; }
 .edit-actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+/* FR-094: 議事項目の一覧（候補は文字「候補」＋枠つき記号。色だけにしない） */
+.minutes-editor h4 { font-size: var(--font-size-caption); margin: var(--space-2) 0 var(--space-1); }
+.minutes-editor .minutes-item-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.minutes-editor .minutes-item { border: var(--stroke) solid var(--color-border-subtle); border-radius: var(--radius-control); padding: var(--space-2); }
+.minutes-editor .minutes-item[data-state="candidate"] { border-style: dashed; border-color: var(--color-border); }
+.minutes-editor .minutes-item-actions, .minutes-editor .minutes-item-edit { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-1); }
+.minutes-editor .minutes-item-edit label { flex: 1 1 100%; }
+.minutes-editor .minutes-add label { margin-bottom: var(--space-1); }
+.minutes-editor .minutes-add > .btn { margin-top: var(--space-1); }
+.minutes-editor .minutes-undecided { font-style: italic; }
+.minutes-editor .minutes-editor-list:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.minutes-editor [hidden] { display: none; }
 
 .tabs { display: none; gap: var(--space-1); margin-bottom: var(--space-2); flex-wrap: wrap; }
 .workspace[data-mode="stacked"] .tabs { display: flex; }

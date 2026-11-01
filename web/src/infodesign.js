@@ -15,7 +15,7 @@ export const TYPE_SCALE = Object.freeze({ title: 22, theme: 22, topic: 20, scene
 
 // AC-427: どの要点もちょうど 1 つの種類（どの語にも当てはまらなければ補足）
 export function kindOf(text) {
-  const k = classifyPoint(text);
+  const k = classifyPoint(text); // 文字列か要点（段階で決めた種類を持つ場合がある）
   return KIND_ORDER.includes(k) ? k : 'note';
 }
 export const kindRank = (kind) => { const i = KIND_ORDER.indexOf(kind); return i < 0 ? KIND_ORDER.length - 1 : i; };
@@ -33,7 +33,7 @@ export function pointItems(points) {
     const k = sameTextKey(p.text);
     const hit = byKey.get(k);
     if (hit) { hit.refIds.push(p.id); hit.count += 1; return; }
-    const it = { key: p.id, refIds: [p.id], text: p.text, kind: kindOf(p.text), count: 1, talk: i };
+    const it = { key: p.id, refIds: [p.id], text: p.text, kind: kindOf(p), count: 1, talk: i };
     byKey.set(k, it); items.push(it);
   });
   return items

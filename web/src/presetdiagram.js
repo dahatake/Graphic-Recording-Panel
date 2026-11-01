@@ -3,7 +3,7 @@
 // 図の内容・配置・型・文字は既存の描画と同じで、見た目（配色・紙面・書体・見出しの飾り・吹き出し・線・線画人物）だけが変わる。
 // 見た目の項目を持たない既存の定義（手書き調・アニメ調・シンプル・RPG風）は、従来の描画（diagram.js）のまま（AC-406）。
 // 端末のハイコントラスト（強制カラー）が有効な間は、どの描画スタイルでも図の色を CSS のシステム色にする（AC-456）。
-import { KINDS, STATUS_MARK, classifyPoint, kindLabelOf, textWidth, outline, rng, iconGlyph } from './diagram.js';
+import { KINDS, STATUS_MARK, classifyPoint, kindLabelOf, textWidth, outline, rng, iconGlyph, reviewMarkSvg } from './diagram.js';
 import { sceneEmotions } from './emotion.js';
 import { matchParts, getPartGroup } from './parts.js';
 import {
@@ -272,7 +272,7 @@ export function renderPresetDiagram(scenes, opts, look) {
     const isSel = s.id === sel;
     const status = `${STATUS_MARK[s.status] ?? ''}${isSel ? SELECTED_MARK : ''}`;
     const emos = sceneEmotions(s);
-    const kinds = s.points.map((p) => classifyPoint(p.text));
+    const kinds = s.points.map((p) => classifyPoint(p));
     const order = ['conclusion', 'issue', 'proposal', 'undecided', 'idea', 'note'];
     const main = kinds.length ? [...kinds].sort((a, b) => order.indexOf(a) - order.indexOf(b))[0] : null;
     // 吹き出しの中身: その場の様子の語（従来の絵記号の語）。なければ主な要点の種類の文字。
@@ -294,30 +294,38 @@ export function renderPresetDiagram(scenes, opts, look) {
     let y = MARGIN + HEAD_H + 26; const top = new Map();
     const dash = s.status === 'in_progress' ? ' stroke-dasharray="7 4"' : '';
     s.points.forEach((p, i) => {
-      const kind = kinds[i]; const k = KINDS[kind]; const hl = p.id === hlId; const concl = kind === 'conclusion';
+      const kind = kinds[i]; const lk = opts.kindLooks?.[kind] ?? look; const pk = lk.pr; const W0p = pk.stroke.width; const k = KINDS[kind]; const hl = p.id === hlId; const concl = kind === 'conclusion' && !opts.noEmphasis;
       top.set(p.id, y); rects.set(p.id, { x, y, w, sceneId: s.id });
       const g = [];
-      let surface = look.frameFill;
-      if (look.stickyFills) {
-        surface = look.stickyFills[i % look.stickyFills.length];
-        g.push(`<rect data-style-role="shadow" x="${x + 4}" y="${y + 4}" width="${w}" height="${PT_H}" fill="${look.shadow}" fill-opacity="0.5" stroke="none"/>`);
-        g.push(stickyEl(look, `data-style-role="sticky" data-box="${box(x, y, w, PT_H)}" fill="${surface}" stroke="${look.outlineOf(surface)}" stroke-width="${r1(Math.max(1, W0 * 0.6))}"`, x, y, w, PT_H, `${p.id}:st`));
+      let surface = lk.frameFill;
+      if (lk.stickyFills) {
+        surface = lk.stickyFills[i % lk.stickyFills.length];
+        g.push(`<rect data-style-role="shadow" x="${x + 4}" y="${y + 4}" width="${w}" height="${PT_H}" fill="${lk.shadow}" fill-opacity="0.5" stroke="none"/>`);
+        g.push(stickyEl(lk, `data-style-role="sticky" data-box="${box(x, y, w, PT_H)}" fill="${surface}" stroke="${lk.outlineOf(surface)}" stroke-width="${r1(Math.max(1, W0p * 0.6))}"`, x, y, w, PT_H, `${p.id}:st`));
       }
-      const sw = r1(W0 * (hl ? 1.8 : concl ? 1.3 : 1));
-      g.push(shapeEl(look, `data-style-role="point-frame" data-box="${box(x, y, w, PT_H)}" fill="${look.stickyFills ? 'none' : surface}" stroke="${look.frame}" stroke-width="${sw}" stroke-linejoin="round"${dash}`, x, y, w, PT_H, k.shape, p.id));
-      if (hl) g.push(`<path data-role="highlight-frame" d="${wobD(outline(k.shape, x - 6, y - 6, w + 12, PT_H + 12), `${p.id}:f`, true, 0.8)}" fill="none" stroke="${look.frame}" stroke-width="2" stroke-dasharray="3 3"/>`);
+      const sw = r1(W0p * (hl ? 1.8 : concl ? 1.3 : 1));
+      g.push(shapeEl(lk, `data-style-role="point-frame" data-box="${box(x, y, w, PT_H)}" fill="${lk.stickyFills ? 'none' : surface}" stroke="${lk.frame}" stroke-width="${sw}" stroke-linejoin="round"${dash}`, x, y, w, PT_H, k.shape, p.id));
+      if (hl) g.push(`<path data-role="highlight-frame" d="${wobD(outline(k.shape, x - 6, y - 6, w + 12, PT_H + 12), `${p.id}:f`, true, 0.8)}" fill="none" stroke="${lk.frame}" stroke-width="2" stroke-dasharray="3 3"/>`);
       const tx = x + 8 + ICON + 10;
       let back = surface;
       if (concl) {
         const ew = textWidth(p.text, FS) + 12;
-        back = look.emph;
-        g.push(shapeEl(look, `data-style-role="emphasis" data-box="${box(tx - 6, y + 9, ew, 22)}" fill="${look.emph}" stroke="${look.outlineOf(look.emph)}" stroke-width="${r1(Math.max(1, W0 * 0.5))}"`, tx - 6, y + 9, ew, 22, 'rect', `${p.id}:em`, 4));
+        back = lk.emph;
+        g.push(shapeEl(lk, `data-style-role="emphasis" data-box="${box(tx - 6, y + 9, ew, 22)}" fill="${lk.emph}" stroke="${lk.outlineOf(lk.emph)}" stroke-width="${r1(Math.max(1, W0p * 0.5))}"`, tx - 6, y + 9, ew, 22, 'rect', `${p.id}:em`, 4));
       }
-      if (pr.icons) g.push(iconEl(look, k.icon, x + 8, y + 8, Math.max(0, Object.keys(KINDS).indexOf(kind)), blocked));
-      g.push(textEl(tx, y + 25, p.text, { size: FS, weight: concl ? 800 : look.weight, fill: concl ? look.emphText : look.textOn(back), back, boxes }));
-      g.push(textEl(x + w - 8, y + 13, kindLabelOf(kind, opts.lang), { size: FS_LABEL, weight: look.labelWeight, fill: look.textOn(surface), back: surface, anchor: 'end', boxes, extra: ' data-role="kind-label"' }));
-      if (hl) g.push(`<g data-role="highlight-icon" transform="translate(${r1(x + w - 18)} ${r1(y - 18)})" fill="none" stroke="${look.frame}" stroke-width="2" stroke-linejoin="round">${iconGlyph('star')}</g>`);
-      sb.push(`<g data-point-id="${attr(p.id)}" data-kind="${kind}"${hl ? ' data-highlight="1"' : ''}>${g.join('')}</g>`);
+      if (pk.icons) g.push(iconEl(lk, k.icon, x + 8, y + 8, Math.max(0, Object.keys(KINDS).indexOf(kind)), blocked));
+      g.push(textEl(tx, y + 25, p.text, { size: FS, weight: concl ? 800 : lk.weight, fill: concl ? lk.emphText : lk.textOn(back), back, boxes }));
+      g.push(textEl(x + w - 8, y + 13, kindLabelOf(kind, opts.lang), { size: FS_LABEL, weight: lk.labelWeight, fill: lk.textOn(surface), back: surface, anchor: 'end', boxes, extra: ' data-role="kind-label"' }));
+      if (hl) g.push(`<g data-role="highlight-icon" transform="translate(${r1(x + w - 18)} ${r1(y - 18)})" fill="none" stroke="${lk.frame}" stroke-width="2" stroke-linejoin="round">${iconGlyph('star')}</g>`);
+      { // FR-092 AC-545: 「要確認」の印（どの画風でも文字「要確認」と枠つきの記号。色だけにしない）
+        const rm = opts.reviewOf?.([p.id]);
+        if (rm?.needsReview) {
+          const label = String(rm.label ?? '要確認'); const bw = Math.min(Math.max(60, label.length * 12 + 26), w); const rx0 = x + w - bw; const ry0 = y + PT_H + 3;
+          g.push(`<rect data-review-mark="1" data-review-reasons="${attr(rm.reasons.join(' '))}" data-style-role="review-frame" x="${r1(rx0)}" y="${r1(ry0)}" width="${r1(bw)}" height="16" rx="3" fill="${lk.frameFill}" stroke="${lk.frame}" stroke-width="1.5"/>`
+            + textEl(rx0 + 6, ry0 + 12, `▲ ${label}`, { size: 11, weight: 700, fill: lk.textOn(lk.frameFill), back: lk.frameFill, boxes, extra: ' data-role="review-label"' }));
+        }
+      }
+      sb.push(`<g data-point-id="${attr(p.id)}" data-kind="${kind}"${opts.kindLooks ? ` data-point-style="${attr(lk.styleId ?? '')}" data-font-kind="${pk.font}" font-family="${attr(fontFamilyOf(pk.font))}"` : ''}${hl ? ' data-highlight="1"' : ''}>${g.join('')}</g>`);
       y += PT_H + PT_GAP;
     });
     // 要点どうしの関係線（シーンの中）
@@ -622,7 +630,7 @@ export function renderPresetSvg(ctx, spec, forced, legacyBase) {
   const api = ctx.api;
   const look = forced ? forcedLook(spec) : buildLook(spec);
   if (ctx.state.displayMode === 'arrange' && api.getArrangement) return finishPresetSvg(restyleLegacy(legacyBase(), look, spec), look);
-  const o = { lang: ctx.state.lang, relations: api.getDiagramRelations?.() ?? [], selectedSceneId: ctx.state.selectedSceneId, highlightPointId: api.getHighlight?.()?.pointId ?? null, t: ctx.t, emotionScenes: emotionBalloonSceneIds(api, ctx.state.scenes) };
+  const o = { lang: ctx.state.lang, reviewOf: (ids) => api.getReviewMark?.(ids) ?? null, relations: api.getDiagramRelations?.() ?? [], selectedSceneId: ctx.state.selectedSceneId, highlightPointId: api.getHighlight?.()?.pointId ?? null, t: ctx.t, emotionScenes: emotionBalloonSceneIds(api, ctx.state.scenes), noEmphasis: api.isPhaseHold?.() === true, kindLooks: api.getKindLooks?.() ?? null };
   const level = api.getDetailLevel?.() ?? 'detail';
   const main = level !== 'detail' && ctx.state.scenes.length
     ? renderPresetTopics(api.getTopics(), api.getTopicRelations(), ctx.state.scenes, { ...o, level }, look)

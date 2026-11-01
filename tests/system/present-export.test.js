@@ -14,7 +14,8 @@ test('FR-090 AC-528: Markdown 保存で、会議タイトル(#)→トピック(#
   for (const level of ['detail', 'middle', 'major']) {
     const { app, env } = await newApp();
     await seedThreeScenes(app, env); toDetail(app, level);
-    app.setTitleInfo({ theme: '予算見直し会議' });
+    app.setTitleInfo({ theme: '予算見直し会議', date: '2026-11-03' });
+    app.setMeetingContext({ purpose: '来期予算の方針をそろえる', audience: '経営層と各部門長', agenda: [{ name: '現状の共有', minutes: 5 }, { name: '案の比較', minutes: 15 }] });
     app.setDraft('案Aの採用を提案します。'); app.submitDraft(); env.tick(1); // 課題（コストが高くて困った）→ 提案の関係が付く（FR-053）
     await app.commands['save.markdown']();
     assert.equal(env.downloads.length, 1, level);
@@ -28,15 +29,23 @@ test('FR-090 AC-528: Markdown 保存で、会議タイトル(#)→トピック(#
     const idx = (s) => lines.findIndex((l) => l.includes(s));
     assert.equal(lines.filter((l) => /^# [^#]/.test(l)).length, 1, '# の見出しは会議タイトルの 1 つだけ');
     assert.ok(lines.some((l) => /^# [^#]/.test(l) && l.includes('予算見直し会議')), '会議タイトルが # の見出し');
-    const decisionsAt = lines.findIndex((l) => /^#{2,3}\s*決定事項/.test(l));
-    const actionsAt = lines.findIndex((l) => /^#{2,3}\s*アクション項目/.test(l));
+    // 冒頭（最初の ## の前）に表題・日付・議題（入力順）・目的・対象読者（FR-095）
+    const head = lines.slice(0, lines.findIndex((l) => /^##\s/.test(l))).join('\n');
+    for (const w of ['予算見直し会議', '2026-11-03', '現状の共有', '案の比較', '来期予算の方針をそろえる', '経営層と各部門長']) assert.ok(head.includes(w), `${level}: 冒頭に「${w}」`);
+    assert.ok(head.indexOf('現状の共有') < head.indexOf('案の比較'), `${level}: 議題は入力順`);
+    // 末尾の節: 決定事項 → 保留事項 → 異論・懸念 → アクション項目 → 要確認（この順。詳細度によらず常に出る）
+    const sec = ['決定事項', '保留事項', '異論・懸念', 'アクション項目', '要確認'].map((n) => lines.findIndex((l) => new RegExp(`^#{2,3}\\s*${n}`).test(l)));
+    assert.ok(sec.every((i) => i >= 0), `${level}: 5 つの節がある`);
+    assert.deepEqual([...sec].sort((a, b) => a - b), sec, `${level}: 節はこの順`);
+    const decisionsAt = sec[0];
+    const actionsAt = sec[3];
     let last = lines.findIndex((l) => /^# [^#]/.test(l));
     for (const t of topics) {
       const i = lines.findIndex((l, k) => k > last && /^## [^#]/.test(l) && l.includes(t.title));
       assert.ok(i >= 0, `${level}: トピック「${t.title}」が ## の見出し（出現順）`); last = i;
     }
     assert.ok(decisionsAt > last && actionsAt > decisionsAt, `${level}: 末尾に「決定事項」「アクション項目」の節（この順）`);
-    if (level === 'major') assert.ok(!lines.some((l) => /^###\s/.test(l) && !/決定事項|アクション項目/.test(l)), '大項目では要点の見出し（###）を含まない');
+    if (level === 'major') assert.ok(!lines.some((l) => /^###\s/.test(l) && !/決定事項|保留事項|異論・懸念|アクション項目|要確認/.test(l)), '大項目では要点の見出し（###）を含まない');
     if (level === 'detail') {
       const body = lines.slice(0, decisionsAt);
       for (const t of topics) {
@@ -60,9 +69,54 @@ test('FR-090 AC-528: Markdown 保存で、会議タイトル(#)→トピック(#
       for (const s of scenes) for (const p of s.points) {
         if (level === 'major' && (s.heading.includes(p.text) || topics.some((t) => t.title.includes(p.text)))) continue;
         if (s.heading.includes(p.text)) continue;
-        assert.ok(!md.includes(p.text), `${level}: 画面に出ない要点「${p.text}」を含まない`);
+        assert.ok(!lines.slice(0, sec[4]).join('\n').includes(p.text), `${level}: 画面に出ない要点「${p.text}」を含まない（「要確認」の節は詳細度によらず列挙するため除く）`);
       }
     }
+  }
+});
+
+// FR-090 AC-528（FR-094 AC-556 の節。契約: tests/system/CONTRACT-MEETING.md）
+test('FR-090 AC-528: 末尾の決定事項・保留事項・異論・懸念・アクション項目は確定した項目だけ（0 件は「なし」・未定の欄は「未定」・候補は「未確定の候補 n 件」）、「要確認」の節は未確認の要点を常に列挙する', async () => {
+  const { app, env } = await newApp();
+  app.commands['session.start']();
+  const D = 'リリースはA案に決まりました', P = '価格は検討中です', O = 'スケジュールが心配です', A = '来週までに見積もりの確認をお願いします';
+  for (const t of [D, P, O, A]) { app.setDraft(t); assert.equal(app.submitDraft().ok, true, t); env.tick(1); }
+  env.scheduler.advance(3000); toDetail(app, 'major');
+  const items = app.getMeetingItems();
+  const cand = (list, s) => list.find((i) => i.state === 'candidate' && i.text.includes(s));
+  const dec = cand(items.decisions, 'A案に決まりました'), act = cand(items.actions, '見積もりの確認');
+  assert.ok(dec && act && cand(items.pendings, '検討中') && cand(items.objections, '心配'), '前提: 4 種類の候補が抽出される');
+  assert.equal(items.candidateCount, 4);
+  assert.equal(app.confirmMeetingItem(dec.id).ok, true);
+  assert.equal(app.confirmMeetingItem(act.id).ok, true);
+  await app.commands['save.markdown']();
+  const lines = String(env.downloads.at(-1).data).split(/\r?\n/);
+  const at = (n) => lines.findIndex((l) => new RegExp(`^#{2,3}\\s*${n}`).test(l));
+  const section = (n) => { const i = at(n); const j = lines.findIndex((l, k) => k > i && /^#{1,3}\s/.test(l)); return lines.slice(i + 1, j < 0 ? undefined : j).join('\n'); };
+  const md = lines.join('\n');
+  assert.ok(section('決定事項').includes(dec.text), '確定した決定事項が節に出る');
+  assert.ok(!section('保留事項').includes('検討中') && /なし/.test(section('保留事項')), '候補の保留事項は出ず、0 件は「なし」');
+  assert.ok(!section('異論・懸念').includes('心配') && /なし/.test(section('異論・懸念')), '候補の異論は出ず、0 件は「なし」');
+  const act1 = section('アクション項目');
+  assert.ok(act1.includes('見積もりの確認'), '確定したアクション項目が節に出る');
+  assert.ok((act1.match(/未定/g) ?? []).length >= 3, '担当者・期限・完了条件が「未定」（発話の「来週」は期限にならない）');
+  assert.match(md, /未確定の候補\s*2\s*件/, '未確定の候補 n 件');
+  // 要確認の節: 図の詳細度（大項目）によらず、未確認の要点を列挙する。最後の節
+  const unconfirmed = app.getState().scenes.flatMap((s) => s.points).filter((p) => app.getPointReview(p.id).needsReview);
+  assert.ok(unconfirmed.length >= 1, '前提: 「来週」を含む要点は要確認');
+  for (const p of unconfirmed) assert.ok(section('要確認').includes(p.text), `要確認の節に「${p.text}」`);
+  assert.ok(at('要確認') > at('アクション項目') && !lines.some((l, k) => k > at('要確認') && /^#{1,3}\s/.test(l)), '要確認は最後の節');
+
+  // 異常系: 項目も要確認の要点も 0 件 → すべての節が見出しと「なし」
+  const b = await newApp();
+  b.app.commands['session.start'](); b.app.setDraft('普通に進めます'); b.app.submitDraft(); b.env.tick(1); b.env.scheduler.advance(3000); toDetail(b.app);
+  await b.app.commands['save.markdown']();
+  const l2 = String(b.env.downloads.at(-1).data).split(/\r?\n/);
+  for (const n of ['決定事項', '保留事項', '異論・懸念', 'アクション項目', '要確認']) {
+    const i = l2.findIndex((l) => new RegExp(`^#{2,3}\\s*${n}`).test(l));
+    assert.ok(i >= 0, `0 件でも「${n}」の見出しがある`);
+    const j = l2.findIndex((l, k) => k > i && /^#{1,3}\s/.test(l));
+    assert.match(l2.slice(i + 1, j < 0 ? undefined : j).join('\n'), /なし/, `${n}: 0 件は「なし」`);
   }
 });
 

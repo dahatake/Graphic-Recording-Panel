@@ -36,6 +36,8 @@ const BASE = {
     'cmd.presentation.prev': '前のシーンへ',
     'cmd.theme.toggle': '配色の切替（ダーク／ライト）',
     'cmd.layout.reset': '既定のレイアウトに戻す',
+  'cmd.review.confirm': '選択中のシーンの要点を確認済みにする',
+  'cmd.edit.undo': '直前の手修正を元に戻す',
     'cmd.layout.tile': 'タイル配置に整列',
     'cmd.layout.focus': 'フォーカス（メインを大きく表示）',
     'cmd.layout.maximize': 'パネルを最大化',
@@ -105,6 +107,9 @@ const BASE = {
     'diagram.empty': 'まだ図がありません。記録を開始して発話を入力してください',
     'cmd.settings.arrangeInterval': '再配置の周期を設定', // FR-080 AC-440
     'cmd.settings.layoutMode': 'レイアウトの決め方を切り替え', 'cmd.sound.toggleMute': '音のミュートを切り替え', 'cmd.sound.setVolume': '音量を上げる', 'cmd.arrange.setInterval': '再配置の周期を切り替え', // FR-030 AC-519
+    // FR-098・FR-005・FR-091・FR-097: 議題タイマー・手修正を元に戻す・進行の段階・種類別スタイル
+    'cmd.timer.start': '議題タイマーを開始', 'cmd.timer.pause': '議題タイマーを一時停止', 'cmd.timer.resume': '議題タイマーを再開', 'cmd.timer.next': '次の議題へ切り替え', 'cmd.timer.stop': '議題タイマーを終了',
+    'cmd.edit.undo': '直前の手修正を元に戻す', 'cmd.phase.next': '進行の段階を進める', 'cmd.kindStyle.toggle': '種類別スタイルの有効・無効を切り替え', 'cmd.kindStyle.recommend': '種類別スタイルの推奨セットを適用',
   },
   en: {
     'app.title': 'Graphic Recording Panel',
@@ -136,6 +141,8 @@ const BASE = {
     'cmd.presentation.prev': 'Go to previous scene',
     'cmd.theme.toggle': 'Switch color theme (dark/light)',
     'cmd.layout.reset': 'Restore default layout',
+  'cmd.review.confirm': 'Confirm the points of the selected scene',
+  'cmd.edit.undo': 'Undo the last manual edit',
     'cmd.layout.tile': 'Arrange panels as tiles',
     'cmd.layout.focus': 'Focus (enlarge the main panel)',
     'cmd.layout.maximize': 'Maximize panel',
@@ -203,6 +210,8 @@ const BASE = {
     'diagram.empty': 'No diagram yet. Start recording and enter an utterance',
     'cmd.settings.arrangeInterval': 'Set the rearrange interval', // FR-080 AC-440
     'cmd.settings.layoutMode': 'Switch how the layout is decided', 'cmd.sound.toggleMute': 'Toggle sound mute', 'cmd.sound.setVolume': 'Raise the volume', 'cmd.arrange.setInterval': 'Switch the rearrange interval', // FR-030 AC-519
+    'cmd.timer.start': 'Start the agenda timer', 'cmd.timer.pause': 'Pause the agenda timer', 'cmd.timer.resume': 'Resume the agenda timer', 'cmd.timer.next': 'Switch to the next agenda item', 'cmd.timer.stop': 'End the agenda timer',
+    'cmd.edit.undo': 'Undo the last manual edit', 'cmd.phase.next': 'Advance the meeting phase', 'cmd.kindStyle.toggle': 'Toggle styles by kind', 'cmd.kindStyle.recommend': 'Apply the recommended styles by kind',
   },
 };
 
