@@ -664,7 +664,7 @@ function paint(host, app) {
   const svg = same ? host._lastSvg : app.renderSvg();
   host._ver = ver;
   // 同じ SVG・同じ拡大率・同じ幅なら、DOM を作り直さない（NFR-PERF-002/003: ドラッグ・ホバー中の全再構築を避ける）
-  const sig = `${host._zoom}|${host._fit}|${canvas.clientWidth}`;
+  const sig = `${host._zoom}|${host._fit}|${canvas.clientWidth}|${app.getProjectionSignature?.() ?? ''}`;
   if (host._lastSvg === svg && host._lastSig === sig) return;
   // SVG が同じで幅・拡大率だけ変わったとき（パネルの大きさ変更中）は、図の DOM を作り直さず寸法だけ直す（長いタスクの回避）
   const reuse = host._lastSvg === svg && host._base && host._svgEl && host._svgEl.isConnected;
@@ -691,6 +691,30 @@ function paint(host, app) {
     el.setAttribute('viewBox', `0 0 ${cw / z} ${ch / z}`);
   }
   if (dv && (canvas.scrollLeft !== dv.scrollX || canvas.scrollTop !== dv.scrollY)) { canvas.scrollLeft = dv.scrollX; canvas.scrollTop = dv.scrollY; }
+  applyProjectionWarnings(canvas, app);
+}
+// FR-100 AC-589: 投影のプリセットの最小文字サイズを下回る要素に、文字「小さい文字」と枠つきの記号の警告を付ける。
+// 画面の DOM にだけ足す（保存物 renderSvg の文字列・図の内容・配置は変えない）。色だけに頼らない
+function applyProjectionWarnings(canvas, app) {
+  for (const old of canvas.querySelectorAll('[data-projection-warn]')) old.remove();
+  const w = app.getProjectionWarnings?.();
+  const svg = canvas.querySelector('svg');
+  if (!w || !w.count || !svg || !svg.ownerDocument.createElementNS) return;
+  const NS = svg.namespaceURI; const doc = svg.ownerDocument;
+  for (const it of w.items) {
+    const host = it.kind === 'scene' ? svg.querySelector(`text[data-role="scene-heading"][data-scene-id="${CSS.escape?.(it.id) ?? it.id}"]`) : svg.querySelector(`g[data-point-id="${CSS.escape?.(it.id) ?? it.id}"]`);
+    if (!host || !host.getBBox) continue;
+    let b; try { b = host.getBBox(); } catch { continue; }
+    const g = doc.createElementNS(NS, 'g'); g.setAttribute('data-projection-warn', '1'); g.setAttribute('data-warn-id', it.id);
+    const r = doc.createElementNS(NS, 'rect'); const tx = doc.createElementNS(NS, 'text');
+    const label = `▣ ${it.label}`; const wd = label.length * 11 + 8;
+    r.setAttribute('x', String(b.x + b.width - wd)); r.setAttribute('y', String(b.y - 14)); r.setAttribute('width', String(wd)); r.setAttribute('height', '16'); r.setAttribute('rx', '3');
+    r.setAttribute('fill', '#fff'); r.setAttribute('stroke', '#1a1a1a'); r.setAttribute('stroke-width', '1.5'); r.setAttribute('stroke-dasharray', '4 2'); // 枠（破線）で形でも示す
+    tx.setAttribute('x', String(b.x + b.width - wd + 4)); tx.setAttribute('y', String(b.y - 2)); tx.setAttribute('font-size', '11'); tx.setAttribute('font-weight', '700'); tx.setAttribute('fill', '#1a1a1a');
+    tx.textContent = label;
+    const title = doc.createElementNS(NS, 'title'); title.textContent = it.text;
+    g.append(title, r, tx); svg.append(g);
+  }
 }
 // FR-035: 比喩の絵（SVG の図形だけ。色だけにせず、各要素に文字のラベル）
 function metaphorSvg(m) {
