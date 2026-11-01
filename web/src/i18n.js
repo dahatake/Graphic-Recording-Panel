@@ -71,7 +71,7 @@ const BASE = {
     'cmd.speech.consent': '外部送信の同意を切り替え',
     'cmd.speech.retryAzure': 'Azure Speech で再試行', 'cmd.speech.useBrowser': '音声認識をブラウザ標準に切り替え',
     'cmd.scene.next': '次のシーンを選択', 'cmd.scene.prev': '前のシーンを選択',
-    'cmd.popup.open': 'シーンのポップアップを開く', 'cmd.popup.focusContent': 'ポップアップの内容へ移る', 'cmd.popup.close': 'ポップアップを閉じる',
+    'cmd.popup.open': 'シーンのポップアップを開く', 'cmd.preview.show': 'フォーカス中の要素のプレビューを出す', 'cmd.map.focusNext': '地図の次の要素へ移る', 'cmd.map.focusPrev': '地図の前の要素へ戻る', 'cmd.map.activate': '地図の要素の詳細を開く', 'cmd.popup.focusContent': 'ポップアップの内容へ移る', 'cmd.popup.close': 'ポップアップを閉じる',
     'cmd.prompt.copy': '画像生成 AI 向けのプロンプトをコピー', // FR-078
     'popup.label': 'シーンのテキスト',
     'panel.input': '認識文字列',
@@ -175,7 +175,7 @@ const BASE = {
     'cmd.speech.consent': 'Toggle consent to external transmission',
     'cmd.speech.retryAzure': 'Retry Azure Speech', 'cmd.speech.useBrowser': 'Switch speech recognition to the browser',
     'cmd.scene.next': 'Select next scene', 'cmd.scene.prev': 'Select previous scene',
-    'cmd.popup.open': 'Open scene popup', 'cmd.popup.focusContent': 'Move to popup content', 'cmd.popup.close': 'Close popup',
+    'cmd.popup.open': 'Open scene popup', 'cmd.preview.show': 'Show preview of the focused element', 'cmd.map.focusNext': 'Move to the next map element', 'cmd.map.focusPrev': 'Move to the previous map element', 'cmd.map.activate': 'Open details of the map element', 'cmd.popup.focusContent': 'Move to popup content', 'cmd.popup.close': 'Close popup',
     'cmd.prompt.copy': 'Copy prompt for image-generation AI', // FR-078
     'popup.label': 'Scene text',
     'panel.input': 'Transcript',

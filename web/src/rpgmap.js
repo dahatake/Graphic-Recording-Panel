@@ -146,6 +146,35 @@ export function renderRpgSvg(baseSvg, map) {
   return `${open}${title}<g data-role="rpg-map" aria-hidden="true">${terrain}${places}${residents}${hero}</g><g data-role="rpg-labels">${labels}</g></svg>`;
 }
 
+// FR-102 AC-596・AC-597: 画面（DOM）の地図だけに、選べる要素の操作と名前を足す。書き出す SVG（renderRpgSvg）は変えない（FR-075 AC-406）。
+// 飾りの絵（地形・住人・勇者）だけを aria-hidden にし、町・城・地点は役割（button）・名前・Tab の順序（話順）を持つ。
+// 色だけに頼らず、フォーカスの印は枠（CSS の [data-rpg-place]:focus-visible）。labelOf(refId) は図・一覧と同じ見出し・要点の文字。
+export function enhanceRpgDom(svgEl, labelOf) {
+  const root = svgEl?.querySelector?.('[data-role="rpg-map"]');
+  if (!root) return 0;
+  const tile = Number(svgEl.getAttribute('data-rpg-tile')) || 16;
+  const doc = svgEl.ownerDocument;
+  root.removeAttribute('aria-hidden');
+  let n = 0;
+  for (const child of [...root.children]) {
+    if (!child.hasAttribute('data-rpg-place')) { child.setAttribute('aria-hidden', 'true'); continue; }
+    const refId = child.getAttribute('data-ref-id');
+    const spot = child.getAttribute('data-kind') === 'spot';
+    child.setAttribute(spot ? 'data-point-id' : 'data-scene-id', refId);
+    child.setAttribute('tabindex', '0'); child.setAttribute('role', 'button');
+    child.setAttribute('aria-label', String(labelOf?.(refId, spot ? 'point' : 'scene') ?? ''));
+    if (!child.querySelector('rect')) {
+      const r = doc.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      const x = Number(child.getAttribute('data-x')); const y = Number(child.getAttribute('data-y'));
+      r.setAttribute('x', String((x - 0.5) * tile)); r.setAttribute('y', String((y - 0.5) * tile)); r.setAttribute('width', String(tile * 2)); r.setAttribute('height', String(tile * 2)); // 判定の範囲は 2 マス四方（WCAG 2.2 の 2.5.8）
+      r.setAttribute('fill', 'transparent'); r.setAttribute('data-role', 'rpg-hit');
+      child.append(r);
+    }
+    n++;
+  }
+  return n;
+}
+
 // PNG 用: Canvas 2D に地図を描く（g は fillRect・fillText を持つ）。ラベルは街・城・地点の名前。
 export function paintRpgCanvas(g, map) {
   for (const [color, rs] of mapOps(map)) { g.fillStyle = color; for (const [x, y, w, h] of rs) g.fillRect(x, y, w, h); }

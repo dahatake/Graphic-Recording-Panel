@@ -248,6 +248,14 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .scene-popup:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
 .scene-popup h3 { margin: 0 0 8px; }
 .scene-popup ul { margin: 0; padding-left: 20px; }
+/* FR-101 AC-593: ホバー・フォーカスの簡易プレビュー（固定のポップアップより軽い。pointer-events は残し、上へ動かしても消えない） */
+.preview-tip { position: fixed; z-index: 45; max-width: 320px; padding: var(--space-2) var(--space-3); background: var(--color-surface); color: var(--color-text); border: var(--stroke-thick) solid var(--color-border); border-radius: var(--radius-control); box-shadow: var(--shadow); font-size: var(--font-size-caption); }
+.preview-tip p { margin: var(--space-1) 0 0; }
+/* FR-102 AC-597: 地図・一覧の選べる要素のフォーカスの印は枠（色だけに頼らない） */
+[data-rpg-place] { cursor: pointer; }
+[data-rpg-place]:focus { outline: none; }
+[data-rpg-place]:focus-visible [data-role="rpg-hit"] { stroke: var(--color-focus); stroke-width: 3; stroke-dasharray: 6 3; }
+.outline-scene:focus-visible, .outline-points li:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
 
 /* FR-050: RPG風の仮想パッドとコマンドウィンドウ（黒地に白枠。ボタンは 44px 以上＝PARAM-032） */
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
