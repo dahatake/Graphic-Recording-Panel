@@ -59,7 +59,7 @@ export function buildMarkdown({ scenes, topics, relations = [], level = 'detail'
         if (ACTION_RE.test(p.text)) actions.push(p.text);
         if (level !== 'detail') continue;
         out.push(`### ${oneLine(p.text)}${mark(p)}`, '');
-        for (const r of rels.get(p.id) ?? []) out.push(`- ${oneLine(r.kindLabel)} → ${oneLine(texts.get(r.to))}`);
+        for (const r of rels.get(p.id) ?? []) out.push(`- ${oneLine(r.kindLabel)} ${r.bidirectional ? '↔' : '→'} ${oneLine(texts.get(r.to))}${r.basis === 'inferred' && r.basisLabel ? `（${oneLine(r.basisLabel)}）` : ''}`);
         if (rels.has(p.id)) out.push('');
       }
     }
