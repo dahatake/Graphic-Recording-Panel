@@ -50,6 +50,7 @@ import { copilotKeysModule } from './copilotkeys.js';
 import { glossaryModule, emptyGlossary } from './glossary.js';
 import { reviewModule } from './review.js';
 import { meetingModule } from './meeting.js';
+import { minutesModule } from './minutes.js';
 import { agendaTimerModule } from './agendatimer.js';
 import { editHistoryModule } from './edithistory.js';
 import { facilitationModule } from './facilitation.js';
@@ -313,7 +314,8 @@ export async function createApp(options = {}) {
     const ws = applied ? (app.getWorkshopOutline?.() ?? '') : ''; // FR-091: ワークショップ型のラベル・問い・注記を文字でも示す
     const tmr = app.renderAgendaTimer?.() ?? '';
     const ph = `${app.renderEditHistory?.() ?? ''}`;
-    return groups.length ? `${tmr}${ph}${html}${ws}<section class="outline-groups" aria-label="${i18n.t('outline.groups')}"><h2>${i18n.t('outline.groups')}</h2><ul>${groups.map((g) => `<li data-group-id="${escapeHtml(g.id)}">${escapeHtml(g.heading)}</li>`).join('')}</ul></section>` : `${tmr}${ph}${html}${ws}`;
+    const mn = app.getMinutesOutlineHtml?.() ?? ''; // FR-094 AC-557: 議事項目（決定事項ほか・候補・未定）を同じ語で一覧にも出す
+    return groups.length ? `${tmr}${ph}${html}${mn}${ws}<section class="outline-groups" aria-label="${i18n.t('outline.groups')}"><h2>${i18n.t('outline.groups')}</h2><ul>${groups.map((g) => `<li data-group-id="${escapeHtml(g.id)}">${escapeHtml(g.heading)}</li>`).join('')}</ul></section>` : `${tmr}${ph}${html}${mn}${ws}`;
   };
   app.clearSavedSession = () => { cancelPendingSave(); P.remove(storage, P.SESSION_KEY); };
   // NFR-PERF-003 AC-539: 保留中の自動保存を直ちに行う（保存したら true）。
@@ -412,7 +414,7 @@ export async function createApp(options = {}) {
   app.subscribe = (fn) => on('change', fn);
   app.getPanelRenderer = (id) => panelRenderers.get(id) ?? null;
   app.use = async (mod) => { await mod(ctx); };
-  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, sessionModule, settingsModule, stylePickerModule, autoLayoutModule, layoutKindsModule, rpgModule, rpgAudioModule, llmModule, llmDrawModule, stylePresetModule, workshopModule, relayoutModule, liveRefreshModule, speechSettingsModule, budgetModule, presentExportModule, meetingModule, agendaTimerModule, editHistoryModule, facilitationModule, kindStylesModule, glossaryModule, reviewModule, ...(options.modules ?? [])]) await app.use(mod);
+  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, sessionModule, settingsModule, stylePickerModule, autoLayoutModule, layoutKindsModule, rpgModule, rpgAudioModule, llmModule, llmDrawModule, stylePresetModule, workshopModule, relayoutModule, liveRefreshModule, speechSettingsModule, budgetModule, presentExportModule, meetingModule, minutesModule, agendaTimerModule, editHistoryModule, facilitationModule, kindStylesModule, glossaryModule, reviewModule, ...(options.modules ?? [])]) await app.use(mod);
 
   // 機能ごとの保存項目の復元（モジュールが保存項目を登録した後）
   if (saved?.extras) ctx.importExtras(saved.extras);

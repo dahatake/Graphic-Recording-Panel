@@ -31,8 +31,9 @@ const ACTION_RE = /お願い|してください|担当|までに|を行う|や�
 // level: 'major'（トピックまで）| 'middle'（シーンの見出しまで）| 'detail'（要点まで）。relations: getOutlineRelations() の配列（詳細のみ）
 // 構成（AC-528）: # 会議タイトル → ## トピック → ### 要点（詳細のみ）→ 箇条書き（関係・シーン見出し）→ 末尾に ## 決定事項・## アクション項目
 // kindOf: 要点の文字列 → 種類 id（'conclusion' を決定事項にする）
-export function buildMarkdown({ scenes, topics, relations = [], level = 'detail', title = '', kindOf = () => 'note', noneLabel = 'なし', labels = {}, meta = null, lang = 'ja' }) {
-  const L = { decisions: '決定事項', actions: 'アクション項目', untitled: '(未分類)', ...labels };
+// minutes（FR-094 AC-556）: { sections:[{title, lines}], candidateCount, labels } を渡すと、末尾の 4 節は確定した議事項目だけにする（候補は出さない）。
+// reviewTexts（AC-547）: 渡すと末尾に「要確認」の節（確認されていない要点。詳細度によらず常に出す。0 件は「なし」）を置く
+export function buildMarkdown({ scenes, topics, relations = [], level = 'detail', title = '', kindOf = () => 'note', noneLabel = 'なし', labels = {}, minutes = null, reviewTexts = null, meta = null, lang = 'ja' }) {  const L = { decisions: '決定事項', actions: 'アクション項目', untitled: '(未分類)', ...labels };
   const out = [`# ${oneLine(title) || '-'}`, '', ...markdownHead(meta, lang)]; // FR-095 AC-560・AC-578: 冒頭に日付・議題・目的・対象読者
   const texts = new Map(scenes.flatMap((s) => s.points).map((p) => [p.id, p.text]));
   const rels = new Map();
@@ -53,9 +54,23 @@ export function buildMarkdown({ scenes, topics, relations = [], level = 'detail'
     }
     out.push('');
   }
-  for (const [head, list] of [[L.decisions, decisions], [L.actions, actions]]) {
-    out.push(`## ${head}`, '');
-    if (list.length) list.forEach((x) => out.push(`- ${oneLine(x)}`)); else out.push(`- ${noneLabel}`);
+  if (minutes) {
+    minutes.sections.forEach((sec, k) => {
+      out.push(`## ${oneLine(sec.title)}`, '');
+      if (sec.lines.length) sec.lines.forEach((x) => out.push(`- ${oneLine(x)}`)); else out.push(`- ${noneLabel}`);
+      if (k === minutes.sections.length - 1 && minutes.candidateCount > 0) out.push('', `${minutes.labels.candidates} ${minutes.candidateCount} ${minutes.labels.count}`.trimEnd());
+      out.push('');
+    });
+  } else {
+    for (const [head, list] of [[L.decisions, decisions], [L.actions, actions]]) {
+      out.push(`## ${head}`, '');
+      if (list.length) list.forEach((x) => out.push(`- ${oneLine(x)}`)); else out.push(`- ${noneLabel}`);
+      out.push('');
+    }
+  }
+  if (reviewTexts) {
+    out.push(`## ${L.review ?? '要確認'}`, '');
+    if (reviewTexts.length) reviewTexts.forEach((x) => out.push(`- ${oneLine(x)}`)); else out.push(`- ${noneLabel}`);
     out.push('');
   }
   return `${out.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()}\n`;
@@ -80,13 +95,17 @@ show(0);})();`;
 
 // 最初に概要 1 枚（data-slide-kind="overview"）、続いてトピックごとに 1 枚（data-topic-id。見出し・要点・図）。AC-530
 // svgOf(scenes[]) → その範囲の図の SVG
-export function buildHtml({ scenes, topics = [], lang = 'ja', title = '', labels, svgOf, meta = null }) {
+export function buildHtml({ scenes, topics = [], lang = 'ja', title = '', labels, svgOf, minutes = null, reviewTexts = null, meta = null }) {
   const L = labels ?? { auto: 'Auto', hint: '← →' };
   const groups = groupScenes(scenes, topics);
-  const slide = (attrs, i, head, items, figScenes, headHtml = '') => `<section data-slide ${attrs} data-active="${i === 0 ? 'true' : 'false'}">`
+  // FR-094 AC-556: 確定した議事項目の節（見出し付き）を概要のスライドに置く（スライド数は変えない）。候補は含めず、未確定の候補の件数を文字で示す
+  const minutesBlock = minutes ? `<div class="minutes" data-minutes>${minutes.sections.map((sec) => `<section data-minutes-kind="${escapeHtml(sec.kind)}"><h2>${escapeHtml(sec.title)}</h2>${sec.lines.length ? `<ul>${sec.lines.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul>` : `<p>${escapeHtml(L.none ?? 'なし')}</p>`}</section>`).join('')}`
+    + `${minutes.candidateCount > 0 ? `<p data-minutes-candidates>${escapeHtml(`${minutes.labels.candidates} ${minutes.candidateCount} ${minutes.labels.count}`.trimEnd())}</p>` : ''}`
+    + `${reviewTexts ? `<section data-minutes-kind="review"><h2>${escapeHtml(L.review ?? '要確認')}</h2>${reviewTexts.length ? `<ul>${reviewTexts.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul>` : `<p>${escapeHtml(L.none ?? 'なし')}</p>`}</section>` : ''}</div>` : '';
+  const slide = (attrs, i, head, items, figScenes, extra = '', headHtml = '') => `<section data-slide ${attrs} data-active="${i === 0 ? 'true' : 'false'}">`
     + `<h1>${escapeHtml(head)}</h1>${headHtml}<ul>${items.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul>`
-    + `<div class="fig">${svgOf(figScenes)}</div></section>`;
-  const slides = [slide('data-slide-kind="overview"', 0, title || L.overview || '-', groups.map((g) => g.title ?? L.untitled ?? '-'), scenes, htmlHead(meta, lang, escapeHtml))]; // FR-095: 概要に日付・議題・目的・対象読者
+    + `<div class="fig">${svgOf(figScenes)}</div>${extra}</section>`;
+  const slides = [slide('data-slide-kind="overview"', 0, title || L.overview || '-', groups.map((g) => g.title ?? L.untitled ?? '-'), scenes, minutesBlock, htmlHead(meta, lang, escapeHtml))]; // FR-095: 概要に日付・議題・目的・対象読者
   groups.forEach((g, k) => slides.push(slide(`data-topic-id="${escapeHtml(topics[k]?.id ?? `rest-${k}`)}"`, k + 1, g.title ?? L.untitled ?? '-', g.scenes.flatMap((s) => s.points.map((p) => p.text)), g.scenes)));
   return `<!DOCTYPE html>\n<html lang="${escapeHtml(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">`
     + `<title>${escapeHtml(title)}</title><style>${CSS}</style></head><body><main>${slides.join('')}`
@@ -114,15 +133,21 @@ export function presentExportModule(ctx) {
     ctx.change(() => ctx.setMessage('msg.saved'));
     return { ok: true };
   }
+  const minutesArgs = () => {
+    const m = api.getMinutesForExport?.() ?? null;
+    if (!m) return {};
+    const ids = new Set(api.getReviewSummary?.().unconfirmed ?? []);
+    return { minutes: m, reviewTexts: ctx.state.scenes.flatMap((s) => s.points).filter((p) => ids.has(p.id)).map((p) => p.text) };
+  };
   ctx.registerCommand('save.markdown', () => run('md', 'text/markdown', () => buildMarkdown({
     scenes: ctx.state.scenes, topics: api.getTopics?.() ?? [], relations: api.getOutlineRelations?.() ?? [],
     level: api.getDetailLevel?.() ?? 'detail', title: meetingTitle(), meta: meetingMeta(), lang: ctx.state.lang,
-    kindOf: classifyPoint, noneLabel: ctx.t('present.none'),
-    labels: { decisions: ctx.t('present.decisions'), actions: ctx.t('present.actions'), untitled: ctx.t('present.untitled') },
+    kindOf: classifyPoint, noneLabel: ctx.t('present.none'), ...minutesArgs(),
+    labels: { decisions: ctx.t('present.decisions'), actions: ctx.t('present.actions'), untitled: ctx.t('present.untitled'), review: ctx.t('minutes.review') },
   })));
   ctx.registerCommand('save.html', () => run('html', 'text/html', () => buildHtml({
-    scenes: ctx.state.scenes, topics: api.getTopics?.() ?? [], lang: ctx.state.lang, title: meetingTitle(), meta: meetingMeta(),
-    labels: { auto: ctx.t('present.auto'), hint: ctx.t('present.hint'), untitled: ctx.t('present.untitled') },
+    scenes: ctx.state.scenes, topics: api.getTopics?.() ?? [], lang: ctx.state.lang, title: meetingTitle(), meta: meetingMeta(), ...minutesArgs(),
+    labels: { auto: ctx.t('present.auto'), hint: ctx.t('present.hint'), untitled: ctx.t('present.untitled'), none: ctx.t('present.none'), review: ctx.t('minutes.review') },
     svgOf: (ss) => renderDiagramSvg(ss, { lang: ctx.state.lang, t: ctx.t, title: ctx.t('app.title'), style: api.getDrawStyleSpec?.(api.getDrawStyle?.()) }),
   })));
 }
