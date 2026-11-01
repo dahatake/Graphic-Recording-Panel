@@ -125,7 +125,7 @@ const textW = (s, fs) => { let w = 0; for (const ch of unesc(s)) w += ch.codePoi
 
 // 図の SVG（baseSvg: 従来のスタイルで作った SVG）を RPG風の地図に置き換える。文字は 1 つも変えず、判読できる下地に載せて地図の上に置く。
 export function renderRpgSvg(baseSvg, map) {
-  const root = baseSvg.match(/<svg\b[^>]*>/)?.[0] ?? '<svg xmlns="http://www.w3.org/2000/svg">';
+  const root = baseSvg.match(/<svg\b[^>]*>/)?.[0] ?? '<svg>'; // 外部 URL の文字列は持たない（NFR-OFFLINE-001）。通常は baseSvg の <svg> が名前空間を持つ
   const W = map.cols * TILE; const H = map.rows * TILE;
   let open = root.replace(/\s(viewBox|width|height)="[^"]*"/g, '');
   open = open.replace(/>$/, ` viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" data-rpg-tile="${TILE}" shape-rendering="crispEdges">`);
@@ -164,7 +164,7 @@ export function enhanceRpgDom(svgEl, labelOf) {
     child.setAttribute('tabindex', '0'); child.setAttribute('role', 'button');
     child.setAttribute('aria-label', String(labelOf?.(refId, spot ? 'point' : 'scene') ?? ''));
     if (!child.querySelector('rect')) {
-      const r = doc.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      const r = doc.createElementNS(svgEl.namespaceURI, 'rect');
       const x = Number(child.getAttribute('data-x')); const y = Number(child.getAttribute('data-y'));
       r.setAttribute('x', String((x - 0.5) * tile)); r.setAttribute('y', String((y - 0.5) * tile)); r.setAttribute('width', String(tile * 2)); r.setAttribute('height', String(tile * 2)); // 判定の範囲は 2 マス四方（WCAG 2.2 の 2.5.8）
       r.setAttribute('fill', 'transparent'); r.setAttribute('data-role', 'rpg-hit');
