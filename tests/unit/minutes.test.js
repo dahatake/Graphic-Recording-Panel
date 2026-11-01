@@ -2,11 +2,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp } from '../system/helpers.js';
-import { extractKinds, parseItems, minutesSections } from '../../web/src/minutes.js';
+import { extractKinds, extractKindsOf, parseItems, minutesSections } from '../../web/src/minutes.js';
 
 const say = (app, env, text) => { app.setDraft(text); assert.equal(app.submitDraft().ok, true, text); env.tick(1); };
 
 // FR-094 AC-553（PARAM-126〜129）
+test('NFR-PERF-003 AC-536: 発話ごとの抽出結果は、同じ発話・同じ文字列なら再計算せず同じ配列を返し、文字列が変わったときだけ抽出し直す', () => {
+  const u = { id: 'u1', text: 'Agreed: use plan A' };
+  const a = extractKindsOf(u);
+  assert.deepEqual(a, extractKinds(u.text));
+  assert.equal(extractKindsOf(u), a, 'データを変えない操作では同じ結果を使い回す');
+  u.text = '保留にします';
+  const b = extractKindsOf(u);
+  assert.notEqual(b, a);
+  assert.deepEqual(b, extractKinds(u.text));
+});
+
 test('FR-094 AC-553: 規則抽出は言い回しの部分一致・大文字小文字を区別せず、複数に当てはまる発話は該当する種類すべて', () => {
   assert.deepEqual(extractKinds('A案に決まりました'), ['decision']);
   assert.deepEqual(extractKinds('Price is PENDING'), ['pending']);

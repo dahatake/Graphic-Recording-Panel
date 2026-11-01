@@ -184,7 +184,7 @@ export function mountMinutesUI(app, doc = document) {
     if (!panel) return;
     if (!root) build();
     const ver = app.getRenderVersion?.();
-    const lang = app.getState?.().lang;
+    const lang = (app.getUiState?.() ?? app.getState?.())?.lang; // 発話を含まない軽い状態（getState は全発話を複製する。NFR-PERF-003）
     const key = `${ver}|${lang}`;
     if (!force && ver !== undefined && key === syncedKey) return;
     syncedKey = key;
