@@ -95,7 +95,7 @@
     "AC-181": "sha256:27101640bb7fa5cf",
     "AC-229": "sha256:1d3c837de4e9fe90",
     "AC-230": "sha256:b333cbdc5d68e4e6",
-    "AC-231": "sha256:ddbeb20a6435fd3c",
+    "AC-231": "sha256:af926db6e9ead5e0",
     "AC-237": "sha256:6d0d13a12b377eb0",
     "AC-238": "sha256:3d0ac3fcb45f1a8f",
     "AC-232": "sha256:a74cba5f1817a645",
@@ -241,7 +241,7 @@
     "AC-520": "sha256:3f494c793a29f5b2",
     "AC-521": "sha256:52662eceeb1c94bf",
     "AC-523": "sha256:0a66bd7b2ff7dc98",
-    "AC-528": "sha256:85f3823e786d60e3",
+    "AC-528": "sha256:39f3f12dc36b6196",
     "AC-530": "sha256:04ac763a7328a5ba",
     "AC-524": "sha256:a68adebbf25d3e76",
     "AC-525": "sha256:c73b607c2286a5c6",
@@ -254,7 +254,9 @@
     "AC-537": "sha256:dc72a9e396a4d0da",
     "AC-541": "sha256:23f9420b94c5b58d",
     "AC-542": "sha256:154aa45b8dfa50ae",
-    "AC-543": "sha256:7fe6f80b98295f5c"
+    "AC-543": "sha256:7fe6f80b98295f5c",
+    "AC-546": "sha256:1ac96bc515ec6adc",
+    "AC-572": "sha256:83e7309a57d1ef40"
   },
   "cases": [
     {
@@ -8059,6 +8061,56 @@
       "history": [
         {
           "at": "2026-10-30T20:16:09+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-270",
+      "requirement_ids": [
+        "FR-092"
+      ],
+      "ac_ids": [
+        "AC-546"
+      ],
+      "title": "FR-092 AC-546 確認操作・確認日・手修正・元に戻す・復元",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"FR-092 AC-546\" tests/system/review.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-11-01T16:32:38+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-271",
+      "requirement_ids": [
+        "FR-024"
+      ],
+      "ac_ids": [
+        "AC-572"
+      ],
+      "title": "FR-024 AC-572 元の発話の表示",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"FR-024 AC-572\" tests/system/review.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-11-01T16:32:40+09:00",
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
