@@ -35,6 +35,8 @@ def test_local_config_is_gitignored_and_untracked():
 
 # FR-067 AC-349
 def test_env_overrides_config_file(tmp_path, monkeypatch):
+    import relay_llmstore  # 端末の保存済み設定から切り離す（GRS07-20）
+    monkeypatch.setattr(relay_llmstore, "load", lambda: dict.fromkeys(relay_llmstore.FIELDS))
     f = tmp_path / "llm.local.json"
     f.write_text(json.dumps({"endpoint": "https://a.example.com/v1", "deployment": "file-d",
                              "authMethod": "entra"}), encoding="utf-8")
