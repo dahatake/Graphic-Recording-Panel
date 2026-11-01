@@ -56,6 +56,15 @@ test('FR-090 AC-531: buildHtml は会議の文字列をエスケープし、外�
   assert.ok(!/url\(|@import|@font-face/i.test(html));
 });
 
+// FR-090 AC-547・AC-528: 「要確認」の節は 1 要点 1 行「要点の文字（理由: …）」。複数の理由は読点区切り
+test('FR-090 AC-547: 要確認の節の各行に理由が付く（複数は読点区切り・理由なしは文字のみ）', () => {
+  const scenes = [{ id: 's1', heading: 'h', points: [{ id: 'p1', text: '発注は 12 月 3 日' }, { id: 'p2', text: '普通' }] }];
+  const review = { confirmed: 0, total: 2, ids: new Set(['p1', 'p2']), reasons: new Map([['p1', ['数値', '日付']]]), reasonLabel: '理由' };
+  const md = buildMarkdown({ scenes, topics: [], level: 'major', title: 'M', review });
+  assert.ok(md.includes('- 発注は 12 月 3 日（理由: 数値、日付）\n'));
+  assert.ok(/- 普通\n/.test(md + '\n'));
+});
+
 test('FR-090 AC-530: 自動送りの滞在は PARAM-004 の 8 秒', () => {
   const html = buildHtml({ scenes: [{ id: 's1', heading: 'h', points: [] }], svgOf: () => '' });
   assert.ok(html.includes('D=8*1000'));

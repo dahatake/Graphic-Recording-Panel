@@ -41,7 +41,9 @@ const ACTION_RE = new RegExp(ACTION_WORDS.map((w) => w.replace(/[.*+?^${}()|[\]\
 export function buildMarkdown({ scenes, topics, relations = [], level = 'detail', title = '', kindOf = () => 'note', noneLabel = 'なし', labels = {}, minutes = null, reviewTexts = null, meta = null, lang = 'ja', review = null }) {  const L = { decisions: '決定事項', actions: 'アクション項目', untitled: '(未分類)', ...labels };
   // AC-547: review = { confirmed, total, ids:Set } で、要点の行の印・確認の状況・「要確認」の節（常に）を出す
   const mark = (p) => (review?.ids.has(p.id) ? ` ${REVIEW_MARK}` : '');
-  if (review && !reviewTexts) reviewTexts = scenes.flatMap((s) => s.points).filter((p) => review.ids.has(p.id)).map((p) => p.text);
+  // AC-547: 1 要点 1 行「要点の文字（理由: 数値、日付…）」。理由は review.reasons（要点 id → 理由の語の配列）
+  const withReason = (p) => { const rs = review.reasons?.get(p.id) ?? []; return rs.length ? `${p.text}（${review.reasonLabel ?? '理由'}: ${rs.join('、')}）` : p.text; };
+  if (review) reviewTexts = scenes.flatMap((s) => s.points).filter((p) => review.ids.has(p.id)).map(withReason);
   const out = [`# ${oneLine(title) || '-'}`, '', ...markdownHead(meta, lang)]; // FR-095 AC-560・AC-578: 冒頭に日付・議題・目的・対象読者
   if (review) out.push('', statusLine(review), '');
   const texts = new Map(scenes.flatMap((s) => s.points).map((p) => [p.id, p.text]));
@@ -148,7 +150,8 @@ export function presentExportModule(ctx) {
     const m = api.getMinutesForExport?.() ?? null;
     const sum = api.getReviewSummary?.();
     const ids = new Set(sum?.unconfirmed ?? []);
-    const review = sum ? { confirmed: sum.confirmed, total: sum.total, ids } : null; // AC-547: 詳細度によらない
+    const reasons = new Map([...ids].map((id) => [id, (api.getPointReview?.(id)?.reasons ?? []).map((r) => ctx.t(`review.reason.${r}`))])); // AC-547: 理由（テキスト一覧と同じ語）
+    const review = sum ? { confirmed: sum.confirmed, total: sum.total, ids, reasons, reasonLabel: ctx.t('minutes.reason') } : null; // AC-547: 詳細度によらない
     const texts = ctx.state.scenes.flatMap((s) => s.points).filter((p) => ids.has(p.id)).map((p) => p.text);
     return m ? { minutes: m, reviewTexts: texts, review } : { review };
   };
