@@ -118,6 +118,7 @@ export function sessionModule(ctx) {
       s.axes3d = { ...DEFAULT_AXES }; s.viewpoint = { ...INITIAL_VIEWPOINT };
       api.importViewSettings?.(null);
       api.importGeneratedSvgs?.(null);
+      ctx.resetExtras();
       s.input.draft = '';
       if (s.speech) s.speech.interim = '';
       ctx.setMessage('msg.resetDone');
@@ -139,6 +140,7 @@ export function sessionModule(ctx) {
       s.viewMode = sess.viewMode; s.axes3d = sess.axes3d; s.viewpoint = { ...INITIAL_VIEWPOINT };
       api.importViewSettings?.(sess.viewSettings);
       api.importGeneratedSvgs?.(sess.generatedSvgs);
+      ctx.importExtras(sess.extras);
       s.session = 'paused';
       s.input.draft = '';
       ctx.setMessage('msg.fileLoaded');
@@ -176,6 +178,7 @@ export function sessionModule(ctx) {
       format: FORMAT, version: VERSION,
       utterances: state.utterances, scenes: state.scenes, selectedSceneId: state.selectedSceneId, seq: ctx.getSeq(),
       displayMode: state.displayMode, arrange: state.arrange, topicEdits: state.topicEdits, viewMode: state.viewMode, axes3d: state.axes3d,
+            ...(Object.keys(ctx.exportExtras()).length ? { extras: ctx.exportExtras() } : {}),
             ...(api.exportViewSettings?.() ?? {}),
             ...(api.exportGeneratedSvgs?.().length ? { generatedSvgs: api.exportGeneratedSvgs() } : {}),
           });
