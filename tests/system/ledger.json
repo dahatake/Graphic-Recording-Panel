@@ -256,7 +256,10 @@
     "AC-542": "sha256:154aa45b8dfa50ae",
     "AC-543": "sha256:7fe6f80b98295f5c",
     "AC-546": "sha256:1ac96bc515ec6adc",
-    "AC-572": "sha256:83e7309a57d1ef40"
+    "AC-572": "sha256:83e7309a57d1ef40",
+    "AC-560": "sha256:2ee665544ee95f16",
+    "AC-166": "sha256:a513268d3e98d038",
+    "AC-559": "sha256:a43c920b4f1bc83f"
   },
   "cases": [
     {
@@ -7767,11 +7770,11 @@
       "ac_ids": [
         "AC-528"
       ],
-      "title": "構造化 Markdown 保存: トピック→シーン→要点の階層・関係の種類と向き・詳細度に従う（異常系: 0件は保存しない）",
+      "title": "構造化 Markdown 保存: 階層・関係・冒頭（表題・日付・議題・目的・対象読者）・末尾 5 節（決定事項・保留事項・異論・懸念・アクション項目・要確認）（異常系: 0件は保存しない・0 件の節は「なし」）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-528\" tests/system/present-export.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "986df22",
       "last_run_at": "2026-10-30T20:47:49+09:00",
       "evidence": "work/runs/202610302005/logs/system-test/E2E-261-202610302047.log",
@@ -7787,6 +7790,12 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "AC 変更に伴い再実行"
+        },
+        {
+          "at": "2026-11-01T16:37:54+09:00",
+          "by": "test-designer",
+          "change": "title: '構造化 Markdown 保存: トピック→シーン→要点の階層・関係の種類と向き・詳細度に従う（異常系: 0件は保存しない）' -> '構造化 Markdown 保存: 階層・関係・冒頭（表題・日付・議題・目的・対象読者）・末尾 5 節（決定事項・保留事項・異論・懸念・アクション項目・要確認）（異常系: 0件は保存しない・0 件の節は「なし」）'",
+          "reason": "AC-528 の変更（FR-094 の節・要確認の節、FR-095 の冒頭）に合わせてテストを拡張"
         }
       ]
     },
@@ -8114,6 +8123,37 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-272",
+      "requirement_ids": [
+        "FR-095"
+      ],
+      "ac_ids": [
+        "AC-560"
+      ],
+      "title": "全出力（PNG・PDF・SVG・MD・HTML）の表題・日付・議題、日付未入力、保存・復元・初期化",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"FR-095\" tests/system/meeting-context.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-11-01T16:37:56+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-11-01T16:38:05+09:00",
+          "by": "test-designer",
+          "change": "ac_ids: ['AC-560', 'AC-166', 'AC-559'] -> ['AC-560']",
+          "reason": "AC-166・AC-559 は検証レベル integration のため台帳の対象外。同じテストファイルの観察点として残す（契約メモ CONTRACT-MEETING.md）"
         }
       ]
     }
