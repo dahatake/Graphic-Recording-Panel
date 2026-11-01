@@ -272,7 +272,7 @@ export function renderPresetDiagram(scenes, opts, look) {
     const isSel = s.id === sel;
     const status = `${STATUS_MARK[s.status] ?? ''}${isSel ? SELECTED_MARK : ''}`;
     const emos = sceneEmotions(s);
-    const kinds = s.points.map((p) => classifyPoint(p.text));
+    const kinds = s.points.map((p) => classifyPoint(p));
     const order = ['conclusion', 'issue', 'proposal', 'undecided', 'idea', 'note'];
     const main = kinds.length ? [...kinds].sort((a, b) => order.indexOf(a) - order.indexOf(b))[0] : null;
     // 吹き出しの中身: その場の様子の語（従来の絵記号の語）。なければ主な要点の種類の文字。
@@ -294,30 +294,30 @@ export function renderPresetDiagram(scenes, opts, look) {
     let y = MARGIN + HEAD_H + 26; const top = new Map();
     const dash = s.status === 'in_progress' ? ' stroke-dasharray="7 4"' : '';
     s.points.forEach((p, i) => {
-      const kind = kinds[i]; const k = KINDS[kind]; const hl = p.id === hlId; const concl = kind === 'conclusion';
+      const kind = kinds[i]; const lk = opts.kindLooks?.[kind] ?? look; const pk = lk.pr; const W0p = pk.stroke.width; const k = KINDS[kind]; const hl = p.id === hlId; const concl = kind === 'conclusion' && !opts.noEmphasis;
       top.set(p.id, y); rects.set(p.id, { x, y, w, sceneId: s.id });
       const g = [];
-      let surface = look.frameFill;
-      if (look.stickyFills) {
-        surface = look.stickyFills[i % look.stickyFills.length];
-        g.push(`<rect data-style-role="shadow" x="${x + 4}" y="${y + 4}" width="${w}" height="${PT_H}" fill="${look.shadow}" fill-opacity="0.5" stroke="none"/>`);
-        g.push(stickyEl(look, `data-style-role="sticky" data-box="${box(x, y, w, PT_H)}" fill="${surface}" stroke="${look.outlineOf(surface)}" stroke-width="${r1(Math.max(1, W0 * 0.6))}"`, x, y, w, PT_H, `${p.id}:st`));
+      let surface = lk.frameFill;
+      if (lk.stickyFills) {
+        surface = lk.stickyFills[i % lk.stickyFills.length];
+        g.push(`<rect data-style-role="shadow" x="${x + 4}" y="${y + 4}" width="${w}" height="${PT_H}" fill="${lk.shadow}" fill-opacity="0.5" stroke="none"/>`);
+        g.push(stickyEl(lk, `data-style-role="sticky" data-box="${box(x, y, w, PT_H)}" fill="${surface}" stroke="${lk.outlineOf(surface)}" stroke-width="${r1(Math.max(1, W0p * 0.6))}"`, x, y, w, PT_H, `${p.id}:st`));
       }
-      const sw = r1(W0 * (hl ? 1.8 : concl ? 1.3 : 1));
-      g.push(shapeEl(look, `data-style-role="point-frame" data-box="${box(x, y, w, PT_H)}" fill="${look.stickyFills ? 'none' : surface}" stroke="${look.frame}" stroke-width="${sw}" stroke-linejoin="round"${dash}`, x, y, w, PT_H, k.shape, p.id));
-      if (hl) g.push(`<path data-role="highlight-frame" d="${wobD(outline(k.shape, x - 6, y - 6, w + 12, PT_H + 12), `${p.id}:f`, true, 0.8)}" fill="none" stroke="${look.frame}" stroke-width="2" stroke-dasharray="3 3"/>`);
+      const sw = r1(W0p * (hl ? 1.8 : concl ? 1.3 : 1));
+      g.push(shapeEl(lk, `data-style-role="point-frame" data-box="${box(x, y, w, PT_H)}" fill="${lk.stickyFills ? 'none' : surface}" stroke="${lk.frame}" stroke-width="${sw}" stroke-linejoin="round"${dash}`, x, y, w, PT_H, k.shape, p.id));
+      if (hl) g.push(`<path data-role="highlight-frame" d="${wobD(outline(k.shape, x - 6, y - 6, w + 12, PT_H + 12), `${p.id}:f`, true, 0.8)}" fill="none" stroke="${lk.frame}" stroke-width="2" stroke-dasharray="3 3"/>`);
       const tx = x + 8 + ICON + 10;
       let back = surface;
       if (concl) {
         const ew = textWidth(p.text, FS) + 12;
-        back = look.emph;
-        g.push(shapeEl(look, `data-style-role="emphasis" data-box="${box(tx - 6, y + 9, ew, 22)}" fill="${look.emph}" stroke="${look.outlineOf(look.emph)}" stroke-width="${r1(Math.max(1, W0 * 0.5))}"`, tx - 6, y + 9, ew, 22, 'rect', `${p.id}:em`, 4));
+        back = lk.emph;
+        g.push(shapeEl(lk, `data-style-role="emphasis" data-box="${box(tx - 6, y + 9, ew, 22)}" fill="${lk.emph}" stroke="${lk.outlineOf(lk.emph)}" stroke-width="${r1(Math.max(1, W0p * 0.5))}"`, tx - 6, y + 9, ew, 22, 'rect', `${p.id}:em`, 4));
       }
-      if (pr.icons) g.push(iconEl(look, k.icon, x + 8, y + 8, Math.max(0, Object.keys(KINDS).indexOf(kind)), blocked));
-      g.push(textEl(tx, y + 25, p.text, { size: FS, weight: concl ? 800 : look.weight, fill: concl ? look.emphText : look.textOn(back), back, boxes }));
-      g.push(textEl(x + w - 8, y + 13, kindLabelOf(kind, opts.lang), { size: FS_LABEL, weight: look.labelWeight, fill: look.textOn(surface), back: surface, anchor: 'end', boxes, extra: ' data-role="kind-label"' }));
-      if (hl) g.push(`<g data-role="highlight-icon" transform="translate(${r1(x + w - 18)} ${r1(y - 18)})" fill="none" stroke="${look.frame}" stroke-width="2" stroke-linejoin="round">${iconGlyph('star')}</g>`);
-      sb.push(`<g data-point-id="${attr(p.id)}" data-kind="${kind}"${hl ? ' data-highlight="1"' : ''}>${g.join('')}</g>`);
+      if (pk.icons) g.push(iconEl(lk, k.icon, x + 8, y + 8, Math.max(0, Object.keys(KINDS).indexOf(kind)), blocked));
+      g.push(textEl(tx, y + 25, p.text, { size: FS, weight: concl ? 800 : lk.weight, fill: concl ? lk.emphText : lk.textOn(back), back, boxes }));
+      g.push(textEl(x + w - 8, y + 13, kindLabelOf(kind, opts.lang), { size: FS_LABEL, weight: lk.labelWeight, fill: lk.textOn(surface), back: surface, anchor: 'end', boxes, extra: ' data-role="kind-label"' }));
+      if (hl) g.push(`<g data-role="highlight-icon" transform="translate(${r1(x + w - 18)} ${r1(y - 18)})" fill="none" stroke="${lk.frame}" stroke-width="2" stroke-linejoin="round">${iconGlyph('star')}</g>`);
+      sb.push(`<g data-point-id="${attr(p.id)}" data-kind="${kind}"${opts.kindLooks ? ` data-point-style="${attr(lk.styleId ?? '')}" data-font-kind="${pk.font}" font-family="${attr(fontFamilyOf(pk.font))}"` : ''}${hl ? ' data-highlight="1"' : ''}>${g.join('')}</g>`);
       y += PT_H + PT_GAP;
     });
     // 要点どうしの関係線（シーンの中）
@@ -622,7 +622,7 @@ export function renderPresetSvg(ctx, spec, forced, legacyBase) {
   const api = ctx.api;
   const look = forced ? forcedLook(spec) : buildLook(spec);
   if (ctx.state.displayMode === 'arrange' && api.getArrangement) return finishPresetSvg(restyleLegacy(legacyBase(), look, spec), look);
-  const o = { lang: ctx.state.lang, relations: api.getDiagramRelations?.() ?? [], selectedSceneId: ctx.state.selectedSceneId, highlightPointId: api.getHighlight?.()?.pointId ?? null, t: ctx.t, emotionScenes: emotionBalloonSceneIds(api, ctx.state.scenes) };
+  const o = { lang: ctx.state.lang, relations: api.getDiagramRelations?.() ?? [], selectedSceneId: ctx.state.selectedSceneId, highlightPointId: api.getHighlight?.()?.pointId ?? null, t: ctx.t, emotionScenes: emotionBalloonSceneIds(api, ctx.state.scenes), noEmphasis: api.isPhaseHold?.() === true, kindLooks: api.getKindLooks?.() ?? null };
   const level = api.getDetailLevel?.() ?? 'detail';
   const main = level !== 'detail' && ctx.state.scenes.length
     ? renderPresetTopics(api.getTopics(), api.getTopicRelations(), ctx.state.scenes, { ...o, level }, look)

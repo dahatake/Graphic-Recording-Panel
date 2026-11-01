@@ -21,6 +21,7 @@ export function remove(storage, key) {
 }
 
 const isStr = (v) => typeof v === 'string';
+const KIND_IDS = ['conclusion', 'issue', 'proposal', 'idea', 'undecided', 'note'];
 
 // 保存されたセッションの検証。形が合わなければ null（空の状態で起動）。
 export function parseSession(raw) {
@@ -34,7 +35,8 @@ export function parseSession(raw) {
     utterances: raw.utterances.map((u) => ({ id: u.id, text: u.text, receivedAt: u.receivedAt })),
     scenes: raw.scenes.map((s) => ({
       id: s.id, heading: s.heading,
-      points: s.points.map((p) => ({ id: p.id, text: p.text, ...(p.manual ? { manual: true } : {}) })),
+      // FR-091 AC-577: 段階で決めた種類（kind）と「決定の段階」の印（decided）は、追加した時点の値を保つ
+      points: s.points.map((p) => ({ id: p.id, text: p.text, ...(p.manual ? { manual: true } : {}), ...(KIND_IDS.includes(p.kind) ? { kind: p.kind } : {}), ...(p.decided ? { decided: true } : {}) })),
       relations: s.relations.map((r) => ({ from: r.from, to: r.to })),
       status: s.status,
     })),
@@ -45,5 +47,7 @@ export function parseSession(raw) {
     arrange: raw.arrange && typeof raw.arrange === 'object' ? raw.arrange : null,
     // FR-025 AC-136: トピックの手修正（題名・所属）。形の検証は topics.js の parseEdits
     topicEdits: raw.topicEdits && typeof raw.topicEdits === 'object' ? raw.topicEdits : null,
+    // FR-097・098・005・091: 機能ごとの保存項目（検証は各機能の import）
+    extras: raw.extras && typeof raw.extras === 'object' && !Array.isArray(raw.extras) ? raw.extras : null,
   };
 }

@@ -28,7 +28,7 @@ export function buildCandidates(scenes, arr, t) {
     num('emotion', t('axes3d.axis.emotion'), scenes.map((s) => sceneEmotions(s).length)),
   ];
   for (const k of KIND_IDS) {
-    list.push(num(kindCountId(k), `${t('axes3d.axis.kindCount')}: ${t(`axes3d.kind.${k}`)}`, scenes.map((s) => s.points.filter((p) => baseKind(classifyPoint(p.text)) === k).length)));
+    list.push(num(kindCountId(k), `${t('axes3d.axis.kindCount')}: ${t(`axes3d.kind.${k}`)}`, scenes.map((s) => s.points.filter((p) => baseKind(classifyPoint(p)) === k).length)));
   }
   for (const [id, key, axisKey] of [['arrangeV', 'vertical', 'v'], ['arrangeH', 'horizontal', 'h']]) {
     const A = arr?.axes?.[key];
