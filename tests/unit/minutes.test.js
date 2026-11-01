@@ -27,6 +27,14 @@ test('FR-094 AC-553: 規則抽出は言い回しの部分一致・大文字小�
   assert.deepEqual(extractKinds('普通に進めます'), []);
 });
 
+test('FR-094 AC-553 PARAM-126 PARAM-129: 活用形の言い回し（決めました・共有します・までに）も候補になり、否定的な文は異論にならない', () => {
+  assert.ok(extractKinds('来週の金曜日までに田中さんが見積を共有します。').includes('action'));
+  assert.ok(extractKinds('予算は300万円で決めました。').includes('decision'));
+  assert.ok(extractKinds('仕様は確定。').includes('decision'));
+  assert.ok(extractKinds('先方に連絡します').includes('action'));
+  assert.ok(!extractKinds('問題ありません').includes('objection'));
+});
+
 test('FR-094 AC-553: 候補は利用者の確定・却下・編集だけで変わり、却下した候補は同じ発話から再び出ない。確定するまで出力に出ない', async () => {
   const { app, env } = await newApp();
   app.commands['session.start']();
