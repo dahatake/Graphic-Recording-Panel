@@ -14,6 +14,20 @@ const MAX_SEGMENT_MS = 15_000; // 1 回に送る音声の上限（中継サー�
 
 export const AZURE_ERROR_CODES = ['unconfigured', 'auth', 'network', 'mic'];
 
+// FR-093 AC-551: 認識語彙（phrase list）の語を中継サーバーへ渡すヘッダーの値（JSON を百分率符号化。長すぎる分は送らない）
+const PHRASE_HEADER_MAX = 6000;
+export function encodePhrases(phrases) {
+  if (!Array.isArray(phrases) || !phrases.length) return '';
+  const out = [];
+  for (const p of phrases) {
+    const s = String(p ?? '').trim();
+    if (!s) continue;
+    if (encodeURIComponent(JSON.stringify([...out, s])).length > PHRASE_HEADER_MAX) break;
+    out.push(s);
+  }
+  return out.length ? encodeURIComponent(JSON.stringify(out)) : '';
+}
+
 // 16 bit PCM（Int16Array の配列）から WAV（Uint8Array）を作る
 export function encodeWav(parts, rate = RATE) {
   const n = parts.reduce((s, p) => s + p.length, 0);
@@ -100,10 +114,10 @@ export function createRelayAzureSpeechSource({ relay, g = globalThis } = {}) {
     sending = true;
     try {
       while (queue.length) {
-        const { my, lang, wav } = queue.shift();
+        const { my, lang, wav, phraseHeader } = queue.shift();
         if (my !== run) continue;
         let r = null;
-        try { r = await relay({ method: 'POST', path: `/api/speech/recognize?language=${encodeURIComponent(lang)}`, body: wav, contentType: 'audio/wav' }); } catch { r = null; }
+        try { r = await relay({ method: 'POST', path: `/api/speech/recognize?language=${encodeURIComponent(lang)}`, body: wav, contentType: 'audio/wav', ...(phraseHeader ? { headers: { 'x-grp-phrases': phraseHeader } } : {}) }); } catch { r = null; }
         if (my !== run) continue;
         const c = classifyRecognize(r);
         if (!c.ok) { fail(my, c.code); break; }
@@ -113,9 +127,10 @@ export function createRelayAzureSpeechSource({ relay, g = globalThis } = {}) {
     } finally { sending = false; }
   };
 
-  src.start = ({ lang } = {}) => {
+  src.start = ({ lang, phrases } = {}) => {
     src.stop();
     const my = ++run;
+    const phraseHeader = encodePhrases(phrases);
     const md = g.navigator?.mediaDevices;
     const AC = g.AudioContext ?? g.webkitAudioContext;
     if (!md?.getUserMedia || !AC) { Promise.resolve().then(() => fail(my, 'mic')); return; }
@@ -128,7 +143,7 @@ export function createRelayAzureSpeechSource({ relay, g = globalThis } = {}) {
       node.onaudioprocess = (ev) => {
         if (my !== run) return;
         const out = seg.push(ev.inputBuffer.getChannelData(0), actx.sampleRate);
-        if (out) { queue.push({ my, lang, wav: encodeWav(out) }); void pump(); }
+        if (out) { queue.push({ my, lang, wav: encodeWav(out), phraseHeader }); void pump(); }
       };
       input.connect(node); node.connect(actx.destination);
       for (const t of stream.getAudioTracks()) t.onended = () => fail(my, 'mic');

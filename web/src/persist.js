@@ -2,6 +2,7 @@
 // 壊れた保存内容は無視して null / 既定を返す（起動を妨げない）。
 
 export const SESSION_KEY = 'grp.session';
+import { parseGlossary } from './glossary.js';
 export const THEME_KEY = 'grp.theme';
 export const THEMES = ['light', 'dark'];
 
@@ -31,10 +32,16 @@ export function parseSession(raw) {
     && Array.isArray(s.relations) && (s.status === 'in_progress' || s.status === 'confirmed'));
   if (!okU || !okS) return null;
   return {
-    utterances: raw.utterances.map((u) => ({ id: u.id, text: u.text, receivedAt: u.receivedAt })),
+    utterances: raw.utterances.map((u) => ({ id: u.id, text: u.text, rawText: isStr(u.rawText) ? u.rawText : u.text, receivedAt: u.receivedAt })),
     scenes: raw.scenes.map((s) => ({
       id: s.id, heading: s.heading,
-      points: s.points.map((p) => ({ id: p.id, text: p.text, ...(p.manual ? { manual: true } : {}) })),
+      ...(s.aiSummary === true ? { aiSummary: true, aiRaw: isStr(s.aiRaw) ? s.aiRaw : '' } : {}),
+      points: s.points.map((p) => ({
+        id: p.id, text: p.text, ...(p.manual ? { manual: true } : {}),
+        ...(isStr(p.uid) ? { uid: p.uid } : {}), // FR-024 AC-572: 元の発話
+        ...(isStr(p.confirmedAt) && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(p.confirmedAt) ? { confirmedAt: p.confirmedAt } : {}), // FR-092 AC-546
+        ...(p.aiSummary === true ? { aiSummary: true, aiRaw: isStr(p.aiRaw) ? p.aiRaw : '' } : {}), // FR-024 AC-573
+      })),
       relations: s.relations.map((r) => ({ from: r.from, to: r.to })),
       status: s.status,
     })),
@@ -45,5 +52,6 @@ export function parseSession(raw) {
     arrange: raw.arrange && typeof raw.arrange === 'object' ? raw.arrange : null,
     // FR-025 AC-136: トピックの手修正（題名・所属）。形の検証は topics.js の parseEdits
     topicEdits: raw.topicEdits && typeof raw.topicEdits === 'object' ? raw.topicEdits : null,
+    glossary: parseGlossary(raw.glossary), // FR-093 AC-552
   };
 }

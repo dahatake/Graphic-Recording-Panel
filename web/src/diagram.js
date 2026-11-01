@@ -107,6 +107,16 @@ const PAD = 20; const HEAD_H = 44; const BUBBLE_H = 38; const GAP = 30; const SC
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const attr = (s) => esc(s).replace(/"/g, '&quot;');
+
+// FR-092 AC-545: 「要確認」の印。文字「要確認」＋枠つきの記号（▲）で示し、色だけに頼らない（AC-231 と同じ方針）。吹き出しの下の余白に置く。
+export function reviewMarkSvg(mark, x, y, w, h = BUBBLE_H) {
+  if (!mark || !mark.needsReview) return '';
+  const label = String(mark.label ?? '要確認');
+  const bw = Math.min(Math.max(60, label.length * 12 + 26), w);
+  const bx = x + w - bw; const by = y + h + 3;
+  return `<rect data-review-mark="1" data-review-reasons="${attr(mark.reasons.join(' '))}" x="${bx}" y="${by}" width="${bw}" height="16" rx="3" fill="#ffffff" stroke="${INK}" stroke-width="1.5"/>`
+    + `<text data-role="review-label" x="${bx + 6}" y="${by + 12}" font-size="11" font-weight="700" fill="${INK}">▲ ${esc(label)}</text>`; // 枠（rect）と文字・記号（▲）の 2 要素だけ（5000 件でも DOM を増やしすぎない）
+}
 export function textWidth(s, size) {
   let w = 0;
   for (const ch of String(s)) w += ch.codePointAt(0) >= 0x2e80 ? size : size * 0.56;
@@ -222,7 +232,7 @@ export function renderDiagramSvg(scenes, opts = {}) {
         + `<path d="${wobblyD([[px + 18, y + BUBBLE_H], [px + 12, y + BUBBLE_H + 8], [px + 26, y + BUBBLE_H]], `${p.id}:t`, false, 0.4)}"         fill="${paper}" stroke="${stroke}" stroke-width="${sw(2.5)}" stroke-linejoin="round"/>`
         + decoIcon(k.icon, px + 8, y + 7, stroke)
         + `<text x="${px + 8 + ICON_W}" y="${y + 24}" font-size="${FS}"${concl ? ' ' + 'font-weight="800"' : ''} fill="${INK}">${esc(p.text)}</text>`
-        + `<text data-role="kind-label" x="${px + pw - 8}" y="${y + 12}" font-size="11" font-weight="700" text-anchor="end" fill="${INK}">${esc(label)}</text>${dupSvg}${star}</g>`);
+        + `<text data-role="kind-label" x="${px + pw - 8}" y="${y + 12}" font-size="11" font-weight="700" text-anchor="end" fill="${INK}">${esc(label)}</text>${dupSvg}${star}${reviewMarkSvg(opts.reviewOf?.(g1.refIds), px, y, pw)}</g>`);
     }
     let y = g.contentEnd;
     // 関係線（手描き風の矢印）。FR-079: 再配置で並びが変わったときは、同じまとまりの隣り合う要素の間だけに引く（ほかの要素を横切らない）
@@ -462,6 +472,7 @@ export function renderArrangedSvg(scenes, model, opts = {}) {
         + iconShape(k.icon, it.x + 8, it.y + 7, stroke)
         + `<text x="${it.x + 8 + ICON_W}" y="${it.y + 24}" font-size="${FS}" fill="${INK}">${esc(p.text)}</text>`
         + (dup ? `<text data-role="dup-count" x="${it.x + it.w - 8}" y="${it.y + 12}" font-size="11" font-weight="700" text-anchor="end" fill="${INK}">${esc(dup)}</text>` : '')
+        + reviewMarkSvg(opts.reviewOf?.(refIds), it.x, it.y, it.w)
         + '</g>');
     }
   }
@@ -697,7 +708,7 @@ export function diagramModule(ctx) {
     return map ? renderRpgSvg(base, map) : base;
   };
   ctx.api.renderBaseSvg = () => {
-    const o = { lang: ctx.state.lang, relations: ctx.api.getDiagramRelations?.() ?? [], selectedSceneId: ctx.state.selectedSceneId, highlightPointId: currentHighlight()?.pointId ?? null, t: ctx.t, title: ctx.t('app.title'), style: ctx.api.getDrawStyleSpec?.() };
+    const o = { lang: ctx.state.lang, reviewOf: (ids) => ctx.api.getReviewMark?.(ids) ?? null, relations: ctx.api.getDiagramRelations?.() ?? [], selectedSceneId: ctx.state.selectedSceneId, highlightPointId: currentHighlight()?.pointId ?? null, t: ctx.t, title: ctx.t('app.title'), style: ctx.api.getDrawStyleSpec?.() };
     const level = ctx.api.getDetailLevel?.() ?? 'detail';
     const units = level !== 'detail' && ctx.state.scenes.length ? { topics: ctx.api.getTopics(), relations: ctx.api.getTopicRelations(), level } : null;
     // FR-029 AC-146: 現在の描画スタイル、FR-027 AC-140: 時系列の 2D の図に適用している型を、ルートの属性で示す（整理の表示に型は適用されない）

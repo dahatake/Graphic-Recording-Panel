@@ -12,7 +12,7 @@ test('FR-090 AC-529: Markdown の見出し・要点は renderOutline のテキ�
   const md = String(env.downloads[0].data);
   const mdTexts = md.split('\n').filter((l) => /^### /.test(l)).map((l) => l.replace(/^### /, ''));
   const outline = app.renderOutline();
-  const olTexts = [...outline.matchAll(/<li data-point-id="[^"]*">(?:<span[^>]*>[^<]*<\/span> )?([^<]*)<\/li>/g)].map((m) => m[1]); // 要点（トピックの見出しと末尾の節は Markdown 固有で一致の対象外。A-258）
+  const olTexts = [...outline.matchAll(/<li data-point-id="[^"]*">(?:<span[^>]*>[^<]*<\/span> )?([^<]*)(?:<(?!\/li>)[\s\S]*?)?<\/li>/g)].map((m) => m[1].replace(/\s*（元の発話[^）]*）\s*$/, '').trimEnd()); // 要点（トピックの見出しと末尾の節は Markdown 固有で一致の対象外。A-258）。要点の文字の後ろの元の発話・印（AC-572・AC-545）は文字の一致の対象外
   assert.deepEqual(mdTexts, olTexts);
 });
 

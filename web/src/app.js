@@ -47,6 +47,8 @@ import { imagePromptModule } from './imageprompt.js';
 import { apiKeysModule } from './apikeys.js';
 import { ribbonSettingsModule } from './ribbonsettings.js';
 import { copilotKeysModule } from './copilotkeys.js';
+import { glossaryModule, emptyGlossary } from './glossary.js';
+import { reviewModule } from './review.js';
 
 const GAP_MS_DEFAULT = 20_000; // PARAM-002
 // NFR-PERF-003 AC-539: 自動保存の間引き（PARAM-108。0 なら変更のたびに即時保存）
@@ -84,6 +86,7 @@ export async function createApp(options = {}) {
     lang: 'ja', session: 'preparing', utterances: [], scenes: [], selectedSceneId: null,
     viewMode: '2d', input: { draft: '' }, message: null,
     presentation: { status: 'idle', index: null, sceneId: null },
+    glossary: emptyGlossary(), // FR-093: 用語集（セッションに保存）
   };
   let seq = 0;
   let breakScene = false;
@@ -101,6 +104,7 @@ export async function createApp(options = {}) {
     state.selectedSceneId = saved.scenes.some((s) => s.id === saved.selectedSceneId) ? saved.selectedSceneId : null;
     seq = saved.seq;
     state.displayMode = saved.displayMode; state.arrange = saved.arrange; state.topicEdits = saved.topicEdits;
+    state.glossary = saved.glossary; // FR-093 AC-552
     if (saved.utterances.length || saved.scenes.length) state.session = 'paused';
   }
 
@@ -120,11 +124,11 @@ export async function createApp(options = {}) {
   const countCall = (name) => { callCounts[name] = (callCounts[name] ?? 0) + 1; };
 
   function persistSession() {
-    if (!state.utterances.length && !state.scenes.length) return;
+    if (!state.utterances.length && !state.scenes.length && !state.glossary?.terms?.length) return;
     countCall('autosave');
     P.writeJson(storage, P.SESSION_KEY, {
       utterances: state.utterances, scenes: state.scenes, selectedSceneId: state.selectedSceneId, seq,
-      displayMode: state.displayMode, arrange: state.arrange, topicEdits: state.topicEdits,
+      displayMode: state.displayMode, arrange: state.arrange, topicEdits: state.topicEdits, glossary: state.glossary,
     });
   }
   // NFR-PERF-003 AC-539: 自動保存は入力の処理（change の中）では行わず、未保存の印とタイマーで間引く。
@@ -189,17 +193,20 @@ export async function createApp(options = {}) {
       if ((state.session !== 'recording' && !opts.anyState) || !list.length) return 0; // FR-039: ファイル取込は状態によらず可（opts.anyState）
       const at0 = opts.at ?? now();
       change((s) => {
-        for (const [i, t] of list.entries()) {
+        for (const [i, raw] of list.entries()) {
           const at = Array.isArray(opts.ats) && opts.ats.length === list.length ? opts.ats[i] : at0;
-          s.utterances.push({ id: nextId('u'), text: t, receivedAt: at });
+            // FR-093 AC-550: 用語集の別表記は、発話として記録する時点で正しい表記に置き換える（置き換える前は rawText に残す。FR-024 AC-572）
+            const t = ctx.applyGlossary ? (ctx.applyGlossary(raw).trim() || raw) : raw;
+            const uid = nextId('u');
+            s.utterances.push({ id: uid, text: t, rawText: raw, receivedAt: at });
           const cur = s.scenes[s.scenes.length - 1];
           const prevAt = s.utterances.length > 1 ? s.utterances[s.utterances.length - 2].receivedAt : null;
           const gap = !opts.noGapSplit && prevAt != null && at - prevAt > gapMs;
           if (cur && cur.status === 'in_progress' && !breakScene && !gap) {
-            appendPoints(cur, extractPoints(t), nextId);
+            appendPoints(cur, extractPoints(t), nextId, uid);
           } else {
             if (cur && cur.status === 'in_progress') cur.status = 'confirmed';
-            const sc = newScene(t, nextId);
+            const sc = newScene(t, nextId, uid);
             s.scenes.push(sc);
             if (!s.selectedSceneId) s.selectedSceneId = sc.id;
           }
@@ -267,7 +274,7 @@ export async function createApp(options = {}) {
     return true;
   };
   app.renderOutline = () => {
-    const html = renderOutline(state.scenes, state.selectedSceneId, i18n.t, app.getOutlineAnnotation?.() ?? null, app.getTopicOutline?.() ?? null, { label: (text) => kindLabelOf(classifyPoint(text), state.lang), relations: app.getOutlineRelations?.() ?? [] });
+    const html = renderOutline(state.scenes, state.selectedSceneId, i18n.t, app.getOutlineAnnotation?.() ?? null, app.getTopicOutline?.() ?? null, { label: (text) => kindLabelOf(classifyPoint(text), state.lang), relations: app.getOutlineRelations?.() ?? [], extra: app.getPointExtraHtml ?? null, headingExtra: app.getHeadingExtraHtml ?? null });
     // FR-036 AC-167: 各まとまり（トピック・区画・囲み）の小見出しを文字でも示す（時系列の表示のとき）
     const applied = app.getLayoutInfo?.().applied;
     const groups = applied && state.scenes.length ? (app.getDiagramLayout?.().groups ?? []) : [];
@@ -371,7 +378,7 @@ export async function createApp(options = {}) {
   app.subscribe = (fn) => on('change', fn);
   app.getPanelRenderer = (id) => panelRenderers.get(id) ?? null;
   app.use = async (mod) => { await mod(ctx); };
-  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, sessionModule, settingsModule, stylePickerModule, autoLayoutModule, layoutKindsModule, rpgModule, rpgAudioModule, llmModule, llmDrawModule, stylePresetModule, workshopModule, relayoutModule, liveRefreshModule, speechSettingsModule, budgetModule, presentExportModule, ...(options.modules ?? [])]) await app.use(mod);
+  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, sessionModule, settingsModule, stylePickerModule, autoLayoutModule, layoutKindsModule, rpgModule, rpgAudioModule, llmModule, llmDrawModule, stylePresetModule, workshopModule, relayoutModule, liveRefreshModule, speechSettingsModule, budgetModule, presentExportModule, glossaryModule, reviewModule, ...(options.modules ?? [])]) await app.use(mod);
 
   // FR-078: 画像生成 AI 向けのプロンプトのコピー（描画スタイル・レイアウト型・トピックの登録の後に足す）
   await app.use(imagePromptModule);
