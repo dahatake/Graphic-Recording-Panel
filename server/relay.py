@@ -494,7 +494,7 @@ class RelayHandler(SimpleHTTPRequestHandler):
                 return self._send_json(413, {"ok": False, "result": "invalid", "reason": "音声の大きさが不正です。"})
             audio = self.rfile.read(int(n))
             lang = dict(p.split("=", 1) for p in query.split("&") if "=" in p).get("language", "")
-            status, payload = speech.recognize(lang, audio, speech.parse_phrases(self.headers.get("x-grp-phrases") or ""))
+            status, payload = speech.recognize(lang, audio)
         else:
             return self._send_json(404 if self.command in ("GET", "HEAD") else 405,
                                    {"ok": False, "result": "not_found", "reason": "見つかりません。"})

@@ -408,89 +408,9 @@ def connection_test():
     return 200, {"ok": True, "result": "success"}
 
 
-PHRASE_HEADER_MAX = 6000  # azurespeech.js の PHRASE_HEADER_MAX と同じ
-PHRASE_MAX_COUNT = 100
-PHRASE_MAX_LEN = 100
-
-
-def parse_phrases(header):
-    """x-grp-phrases（JSON 配列を UTF-8 で百分率符号化した値）を語の一覧にする。不正・超過は無視（空を返す）。値は記録しない。"""
-    from urllib.parse import unquote
-    if not isinstance(header, str) or not header or len(header) > PHRASE_HEADER_MAX:
-        return []
-    try:
-        data = json.loads(unquote(header, errors="strict"))
-    except (ValueError, UnicodeDecodeError):
-        return []
-    if not isinstance(data, list):
-        return []
-    out = []
-    for p in data:
-        if not isinstance(p, str):
-            continue
-        s = p.strip()
-        if not s or len(s) > PHRASE_MAX_LEN or any(ord(c) < 32 for c in s) or s in out:
-            continue
-        out.append(s)
-        if len(out) >= PHRASE_MAX_COUNT:
-            break
-    return out
-
-
-FAST_PATH = "/speechtotext/transcriptions:transcribe?api-version=2025-10-15"
-
-
-def build_fast_request(language, audio, phrases, boundary=None):
-    """fast transcription API の multipart/form-data（audio=WAV、definition=JSON）。(content_type, body bytes)。"""
-    boundary = boundary or "grp" + os.urandom(12).hex()
-    definition = json.dumps({"locales": [language], "phraseList": {"phrases": list(phrases)}}, ensure_ascii=False)
-    crlf = b"\r\n"
-    body = (b"--" + boundary.encode() + crlf
-            + b'Content-Disposition: form-data; name="audio"; filename="audio.wav"' + crlf
-            + b"Content-Type: audio/wav" + crlf + crlf + audio + crlf
-            + b"--" + boundary.encode() + crlf
-            + b'Content-Disposition: form-data; name="definition"' + crlf
-            + b"Content-Type: application/json" + crlf + crlf + definition.encode("utf-8") + crlf
-            + b"--" + boundary.encode() + b"--" + crlf)
-    return "multipart/form-data; boundary=" + boundary, body
-
-
-def parse_fast_response(body):
-    """fast transcription の応答を認識結果の文字列にする。形式が違えば None。"""
-    try:
-        data = json.loads(body.decode("utf-8"))
-    except (ValueError, UnicodeDecodeError):
-        return None
-    if not isinstance(data, dict):
-        return None
-    combined = data.get("combinedPhrases")
-    if isinstance(combined, list) and combined and isinstance(combined[0], dict) and isinstance(combined[0].get("text"), str):
-        return combined[0]["text"]
-    phrases = data.get("phrases")
-    if isinstance(phrases, list):
-        return "".join(p["text"] for p in phrases if isinstance(p, dict) and isinstance(p.get("text"), str))
-    return None
-
-
-def _recognize_fast(cfg, ep, language, audio, phrases, deadline):
-    """語彙つきの認識。成功で文字列、失敗（404・400・接続・形式違い）で None（呼び出し側が従来の REST に戻す）。"""
-    base, host = ep["token"]  # 同じリージョン／カスタムドメインの cognitive エンドポイントだけ
-    ctype, body = build_fast_request(language, audio, phrases)
-    try:
-        status, resp = _request(base, host, "POST", FAST_PATH,
-                                {"Ocp-Apim-Subscription-Key": cfg.key, "Content-Type": ctype, "Accept": "application/json"},
-                                body, deadline)
-    except _Fail:
-        return None
-    if status != 200:
-        return None
-    return parse_fast_response(resp)
-
-
-def recognize(language, audio, phrases=None):
+def recognize(language, audio):
     """POST /api/speech/recognize。音声を認識のホストだけへ送り、確定結果の文字列を返す。音声・文字列は保存・ログ出力しない。
-    phrases: 認識語彙（parse_phrases の結果）。1 件以上あるときだけ fast transcription API（phraseList）を使い、
-    失敗したら語彙なしの短い音声の REST に戻す。"""
+    FR-093 AC-551: 用語集の語は送らない（短い音声の REST だけを使う）。"""
     if language not in LANGUAGES:
         return 400, {"ok": False, "result": "invalid", "reason": "language は ja-JP か en-US にしてください。"}
     cfg = load()
@@ -498,10 +418,6 @@ def recognize(language, audio, phrases=None):
     if not ep or not cfg.key:
         return 200, {"ok": False, "result": "unconfigured"}
     deadline = time.time() + RECOGNIZE_TIMEOUT_SEC
-    if phrases:
-        fast = _recognize_fast(cfg, ep, language, audio, phrases, time.time() + RECOGNIZE_TIMEOUT_SEC / 2)
-        if fast is not None:
-            return 200, {"ok": True, "result": "success", "text": fast}
     base, host = ep["stt"]
     path = "%s?language=%s&format=simple" % (ep["stt_path"], language)
     headers = {"Content-Type": "audio/wav; codecs=audio/pcm; samplerate=16000", "Accept": "application/json"}
