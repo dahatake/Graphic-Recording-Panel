@@ -86,9 +86,11 @@ export function buildMarkdown({ scenes, topics, relations = [], level = 'detail'
   }
   return `${out.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()}\n`;
 }
-const CSS = 'html,body{margin:0;height:100%;background:#fff;color:#1a1a1a;font-family:system-ui,"Yu Gothic","Hiragino Sans",sans-serif}'
+// FR-100 AC-590: 表示される文字は 24 px（図の幅 1920 px 換算＝幅の 1.25%）を下回らない。基準の文字（1rem）を max(1.25vw,16px) にし、見出し・項目・操作は 1rem 以上
+export const SLIDE_ITEM_MAX = 16; // 1 枚に載せる項目の数。超えるときは文字を縮めず、次のスライドへ分ける（どの項目も省かない）
+const CSS = 'html{font-size:max(1.25vw,16px)}html,body{margin:0;height:100%;background:#fff;color:#1a1a1a;font-family:system-ui,"Yu Gothic","Hiragino Sans",sans-serif}'
   + 'main{height:100%;display:flex;flex-direction:column}section[data-slide]{display:none;flex:1;overflow:auto;padding:24px 32px}'
-  + 'section[data-slide][data-active="true"]{display:block}h1{font-size:2rem;margin:0 0 12px}ul{padding:0;margin:0;list-style:none}li{display:inline-block;font-size:1.25rem;margin:4px 6px 4px 0;padding:4px 10px;border:1px solid #888;border-radius:8px}'
+  + 'section[data-slide][data-active="true"]{display:block}h1{font-size:1.5rem;margin:0 0 12px}ul{padding:0;margin:0;list-style:none}li{display:inline-block;font-size:1rem;margin:4px 6px 4px 0;padding:4px 10px;border:1px solid #888;border-radius:8px}'
   + '.fig{margin-top:16px}.fig svg{max-width:100%;height:auto}nav{display:flex;gap:12px;align-items:center;padding:8px 32px;border-top:1px solid #888}'
   + 'button{font:inherit;padding:6px 14px;border:2px solid #1a1a1a;background:#fff;color:#1a1a1a;border-radius:6px;cursor:pointer}'
   + 'button[aria-pressed="true"]{background:#1a1a1a;color:#fff}.meeting-head p{margin:2px 0}.meeting-head li{display:list-item;border:0;margin:0;padding:0;font-size:1rem}';
@@ -115,9 +117,14 @@ export function buildHtml({ scenes, topics = [], lang = 'ja', title = '', labels
   const minutesBlock = minutes ? `<div class="minutes" data-minutes>${minutes.sections.map((sec) => `<section data-minutes-kind="${escapeHtml(sec.kind)}"><h2>${escapeHtml(sec.title)}</h2>${sec.lines.length ? `<ul>${sec.lines.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul>` : `<p>${escapeHtml(L.none ?? 'なし')}</p>`}</section>`).join('')}`
     + `${minutes.candidateCount > 0 ? `<p data-minutes-candidates>${escapeHtml(`${minutes.labels.candidates} ${minutes.candidateCount} ${minutes.labels.count}`.trimEnd())}</p>` : ''}`
     + `${reviewTexts ? `<section data-minutes-kind="review"><h2>${escapeHtml(L.review ?? '要確認')}</h2>${reviewTexts.length ? `<ul>${reviewTexts.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul>` : `<p>${escapeHtml(L.none ?? 'なし')}</p>`}</section>` : ''}</div>` : '';
-  const slide = (attrs, i, head, items, figScenes, extra = '', headHtml = '') => `<section data-slide ${attrs} data-active="${i === 0 ? 'true' : 'false'}">`
-    + `<h1>${escapeHtml(head)}</h1>${headHtml}<ul>${items.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul>`
-    + `<div class="fig">${svgOf(figScenes)}</div>${extra}</section>`;
+  const slide = (attrs, i, head, items, figScenes, extra = '', headHtml = '') => {
+    // FR-100 AC-590: 項目が多いときは文字を縮めず、次のスライドへ分ける（続きのスライドは data-slide-continued。要点は省かない）。図・補足は最初の 1 枚に置く
+    const parts = [];
+    for (let k = 0; k < items.length || k === 0; k += SLIDE_ITEM_MAX) parts.push(items.slice(k, k + SLIDE_ITEM_MAX));
+    return parts.map((part, n) => `<section data-slide ${n === 0 ? attrs : `data-slide-continued="${n + 1}/${parts.length}"`} data-active="${i === 0 && n === 0 ? 'true' : 'false'}">`
+      + `<h1>${escapeHtml(parts.length > 1 ? `${head} (${n + 1}/${parts.length})` : head)}</h1>${n === 0 ? headHtml : ''}<ul>${part.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul>`
+      + `${n === 0 ? `<div class="fig">${svgOf(figScenes)}</div>${extra}` : ''}</section>`).join('');
+  };
   const slides = [slide('data-slide-kind="overview"', 0, title || L.overview || '-', groups.map((g) => g.title ?? L.untitled ?? '-'), scenes, statusBlock + minutesBlock, htmlHead(meta, lang, escapeHtml))]; // FR-095: 概要に日付・議題・目的・対象読者
   groups.forEach((g, k) => slides.push(slide(`data-topic-id="${escapeHtml(topics[k]?.id ?? `rest-${k}`)}"`, k + 1, g.title ?? L.untitled ?? '-', g.scenes.flatMap((s) => s.points.map((p) => (review?.ids.has(p.id) ? `${p.text} ${REVIEW_MARK}` : p.text))), g.scenes)));
   return `<!DOCTYPE html>\n<html lang="${escapeHtml(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">`

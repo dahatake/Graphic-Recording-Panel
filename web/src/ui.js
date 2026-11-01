@@ -480,8 +480,16 @@ export function mountUI(app, doc = document) {
         const cur = doc.createElement('p'); cur.id = 'settings-arrange-current'; cur.className = 'settings-status';
         form.append(cur);
       }
+      // FR-100 AC-589: 投影のプリセット（使わない・会議室（小）・会議室（大）・ホール）。端末ごとに保存。判定・保存・読み上げは app が行う
+      const pjf = d.fields.find((f) => f.id === 'projection.preset');
+      if (pjf) {
+        const ps = doc.createElement('select');
+        for (const o2 of pjf.options) { const op = doc.createElement('option'); op.value = o2.value; op.textContent = o2.label; ps.append(op); }
+        ps.addEventListener('change', () => app.setProjectionPreset(ps.value));
+        row('projection.preset', pjf.label, ps);
+      }
       // FR-014 AC-522: ライブの更新間隔（10〜15 の整数・秒）。判定・保存・メッセージは app が行う
-      const lf = d.fields.find((f) => f.id === 'live.interval');
+      const lf =  d.fields.find((f) => f.id === 'live.interval');
       if (lf) {
         const ln = doc.createElement('input'); ln.type = 'number'; ln.min = String(lf.min); ln.max = String(lf.max); ln.step = String(lf.step); ln.inputMode = 'numeric';
         ln.setAttribute('aria-describedby', 'settings-live-current');
@@ -602,6 +610,11 @@ export function mountUI(app, doc = document) {
           if (pf2 && pn && pn.value !== pf2.input.value && doc.activeElement !== pn) pn.value = pf2.input.value;
         }
       }
+    }
+    { // FR-100 AC-589: 投影のプリセットの表示
+      const pjf = d.fields.find((f) => f.id === 'projection.preset');
+      const ps = setEl.querySelector('select#settings-projection\\.preset');
+      if (pjf && ps && ps.value !== pjf.value) ps.value = pjf.value;
     }
     { // FR-014 AC-522: ライブの更新間隔の表示
       const lf = d.fields.find((f) => f.id === 'live.interval');
