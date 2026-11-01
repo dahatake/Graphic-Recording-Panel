@@ -131,36 +131,17 @@ export function reviewModule(ctx) {
   ctx.registerCommand('review.confirm', () => (state.selectedSceneId ? api.confirmScene(state.selectedSceneId) : { ok: false, reason: 'no_selection' }));
   ctx.registerKey({ key: 'Enter', ctrl: true, alt: true, shift: true, command: 'review.confirm' }); // Alt+Shift+英数字は使用済みのため Ctrl+Alt+Shift
 
-  // ---- 手修正の履歴（AC-546・AC-575）。確認状態・確認日も戻す ----
-  const history = [];
+  // ---- 手修正（AC-546・AC-575）。履歴・元に戻す（edit.undo / undoManualEdit）は edithistory.js（FR-005）が持つ。
+  // 確認状態・確認日は要点の中の値なので、edithistory が修正前のシーンの写しごと戻す。ここでは確認済みの要点の手修正を未確認に戻すだけ（二重にラップしない）
   const baseEdit = api.editPoint;
   api.editPoint = (pointId, text) => {
-    const hit = findPoint(pointId);
-    const snap = hit ? { id: pointId, text: hit.p.text, hadManual: 'manual' in hit.p, manual: hit.p.manual, confirmedAt: hit.p.confirmedAt ?? null } : null;
     const r = baseEdit(pointId, text);
-    if (r?.ok && snap) {
+    if (r?.ok) {
       const h = findPoint(pointId);
-      ctx.change(() => { if (h) delete h.p.confirmedAt; }); // 確認済みの要点の手修正は未確認に戻る（印は再判定）
-      history.push(snap);
-      while (history.length > UNDO_LIMIT) history.shift();
+      if (h?.p.confirmedAt) ctx.change(() => { delete h.p.confirmedAt; }); // 印は再判定
     }
     return r;
   };
-  api.undoManualEdit = () => {
-    const snap = history.pop();
-    if (!snap) { ctx.change(() => ctx.setMessage('msg.undoNone')); return { ok: false, reason: 'no_history' }; }
-    const hit = findPoint(snap.id);
-    if (!hit) return { ok: false, reason: 'not_found' };
-    ctx.change(() => {
-      hit.p.text = snap.text;
-      if (snap.hadManual) hit.p.manual = snap.manual; else delete hit.p.manual;
-      if (snap.confirmedAt) hit.p.confirmedAt = snap.confirmedAt; else delete hit.p.confirmedAt;
-      ctx.setMessage('msg.undone');
-    });
-    return { ok: true };
-  };
-  ctx.registerCommand('edit.undo', () => api.undoManualEdit());
-  ctx.registerKey({ key: 'Delete', ctrl: true, alt: true, shift: true, command: 'edit.undo' });
 
   // ---- 元の発話・AI 要約（AC-572・AC-573） ----
   const uttOf = (id) => getCache().utt.get(id);

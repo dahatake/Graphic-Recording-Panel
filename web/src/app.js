@@ -49,6 +49,11 @@ import { ribbonSettingsModule } from './ribbonsettings.js';
 import { copilotKeysModule } from './copilotkeys.js';
 import { glossaryModule, emptyGlossary } from './glossary.js';
 import { reviewModule } from './review.js';
+import { meetingModule } from './meeting.js';
+import { agendaTimerModule } from './agendatimer.js';
+import { editHistoryModule } from './edithistory.js';
+import { facilitationModule } from './facilitation.js';
+import { kindStylesModule } from './kindstyles.js';
 
 const GAP_MS_DEFAULT = 20_000; // PARAM-002
 // NFR-PERF-003 AC-539: 自動保存の間引き（PARAM-108。0 なら変更のたびに即時保存）
@@ -95,6 +100,7 @@ export async function createApp(options = {}) {
   if (!P.THEMES.includes(theme)) theme = null; // null = OS の設定に従う
 
   const nextId = (prefix) => `${prefix}${++seq}`;
+  const tagNew = (pts) => { for (const h of ctx.pointHooks) for (const p of pts) h(p); };
 
   // 復元（FR-012）: 保存済みセッションは必ず paused で始まる。
   flushPendingSaves(storage);
@@ -123,12 +129,21 @@ export async function createApp(options = {}) {
   const callCounts = {};
   const countCall = (name) => { callCounts[name] = (callCounts[name] ?? 0) + 1; };
 
+  // 機能ごとの保存項目（FR-097・098・005・091）。export が undefined を返す（既定の状態）ときは保存しない。
+  const persistors = new Map(); // key -> { export, import, reset }
+  const collectExtras = () => {
+    const out = {};
+    for (const [k, h] of persistors) { const v = h.export?.(); if (v !== undefined) out[k] = v; }
+    return out;
+  };
   function persistSession() {
-    if (!state.utterances.length && !state.scenes.length && !state.glossary?.terms?.length) return;
+    const extras = collectExtras();
+    if (!state.utterances.length && !state.scenes.length && !state.glossary?.terms?.length && !Object.keys(extras).length) return;
     countCall('autosave');
     P.writeJson(storage, P.SESSION_KEY, {
       utterances: state.utterances, scenes: state.scenes, selectedSceneId: state.selectedSceneId, seq,
       displayMode: state.displayMode, arrange: state.arrange, topicEdits: state.topicEdits, glossary: state.glossary,
+      ...(Object.keys(extras).length ? { extras } : {}),
     });
   }
   // NFR-PERF-003 AC-539: 自動保存は入力の処理（change の中）では行わず、未保存の印とタイマーで間引く。
@@ -185,6 +200,20 @@ export async function createApp(options = {}) {
       if (!dup) keymap.push({ ...k });
     },
     registerPanelRenderer(id, fn) { panelRenderers.set(id, fn); },
+    // 機能ごとの保存項目（セッションの保存・ファイル・復元・初期化の対象。h: { export(), import(value), reset() }）
+    registerPersist(key, h) { persistors.set(key, h); },
+    exportExtras: () => collectExtras(),
+    importExtras(extras) { const e = extras && typeof extras === 'object' ? extras : {}; for (const [k, h] of persistors) h.import?.(e[k]); },
+    resetExtras() { for (const h of persistors.values()) h.reset?.(); },
+    // 新しく加わった要点への付与（FR-091 の進行の段階など）。要点の追加（発話）のたびに、加わった要点ごとに呼ぶ
+    pointHooks: [],
+    // 進行中のシーンを確定し、次の発話から新しいシーンにする（session.nextScene と同じ結果。FR-098 AC-571。記録の状態は問わない）
+    breakScene() {
+      const cur = state.scenes[state.scenes.length - 1];
+      breakScene = true;
+      if (cur && cur.status === 'in_progress') { change(() => { cur.status = 'confirmed'; }); return cur.id; }
+      return cur?.id ?? null;
+    },
     // 発話の追加（記録中のみ）。opts.at: 受付時刻の指定、opts.ats: 発話ごとの受付時刻（件数が同じときのみ。FR-022）、opts.anyState: 記録中以外でも追加（ファイル取込のみ。FR-039）、opts.noGapSplit: 無音間隔で分割しない（ファイル取込: FR-003 AC-044）。
     addUtterance(text, opts) { return ctx.addUtterances([text], opts) > 0; },
     // 複数の発話を 1 回の状態変更（保存・再描画）で追加する。追加した件数を返す。
@@ -203,10 +232,13 @@ export async function createApp(options = {}) {
           const prevAt = s.utterances.length > 1 ? s.utterances[s.utterances.length - 2].receivedAt : null;
           const gap = !opts.noGapSplit && prevAt != null && at - prevAt > gapMs;
           if (cur && cur.status === 'in_progress' && !breakScene && !gap) {
+            const n0 = cur.points.length;
             appendPoints(cur, extractPoints(t), nextId, uid);
+            tagNew(cur.points.slice(n0));
           } else {
             if (cur && cur.status === 'in_progress') cur.status = 'confirmed';
             const sc = newScene(t, nextId, uid);
+            tagNew(sc.points);
             s.scenes.push(sc);
             if (!s.selectedSceneId) s.selectedSceneId = sc.id;
           }
@@ -274,12 +306,14 @@ export async function createApp(options = {}) {
     return true;
   };
   app.renderOutline = () => {
-    const html = renderOutline(state.scenes, state.selectedSceneId, i18n.t, app.getOutlineAnnotation?.() ?? null, app.getTopicOutline?.() ?? null, { label: (text) => kindLabelOf(classifyPoint(text), state.lang), relations: app.getOutlineRelations?.() ?? [], extra: app.getPointExtraHtml ?? null, headingExtra: app.getHeadingExtraHtml ?? null });
+    const html = renderOutline(state.scenes, state.selectedSceneId, i18n.t, app.getOutlineAnnotation?.() ?? null, app.getTopicOutline?.() ?? null, { label: (text, p) => kindLabelOf(classifyPoint(p ?? text), state.lang), relations: app.getOutlineRelations?.() ?? [], agendaOf: (id) => app.getSceneAgenda?.(id) ?? null, agendaLabel: i18n.t('timer.sceneAgenda'), markOf: (p) => app.getPointMark?.(p) ?? null, extra: app.getPointExtraHtml ?? null, headingExtra: app.getHeadingExtraHtml ?? null });
     // FR-036 AC-167: 各まとまり（トピック・区画・囲み）の小見出しを文字でも示す（時系列の表示のとき）
     const applied = app.getLayoutInfo?.().applied;
     const groups = applied && state.scenes.length ? (app.getDiagramLayout?.().groups ?? []) : [];
     const ws = applied ? (app.getWorkshopOutline?.() ?? '') : ''; // FR-091: ワークショップ型のラベル・問い・注記を文字でも示す
-    return groups.length ? `${html}${ws}<section class="outline-groups" aria-label="${i18n.t('outline.groups')}"><h2>${i18n.t('outline.groups')}</h2><ul>${groups.map((g) => `<li data-group-id="${escapeHtml(g.id)}">${escapeHtml(g.heading)}</li>`).join('')}</ul></section>` : `${html}${ws}`;
+    const tmr = app.renderAgendaTimer?.() ?? '';
+    const ph = `${app.renderEditHistory?.() ?? ''}`;
+    return groups.length ? `${tmr}${ph}${html}${ws}<section class="outline-groups" aria-label="${i18n.t('outline.groups')}"><h2>${i18n.t('outline.groups')}</h2><ul>${groups.map((g) => `<li data-group-id="${escapeHtml(g.id)}">${escapeHtml(g.heading)}</li>`).join('')}</ul></section>` : `${tmr}${ph}${html}${ws}`;
   };
   app.clearSavedSession = () => { cancelPendingSave(); P.remove(storage, P.SESSION_KEY); };
   // NFR-PERF-003 AC-539: 保留中の自動保存を直ちに行う（保存したら true）。
@@ -378,7 +412,10 @@ export async function createApp(options = {}) {
   app.subscribe = (fn) => on('change', fn);
   app.getPanelRenderer = (id) => panelRenderers.get(id) ?? null;
   app.use = async (mod) => { await mod(ctx); };
-  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, sessionModule, settingsModule, stylePickerModule, autoLayoutModule, layoutKindsModule, rpgModule, rpgAudioModule, llmModule, llmDrawModule, stylePresetModule, workshopModule, relayoutModule, liveRefreshModule, speechSettingsModule, budgetModule, presentExportModule, glossaryModule, reviewModule, ...(options.modules ?? [])]) await app.use(mod);
+  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, sessionModule, settingsModule, stylePickerModule, autoLayoutModule, layoutKindsModule, rpgModule, rpgAudioModule, llmModule, llmDrawModule, stylePresetModule, workshopModule, relayoutModule, liveRefreshModule, speechSettingsModule, budgetModule, presentExportModule, meetingModule, agendaTimerModule, editHistoryModule, facilitationModule, kindStylesModule, glossaryModule, reviewModule, ...(options.modules ?? [])]) await app.use(mod);
+
+  // 機能ごとの保存項目の復元（モジュールが保存項目を登録した後）
+  if (saved?.extras) ctx.importExtras(saved.extras);
 
   // FR-078: 画像生成 AI 向けのプロンプトのコピー（描画スタイル・レイアウト型・トピックの登録の後に足す）
   await app.use(imagePromptModule);

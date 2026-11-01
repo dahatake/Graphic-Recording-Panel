@@ -120,6 +120,7 @@ export function sessionModule(ctx) {
       s.glossary = emptyGlossary(); // FR-093 AC-552: データの初期化で用語集も消える
       api.importViewSettings?.(null);
       api.importGeneratedSvgs?.(null);
+      ctx.resetExtras();
       s.input.draft = '';
       if (s.speech) s.speech.interim = '';
       ctx.setMessage('msg.resetDone');
@@ -142,6 +143,7 @@ export function sessionModule(ctx) {
       s.glossary = sess.glossary ?? emptyGlossary(); // FR-093 AC-552
       api.importViewSettings?.(sess.viewSettings);
       api.importGeneratedSvgs?.(sess.generatedSvgs);
+      ctx.importExtras(sess.extras);
       s.session = 'paused';
       s.input.draft = '';
       ctx.setMessage('msg.fileLoaded');
@@ -179,6 +181,7 @@ export function sessionModule(ctx) {
       format: FORMAT, version: VERSION,
       utterances: state.utterances, scenes: state.scenes, selectedSceneId: state.selectedSceneId, seq: ctx.getSeq(),
       displayMode: state.displayMode, arrange: state.arrange, topicEdits: state.topicEdits, glossary: state.glossary, viewMode: state.viewMode, axes3d: state.axes3d,
+            ...(Object.keys(ctx.exportExtras()).length ? { extras: ctx.exportExtras() } : {}),
             ...(api.exportViewSettings?.() ?? {}),
             ...(api.exportGeneratedSvgs?.().length ? { generatedSvgs: api.exportGeneratedSvgs() } : {}),
           });

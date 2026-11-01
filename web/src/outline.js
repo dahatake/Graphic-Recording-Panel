@@ -24,12 +24,15 @@ export function renderOutline(scenes, selectedSceneId, t, annot = null, topics =
     const sel = s.id === selectedSceneId;
     const status = `<span class="badge badge-${escapeHtml(s.status)}"><span aria-hidden="true">${STATUS_MARK[s.status] ?? ''}</span> ${escapeHtml(t(`scene.status.${s.status}`))}</span>`;
     const selected = sel ? ` <span class="badge badge-selected"><span aria-hidden="true">${SELECTED_MARK}</span> ${escapeHtml(t('scene.selected'))}</span>` : '';
-    const ptHtml = (p) => `<li data-point-id="${escapeHtml(p.id)}">${kinds ? `<span class="badge badge-kind">${escapeHtml(kinds.label(p.text))}</span> ` : ''}${escapeHtml(p.text)}${kinds?.extra ? kinds.extra(p) : ''}${note(p.id)}</li>`;
+    const ptHtml = (p) => `<li data-point-id="${escapeHtml(p.id)}">${kinds ? `<span class="badge badge-kind">${escapeHtml(kinds.label(p.text, p))}</span> ` : ''}${kinds?.markOf?.(p) ? `<span class="badge badge-phase">${escapeHtml(kinds.markOf(p))}</span> ` : ''}${escapeHtml(p.text)}${kinds?.extra ? kinds.extra(p) : ''}${note(p.id)}</li>`;
     // NFR-PERF-003 AC-536: 要点は OUTLINE_CHUNK 件ずつのリストに分ける（画面外のまとまりは CSS の content-visibility で配置・描画を省く）
     const pts = [];
     for (let i = 0; i < s.points.length || i === 0; i += OUTLINE_CHUNK) { const part = s.points.slice(i, i + OUTLINE_CHUNK); pts.push(`<ul class="outline-points" data-chunk="${escapeHtml(s.id)}:${i}" style="--n:${part.length}">${part.map(ptHtml).join('')}</ul>`); }
+    // FR-098 AC-571: 議題の名前をシーンの見出しの近くに文字で付ける（議題を使っているときだけ）
+    const ag = kinds?.agendaOf?.(s.id);
+    const agHtml = ag ? ` <span class="outline-agenda" data-agenda-of="${escapeHtml(s.id)}">${escapeHtml(kinds.agendaLabel ?? '')}: ${escapeHtml(ag)}</span>` : '';
     return `<li class="outline-scene${sel ? ' is-selected' : ''}" data-scene-id="${escapeHtml(s.id)}"${sel ? ' aria-current="true"' : ''}>`
-      + `<h3>${escapeHtml(s.heading)}</h3>${kinds?.headingExtra ? kinds.headingExtra(s) : ''}${note(s.id)} ${status}${selected}${pts.join('')}</li>`;
+      + `<h3>${escapeHtml(s.heading)}</h3>${kinds?.headingExtra ? kinds.headingExtra(s) : ''}${agHtml}${note(s.id)} ${status}${selected}${pts.join('')}</li>`;
   });
   const head = annot ? `<p class="outline-arrange-head">${escapeHtml(annot.header)}</p>` : '';
   // FR-052 AC-231 / FR-053: 要点の種類のラベル（kinds.label）と、関係（kinds.relations）を文字で示す

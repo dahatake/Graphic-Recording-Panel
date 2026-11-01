@@ -22,6 +22,7 @@ export function remove(storage, key) {
 }
 
 const isStr = (v) => typeof v === 'string';
+const KIND_IDS = ['conclusion', 'issue', 'proposal', 'idea', 'undecided', 'note'];
 
 // 保存されたセッションの検証。形が合わなければ null（空の状態で起動）。
 export function parseSession(raw) {
@@ -36,8 +37,9 @@ export function parseSession(raw) {
     scenes: raw.scenes.map((s) => ({
       id: s.id, heading: s.heading,
       ...(s.aiSummary === true ? { aiSummary: true, aiRaw: isStr(s.aiRaw) ? s.aiRaw : '' } : {}),
+      // FR-091 AC-577: 段階で決めた種類（kind）と「決定の段階」の印（decided）は、追加した時点の値を保つ
       points: s.points.map((p) => ({
-        id: p.id, text: p.text, ...(p.manual ? { manual: true } : {}),
+        id: p.id, text: p.text, ...(p.manual ? { manual: true } : {}), ...(KIND_IDS.includes(p.kind) ? { kind: p.kind } : {}), ...(p.decided ? { decided: true } : {}),
         ...(isStr(p.uid) ? { uid: p.uid } : {}), // FR-024 AC-572: 元の発話
         ...(isStr(p.confirmedAt) && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(p.confirmedAt) ? { confirmedAt: p.confirmedAt } : {}), // FR-092 AC-546
         ...(p.aiSummary === true ? { aiSummary: true, aiRaw: isStr(p.aiRaw) ? p.aiRaw : '' } : {}), // FR-024 AC-573
@@ -53,5 +55,7 @@ export function parseSession(raw) {
     // FR-025 AC-136: トピックの手修正（題名・所属）。形の検証は topics.js の parseEdits
     topicEdits: raw.topicEdits && typeof raw.topicEdits === 'object' ? raw.topicEdits : null,
     glossary: parseGlossary(raw.glossary), // FR-093 AC-552
+    // FR-097・098・005・091: 機能ごとの保存項目（検証は各機能の import）
+    extras: raw.extras && typeof raw.extras === 'object' && !Array.isArray(raw.extras) ? raw.extras : null,
   };
 }
