@@ -258,7 +258,9 @@
     "AC-546": "sha256:1ac96bc515ec6adc",
     "AC-572": "sha256:83e7309a57d1ef40",
     "AC-560": "sha256:2ee665544ee95f16",
-    "AC-569": "sha256:04134336b0865378"
+    "AC-569": "sha256:04134336b0865378",
+    "AC-561": "sha256:00c63493da00af5c",
+    "AC-562": "sha256:059e37d93d5c1a99"
   },
   "cases": [
     {
@@ -8135,9 +8137,9 @@
       ],
       "title": "全出力（PNG・PDF・SVG・MD・HTML）の表題・日付・議題、日付未入力、保存・復元・初期化",
       "layer": "e2e",
-      "command": "node --test --test-name-pattern=\"FR-095\" tests/system/meeting-context.test.js",
+      "command": "node --test --test-name-pattern=\"FR-095|FR-096\" tests/system/meeting-context.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "16788d4",
       "last_run_at": "2026-11-01T19:33:29+09:00",
       "evidence": "work/runs/202611011823/logs/system-test/E2E-272-202611011933.log",
@@ -8153,6 +8155,18 @@
           "by": "test-designer",
           "change": "ac_ids: ['AC-560', 'AC-166', 'AC-559'] -> ['AC-560']",
           "reason": "AC-166・AC-559 は検証レベル integration のため台帳の対象外。同じテストファイルの観察点として残す（契約メモ CONTRACT-MEETING.md）"
+        },
+        {
+          "at": "2026-11-01T19:35:39+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test --test-name-pattern=\"FR-095\" tests/system/meeting-context.test.js' -> 'node --test --test-name-pattern=\"FR-095|FR-096\" tests/system/meeting-context.test.js'; ac_ids: ['AC-560'] -> ['AC-560', 'AC-561', 'AC-562']; requirement_ids: ['FR-095'] -> ['FR-095', 'FR-096']",
+          "reason": "AC-561・562（説明は詳細度に従う）のケースを追加"
+        },
+        {
+          "at": "2026-11-01T19:35:51+09:00",
+          "by": "test-designer",
+          "change": "ac_ids: ['AC-560', 'AC-561', 'AC-562'] -> ['AC-560']; requirement_ids: ['FR-095', 'FR-096'] -> ['FR-095']",
+          "reason": "AC-561・562 は integration 層のため System Test の対象外。AC は戻し、FR-096 の補助観察を同じファイルで実行するため command のみ拡張"
         }
       ]
     },

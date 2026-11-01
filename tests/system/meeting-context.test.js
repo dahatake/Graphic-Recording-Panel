@@ -56,6 +56,41 @@ test('FR-095 AC-560 AC-166 異常系: 日付が未入力なら日付を載せず
   for (const fmt of ['svg', 'md', 'html']) assert.ok(!DATE_RE.test(out2[fmt]), `${fmt}: 日付なし`);
 });
 
+// FR-096 AC-561 AC-562: 説明の対象は画面の詳細度（FR-026）に従う。その詳細度で図に出ない要点は、結論・未解決事項にも含めない。
+const descOf = (svg) => (/<desc[^>]*>([\s\S]*?)<\/desc>/.exec(svg) ?? [])[1] ?? '';
+test('FR-096 AC-561 AC-562: SVG・PNG・PDF の説明は画面の詳細度に従い、大項目・中項目では出ない要点を含まず、詳細では含む', async () => {
+  const { app, env } = await newApp();
+  const texts = await seedThreeScenes(app, env);
+  const points = texts.filter((t) => /決める/.test(t) || /確認する/.test(t)); // 結論・未解決になりうる要点
+  assert.ok(points.length > 0);
+  const shownAt = (level) => {
+    toDetail(app, level);
+    const titles = app.getTopics().map((tp) => tp.title);
+    const heads = level === 'middle' ? app.getState().scenes.map((s) => s.heading) : [];
+    return [...titles, ...heads];
+  };
+  const out = {};
+  for (const level of ['major', 'middle', 'detail']) {
+    const shown = shownAt(level).join('\n');
+    env.canvasFactory.log.texts.length = 0; env.downloads.length = 0;
+    await app.commands['save.svg'](); const svg = String(env.downloads.at(-1).data);
+    await app.commands['save.png'](); const png = env.canvasFactory.log.texts.join('\n');
+    await app.commands['save.pdf'](); const pdf = pdfTexts(env.downloads.at(-1).data);
+    const desc = descOf(svg);
+    assert.ok(desc.length > 0, `${level}: <desc> がある`);
+    out[level] = desc;
+    for (const t of points) {
+      if (level === 'detail') assert.ok(desc.includes(t), `detail: 要点「${t}」を説明に含む`);
+      else if (!shown.includes(t)) assert.ok(!desc.includes(t), `${level}: 図に出ない要点「${t}」を説明に含めない`);
+    }
+    assert.ok(/なし/.test(out[level]) || level === 'detail', `${level}: 該当のない項目は「なし」`);
+    // PDF の「図の説明」の項は SVG の説明と同じ対象（出ない要点を含まない）
+    for (const t of points) if (level !== 'detail' && !shown.includes(t)) assert.ok(!pdf.includes(t), `${level}: PDF に図に出ない要点「${t}」がない`);
+    void png;
+  }
+  assert.notEqual(out.major, out.detail, '大項目と詳細で説明が異なる');
+});
+
 test('FR-095 AC-559 AC-166: タイトル情報・目的・対象読者・議題は再読込・セッションファイルの読込で復元され、データの初期化で消える。空白だけの議題は拒否', async () => {
   const { app, env, createApp } = await newApp();
   await seedThreeScenes(app, env);

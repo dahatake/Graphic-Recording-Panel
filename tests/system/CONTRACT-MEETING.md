@@ -26,7 +26,7 @@ FR-098（議題タイマー。part 3 が決める API）は、議題の登録・
 - 末尾（トピック・要点の後。この順）: `## 決定事項`、`## 保留事項`、`## 異論・懸念`、`## アクション項目`、`## 要確認`（見出しの `##`・`###` はどちらでもよい）。前の 4 節は確定した項目だけ（候補は出ない）。0 件の節は見出しと「なし」。アクション項目は担当者・期限・完了条件を持ち、無い欄は「未定」。未確定の候補があるとき「未確定の候補 n 件」の文字（n は `candidateCount`）。`## 要確認` は確認されていない要点（`getPointReview(id).needsReview`）の一覧で、図の詳細度によらず常に出し、0 件なら見出しと「なし」。
 
 ## 画像の説明（FR-096。AC-561〜563 の観察点。unit / integration）
-- 説明の純関数: `web/src/figuredesc.js` の `buildFigureDescription({ title, purpose, audience, topics, relations, conclusions, unresolved, lang })` → `{ title:string, text:string }`。テーマ・関係・結論・未解決事項の 4 項目（該当がなければ「なし」）。同じ入力は同じ文章（決定的）、外部通信なし、画面の詳細度によらず全体を対象。
+- 説明の純関数: `web/src/figuredesc.js` の `buildFigureDescription({ title, purpose, audience, topics, relations, conclusions, unresolved, lang })` → `{ title:string, text:string }`。テーマ・関係・結論・未解決事項の 4 項目（該当がなければ「なし」）。同じ入力は同じ文章（決定的）、外部通信なし、説明の対象は画面の詳細度（FR-026）に従う（AC-561・562）。大項目＝トピックの題名まで、中項目＝加えてシーンの見出しまで、詳細＝要点まで。その詳細度で図に出ない要点は、結論・未解決事項にも含めない。観察点は `app.getFigureDescription()`（現在の詳細度の説明）と、`renderSvgForSave()` の `<desc>`。
 - SVG: `renderSvgForSave()` の結果に `<title>`（表題）と `<desc>`（説明）が含まれ、文字は XML エスケープされ、許可リスト（NFR-SEC-004）を満たす（`title`・`desc` は許可）。
 - PNG: iTXt チャンク（UTF-8）のキーワード `Title`・`Description`。PDF: 文書情報の `/Title`・`/Subject`（UTF-16BE の PDF 文字列）と、末尾の「図の説明」の項。内容は SVG の説明と同じ。
 
