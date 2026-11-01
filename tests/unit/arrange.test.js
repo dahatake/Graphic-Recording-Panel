@@ -84,7 +84,7 @@ test('FR-016 AC-089: 整理の表示で保存すると軸・区分・未分類�
   app.setDisplayMode('arrange');
   const ar = await svgOf('save.svg', 'image/svg+xml');
   const arText = Buffer.from(ar.data).toString('utf8');
-  assert.equal(arText, app.renderSvg(), '保存内容は画面と同じ描画');
+  assert.equal(arText.replace(/<desc>[\s\S]*?<\/desc>/, ''), app.renderSvg(), '保存内容は画面と同じ描画（FR-096: <desc> の説明だけが加わる）');
   for (const l of labels) assert.ok(arText.includes(l), `SVG に「${l}」`);
 
   env.canvasFactory.log.texts.length = 0;

@@ -445,6 +445,21 @@ export function mountUI(app, doc = document) {
       for (const s of o.styles) { const op = doc.createElement('option'); op.value = s.value; op.textContent = s.label; style.append(op); }
       style.addEventListener('change', () => app.setSettings({ drawStyle: style.value }));
       row('drawStyle', d.fields[2].label, style);
+      // FR-095 AC-558: タイトル欄（シリーズ名・演題・日付・会場）と同じ場所に、目的・対象読者・議題の入力欄。変更したら保存される
+      const mfs = app.getMeetingFormSpec?.();
+      if (mfs) {
+        for (const f of mfs.fields) {
+          const c = doc.createElement(f.kind === 'agenda' ? 'textarea' : 'input');
+          if (f.kind === 'agenda') c.rows = 4; else c.type = 'text';
+          c.dataset.meetingField = f.id;
+          c.addEventListener('change', () => {
+            if (f.kind === 'title') app.setTitleInfo({ [f.id]: c.value });
+            else if (f.kind === 'context') app.setMeetingContext({ [f.id]: c.value });
+            else app.setMeetingAgendaText(c.value);
+          });
+          row(`meeting.${f.id}`, f.label, c);
+        }
+      }
       // FR-051 AC-228: RPG風の音（端末ごとに保存。ミュート・音量）
       const mute = doc.createElement('input'); mute.type = 'checkbox';
       mute.addEventListener('change', () => app.setRpgMuted(mute.checked));
@@ -539,6 +554,10 @@ export function mountUI(app, doc = document) {
     const vals = Object.fromEntries(d.fields.map((f) => [f.id, f.value]));
     setEl.querySelector('select#settings-layout\\.mode').value = vals['layout.mode'];
     setEl.querySelector('select#settings-drawStyle').value = vals.drawStyle;
+    { // FR-095 AC-558: 入力欄の値を保存値に合わせる（入力中の欄は触らない）
+      const mv = app.getMeetingFormValues?.();
+      if (mv) for (const c of setEl.querySelectorAll('[data-meeting-field]')) if (doc.activeElement !== c && c.value !== (mv[c.dataset.meetingField] ?? '')) c.value = mv[c.dataset.meetingField] ?? '';
+    }
     const au = app.getRpgAudio();
     setEl.querySelector('#settings-rpg\\.mute').checked = au.muted;
     setEl.querySelector('#settings-rpg\\.volume').value = String(au.volume);

@@ -146,7 +146,7 @@ export function settingsModule(ctx) {
   api.setAutoLayoutSelector = (fn) => { if (typeof fn === 'function') { autoSelector = fn; ctx.emit('change', api); } };
   api.getLayoutTypeRegistry = () => types;
 
-  // ---- FR-036 AC-166: タイトル情報（シリーズ名・演題・日付・会場）。セッション内のみで保持し、保存（grp.*・セッションファイル）には含めない ----
+  // ---- FR-036 AC-166: タイトル情報（シリーズ名・演題・日付・会場）。FR-095 AC-559 で、保存（grp.session・セッションファイル）に含める ----
   const TITLE_KEYS = ['series', 'theme', 'date', 'venue'];
   let titleInfo = { series: '', theme: '', date: '', venue: '' };
   api.getTitleInfo = () => ({ ...titleInfo });
@@ -157,6 +157,17 @@ export function settingsModule(ctx) {
     titleInfo = next; ctx.emit('change', api);
     return { ok: true };
   };
+  // FR-095 AC-559: タイトル情報（AC-166 の変更）は、ブラウザ内の保存・セッションファイルに含め、再読込・読込で復元し、データの初期化で消す
+  const EMPTY_TITLE = { series: '', theme: '', date: '', venue: '' };
+  ctx.registerPersist?.('titleInfo', {
+    export: () => (TITLE_KEYS.some((k) => titleInfo[k]) ? { ...titleInfo } : undefined),
+    import: (v) => {
+      const next = { ...EMPTY_TITLE };
+      if (v && typeof v === 'object' && !Array.isArray(v)) for (const k of TITLE_KEYS) if (typeof v[k] === 'string') next[k] = v[k].trim().slice(0, 100);
+      titleInfo = next;
+    },
+    reset: () => { titleInfo = { ...EMPTY_TITLE }; },
+  });
 
   // ---- 2D・時系列の配置（型ごとの実装はレジストリで差し替える。先頭の型が配置を決める） ----
   api.getDiagramLayout = () => {

@@ -19,6 +19,10 @@ test('AC-089: scenesForDetail は大項目でトピック、中項目でシー�
   assert.equal(scenesForDetail(SCENES, 'major', []), SCENES); // トピックがなければそのまま
 });
 
+// FR-096 AC-561: 説明（SVG の <desc>・PDF 末尾の「図の説明」）は詳細度によらず全体を対象にするので、図の本体の検査からは除く
+const noDesc = (svg) => String(svg).replace(/<desc>[\s\S]*?<\/desc>/, '');
+const pdfBody = (t) => String(t).split('図の説明')[0];
+
 async function saveAll(level) {
   const factory = makeCanvasFactory();
   const { app, env } = await newApp({ canvasFactory: factory });
@@ -29,7 +33,7 @@ async function saveAll(level) {
   await app.commands['save.pdf']();
   const [png, svg, pdf] = env.downloads;
   const st = app.getState();
-  return { app, texts, st, png, pngTexts: factory.log.texts.join('\n'), svg: String(svg.data), pdf: pdfTexts(pdf.data), topics: app.getTopics() };
+  return { app, texts, st, png, pngTexts: factory.log.texts.join('\n'), svg: noDesc(svg.data), pdf: pdfBody(pdfTexts(pdf.data)), topics: app.getTopics() };
 }
 
 test('AC-089 AC-013 AC-015 AC-014: 詳細では PNG・SVG・PDF に全シーンの見出しと要点が含まれる', async () => {
@@ -90,7 +94,7 @@ test('AC-047: 3D 表示中の PNG・PDF も画面の詳細度に従った 2D の
   assert.equal(app.getState().message.key, 'msg.save3d');
   await app.commands['save.png']();
   assert.equal(app.getState().message.key, 'msg.save3d');
-  const pdf = pdfTexts(env.downloads[0].data);
+  const pdf = pdfBody(pdfTexts(env.downloads[0].data));
   for (const tp of app.getTopics()) { assert.ok(pdf.includes(tp.title)); assert.ok(factory.log.texts.includes(tp.title)); }
   const pts = app.getState().scenes.flatMap((s) => s.points.map((p) => p.text)).filter((t) => !app.getTopics().some((tp) => tp.title.includes(t)));
   for (const t of pts) assert.ok(!pdf.includes(t));
@@ -108,7 +112,7 @@ test('AC-419 AC-077: 描画スタイルを反映した保存でも詳細度に�
     await app.commands['save.png']();
     await app.commands['save.pdf']();
   } finally { globalThis.fetch = realFetch; }
-  const pdf = pdfTexts(env.downloads[1].data);
+  const pdf = pdfBody(pdfTexts(env.downloads[1].data));
   for (const s of app.getState().scenes) { assert.ok(pdf.includes(s.heading)); assert.ok(factory.log.texts.includes(s.heading)); }
   const pts = app.getState().scenes.flatMap((s) => s.points.map((p) => p.text)).filter((t) => !app.getState().scenes.some((s) => s.heading.includes(t)) && !app.getTopics().some((tp) => tp.title.includes(t)));
   for (const t of pts) assert.ok(!pdf.includes(t) && !factory.log.texts.includes(t));

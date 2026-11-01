@@ -59,7 +59,7 @@ test('FR-006 AC-014: 3D 表示中に保存しても 2D の SVG が出力され�
   await seedThreeScenes(app, env);
   app.setViewMode('3d');
   await app.commands['save.svg']();
-  assert.equal(env.downloads[0].data, app.renderSvg());
+  assert.equal(env.downloads[0].data.replace(/<desc>[\s\S]*?<\/desc>/, ''), app.renderSvg()); // FR-096: <desc> の説明だけが加わる
   assert.equal(app.getState().message.key, 'msg.save3d');
 });
 
