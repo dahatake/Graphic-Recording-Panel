@@ -778,6 +778,9 @@ export function mountUI(app, doc = document) {
     // FR-104 AC-605: テキスト一覧・ポップアップの要点を選ぶ／機密の印を付け外す（キーボードは point.confidential）
     const ct = e.target.closest?.('[data-conf-toggle]');
     if (ct) { app.setPointConfidential?.(ct.dataset.confToggle); return; }
+    // FR-099 AC-586: 対立の組の確定・解除・側の移動・要点の選択（キーボードは conflict.group・conflict.ungroup）
+    const cf = e.target.closest?.('[data-conflict-act]');
+    if (cf) { app.conflictAction?.(cf.dataset.conflictAct, cf.dataset.id); return; }
     const li = e.target.closest?.('#outline li[data-point-id]');
     if (li && !e.target.closest?.('button, a, input, select, textarea') && app.getSelectedPointId?.() !== li.dataset.pointId) app.selectPoint?.(li.dataset.pointId);
     const b = e.target.closest?.('#outline button[data-command]');

@@ -3,7 +3,7 @@
 // 再配置の木（infodesign.js）の「前回の再配置の結果（snap）」を持ち、その後に加わった要素は暫定の位置（読み順の末尾）に置く。
 // 図の配置は「snap ＋ 現在の内容」の純粋関数なので、同じ発話列と同じ再配置の時点の列からは毎回同じ配置になる（AC-434）。
 // 手修正（編集・削除・結合・分割、トピックの手修正、整理の割り当て）は状態そのものにあるので、再配置で戻らない（AC-432(a)）。
-import { sceneTree, provisionalTree, topicChunks, GROUP_MAX, KIND_ORDER, TYPE_SCALE, leaves } from './infodesign.js';
+import { sceneTree, provisionalTree, applyConflicts, topicChunks, GROUP_MAX, KIND_ORDER, TYPE_SCALE, leaves } from './infodesign.js';
 import { detailGeometry, topicsGeometry } from './diagram.js';
 import { readJson, writeJson } from './persist.js';
 
@@ -105,7 +105,7 @@ export function relayoutModule(ctx) {
   }
   // 今の図の木（再配置の結果＋暫定の要素）
   function view() {
-    const trees = new Map(state.scenes.map((s) => [s.id, provisionalTree(s, snap?.scenes.get(s.id) ?? null)]));
+    const trees = new Map(state.scenes.map((s) => [s.id, applyConflicts(provisionalTree(s, snap?.scenes.get(s.id) ?? null), s, api.getConfirmedConflicts?.(s.id) ?? null)])); // FR-099: 確定した対立の組は、再配置のたびに同じ比較のまとまりに置く（手動の指定は再配置で戻らない）
     const chunks = new Map(topics().map((tp) => [tp.id, snap ? provisionalChunks(tp.sceneIds, snap.topics.has(tp.id) ? snap.topics.get(tp.id) : null) : null]));
     return { trees, chunks };
   }
