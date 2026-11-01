@@ -92,7 +92,7 @@ export function meetingModule(ctx) {
   // FR-095 AC-560: 出力（PNG・PDF・SVG・Markdown・HTML）が載せる会議の文脈。表題は演題（未入力は従来の表題）、日付は入力のまま（出力日を補わない）
   api.getMeetingOutput = () => {
     const ti = api.getTitleInfo?.() ?? {};
-    return { title: String(ti.theme ?? '').trim() || ctx.t('app.title'), date: ti.date ?? '', series: ti.series ?? '', venue: ti.venue ?? '', agenda: state.meeting.agenda.map((a) => a.name), purpose: state.meeting.purpose, audience: state.meeting.audience };
+    return { title: String(ti.theme ?? '').trim() || ctx.t('app.title'), date: ti.date ?? '', series: ti.series ?? '', venue: ti.venue ?? '', agenda: state.meeting.agenda.map((a) => a.name), purpose: state.meeting.purpose, audience: state.meeting.audience, ...(api.getVisibilityLines?.() ?? {}) }; // FR-104: 公開範囲（と除外の件数）の行
   };
   // FR-096 AC-561〜563: 図の説明。画面の詳細度（FR-026）に従い、その詳細度で出ない要点は含めない（生成 AI・外部通信なし）
   api.getFigureDescription = () => {
@@ -116,7 +116,7 @@ export function meetingModule(ctx) {
       conclusions = shown.filter((p) => classifyPoint(p) === 'conclusion').map((p) => p.text);
       open = shown.filter((p) => classifyPoint(p) === 'undecided').map((p) => p.text);
     }
-    return buildFigureDescription({ title: mo.title, purpose: mo.purpose, audience: mo.audience, topics: topics.length ? topics : state.scenes.map((s) => s.heading), relations: rels, conclusions, unresolved: open, lang: state.lang });
+    return buildFigureDescription({ title: mo.title, purpose: mo.purpose, audience: mo.audience, topics: topics.length ? topics : state.scenes.map((s) => s.heading), relations: rels, conclusions, unresolved: open, lang: state.lang, extra: [mo.visibilityLine, mo.excludedLine] });
   };
   // 保存する SVG: <title>（表題）・<desc>（説明）と、表題・日付・議題の見出しを付ける
   {

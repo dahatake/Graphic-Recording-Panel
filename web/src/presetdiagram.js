@@ -324,6 +324,11 @@ export function renderPresetDiagram(scenes, opts, look) {
           g.push(`<rect data-review-mark="1" data-review-reasons="${attr(rm.reasons.join(' '))}" data-style-role="review-frame" x="${r1(rx0)}" y="${r1(ry0)}" width="${r1(bw)}" height="16" rx="3" fill="${lk.frameFill}" stroke="${lk.frame}" stroke-width="1.5"/>`
             + textEl(rx0 + 6, ry0 + 12, `▲ ${label}`, { size: 11, weight: 700, fill: lk.textOn(lk.frameFill), back: lk.frameFill, boxes, extra: ' data-role="review-label"' }));
         }
+        if (rm?.confidential) { // FR-104 AC-605: 「機密」＋錠の記号（左下。要確認の印と重ならない）
+          const cl = String(rm.confidentialLabel ?? '機密'); const cw2 = Math.min(Math.max(60, cl.length * 12 + 26), w); const cy0 = y + PT_H + 3;
+          g.push(`<rect data-confidential-mark="1" data-style-role="review-frame" x="${r1(x)}" y="${r1(cy0)}" width="${r1(cw2)}" height="16" rx="3" fill="${lk.frameFill}" stroke="${lk.frame}" stroke-width="1.5"/>`
+            + textEl(x + 6, cy0 + 12, `🔒 ${cl}`, { size: 11, weight: 700, fill: lk.textOn(lk.frameFill), back: lk.frameFill, boxes, extra: ' data-role="confidential-label"' }));
+        }
       }
       sb.push(`<g data-point-id="${attr(p.id)}" data-kind="${kind}"${opts.kindLooks ? ` data-point-style="${attr(lk.styleId ?? '')}" data-font-kind="${pk.font}" font-family="${attr(fontFamilyOf(pk.font))}"` : ''}${hl ? ' data-highlight="1"' : ''}>${g.join('')}</g>`);
       y += PT_H + PT_GAP;

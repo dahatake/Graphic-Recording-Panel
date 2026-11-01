@@ -460,6 +460,17 @@ export function mountUI(app, doc = document) {
           row(`meeting.${f.id}`, f.label, c);
         }
       }
+      // FR-104 AC-603・AC-606: 公開範囲（社内・参加者のみ・公開）と、保存で機密の要点を除く選択。記録中・一時停止でも変えられる
+      const vf = app.getVisibilityForm?.();
+      if (vf) {
+        const vs = doc.createElement('select'); vs.dataset.visibilityField = 'level';
+        for (const o2 of vf.options) { const op = doc.createElement('option'); op.value = o2.value; op.textContent = o2.label; vs.append(op); }
+        vs.addEventListener('change', () => app.setVisibility(vs.value));
+        row('visibility.level', vf.label, vs);
+        const ve = doc.createElement('input'); ve.type = 'checkbox'; ve.setAttribute('role', 'switch'); ve.dataset.visibilityField = 'exclude';
+        ve.addEventListener('change', () => app.setExcludeConfidential(ve.checked));
+        row('visibility.exclude', vf.excludeLabel, ve);
+      }
       // FR-051 AC-228: RPG風の音（端末ごとに保存。ミュート・音量）
       const mute = doc.createElement('input'); mute.type = 'checkbox';
       mute.addEventListener('change', () => app.setRpgMuted(mute.checked));
@@ -557,6 +568,13 @@ export function mountUI(app, doc = document) {
     { // FR-095 AC-558: 入力欄の値を保存値に合わせる（入力中の欄は触らない）
       const mv = app.getMeetingFormValues?.();
       if (mv) for (const c of setEl.querySelectorAll('[data-meeting-field]')) if (doc.activeElement !== c && c.value !== (mv[c.dataset.meetingField] ?? '')) c.value = mv[c.dataset.meetingField] ?? '';
+    }
+    { // FR-104: 公開範囲と「機密の要点を除く」の表示
+      const vf = app.getVisibilityForm?.();
+      if (vf) {
+        const vs = setEl.querySelector('[data-visibility-field="level"]'); if (vs && vs.value !== vf.value) vs.value = vf.value;
+        const ve = setEl.querySelector('[data-visibility-field="exclude"]'); if (ve) ve.checked = vf.exclude;
+      }
     }
     const au = app.getRpgAudio();
     setEl.querySelector('#settings-rpg\\.mute').checked = au.muted;
@@ -757,6 +775,11 @@ export function mountUI(app, doc = document) {
 
   // FR-098・FR-091: テキスト一覧の中の議題タイマーのボタン・進行の段階のボタン（キーボードでも Enter・Space で押せる）
   doc.addEventListener('click', (e) => {
+    // FR-104 AC-605: テキスト一覧・ポップアップの要点を選ぶ／機密の印を付け外す（キーボードは point.confidential）
+    const ct = e.target.closest?.('[data-conf-toggle]');
+    if (ct) { app.setPointConfidential?.(ct.dataset.confToggle); return; }
+    const li = e.target.closest?.('#outline li[data-point-id]');
+    if (li && !e.target.closest?.('button, a, input, select, textarea') && app.getSelectedPointId?.() !== li.dataset.pointId) app.selectPoint?.(li.dataset.pointId);
     const b = e.target.closest?.('#outline button[data-command]');
     if (!b || b.disabled) return;
     const cmd = b.dataset.command;
