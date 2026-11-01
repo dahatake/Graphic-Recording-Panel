@@ -3,7 +3,7 @@
 // 図の内容・配置・型・文字は既存の描画と同じで、見た目（配色・紙面・書体・見出しの飾り・吹き出し・線・線画人物）だけが変わる。
 // 見た目の項目を持たない既存の定義（手書き調・アニメ調・シンプル・RPG風）は、従来の描画（diagram.js）のまま（AC-406）。
 // 端末のハイコントラスト（強制カラー）が有効な間は、どの描画スタイルでも図の色を CSS のシステム色にする（AC-456）。
-import { KINDS, STATUS_MARK, classifyPoint, kindLabelOf, textWidth, outline, rng, iconGlyph, reviewMarkSvg } from './diagram.js';
+import { KINDS, STATUS_MARK, classifyPoint, kindLabelOf, textWidth, outline, rng, iconGlyph, reviewMarkSvg, kindExtraSvg, limitRelations, relationStroke } from './diagram.js';
 import { sceneEmotions } from './emotion.js';
 import { matchParts, getPartGroup } from './parts.js';
 import {
@@ -98,7 +98,7 @@ const box = (x, y, w, h) => `${r1(x)} ${r1(y)} ${r1(w)} ${r1(h)}`;
 function shapeEl(look, a, x, y, w, h, shape, seed, rx = 6) {
   const { wobble } = look.pr.stroke;
   if (wobble > 0) return `<path ${a} d="${wobD(outline(shape, x, y, w, h), seed, true, 1.1 * wobble)}"/>`;
-  return `<rect ${a} x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" rx="${rx}"/>`;
+  return `<rect ${a} x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" rx="${shape === 'rounded' ? 10 : rx}"/>`;
 }
 // 手で切ったような縁（クラフト紙の付箋）
 function tornD(x, y, w, h, seed) {
@@ -273,7 +273,7 @@ export function renderPresetDiagram(scenes, opts, look) {
     const status = `${STATUS_MARK[s.status] ?? ''}${isSel ? SELECTED_MARK : ''}`;
     const emos = sceneEmotions(s);
     const kinds = s.points.map((p) => classifyPoint(p));
-    const order = ['conclusion', 'issue', 'proposal', 'undecided', 'idea', 'note'];
+    const order = ['conclusion', 'issue', 'proposal', 'undecided', 'idea', 'question', 'evidence', 'action', 'note'];
     const main = kinds.length ? [...kinds].sort((a, b) => order.indexOf(a) - order.indexOf(b))[0] : null;
     // 吹き出しの中身: その場の様子の語（従来の絵記号の語）。なければ主な要点の種類の文字。
     const words = emos.length ? emos.map((e) => e.word) : main ? [kindLabelOf(main, opts.lang)] : [];
@@ -305,6 +305,7 @@ export function renderPresetDiagram(scenes, opts, look) {
       }
       const sw = r1(W0p * (hl ? 1.8 : concl ? 1.3 : 1));
       g.push(shapeEl(lk, `data-style-role="point-frame" data-box="${box(x, y, w, PT_H)}" fill="${lk.stickyFills ? 'none' : surface}" stroke="${lk.frame}" stroke-width="${sw}" stroke-linejoin="round"${dash}`, x, y, w, PT_H, k.shape, p.id));
+      { const ex = kindExtraSvg(k.shape, x, y, w, PT_H, lk.frame, sw); if (ex) g.push(ex.replace('<rect ', '<rect data-style-role="kind-extra" ')); } // AC-580: 外形の二重枠・太い縦線はスタイルによらず保つ
       if (hl) g.push(`<path data-role="highlight-frame" d="${wobD(outline(k.shape, x - 6, y - 6, w + 12, PT_H + 12), `${p.id}:f`, true, 0.8)}" fill="none" stroke="${lk.frame}" stroke-width="2" stroke-dasharray="3 3"/>`);
       const tx = x + 8 + ICON + 10;
       let back = surface;
@@ -385,10 +386,11 @@ export function renderPresetDiagram(scenes, opts, look) {
     body.push(`<path data-flow="${i}" d="${amp > 0 ? wobD([[h.x + h.w + 12, y], [nx - 14, y]], `flow${i}`, false, 0.8 * amp) : `M${h.x + h.w + 12} ${y}H${nx - 14}`}" fill="none" stroke="${look.frame}" stroke-width="${r1(W0 * 1.1)}" stroke-linecap="round" marker-end="url(#preset-arrow)"/>`);
   });
   // FR-053: 要点どうしの関係線（種類のラベル・向き・明示/推測）。ラベルは絵記号・線画人物に重ねない（AC-425）
-  (opts.relations ?? []).forEach((r, ri) => {
+  const limitedRel = limitRelations(opts.relations ?? []);
+  limitedRel.drawn.forEach((r, ri) => {
     const a = rects.get(r.from); const b = rects.get(r.to);
     if (!a || !b) return;
-    const inferred = r.basis === 'inferred';
+    const st = relationStroke(r);
     const ya = a.y + PT_H / 2; const yb = b.y + PT_H / 2;
     let d; let lx; let ly;
     if (a.sceneId === b.sceneId) {
@@ -400,10 +402,14 @@ export function renderPresetDiagram(scenes, opts, look) {
     }
     const label = `${r.kindLabel}（${r.basisLabel}）`; const lw = textWidth(label, FS_LABEL);
     for (let k = 0; k < 40 && blocked.some((q) => overlaps(q, [lx, ly - FS_LABEL * 0.9, lw, FS_LABEL * 1.2])); k++) ly += 8;
-    body.push(`<g data-role="point-relation"><path data-relation-kind="${attr(r.kind)}" data-relation-from="${attr(r.from)}" data-relation-to="${attr(r.to)}" data-relation-basis="${attr(r.basis)}" d="${d}" fill="none" stroke="${look.ink}" stroke-width="${r1(Math.max(1.2, W0 * 0.7))}"${inferred ? ' stroke-dasharray="5 4"' : ''} marker-end="url(#preset-arrow-ink)"/>`
+    body.push(`<g data-role="point-relation"><path data-relation-kind="${attr(r.kind)}" data-relation-from="${attr(r.from)}" data-relation-to="${attr(r.to)}" data-relation-basis="${attr(r.basis)}" d="${d}" fill="none" stroke="${look.ink}" stroke-width="${r1(Math.max(1.2, W0 * 0.7 * st.width / 2))}"${st.dash ? ` stroke-dasharray="${st.dash}"` : ''} marker-end="url(#preset-arrow-ink)"${r.bidirectional ? ' marker-start="url(#preset-arrow-ink)"' : ''}/>`
       + textEl(lx, ly, label, { size: FS_LABEL, weight: look.labelWeight, fill: look.ink, back: look.bg, boxes, extra: ' data-relation-label=""' }) + '</g>');
     maxH = Math.max(maxH, ly + MARGIN);
   });
+  for (const [id, n] of limitedRel.moreCount) { // AC-584: 図に描かない関係の件数
+    const a = rects.get(id); if (!a) continue;
+    body.push(textEl(a.x + a.w - 4, a.y + PT_H + 11, t('diagram.relMore').replace('{n}', String(n)), { size: FS_LABEL, weight: look.labelWeight, fill: look.ink, back: look.bg, boxes, anchor: 'end', extra: ` data-role="relation-more" data-relation-more-for="${attr(id)}"` }));
+  }
   if (!scenes.length) body.push(textEl(MARGIN, MARGIN + 24, t('diagram.empty'), { size: FS, weight: look.weight, fill: look.ink, back: look.bg, boxes }));
   const emptyW = scenes.length ? 0 : MARGIN * 2 + Math.ceil(textWidth(t('diagram.empty'), FS));
   return { body: body.join(''), width: Math.max(320, emptyW, x - SCENE_GAP + MARGIN), height: Math.max(160, Math.ceil(maxH)) };
@@ -622,7 +628,7 @@ function restyleLegacy(svg, look, spec) {
 
 function markers(look) {
   return `<marker id="preset-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="${look.frame}" stroke="none"/></marker>`
-    + `<marker id="preset-arrow-ink" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="${look.ink}" stroke="none"/></marker>`;
+    + `<marker id="preset-arrow-ink" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${look.ink}" stroke="none"/></marker>`;
 }
 
 // アプリの描画（renderBaseSvg）の画風プリセット版。ctx は diagramModule と同じ。

@@ -37,6 +37,6 @@ export function renderOutline(scenes, selectedSceneId, t, annot = null, topics =
   const head = annot ? `<p class="outline-arrange-head">${escapeHtml(annot.header)}</p>` : '';
   // FR-052 AC-231 / FR-053: 要点の種類のラベル（kinds.label）と、関係（kinds.relations）を文字で示す
   const texts = new Map(scenes.flatMap((s) => s.points).map((p) => [p.id, p.text]));
-  const relBlock = kinds?.relations?.length ? `<ul class="outline-relations">${kinds.relations.map((r) => `<li data-relation-from="${escapeHtml(r.from)}" data-relation-to="${escapeHtml(r.to)}" data-relation-kind="${escapeHtml(r.kind)}" data-relation-basis="${escapeHtml(r.basis)}">${escapeHtml(r.kindLabel)}: ${escapeHtml(texts.get(r.from) ?? '')} → ${escapeHtml(texts.get(r.to) ?? '')} （${escapeHtml(r.basisLabel)}${r.evidence ? `: ${escapeHtml([...String(r.evidence.text)].slice(0, EVIDENCE_MAX).join(''))}` : ''}）</li>`).join('')}</ul>` : '';
+  const relBlock = kinds?.relations?.length ? `<ul class="outline-relations">${kinds.relations.map((r) => `<li data-relation-from="${escapeHtml(r.from)}" data-relation-to="${escapeHtml(r.to)}" data-relation-kind="${escapeHtml(r.kind)}" data-relation-basis="${escapeHtml(r.basis)}">${escapeHtml(r.kindLabel)}: ${escapeHtml(texts.get(r.from) ?? '')} ${r.bidirectional ? '↔' : '→'} ${escapeHtml(texts.get(r.to) ?? '')} （${escapeHtml(r.basisLabel)}${r.evidence ? `: ${escapeHtml([...String(r.evidence.text)].slice(0, EVIDENCE_MAX).join(''))}` : ''}）</li>`).join('')}</ul>` : '';
   return `${topicBlock}${head}<ol class="outline">${items.join('')}</ol>${relBlock}`;
 }
