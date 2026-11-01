@@ -5,6 +5,7 @@ import { escapeHtml } from './outline.js';
 import { renderDiagramSvg, classifyPoint } from './diagram.js';
 import { stampName } from './export.js';
 import { markdownHead, htmlHead } from './meetingout.js';
+import { PHRASES } from './minutes.js';
 
 export const DWELL_SEC = 8; // PARAM-004
 
@@ -26,7 +27,9 @@ function groupScenes(scenes, topics) {
 }
 
 // アクション項目の抽出規則（AC に定めがないため、依頼・担当・期限を述べる要点だけを拾う）
-const ACTION_RE = /お願い|してください|担当|までに|を行う|やります|対応します|確認します|共有します|調整します|todo|action/i;
+// PARAM-129 の語（minutes.js の PHRASES.action）に、従来のこの書き出し固有の語（お願い・を行う・action）を足す
+const ACTION_WORDS = [...new Set([...PHRASES.action, 'お願い', 'を行う', 'action'])];
+const ACTION_RE = new RegExp(ACTION_WORDS.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'i');
 
 // level: 'major'（トピックまで）| 'middle'（シーンの見出しまで）| 'detail'（要点まで）。relations: getOutlineRelations() の配列（詳細のみ）
 // 構成（AC-528）: # 会議タイトル → ## トピック → ### 要点（詳細のみ）→ 箇条書き（関係・シーン見出し）→ 末尾に ## 決定事項・## アクション項目
