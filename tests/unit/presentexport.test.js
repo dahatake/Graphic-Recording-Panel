@@ -10,7 +10,7 @@ test('FR-090 AC-529: Markdown の見出し・要点は renderOutline のテキ�
   await seedThreeScenes(app, env); toDetail(app);
   await app.commands['save.markdown']();
   const md = String(env.downloads[0].data);
-  const mdTexts = md.split('\n').filter((l) => /^### /.test(l)).map((l) => l.replace(/^### /, ''));
+  const mdTexts = md.split('\n').filter((l) => /^### /.test(l)).map((l) => l.replace(/^### /, '').replace(/ \[要確認\]$/, '')); // 行末の印（AC-547）は要点の文字ではない
   const outline = app.renderOutline();
   const olTexts = [...outline.matchAll(/<li data-point-id="[^"]*">(?:<span[^>]*>[^<]*<\/span> )?([^<]*)(?:<(?!\/li>)[\s\S]*?)?<\/li>/g)].map((m) => m[1].replace(/\s*（元の発話[^）]*）\s*$/, '').trimEnd()); // 要点（トピックの見出しと末尾の節は Markdown 固有で一致の対象外。A-258）。要点の文字の後ろの元の発話・印（AC-572・AC-545）は文字の一致の対象外
   assert.deepEqual(mdTexts, olTexts);
@@ -56,7 +56,36 @@ test('FR-090 AC-531: buildHtml は会議の文字列をエスケープし、外�
   assert.ok(!/url\(|@import|@font-face/i.test(html));
 });
 
+// FR-090 AC-547・AC-528: 「要確認」の節は 1 要点 1 行「要点の文字（理由: …）」。複数の理由は読点区切り
+test('FR-090 AC-547: 要確認の節の各行に理由が付く（複数は読点区切り・理由なしは文字のみ）', () => {
+  const scenes = [{ id: 's1', heading: 'h', points: [{ id: 'p1', text: '発注は 12 月 3 日' }, { id: 'p2', text: '普通' }] }];
+  const review = { confirmed: 0, total: 2, ids: new Set(['p1', 'p2']), reasons: new Map([['p1', ['数値', '日付']]]), reasonLabel: '理由' };
+  const md = buildMarkdown({ scenes, topics: [], level: 'major', title: 'M', review });
+  assert.ok(md.includes('- 発注は 12 月 3 日（理由: 数値、日付）\n'));
+  assert.ok(/- 普通\n/.test(md + '\n'));
+});
+
 test('FR-090 AC-530: 自動送りの滞在は PARAM-004 の 8 秒', () => {
   const html = buildHtml({ scenes: [{ id: 's1', heading: 'h', points: [] }], svgOf: () => '' });
   assert.ok(html.includes('D=8*1000'));
+});
+
+// FR-090 AC-547（観察点: 出力の文字列に対する検査）: 要点の行の印・確認の状況・未確認の件数・XSS
+test('FR-090 AC-547: buildMarkdown/buildHtml は未確認の要点だけに [要確認] を付け、確認の状況と未確認 k 件を出す（詳細度 major でも節に列挙・会議の文字列は escape）', () => {
+  const scenes = [{ id: 's1', heading: 'h', points: [{ id: 'p1', text: '発注は 12 月 3 日' }, { id: 'p2', text: '普通' }, { id: 'p3', text: '<img src=x onerror=1>' }] }];
+  const topics = [{ id: 't1', title: 'T', sceneIds: ['s1'] }];
+  const review = { confirmed: 1, total: 3, ids: new Set(['p1', 'p3']) };
+  const md = buildMarkdown({ scenes, topics, level: 'detail', title: 'M', review });
+  assert.ok(md.includes('確認の状況: 確認済み 1 件／全体 3 件'));
+  assert.ok(md.includes('### 発注は 12 月 3 日 [要確認]\n'));
+  assert.ok(md.includes('### 普通\n'));
+  const major = buildMarkdown({ scenes, topics, level: 'major', title: 'M', review });
+  assert.ok(!/^### /m.test(major));
+  assert.ok(major.includes('## 要確認') && major.includes('- 発注は 12 月 3 日') && major.includes('確認の状況: 確認済み 1 件／全体 3 件'));
+  const html = buildHtml({ scenes, topics, title: 'M', labels: { auto: 'a', hint: 'h' }, svgOf: () => '', review });
+  assert.ok(html.includes('確認の状況: 確認済み 1 件／全体 3 件') && html.includes('未確認 2 件'));
+  assert.ok(html.includes('<li>発注は 12 月 3 日 [要確認]</li>') && html.includes('<li>普通</li>'));
+  assert.ok(!html.includes('<img src=x'));
+  const zero = buildHtml({ scenes, topics, title: 'M', labels: { auto: 'a', hint: 'h' }, svgOf: () => '', review: { confirmed: 0, total: 3, ids: new Set() } });
+  assert.ok(zero.includes('未確認 0 件'));
 });

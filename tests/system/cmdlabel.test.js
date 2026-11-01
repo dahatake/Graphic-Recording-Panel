@@ -11,7 +11,7 @@ const NEEDED = ['session.pause', 'session.stop', 'session.nextScene', 'input.foc
 const items = (app) => app.getCommandBar().items;
 const weight = (s) => [...s].reduce((n, ch) => n + (CJK.test(ch) ? 1 : 0.5), 0);
 
-// NFR-UX-003 AC-090
+// NFR-UX-003 AC-090（例外: ユーザーの明示操作によるリボンの折りたたみ中（AC-579）だけ。ここは折りたたまない既定の状態を検証し、折りたたみ中の挙動は AC-579 のケースで検証する）
 test('NFR-UX-003 AC-090: すべてのボタン（初期化・ファイル保存/読込を含む）に非空でボタンごとに異なるラベルが常に表示される', async () => {
   const { app } = await newApp();
   const list = items(app);

@@ -177,6 +177,15 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .commandbar .toolbar-group { flex-wrap: wrap; }
 .commandbar { min-width: 0; max-width: 100%; }
 
+/* NFR-UX-003 AC-579（PARAM-130 = 600px）: 窓の高さが小さいとき、リボンは窓の 40% までで中をスクロールし、開閉ボタンで折りたためる。
+   リボンが下のパネル領域に重ならず・押し出さない。ボタンは文字（開く／閉じる）と形（▼▲）と aria-expanded で状態を示す。 */
+.ribbon-toggle { display: none; margin: var(--space-1) var(--space-3); }
+@media (max-height: 600px) {
+  .ribbon-toggle { display: inline-flex; }
+  .commandbar { max-height: 40vh; overflow-y: auto; overscroll-behavior: contain; position: relative; z-index: 0; }
+  .commandbar[data-collapsed="true"] { display: none; }
+}
+
 /* FR-018/019: 確認ダイアログ */
 .dialog-backdrop { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; background: rgb(0 0 0 / 0.45); padding: var(--space-4); }
 .dialog { max-width: 32rem; width: 100%; padding: var(--space-5); background: var(--color-surface); color: var(--color-text); border: var(--stroke) solid var(--color-border); border-radius: var(--radius); box-shadow: var(--shadow-8); }

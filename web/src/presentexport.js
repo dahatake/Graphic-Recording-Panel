@@ -10,6 +10,8 @@ import { PHRASES } from './minutes.js';
 export const DWELL_SEC = 8; // PARAM-004
 
 const oneLine = (s) => String(s ?? '').replace(/[\r\n]+/g, ' ').trim();
+const REVIEW_MARK = '[要確認]'; // AC-547
+const statusLine = (r) => `確認の状況: 確認済み ${r.confirmed} 件／全体 ${r.total} 件`;
 
 // トピックごとに、含まれるシーンを出現順に並べる（どのトピックにも属さないシーンは最後の無題の組にまとめる）
 function groupScenes(scenes, topics) {
@@ -36,8 +38,14 @@ const ACTION_RE = new RegExp(ACTION_WORDS.map((w) => w.replace(/[.*+?^${}()|[\]\
 // kindOf: 要点の文字列 → 種類 id（'conclusion' を決定事項にする）
 // minutes（FR-094 AC-556）: { sections:[{title, lines}], candidateCount, labels } を渡すと、末尾の 4 節は確定した議事項目だけにする（候補は出さない）。
 // reviewTexts（AC-547）: 渡すと末尾に「要確認」の節（確認されていない要点。詳細度によらず常に出す。0 件は「なし」）を置く
-export function buildMarkdown({ scenes, topics, relations = [], level = 'detail', title = '', kindOf = () => 'note', noneLabel = 'なし', labels = {}, minutes = null, reviewTexts = null, meta = null, lang = 'ja' }) {  const L = { decisions: '決定事項', actions: 'アクション項目', untitled: '(未分類)', ...labels };
+export function buildMarkdown({ scenes, topics, relations = [], level = 'detail', title = '', kindOf = () => 'note', noneLabel = 'なし', labels = {}, minutes = null, reviewTexts = null, meta = null, lang = 'ja', review = null }) {  const L = { decisions: '決定事項', actions: 'アクション項目', untitled: '(未分類)', ...labels };
+  // AC-547: review = { confirmed, total, ids:Set } で、要点の行の印・確認の状況・「要確認」の節（常に）を出す
+  const mark = (p) => (review?.ids.has(p.id) ? ` ${REVIEW_MARK}` : '');
+  // AC-547: 1 要点 1 行「要点の文字（理由: 数値、日付…）」。理由は review.reasons（要点 id → 理由の語の配列）
+  const withReason = (p) => { const rs = review.reasons?.get(p.id) ?? []; return rs.length ? `${p.text}（${review.reasonLabel ?? '理由'}: ${rs.join('、')}）` : p.text; };
+  if (review) reviewTexts = scenes.flatMap((s) => s.points).filter((p) => review.ids.has(p.id)).map(withReason);
   const out = [`# ${oneLine(title) || '-'}`, '', ...markdownHead(meta, lang)]; // FR-095 AC-560・AC-578: 冒頭に日付・議題・目的・対象読者
+  if (review) out.push('', statusLine(review), '');
   const texts = new Map(scenes.flatMap((s) => s.points).map((p) => [p.id, p.text]));
   const rels = new Map();
   if (level === 'detail') for (const r of relations) { (rels.get(r.from) ?? rels.set(r.from, []).get(r.from)).push(r); }
@@ -50,7 +58,7 @@ export function buildMarkdown({ scenes, topics, relations = [], level = 'detail'
         if (kindOf(p.text) === 'conclusion') decisions.push(p.text);
         if (ACTION_RE.test(p.text)) actions.push(p.text);
         if (level !== 'detail') continue;
-        out.push(`### ${oneLine(p.text)}`, '');
+        out.push(`### ${oneLine(p.text)}${mark(p)}`, '');
         for (const r of rels.get(p.id) ?? []) out.push(`- ${oneLine(r.kindLabel)} → ${oneLine(texts.get(r.to))}`);
         if (rels.has(p.id)) out.push('');
       }
@@ -98,8 +106,10 @@ show(0);})();`;
 
 // 最初に概要 1 枚（data-slide-kind="overview"）、続いてトピックごとに 1 枚（data-topic-id。見出し・要点・図）。AC-530
 // svgOf(scenes[]) → その範囲の図の SVG
-export function buildHtml({ scenes, topics = [], lang = 'ja', title = '', labels, svgOf, minutes = null, reviewTexts = null, meta = null }) {
+export function buildHtml({ scenes, topics = [], lang = 'ja', title = '', labels, svgOf, minutes = null, reviewTexts = null, meta = null, review = null }) {
   const L = labels ?? { auto: 'Auto', hint: '← →' };
+  if (review && !reviewTexts && minutes) reviewTexts = scenes.flatMap((s) => s.points).filter((p) => review.ids.has(p.id)).map((p) => p.text);
+  const statusBlock = review ? `<p data-review-status>${escapeHtml(statusLine(review))}</p><p data-review-unconfirmed>${escapeHtml(`未確認 ${review.ids.size} 件`)}</p>` : ''; // AC-547
   const groups = groupScenes(scenes, topics);
   // FR-094 AC-556: 確定した議事項目の節（見出し付き）を概要のスライドに置く（スライド数は変えない）。候補は含めず、未確定の候補の件数を文字で示す
   const minutesBlock = minutes ? `<div class="minutes" data-minutes>${minutes.sections.map((sec) => `<section data-minutes-kind="${escapeHtml(sec.kind)}"><h2>${escapeHtml(sec.title)}</h2>${sec.lines.length ? `<ul>${sec.lines.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul>` : `<p>${escapeHtml(L.none ?? 'なし')}</p>`}</section>`).join('')}`
@@ -108,8 +118,8 @@ export function buildHtml({ scenes, topics = [], lang = 'ja', title = '', labels
   const slide = (attrs, i, head, items, figScenes, extra = '', headHtml = '') => `<section data-slide ${attrs} data-active="${i === 0 ? 'true' : 'false'}">`
     + `<h1>${escapeHtml(head)}</h1>${headHtml}<ul>${items.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul>`
     + `<div class="fig">${svgOf(figScenes)}</div>${extra}</section>`;
-  const slides = [slide('data-slide-kind="overview"', 0, title || L.overview || '-', groups.map((g) => g.title ?? L.untitled ?? '-'), scenes, minutesBlock, htmlHead(meta, lang, escapeHtml))]; // FR-095: 概要に日付・議題・目的・対象読者
-  groups.forEach((g, k) => slides.push(slide(`data-topic-id="${escapeHtml(topics[k]?.id ?? `rest-${k}`)}"`, k + 1, g.title ?? L.untitled ?? '-', g.scenes.flatMap((s) => s.points.map((p) => p.text)), g.scenes)));
+  const slides = [slide('data-slide-kind="overview"', 0, title || L.overview || '-', groups.map((g) => g.title ?? L.untitled ?? '-'), scenes, statusBlock + minutesBlock, htmlHead(meta, lang, escapeHtml))]; // FR-095: 概要に日付・議題・目的・対象読者
+  groups.forEach((g, k) => slides.push(slide(`data-topic-id="${escapeHtml(topics[k]?.id ?? `rest-${k}`)}"`, k + 1, g.title ?? L.untitled ?? '-', g.scenes.flatMap((s) => s.points.map((p) => (review?.ids.has(p.id) ? `${p.text} ${REVIEW_MARK}` : p.text))), g.scenes)));
   return `<!DOCTYPE html>\n<html lang="${escapeHtml(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">`
     + `<title>${escapeHtml(title)}</title><style>${CSS}</style></head><body><main>${slides.join('')}`
     + `<nav><button type="button" data-autoplay aria-pressed="false">${escapeHtml(L.auto)}</button><span data-counter aria-live="polite"></span><span>${escapeHtml(L.hint)}</span></nav></main>`
@@ -138,9 +148,12 @@ export function presentExportModule(ctx) {
   }
   const minutesArgs = () => {
     const m = api.getMinutesForExport?.() ?? null;
-    if (!m) return {};
-    const ids = new Set(api.getReviewSummary?.().unconfirmed ?? []);
-    return { minutes: m, reviewTexts: ctx.state.scenes.flatMap((s) => s.points).filter((p) => ids.has(p.id)).map((p) => p.text) };
+    const sum = api.getReviewSummary?.();
+    const ids = new Set(sum?.unconfirmed ?? []);
+    const reasons = new Map([...ids].map((id) => [id, (api.getPointReview?.(id)?.reasons ?? []).map((r) => ctx.t(`review.reason.${r}`))])); // AC-547: 理由（テキスト一覧と同じ語）
+    const review = sum ? { confirmed: sum.confirmed, total: sum.total, ids, reasons, reasonLabel: ctx.t('minutes.reason') } : null; // AC-547: 詳細度によらない
+    const texts = ctx.state.scenes.flatMap((s) => s.points).filter((p) => ids.has(p.id)).map((p) => p.text);
+    return m ? { minutes: m, reviewTexts: texts, review } : { review };
   };
   ctx.registerCommand('save.markdown', () => run('md', 'text/markdown', () => buildMarkdown({
     scenes: ctx.state.scenes, topics: api.getTopics?.() ?? [], relations: api.getOutlineRelations?.() ?? [],

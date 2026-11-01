@@ -120,6 +120,67 @@ test('FR-090 AC-528: 末尾の決定事項・保留事項・異論・懸念・�
   }
 });
 
+// FR-090 AC-528 AC-547（1789078 の改訂: 要点の行の「[要確認]」・確認の状況の行・HTML の「未確認 k 件」。契約: CONTRACT-REVIEW.md）
+test('FR-090 AC-528: 未確認の要点の見出し行の行末に「 [要確認]」・冒頭に「確認の状況: 確認済み m 件／全体 n 件」・HTML 概要に同じ行と「未確認 k 件」（詳細度によらず件数が変わらない）', async () => {
+  const { app, env } = await newApp();
+  app.commands['session.start']();
+  for (const t of ['予算は 300 万円です', '発注は来週の月曜までです', '普通に進めます']) { app.setDraft(t); assert.equal(app.submitDraft().ok, true, t); env.tick(1); }
+  env.scheduler.advance(3000);
+  const all = () => app.getState().scenes.flatMap((s) => s.points);
+  const needs = all().filter((p) => app.getPointReview(p.id).needsReview);
+  assert.ok(needs.length >= 2, '前提: 要確認の要点が 2 件以上');
+  assert.equal(app.confirmPoint(needs[0].id).ok, true);
+  const n = all().length;
+  const m = all().filter((p) => app.getPointReview(p.id).status === 'confirmed').length;
+  const unconfirmed = all().filter((p) => app.getPointReview(p.id).needsReview);
+  const k = unconfirmed.length;
+  assert.ok(m >= 1 && k >= 1 && m <= n && k <= n - m, '前提: m>=1・k>=1・k は n−m 以下');
+  for (const level of ['detail', 'major']) {
+    toDetail(app, level);
+    await app.commands['save.markdown']();
+    const lines = String(env.downloads.at(-1).data).split(/\r?\n/);
+    const firstSec = lines.findIndex((l) => /^##\s/.test(l));
+    const head = lines.slice(0, firstSec).join('\n');
+    assert.ok(head.includes(`確認の状況: 確認済み ${m} 件／全体 ${n} 件`), `${level}: 冒頭に確認の状況（n は詳細度によらず全要点）`);
+    const tail = lines.findIndex((l) => /^#{2,3}\s*要確認/.test(l));
+    const reviewSec = lines.slice(tail + 1).join('\n');
+    for (const p of unconfirmed) assert.ok(reviewSec.includes(p.text), `${level}: 「要確認」の節に「${p.text}」（${k} 件すべて）`);
+    const body = lines.slice(0, lines.findIndex((l) => /^#{2,3}\s*決定事項/.test(l)));
+    if (level === 'detail') {
+      for (const p of all()) {
+        const row = body.find((l) => /^### [^#]/.test(l) && l.includes(p.text));
+        assert.ok(row, `要点「${p.text}」の ### 行`);
+        if (app.getPointReview(p.id).needsReview) assert.ok(/ \[要確認\]$/.test(row), `未確認「${p.text}」は行末が「 [要確認]」`);
+        else assert.ok(!row.includes('[要確認]'), `確認済み・対象外「${p.text}」には付かない`);
+      }
+      assert.ok(!body.some((l) => /^\s*[-*]\s/.test(l) && l.includes('[要確認]')), '詳細の箇条書きには付かない');
+    } else {
+      assert.ok(!body.some((l) => l.includes('[要確認]')), 'major: 要点を出さないので行への印は付かない');
+    }
+    await app.commands['save.html']();
+    const html = String(env.downloads.at(-1).data);
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    try {
+      const page = await ctx.newPage();
+      await page.setContent(html, { waitUntil: 'load' });
+      const ov = await page.locator('section[data-slide-kind="overview"]').first().innerText();
+      assert.ok(ov.includes(`確認の状況: 確認済み ${m} 件／全体 ${n} 件`), `${level}: HTML 概要に確認の状況`);
+      assert.ok(ov.includes(`未確認 ${k} 件`), `${level}: HTML 概要に「未確認 ${k} 件」`);
+      if (level === 'detail') {
+        const items = await page.locator('section[data-slide] li').allInnerTexts();
+        for (const p of unconfirmed) assert.ok(items.some((t) => t.includes(p.text) && t.includes('[要確認]')), `HTML の要点「${p.text}」の要素に [要確認]`);
+      }
+    } finally { await ctx.close(); }
+  }
+  // 異常系: 未確認 0 件でも HTML は「未確認 0 件」、Markdown は確認の状況の行と「要確認」の節（なし）
+  const b = await newApp();
+  b.app.commands['session.start'](); b.app.setDraft('普通に進めます'); b.app.submitDraft(); b.env.tick(1); b.env.scheduler.advance(3000); toDetail(b.app);
+  await b.app.commands['save.html']();
+  const h0 = String(b.env.downloads.at(-1).data);
+  assert.ok(/未確認\s*0\s*件/.test(h0), '未確認 0 件でも「未確認 0 件」と書く');
+  assert.ok(h0.includes('確認の状況: 確認済み 0 件／全体 1 件'), 'HTML 概要の確認の状況（0／全体 1）');
+});
+
 test('FR-090 AC-528 異常系: シーン 0 件では Markdown は保存されない', async () => {
   const { app, env } = await newApp();
   await app.commands['save.markdown']();
