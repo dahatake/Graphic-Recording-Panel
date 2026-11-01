@@ -313,6 +313,27 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .apikeys-dialog[data-layout="stacked"] .apikeys-nav { flex: 0 0 auto; flex-direction: row; border-right: 0; padding-right: 0; }
 @media (prefers-reduced-motion: reduce) { .apikeys-dialog[open] { animation: none; } }
 .apikeys-dialog[data-motion="none"][open] { animation: none; }
+/* FR-103: 初回の案内・ヘルプ（中央のモーダル）と「サンプル」の印 */
+.onboarding-dialog { padding: 0; border: var(--stroke) solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-8); width: min(36rem, calc(100vw - 2 * var(--space-4))); max-height: calc(100vh - 2 * var(--space-5)); overflow: auto; margin: auto; }
+.onboarding-dialog[hidden] { display: none; }
+.onboarding-dialog[open] { display: flex; flex-direction: column; animation: apikeys-in 120ms ease-out; }
+.onboarding-dialog::backdrop { background: rgb(60 60 60 / 0.55); }
+.onboarding-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: var(--stroke) solid var(--color-border); }
+.onboarding-head h2, .onboarding-step-title { margin: 0; }
+.onboarding-progress, .onboarding-note { margin: 0; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.onboarding-body { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); }
+.onboarding-steps { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.onboarding-dot { padding: var(--space-1) var(--space-3); border: var(--stroke) solid var(--color-border); border-radius: var(--radius); font-size: var(--font-size-caption); }
+.onboarding-dot[data-current="true"] { font-weight: 600; border-width: 3px; } /* 現在のステップは太字と太い枠でも示す（色だけに頼らない） */
+.onboarding-text { margin: 0; line-height: 1.6; }
+.onboarding-sample { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); padding: var(--space-3); border: var(--stroke) solid var(--color-border); border-radius: var(--radius); background: var(--color-surface-2); }
+.onboarding-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-top: var(--stroke) solid var(--color-border); }
+.onboarding-nav { display: flex; gap: var(--space-2); }
+.onboarding-dialog .btn { min-height: var(--target-size); }
+.sample-badge { font-weight: 600; border: var(--stroke) solid currentColor; }
+.help-button { margin-left: auto; min-height: var(--target-size); }
+@media (prefers-reduced-motion: reduce) { .onboarding-dialog[open] { animation: none; } }
+@media (forced-colors: active) { .onboarding-dialog { border-color: CanvasText; } .onboarding-dialog::backdrop { background: Canvas; opacity: 0.7; } .onboarding-dot[data-current="true"] { outline: 2px solid Highlight; } }
 @media (forced-colors: active) {
   .apikeys-dialog { border-color: CanvasText; }
   .apikeys-dialog::backdrop { background: Canvas; opacity: 0.7; }
