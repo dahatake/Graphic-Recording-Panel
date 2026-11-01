@@ -108,6 +108,13 @@
 | FR-096 | 画像の出力への構造化した説明 | 承認済み | web/src/figuredesc.js, web/src/pngmeta.js, web/src/meetingout.js, web/src/meeting.js, web/src/export.js, web/sw.js | tests/unit/meeting-context.test.js | アプリ組立, セッション, i18n |
 | FR-097 | 1 つの図での複数の手書きスタイルの併用（要点の種類ごと） | 承認済み | web/src/kindstyles.js, web/src/presetdiagram.js, web/src/export.js, web/src/app.js, web/src/i18n.js, web/sw.js | tests/unit/fr097-098-005-091.test.js | アプリ組立, セッション, 描画スタイルの登録, 画風プリセットの描画, i18n |
 | FR-098 | 議題ごとの持ち時間のタイマー | 承認済み | web/src/agendatimer.js, web/src/meeting.js, web/src/topics.js, web/src/outline.js, web/src/ui.js, web/src/app.js, web/src/i18n.js, web/sw.js | tests/system/agenda-timer.test.js, tests/unit/fr097-098-005-091.test.js | アプリ組立, セッション, i18n |
+| FR-099 | 対立・トレードオフ・少数意見の表示（比較の 2 列） | 承認済み | 未実装 | 未実装 | - |
+| FR-100 | 投影時の読みやすさの確認 | 承認済み | 未実装 | 未実装 | - |
+| FR-101 | ホバーでの詳細のプレビュー | 承認済み | 未実装 | 未実装 | - |
+| FR-102 | 地図（RPG風）の要素の操作の同等性 | 承認済み | 未実装 | 未実装 | - |
+| FR-103 | 初回の案内・ヘルプ・練習用のサンプル | 承認済み | 未実装 | 未実装 | - |
+| FR-104 | 公開範囲の選択と表示・機密の要点の除外 | 承認済み | 未実装 | 未実装 | - |
+| FR-105 | 読み順の型の選択（Z 型・F 型・左右比較・フロー） | 承認済み | 未実装 | 未実装 | - |
 
 ## API・イベント
 
