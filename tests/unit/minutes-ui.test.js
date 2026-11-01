@@ -181,6 +181,18 @@ test('FR-094 AC-557 NFR-A11Y-001: 会議の文字列は escape され、innerHTM
 });
 
 // i18n（ja・en）と見た目の規則
+test('NFR-PERF-003 AC-536: データを変えない操作（選択・ホバー）では、議事項目の抽出・全発話を複製する getState を再実行しない', async () => {
+  const { app, ui } = await setup('Agreed: use plan A');
+  ui.sync(true);
+  let stateCalls = 0; let itemCalls = 0;
+  const gs = app.getState; app.getState = (...a) => { stateCalls++; return gs.apply(app, a); };
+  const gi = app.getMeetingItems; app.getMeetingItems = (...a) => { itemCalls++; return gi.apply(app, a); };
+  for (let i = 0; i < 20; i++) ui.sync(); // 版数・言語が同じ（選択・ホバー相当）
+  assert.equal(itemCalls, 0, '版数が変わらなければ抽出し直さない');
+  assert.equal(stateCalls, 0, '全発話を複製する getState を毎回呼ばない');
+});
+
+// i18n（ja・en）と見た目の規則
 test('FR-094 AC-555: 文言は ja・en の両方にあり、英語でも候補・ボタンが翻訳され、見た目は色だけに頼らず reduced motion に従う', async () => {
   const { app, root, ui } = await setup('Agreed: use plan A');
   app.setLang('en'); ui.sync(true);

@@ -21,6 +21,16 @@ export function extractKinds(text) {
   const s = String(text ?? '').toLowerCase();
   return KINDS.filter((k) => PHRASES[k].some((w) => s.includes(w.toLowerCase())));
 }
+// 発話ごとの抽出結果の覚え（同じ発話・同じ文字列なら抽出し直さない。選択・ホバーなどデータを変えない操作で全発話を走査し直さない。NFR-PERF-003）
+const KINDS_MEMO = new WeakMap();
+export function extractKindsOf(u) {
+  const text = u?.text;
+  const m = KINDS_MEMO.get(u);
+  if (m && m.text === text) return m.kinds;
+  const kinds = extractKinds(text);
+  KINDS_MEMO.set(u, { text, kinds });
+  return kinds;
+}
 
 const orNull = (v) => { const s = v == null ? '' : String(v).trim(); return s ? s : null; };
 
@@ -93,7 +103,7 @@ export function minutesModule(ctx) {
     const have = new Set(state.minutes.items.filter((i) => i.sourceUtteranceId).map((i) => `${i.sourceUtteranceId}\u0001${i.kind}`));
     for (const u of state.utterances ?? []) {
       if (state.minutes.items.length >= MAX_ITEMS) break;
-      for (const k of extractKinds(u.text)) {
+      for (const k of extractKindsOf(u)) {
         if (have.has(`${u.id}\u0001${k}`)) continue;
         state.minutes.items.push(blank(k, newId(), 'candidate', String(u.text), u.id));
       }
@@ -183,7 +193,7 @@ export function minutesModule(ctx) {
     return `<section class="outline-minutes" aria-label="${escapeHtml(t('minutes.heading'))}"><h2>${escapeHtml(t('minutes.heading'))}</h2>${sec}</section>`;
   };
   // 項目が 1 つもないときは一覧に出さない
-  api.getMinutesOutlineHtml = () => (state.minutes.items.some((i) => i.state !== 'rejected') || (state.utterances ?? []).some((u) => extractKinds(u.text).length) ? api.renderMinutes() : '');
+  api.getMinutesOutlineHtml = () => (state.minutes.items.some((i) => i.state !== 'rejected') || (state.utterances ?? []).some((u) => extractKindsOf(u).length) ? api.renderMinutes() : '');
 
   ctx.registerPersist('minutes', {
     export: () => { sync(); return state.minutes.items.length ? { items: state.minutes.items.map(copy) } : undefined; },

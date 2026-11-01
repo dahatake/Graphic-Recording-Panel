@@ -37,6 +37,11 @@ function morphNode(oldNode, newNode) {
   if (newNode.hasAttribute('data-chunk-keep')) return;
   if (oldNode.isEqualNode(newNode)) return;
   syncAttributes(oldNode, newNode);
+  // 要点の項目（子にキーのある要素を持たない葉）は、子の対応づけをせずに中身を入れ替える（5000 件が一度に変わっても軽く保つ。NFR-PERF-003）
+  if (oldNode.nodeName === 'LI' && oldNode.hasAttribute('data-point-id')) {
+    oldNode.replaceChildren(...newNode.childNodes);
+    return;
+  }
   morphChildren(oldNode, newNode);
 }
 
