@@ -23,7 +23,7 @@
     "AC-030": "sha256:4ff8c6e5383e0179",
     "AC-031": "sha256:dbc47a4570d83d70",
     "AC-032": "sha256:70a43cf878f66a04",
-    "AC-036": "sha256:318b0f2e4205a0cb",
+    "AC-036": "sha256:362e992ab9b220c5",
     "AC-038": "sha256:773c32c1766736b7",
     "AC-049": "sha256:b530880830288c02",
     "AC-050": "sha256:9d9068d925e207dd",
@@ -241,7 +241,7 @@
     "AC-520": "sha256:3f494c793a29f5b2",
     "AC-521": "sha256:52662eceeb1c94bf",
     "AC-523": "sha256:0a66bd7b2ff7dc98",
-    "AC-528": "sha256:d58755c4cf1b879d",
+    "AC-528": "sha256:d5410520957be540",
     "AC-530": "sha256:04ac763a7328a5ba",
     "AC-524": "sha256:a68adebbf25d3e76",
     "AC-525": "sha256:c73b607c2286a5c6",
@@ -255,10 +255,12 @@
     "AC-541": "sha256:23f9420b94c5b58d",
     "AC-542": "sha256:154aa45b8dfa50ae",
     "AC-543": "sha256:7fe6f80b98295f5c",
-    "AC-546": "sha256:1ac96bc515ec6adc",
-    "AC-572": "sha256:83e7309a57d1ef40",
-    "AC-560": "sha256:2ee665544ee95f16",
-    "AC-569": "sha256:04134336b0865378"
+    "AC-546": "sha256:1130436affef75e9",
+    "AC-572": "sha256:33df74955658a7bc",
+    "AC-560": "sha256:ded5157cc1b42aa1",
+    "AC-569": "sha256:04134336b0865378",
+    "AC-592": "sha256:edf7cef7e7116967",
+    "AC-599": "sha256:a4d0cd264eb1f3e9"
   },
   "cases": [
     {
@@ -921,11 +923,11 @@
       "ac_ids": [
         "AC-036"
       ],
-      "title": "全操作がキーボードだけでできる",
+      "title": "全操作（用語集・議事・プレビュー・地図・対立の組・機密の印を含む）がキーボードだけでできる",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-036\" tests/system/view.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "147f636",
       "last_run_at": "2026-11-02T06:26:48+09:00",
       "evidence": "work/runs/202611020521/logs/system-test/E2E-023-202611020626.log",
@@ -935,6 +937,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-11-02T07:31:21+09:00",
+          "by": "test-designer",
+          "change": "title: '全操作がキーボードだけでできる' -> '全操作（用語集・議事・プレビュー・地図・対立の組・機密の印を含む）がキーボードだけでできる'",
+          "reason": "AC-036 の追加の操作（FR-092〜094・099・101・102・104）を同じケースで検証"
         }
       ]
     },
@@ -8190,6 +8198,56 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "システムレベルのケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-274",
+      "requirement_ids": [
+        "FR-101"
+      ],
+      "ac_ids": [
+        "AC-592"
+      ],
+      "title": "ホバーのプレビュー: 300ms 止まると出て離すと消え、クリック・Enter で固定のポップアップ、Esc・選択解除で閉じる（図・テキスト一覧、異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-592\" tests/system/preview.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-11-02T07:31:19+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計 FR-101"
+        }
+      ]
+    },
+    {
+      "id": "E2E-275",
+      "requirement_ids": [
+        "FR-103"
+      ],
+      "ac_ids": [
+        "AC-599"
+      ],
+      "title": "初回の案内: 3 ステップ・キーボード操作・完了/スキップの記録・サンプル読込（異常系含む）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-599\" tests/system/onboarding.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-11-02T07:31:20+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "System Test 設計 FR-103"
         }
       ]
     }

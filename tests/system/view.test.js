@@ -130,3 +130,34 @@ test('NFR-A11Y-001 AC-036 異常系: 割り当てのないキーは何も実行�
   const { app } = await newApp();
   assert.equal(app.handleKey({ key: 'F24', ctrlKey: true, altKey: true, shiftKey: true }), null);
 });
+
+// NFR-A11Y-001 AC-036（FR-092〜094・099・101・102・104 の追加分。契約: tests/system/CONTRACT-P1.md §3）
+test('NFR-A11Y-001 AC-036: 用語集・議事・プレビュー・地図・対立の組・機密の印の操作にキー割り当てがあり、キーだけで実行できる', async () => {
+  const { app, env } = await newApp();
+  await seedThreeScenes(app, env);
+  const added = ['glossary.open', 'agenda.open', 'preview.show', 'map.focusNext', 'map.focusPrev', 'map.activate', 'conflict.group', 'conflict.ungroup', 'point.confidential'];
+  for (const c of added) {
+    assert.equal(typeof app.commands[c], 'function', `commands[${c}]`);
+    assert.ok(keyFor(app, c), `keymap に ${c}`);
+  }
+  const combos = app.keymap.map((k) => `${!!k.ctrl}${!!k.alt}${!!k.shift}${k.key}`);
+  assert.equal(new Set(combos).size, combos.length, 'キーの割り当てが重複しない');
+  for (const c of added) assert.equal(app.handleKey(keyFor(app, c)), c, `handleKey が ${c} を実行して名前を返す`);
+  // 機密の印: 選択した要点へキーだけで付け・外せる（AC-605 の入口）
+  const p = app.getState().scenes[0].points[0];
+  assert.equal(app.selectPoint(p.id).ok, true);
+  const mark = () => app.getState().scenes[0].points.find((q) => q.id === p.id).confidential === true;
+  const before = mark();
+  app.handleKey(keyFor(app, 'point.confidential'));
+  assert.equal(mark(), !before, 'キーで機密の印が切り替わる');
+  app.handleKey(keyFor(app, 'point.confidential'));
+  assert.equal(mark(), before, 'もう一度で元に戻る');
+});
+
+test('NFR-A11Y-001 AC-036 異常系: 存在しない要点は選べず、機密の印は変わらない', async () => {
+  const { app, env } = await newApp();
+  await seedThreeScenes(app, env);
+  assert.equal(app.selectPoint('no-such-point').ok, false);
+  app.handleKey(keyFor(app, 'point.confidential'));
+  assert.ok(app.getState().scenes.flatMap((s) => s.points).every((q) => q.confidential !== true), '選択がないので印は付かない');
+});

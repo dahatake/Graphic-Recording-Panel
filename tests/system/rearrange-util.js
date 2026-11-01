@@ -15,14 +15,17 @@ export const P = {
   LABEL_MAX: 6, // PARAM-011（全角 1・半角 0.5）
 };
 
-// AC-426 の種類の順（ja のラベル。FR-052 の kindLabel）
-export const KIND_ORDER = ['結論', '課題', '提案', 'アイデア', '未決定', '補足'];
+// AC-426 の種類の順（ja のラベル。FR-052 の kindLabel。AC-427 の 9 種類）
+export const KIND_ORDER = ['結論', '課題', '提案', 'アイデア', '未決定', '質問', '根拠', '行動', '補足'];
 
 // 合成データ（FR-052 の AC にある文例と、種類の語を含まない文）
 export const T = {
   conclusion: 'Aを採用すると決まりました。',
   problem: 'コストが高くて困った',
   proposal: '案Aの採用を提案します。',
+  question: 'どの講師に依頼しますか', // 質問（PARAM-131「ますか」）
+  evidence: 'たとえば昨年は二十名でした', // 根拠（PARAM-132「たとえば」）
+  action: '鈴木さんが明日連絡します', // 行動（PARAM-129「連絡します」）
   plain1: '会議室は三階にあります',
   plain2: '資料は共有フォルダに置きました',
   plain3: '参加者は八名でした',
