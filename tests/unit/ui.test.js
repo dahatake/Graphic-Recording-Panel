@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { createApp } from '../../web/src/app.js';
 import { GROUPS, PRIMARY, labelKey, tooltipId } from '../../web/src/commandbar.js';
-import { MIN_H, defaultLayout, ops } from '../../web/src/layout.js';
+import { MIN_H, WORK_AREA_MIN_PCT, defaultLayout, ops } from '../../web/src/layout.js';
 
 const ui = fs.readFileSync(new URL('../../web/src/ui.js', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../../web/styles/app.css', import.meta.url), 'utf8');
@@ -60,17 +60,18 @@ test('UI toolbar builds all command groups and translated labels without interru
   }
 });
 
-test('UI work area fits below the controls even in a short desktop window', () => {
+test('UI work area fits below the controls in a short desktop window, and is at least 55% of the window height (AC-641, PARAM-156)', () => {
   for (const viewport of [
     { width: 1307, height: 768, top: 162.2 },
     { width: 1280, height: 480, top: 162.2 },
     { width: 800, height: 600, top: 300 },
     { width: 800, height: 600, top: 277.2 },
     { width: 1280, height: 967, top: 162.2 },
+    { width: 1024, height: 768, top: 600 },
   ]) {
     const layout = defaultLayout();
     runUIFunction('measureWorkArea', {
-      MIN_H,
+      MIN_H, WORK_AREA_MIN_PCT,
       doc: { defaultView: { innerHeight: viewport.height } },
       workspace: {
         clientWidth: viewport.width,
@@ -81,10 +82,13 @@ test('UI work area fits below the controls even in a short desktop window', () =
         setWorkArea: (w, h) => ops.workArea(layout, w, h),
       },
     });
-    assert.equal(layout.workArea.h, Math.floor(viewport.height - viewport.top - 16));
+    const fit = Math.floor(viewport.height - viewport.top - 16);
+    const floor = Math.ceil(viewport.height * 0.55);
+    assert.equal(layout.workArea.h, Math.max(fit, floor, MIN_H));
+    assert.ok(layout.workArea.h >= viewport.height * 0.55);
     for (const panel of Object.values(layout.panels)) {
       assert.equal(panel.visible, true);
-      assert.ok(viewport.top + panel.y + panel.h <= viewport.height);
+      if (fit >= floor) assert.ok(viewport.top + panel.y + panel.h <= viewport.height); // 上部が高いときは、ページを縦にスクロールする
     }
   }
 });
@@ -92,7 +96,7 @@ test('UI work area fits below the controls even in a short desktop window', () =
 test('UI work area preserves the layout minimum and leaves mobile stacking unchanged', () => {
   let size;
   const scope = {
-    MIN_H,
+    MIN_H, WORK_AREA_MIN_PCT,
     doc: { defaultView: { innerHeight: 200 } },
     workspace: { clientWidth: 1280, getBoundingClientRect: () => ({ top: 160 }) },
     app: { getLayoutMode: () => 'floating', setWorkArea: (w, h) => { size = { w, h }; } },
@@ -111,8 +115,8 @@ test('UI remeasures the work area when the header, toolbar or status bar changes
   let top = 258.2;
   let onResize;
   const scope = {
-    MIN_H, toolbar,
-    doc: { defaultView: { innerHeight: 600, ResizeObserver: class {
+    MIN_H, toolbar, WORK_AREA_MIN_PCT,
+    doc: { defaultView: { innerHeight: 1000, ResizeObserver: class {
       constructor(callback) { onResize = callback; }
       observe(el) { observed.push(el); }
     } } },
@@ -133,7 +137,7 @@ test('UI remeasures the work area when the header, toolbar or status bar changes
   top += 19;
   onResize();
   assert.equal(layout.workArea.h, previousHeight - 19);
-  for (const panel of Object.values(layout.panels)) assert.ok(top + panel.h <= 600);
+  for (const panel of Object.values(layout.panels)) assert.ok(top + panel.h <= 1000);
 });
 
 test('Fixed desktop layouts do not inherit the free-layout minimum viewport height', () => {

@@ -66,13 +66,12 @@ test('NFR-UX-003 AC-579: 折りたたみ中に言語を切り替えても、文�
   }
 });
 
-test('NFR-UX-003 AC-579: 低い窓ではリボンの高さに上限（スクロール）があり、折りたたみは低い窓でだけ効く（重ならない・広い窓に影響しない）', () => {
+test('NFR-UX-003 AC-579: 低い窓ではリボンの高さに上限（スクロール）があり、折りたたみ・開閉ボタンは窓の高さによらず効く（重ならない）', () => {
   const block = /@media \(max-height: 600px\) \{([\s\S]*?)\n\}/.exec(css)?.[1] ?? '';
   assert.match(block, /\.commandbar \{[^}]*max-height: 40vh[^}]*overflow-y: auto/);
-  assert.match(block, /\.commandbar\[data-collapsed="true"\] \{ display: none; \}/);
-  assert.match(block, /\.ribbon-toggle \{ display: inline-flex; \}/);
-  assert.doesNotMatch(css.replace(block, ''), /data-collapsed/);
-  assert.match(css, /\.ribbon-toggle \{ display: none;/);
+  assert.match(css, /\.commandbar\[data-collapsed="true"\] \{ display: none; \}/);
+  assert.doesNotMatch(block, /data-collapsed/);
+  assert.match(css, /\.ribbon-toggle \{ display: inline-flex;/);
   // リボンはフロー内（static/relative）で、固定・絶対配置にしない
   assert.doesNotMatch(css, /\.commandbar \{[^}]*position: (fixed|absolute|sticky)/);
 });
