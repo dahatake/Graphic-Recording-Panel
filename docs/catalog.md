@@ -119,7 +119,7 @@
 | FR-107 | 役割（記録者・進行役・決定者）の設定と確認の問いかけ | 承認済み | web/src/roles.js, web/src/roles-ui.js, web/src/minutes-ui.js, web/src/meetingout.js, web/src/app.js, web/src/main.js, web/sw.js | tests/unit/roles.test.js | アプリ組立, i18n, デザイン基盤 |
 | FR-108 | シーンの詳細からの戻りでの画面の状態の復元 | 承認済み | web/src/viewstate.js, web/src/popup.js, web/src/app.js, web/sw.js | tests/unit/viewstate.test.js | アプリ組立, i18n, 画面の状態の復元 |
 | FR-109 | 数値を含む要点のゲージ・棒グラフ | 承認済み | web/src/gauge.js, web/src/gauge-ui.js, web/src/diagram.js, web/src/presentexport.js, web/src/app.js, web/styles/app.css, web/sw.js | tests/unit/gauge.test.js | アプリ組立, i18n |
-| FR-110 | 人物の絵記号のバリエーション（バストアップ） | 承認済み | web/src/personvariants.js, web/src/app.js, web/sw.js | tests/unit/personvariants.test.js | アプリ組立 |
+| FR-110 | 人物の絵記号のバリエーション（バストアップ） | 承認済み | web/src/personvariants.js, web/src/diagram.js, web/src/presetdiagram.js, web/src/llmdraw.js, web/src/app.js, web/sw.js | tests/unit/personvariants.test.js | アプリ組立 |
 | FR-111 | 映画的な演出（シーンの確定・トピックの切り替え） | 承認済み | web/src/cinematic.js, web/src/view3d.js, web/src/ui.js, web/src/app.js, web/sw.js | tests/unit/cinematic.test.js, tests/system/view.test.js | アプリ組立, i18n, キーマップ |
 | FR-112 | ペン・タッチによる自由描画 | 承認済み | web/src/draw.js, web/src/draw-ui.js, web/src/export.js, web/src/presentexport.js, web/src/meetingout.js, web/src/ui.js, web/src/app.js, web/src/main.js, web/src/i18n.js, web/styles/app.css, web/sw.js | tests/unit/draw.test.js, tests/system/draw.test.js | アプリ組立, i18n, デザイン基盤, キーマップ |
 

@@ -3,6 +3,7 @@
 // 要求は api.llmCall(path, body)（llm.js。中継サーバー経由・タイムアウト・失敗時はルールベース描画のまま）で出す。
 // 絵の対応づけはメモリだけに持ち、セッションファイル・ブラウザ内の保存・エクスポートには含めない（NFR-PRIV-003 AC-362）。
 import { isPartKey, getPartKeys, getPartInfo, getPartGroup, getPartSvg, buildCharacter, CHARACTER_OPTIONS, EXPRESSION_LABELS } from './parts.js';
+import { isPersonPartKey, personVariantFor, personGroupFor } from './personvariants.js';
 import { escapeHtml } from './outline.js';
 import { acceptGeneratedSvg } from './svgsanitize.js';
 import { withoutConfidential } from './visibility.js';
@@ -213,7 +214,7 @@ export function llmDrawModule(ctx) {
   // PNG・PDF に含める絵（物・比喩・汎用キャラ）。感情は文字だけ。
   api.getLlmDrawItems = () => {
     const items = entries().filter((e) => e.kind !== 'emotion').map((e) => ({
-      label: clip(labelOf(e)), svg: e.kind === 'person' ? buildCharacter(e.attrs, { lang: lang() }) : e.kind === 'generated' ? e.svg : getPartSvg(e.key),
+      label: clip(labelOf(e)), svg: e.kind === 'person' ? buildCharacter(e.attrs, { lang: lang() }) : e.kind === 'generated' ? e.svg : (isPersonPartKey(e.key) ? personVariantFor(e.id ?? e.key).svg : getPartSvg(e.key)),
     }));
     return items.length ? items : null;
   };
@@ -233,7 +234,7 @@ export function llmDrawModule(ctx) {
     const cells = list.map((e, i) => {
       const x = 12 + (i % per) * CELL_W; const y = height + 28 + Math.floor(i / per) * CELL_H;
       const label = `<text x="${x}" y="${y + 62}" font-size="11" fill="#15191f">${escapeHtml(clip(labelOf(e)))}</text>`;
-      if (e.kind === 'object' || e.kind === 'metaphor') return `<g data-part-key="${e.key}" data-llm-kind="${e.kind}" transform="translate(${x} ${y})">${getPartGroup(e.key)}</g>${label}`;
+      if (e.kind === 'object' || e.kind === 'metaphor') return `<g data-part-key="${e.key}" data-llm-kind="${e.kind}" transform="translate(${x} ${y})">${isPersonPartKey(e.key) ? personGroupFor(e.id ?? e.key) : getPartGroup(e.key)}</g>${label}`;
       if (e.kind === 'generated') return `<g data-llm-kind="generated" transform="translate(${x} ${y})">${e.svg}</g>${label}`;
       if (e.kind === 'person') return `<g data-llm-kind="person" transform="translate(${x} ${y}) scale(0.8)">${buildCharacter(e.attrs, { lang: lang() }).replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '')}</g>`;
       return `<g data-llm-kind="emotion" data-emotion-key="${e.key}"><text x="${x}" y="${y + 24}" font-size="12" font-weight="700" fill="#15191f">${escapeHtml(clip(labelOf(e)))}</text></g>`;

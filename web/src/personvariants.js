@@ -53,6 +53,15 @@ export function fnv1a32(str) {
 export const getPersonVariants = () => VARIANTS.map((v) => ({ ...v }));
 export const personVariantFor = (id) => ({ ...VARIANTS[fnv1a32(id) % VARIANTS.length] });
 
+// 図・保存物に埋め込む <g>（48x48。識別子から決定的に選んだバリエーション）。装飾なので aria-hidden、代替の文字は <title>人物</title>（AC-630）。
+export function personGroupFor(id) {
+  const v = VARIANTS[fnv1a32(id) % VARIANTS.length];
+  const inner = v.svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
+  return `<g aria-hidden="true"><title>${PERSON_LABEL.ja}</title>${inner}</g>`;
+}
+// 部品キーが人物の絵記号（people-*）か
+export const isPersonPartKey = (key) => typeof key === 'string' && key.startsWith('people-');
+
 // 偏りの測り方（AC-629）: 識別子 prefix+0..n-1 の割り当ての比率が、均等の比率との差（百分率の点）の最大値で返す。
 export function measureBias(n = 1000, idOf = (i) => `p${i}`) {
   const byVariant = new Array(VARIANTS.length).fill(0); const byAge = {}; const byGender = {};

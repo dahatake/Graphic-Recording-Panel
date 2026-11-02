@@ -6,6 +6,8 @@
 import { KINDS, STATUS_MARK, classifyPoint, kindLabelOf, textWidth, outline, rng, iconGlyph, reviewMarkSvg, kindExtraSvg, limitRelations, relationStroke } from './diagram.js';
 import { sceneEmotions } from './emotion.js';
 import { matchParts, getPartGroup } from './parts.js';
+import { isPersonPartKey } from './personvariants.js';
+import { partGroupFor } from './diagram.js';
 import {
   presetOf, fontFamilyOf, fontStacks, parseColor, luminance, contrastRatio, mix, grayOf, isYellowish, isNeutralColor,
   MIN_TEXT_CONTRAST, MIN_OUTLINE_CONTRAST,
@@ -377,7 +379,8 @@ export function renderPresetDiagram(scenes, opts, look) {
     // FR-064: 同梱部品（語の辞書で対応づけた汎用の物体）
     const objs = matchParts([s.heading, ...s.points.map((p) => p.text)].join('\n'), 4);
     if (objs.length) {
-      objs.forEach((o, n) => sb.push(`<g data-part-key="${attr(o.key)}" transform="translate(${x + 14 + n * 56} ${y})">${String(getPartGroup(o.key)).split(`stroke="${LEGACY_INK}"`).join(`stroke="${look.frame}"`)}</g>`));
+      let pn = 0;
+      objs.forEach((o, n) => sb.push(`<g data-part-key="${attr(o.key)}" transform="translate(${x + 14 + n * 56} ${y})">${String(partGroupFor(o.key, s.id, isPersonPartKey(o.key) ? pn++ : 0)).split(`stroke="${LEGACY_INK}"`).join(`stroke="${look.frame}"`)}</g>`));
       y += 56;
     }
     body.push(`<g data-scene-id="${attr(s.id)}" data-status="${attr(s.status)}"${isSel ? ' aria-current="true"' : ''}>${sb.join('')}</g>`);
