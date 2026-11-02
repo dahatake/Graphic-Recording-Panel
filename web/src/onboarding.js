@@ -114,7 +114,7 @@ export function onboardingModule(ctx) {
   ctx.registerCommand('sample.load', () => onboarding.loadSample());
   ctx.registerCommand('help.open', () => { step = 1; notify(); return { ok: true }; });
   // Alt+Shift+英数字・F キーは使用済み。Ctrl+Alt+Shift の記号（K-05・K-07 の Home/PageDown/PageUp/End/; とは別）
-  for (const [key, command] of [['[', 'onboarding.back'], [']', 'onboarding.next'], ['\\', 'onboarding.skip'], ["'", 'help.open'], ['`', 'sample.load']]) {
+  for (const [key, command] of [['Delete', 'onboarding.back'], ['Insert', 'onboarding.next'], ['\\', 'onboarding.skip'], ["'", 'help.open'], ['`', 'sample.load']]) {
     ctx.registerKey({ key, ctrl: true, alt: true, shift: true, command });
   }
 
