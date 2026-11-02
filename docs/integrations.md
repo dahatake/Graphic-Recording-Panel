@@ -40,8 +40,8 @@
 
 | ID | 名前 | 連携先 | 方向 | 状態 | 関連する要求 |
 |---|---|---|---|---|---|
-| INT-002 | Microsoft Foundry（LLM 連携） | Microsoft Foundry の Azure OpenAI 互換 Responses API | 双方向 | 検討中 | FR-062、FR-063、FR-065、FR-066、NFR-PRIV-003 |
-| INT-003 | Azure Speech（音声認識） | 利用者が設定した Azure AI Speech のリソース（音声テキスト変換） | 双方向 | 検討中 | FR-081、FR-082、NFR-SEC-005、G-002、NFR-OFFLINE-001、NFR-PRIV-001 |
+| INT-002 | Microsoft Foundry（LLM 連携） | Microsoft Foundry の Azure OpenAI 互換 Responses API | 双方向 | 運用中 | FR-062、FR-063、FR-065、FR-066、FR-067、NFR-SEC-003、NFR-SEC-004、NFR-PRIV-003 |
+| INT-003 | Azure Speech（音声認識） | 利用者が設定した Azure AI Speech のリソース（音声テキスト変換） | 双方向 | 運用中 | FR-081、FR-082、NFR-SEC-005、G-002、NFR-OFFLINE-001、NFR-PRIV-001 |
 | INT-004 | GitHub Copilot（LLM 連携の GitHub Copilot SDK による呼び出し） | GitHub Copilot（GitHub Copilot SDK と Copilot CLI を介したモデルの呼び出し） | 双方向 | 検討中 | FR-062、FR-068、FR-087、FR-088、NFR-SEC-006、NFR-PRIV-003 |
 
 ## 項目
@@ -55,7 +55,7 @@
 - 認証認可: API キー、または Microsoft Entra ID（az account get-access-token、スコープは ai.azure.com の .default）
 - 秘密の保管場所: 環境変数、または git 管理外の config/llm.local.json（ブラウザには置かない）
 - 責任分界: 利用者が送信に同意した範囲の内容の取り扱いは Foundry の契約に従い、アプリは送信の最小化・サニタイズ・自動復帰に責任を持つ
-- 状態: 検討中
+- 状態: 運用中
 - 関連する要求: FR-062、FR-063、FR-065、FR-066、FR-067、NFR-SEC-003、NFR-SEC-004、NFR-PRIV-003
 - 頻度と量: シーンの確定ごとに 1 回。1 回の送信は PARAM-070 の文字数以内
 - 可用性・SLA: なし
@@ -74,10 +74,10 @@
 - 方式: ブラウザからは直接呼ばず、ローカル中継サーバー（127.0.0.1・同一オリジンのみ。FR-066）が HTTPS（必要に応じて WebSocket）で中継する。中継の方式（WebSocket の橋渡し、短い音声の REST の分割送信、issueToken のトークンの利用など）は実装工程が選ぶ（SRC-064）
 - データ分類: 会議の音声（参加者の声と発言内容。利用者の社内情報を含み得る）
 - 個人情報: あり（音声と発言内容。アプリと中継サーバーは保存しない。NFR-PRIV-001、AC-446）
-- 認証認可: リソースキー（中継サーバーだけが保持し、ブラウザへは返さない。設定画面での入力と保存の要求だけは NFR-SEC-005 の除外）。必要に応じて issueToken で 10 分間有効のアクセストークンに交換する（SRC-064）。リージョン名で設定したときは、キーはトークンの発行のホストにだけ付け、認識のホストにはトークンを付ける（AC-455）
+- 認証認可: リソースキー（中継サーバーだけが保持し、ブラウザへは返さない。設定画面での入力と保存の要求だけは NFR-SEC-005 の除外）。エンドポイントの形ごとの宛先（AC-449）: `*.stt.speech.microsoft.com` の形は音声をそのホストへ送り、`*.cognitiveservices.azure.com`・`*.api.cognitive.microsoft.com` の形とリージョン名はそのリージョンの認識のホストへ送る。キー・トークンを付けるホストは AC-455 のとおり。必要に応じて issueToken で 10 分間有効のアクセストークンに交換する（SRC-064）。リージョン名で設定したときは、キーはトークンの発行のホストにだけ付け、認識のホストにはトークンを付ける（AC-455）
 - 秘密の保管場所: 中継サーバーの git 管理外の保管先（Windows は DPAPI による暗号化、それ以外は所有者のみの権限。NFR-SEC-005）。値はこの文書に書かない
 - 責任分界: 利用者（リソースの所有者）がリソース・課金・キーの発行と失効・会議参加者への告知と送信の可否（組織の規程）に責任を持ち、アプリはキーの保管と非露出、送信前の同意、送信先の限定、音声の非保存、失敗時の停止と表示に責任を持つ
-- 状態: 検討中
+- 状態: 運用中
 - 関連する要求: FR-081、FR-082、NFR-SEC-005、G-002、NFR-OFFLINE-001、NFR-PRIV-001
 - 頻度と量: 方式が Azure Speech で記録中かつ同意済みの間、マイクの音声を連続して送る（量は会議の長さに比例）。接続テストは利用者の操作のたびに 1 回で、会議の内容を含まない
 - 可用性・SLA: なし（Azure の SLA は未確認。障害時は FR-081 の AC-444 のとおり停止して理由を表示）
