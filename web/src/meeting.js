@@ -6,7 +6,7 @@ import { buildFigureDescription } from './figuredesc.js';
 import { scenesForDetail } from './export.js';
 import { decorateSvg, headerModel } from './meetingout.js';
 export const DEFAULT_MINUTES = 10; // PARAM-124
-const AGENDA_MAX = 50;
+export const AGENDA_MAX = 30; // PARAM-152
 const TEXT_MAX = 500;
 
 const isMinutes = (m) => Number.isInteger(m) && m >= 1;
@@ -46,6 +46,13 @@ export function meetingModule(ctx) {
   let idSeq = 0;
   const newId = () => { const used = new Set(state.meeting.agenda.map((a) => a.id)); let id; do { id = `a${++idSeq}`; } while (used.has(id)); return id; };
 
+  api.agendaNewId = newId;
+  // 議題の画面（agendaview.js）が使う: id を保ったまま議題の一覧を置き換える（呼び出し側が検査済み）
+  api.replaceAgenda = (list, msgKey = 'msg.agendaSet') => {
+    const next = list.slice(0, AGENDA_MAX).map((a) => ({ id: a.id, name: String(a.name).trim(), minutes: isMinutes(a.minutes) ? a.minutes : null }));
+    ctx.change(() => { state.meeting.agenda = next; ctx.setMessage(msgKey); });
+    return { ok: true };
+  };
   api.getMeetingContext = () => ({ purpose: state.meeting.purpose, audience: state.meeting.audience, agenda: state.meeting.agenda.map((a) => ({ ...a })) });
   api.setMeetingContext = (input = {}) => {
     // 先に全部を検査し、1 つでも不正なら全体を変えない
@@ -99,7 +106,7 @@ export function meetingModule(ctx) {
   // FR-095 AC-560: 出力（PNG・PDF・SVG・Markdown・HTML）が載せる会議の文脈。表題は演題（未入力は従来の表題）、日付は入力のまま（出力日を補わない）
   api.getMeetingOutput = () => {
     const ti = api.getTitleInfo?.() ?? {};
-    return { title: String(ti.theme ?? '').trim() || ctx.t('app.title'), date: ti.date ?? '', series: ti.series ?? '', venue: ti.venue ?? '', agenda: state.meeting.agenda.map((a) => a.name), purpose: state.meeting.purpose, audience: state.meeting.audience, ...(api.getVisibilityLines?.() ?? {}), ...(api.getConflictLines?.() ?? {}) }; // FR-104: 公開範囲（と除外の件数）の行。FR-099 AC-588: 対立の組・異論の状況の行
+    return { title: String(ti.theme ?? '').trim() || ctx.t('app.title'), date: ti.date ?? '', series: ti.series ?? '', venue: ti.venue ?? '', agenda: state.meeting.agenda.map((a) => a.name), purpose: state.meeting.purpose, audience: state.meeting.audience, ...(api.getVisibilityLines?.() ?? {}), ...(api.getConflictLines?.() ?? {}), ...(api.getVoteLines?.() ?? {}) }; // FR-104: 公開範囲（と除外の件数）の行。FR-099 AC-588: 対立の組・異論の状況の行
   };
   // FR-096 AC-561〜563: 図の説明。画面の詳細度（FR-026）に従い、その詳細度で出ない要点は含めない（生成 AI・外部通信なし）
   api.getFigureDescription = () => {

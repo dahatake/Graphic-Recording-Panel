@@ -83,13 +83,30 @@ export function agendaTimerModule(ctx) {
   const fail = (reason, msgKey) => { if (msgKey) ctx.change(() => ctx.setMessage(msgKey)); return { ok: false, reason }; };
   const loadItem = (i) => {
     const item = agenda()[i];
-    tm.index = i; tm.remainingMs = minutesOf(item) * 60000; tm.resumedAt = tm.state === 'running' ? now() : null; tm.warned = false; tm.expiredNotified = false;
+    tm.index = i; tm.agendaId = item?.id ?? null; tm.remainingMs = minutesOf(item) * 60000; tm.resumedAt = tm.state === 'running' ? now() : null; tm.warned = false; tm.expiredNotified = false;
+  };
+  // 議題の並べ替え・編集で位置が動いても、進行中の議題を id で追う（FR-095 AC-611）
+  const idx = () => {
+    const list = agenda();
+    if (tm.agendaId != null && list[tm.index]?.id !== tm.agendaId) { const k = list.findIndex((a) => a.id === tm.agendaId); if (k >= 0) tm.index = k; }
+    return tm.index;
+  };
+  const active = () => tm.state === 'running' || tm.state === 'paused';
+  api.agendaTimerIsCurrent = (id) => active() && agenda()[idx()]?.id === id;
+  // 進行中の議題を一覧から外した後に呼ぶ: 次の議題（外した位置に来た議題）へ進む。なければ待機に戻る
+  api.agendaTimerAfterRemoved = (id, at) => {
+    if (!active()) return;
+    if (at < agenda().length) {
+      const sceneId = ctx.breakScene(); const t0 = now();
+      ctx.change((s) => { s.agendaBoundaries.push({ sceneId, agendaId: id, at: t0 }); loadItem(at); ctx.setMessage('msg.timerNext'); });
+      armTick();
+    } else { clearTick(); tm = { state: 'idle', index: 0, remainingMs: 0, resumedAt: null, warned: false, expiredNotified: false }; refresh(); }
   };
 
   api.getAgendaTimer = () => {
     const list = agenda();
     const idle = tm.state === 'idle';
-    const cur = idle ? null : list[tm.index] ?? null;
+    const cur = idle ? null : list[idx()] ?? null;
     const ms = idle ? 0 : remainingMs();
     const sec = Math.max(0, Math.ceil(ms / 1000));
     const over = idle ? 0 : Math.max(0, Math.floor(-ms / 1000));
@@ -98,7 +115,7 @@ export function agendaTimerModule(ctx) {
     return {
       state: tm.state, currentName: cur ? cur.name : null,
       remainingSec: sec, remainingText: formatClock(sec),
-      nextName: idle ? null : (list[tm.index + 1]?.name ?? t('timer.noNext')),
+      nextName: idle ? null : (list[idx() + 1]?.name ?? t('timer.noNext')),
       overtimeSec: over, warning, expired, silent: isMuted(),
     };
   };
@@ -118,7 +135,7 @@ export function agendaTimerModule(ctx) {
     const warn = tm1.warning ? `<p class="timer-badge" data-role="warning" data-shape="frame"><span aria-hidden="true">⚠</span> ${e(t('timer.warning'))}</p>` : '';
     const exp = tm1.expired ? `<p class="timer-badge timer-expired" data-role="expired" data-shape="frame" data-motion="${motion}"><span aria-hidden="true">■</span> ${e(t('timer.expired'))} （${e(t('timer.overtime'))} ${e(formatClock(tm1.overtimeSec))}）</p>` : '';
     const running = tm1.state === 'running'; const paused = tm1.state === 'paused';
-    const ctl = `<div role="group" aria-label="${e(t('timer.title'))}">${btn('timer.start', tm1.state === 'idle' || tm1.state === 'finished')}${btn('timer.pause', running)}${btn('timer.resume', paused)}${btn('timer.next', (running || paused) && tm.index + 1 < list.length)}${btn('timer.stop', running || paused)}</div>`;
+    const ctl = `<div role="group" aria-label="${e(t('timer.title'))}">${btn('timer.start', tm1.state === 'idle' || tm1.state === 'finished')}${btn('timer.pause', running)}${btn('timer.resume', paused)}${btn('timer.next', (running || paused) && idx() + 1 < list.length)}${btn('timer.stop', running || paused)}</div>`;
     return `<section class="agenda-timer" aria-label="${e(t('timer.title'))}" data-state="${tm1.state}"><h2>${e(t('timer.title'))}</h2>`
       + `<p data-role="state">${e(t('timer.state'))}: ${e(t(`timer.state.${tm1.state}`))}</p>${rows}${warn}${exp}${ctl}</section>`;
   };
@@ -148,14 +165,15 @@ export function agendaTimerModule(ctx) {
   const next = () => {
     if (tm.state !== 'running' && tm.state !== 'paused') return fail('not_running', 'timer.err.notRunning');
     const list = agenda();
-    if (tm.index + 1 >= list.length) return fail('last', 'timer.err.last');
-    const from = list[tm.index];
+    const cur = idx();
+    if (cur + 1 >= list.length) return fail('last', 'timer.err.last');
+    const from = list[cur];
     // AC-571: 進行中のシーンを確定し、次の発話から新しいシーンにする。切替の時点を記録する（発話列は変えない）
     const sceneId = ctx.breakScene();
     const at = now();
     ctx.change((s) => {
       s.agendaBoundaries.push({ sceneId, agendaId: from.id, at });
-      loadItem(tm.index + 1);
+      loadItem(cur + 1);
       ctx.setMessage('msg.timerNext');
     });
     armTick();

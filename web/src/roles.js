@@ -133,9 +133,15 @@ export function rolesModule(ctx) {
   const openPanel = (which, msg) => { ctx.change(() => { open = which; ctx.setMessage(msg); }); ctx.emit('roles:open', { which }); return { ok: true, open: which }; };
   ctx.registerCommand('roles.open', () => openPanel('roles', 'msg.rolesOpen'));
   ctx.registerCommand('question.open', () => openPanel('question', 'msg.questionOpen'));
-  ctx.registerCommand('roles.close', () => { if (!open) return { ok: true }; ctx.change(() => { open = null; ctx.setMessage('msg.rolesClose'); }); ctx.emit('roles:close', {}); return { ok: true }; });
-  ctx.registerKey({ key: 'j', ctrl: true, alt: true, shift: true, command: 'roles.open' });
-  ctx.registerKey({ key: 'k', ctrl: true, alt: true, shift: true, command: 'question.open' });
+  const closeRoles = () => { if (!open) return { ok: true }; ctx.change(() => { open = null; ctx.setMessage('msg.rolesClose'); }); ctx.emit('roles:close', {}); return { ok: true }; };
+  api.closeRoles = closeRoles; // Esc（handleKey）とボタンから使う
+  ctx.registerKey({ key: '{', ctrl: true, alt: true, shift: true, command: 'roles.open' });
+  ctx.registerKey({ key: '}', ctrl: true, alt: true, shift: true, command: 'question.open' });
+  const baseKey = api.handleKey;
+  api.handleKey = (ev) => {
+    if (open && ev?.key === 'Escape' && !ev?.ctrlKey && !ev?.altKey) return closeRoles(), 'roles.close';
+    return baseKey(ev);
+  };
   api.getRolesView = () => (open ? {
     open: true, which: open, role: 'region', label: t(open === 'roles' ? 'roles.heading' : 'question.heading'),
     roles: api.getRoles(), questions: api.getQuestions(), phrases: api.getQuestionPhrases(), deciderCandidates: api.getDeciderCandidates(),

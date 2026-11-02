@@ -23,8 +23,18 @@ export function mountMinutesUI(app, doc = document) {
     if (text != null) e.textContent = text;
     return e;
   };
-  const labeled = (text, input) => { const l = el('label'); l.append(el('span', {}, text), input); return l; };
-  const fieldInput = (f) => { const i = el('input', { type: 'text', autocomplete: 'off', 'data-f': f, placeholder: t('minutes.undecided') }); return i; };
+  const labeled = (text, input) => { const l = el('label'); l.append(el('span', {}, text), input); if (input._dl) l.append(input._dl); return l; };
+  let dlSeq = 0;
+  const fieldInput = (f) => {
+    const i = el('input', { type: 'text', autocomplete: 'off', 'data-f': f, placeholder: t('minutes.undecided') });
+    if (f === 'decider' && app.getDeciderCandidates) { // FR-107 AC-617: 役割の決定者を候補として示す（自動では補わない）
+      const dl = el('datalist', { id: `minutes-decider-candidates-${++dlSeq}` });
+      const fill = () => { dl.textContent = ''; for (const n of app.getDeciderCandidates()) { const o = el('option'); o.value = n; dl.append(o); } };
+      fill(); i.addEventListener('focus', fill);
+      i.setAttribute('list', dl.id); i._dl = dl;
+    }
+    return i;
+  };
   const kindTitle = (k) => t(`minutes.${KIND_LIST[k]}`);
 
   function build() {

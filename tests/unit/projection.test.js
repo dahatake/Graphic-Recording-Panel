@@ -3,7 +3,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp, seedThreeScenes, toDetail } from '../system/helpers.js';
 import { PROJECTION_PRESETS, PRESENTATION_MIN_PX, findSmallText, presentationFontPx, toFigureWidthPx, presetById, PROJECTION_KEY } from '../../web/src/projection.js';
-import { buildHtml, SLIDE_ITEM_MAX } from '../../web/src/presentexport.js';
+import { buildHtml } from '../../web/src/presentexport.js';
+import { SLIDE_ITEM_MAX } from '../../web/src/projection.js';
 
 // FR-100 AC-591: 判定は決定的（同じ入力から同じ警告）。プリセットの最小文字サイズは換算しない（PARAM-138）
 test('FR-100 AC-591: findSmallText は決定的で、プリセットの最小文字サイズ（18・28・40）を下回る要素だけを返す', () => {
@@ -36,6 +37,18 @@ test('FR-100 AC-590: HTML プレゼンテーションの文字は 1.25vw（1920 
   assert.equal((html.match(/data-topic-id=/g) || []).length, 1, 'トピックの枚数は変わらない');
   assert.equal((html.match(/data-slide-continued=/g) || []).length, 1, '続きのスライドへ分ける');
   for (const p of pts) assert.ok(html.includes(`<li>${p.text}</li>`), p.text);
+});
+
+// FR-100 AC-590 / PARAM-142: 上限ちょうど・超過・1 件
+test('FR-100 AC-590: SLIDE_ITEM_MAX は 16（PARAM-142）。ちょうどは続きなし、超過は 1 枚増、1 件は 1 枚', () => {
+  assert.equal(SLIDE_ITEM_MAX, 16);
+  const build = (n) => buildHtml({ scenes: [{ id: 's1', heading: 'H', points: Array.from({ length: n }, (_, i) => ({ id: `p${i}`, text: `要点${i}` })) }], topics: [{ id: 't1', title: 'T', sceneIds: ['s1'] }], title: 'M', svgOf: () => '<svg></svg>', labels: { auto: 'A', hint: 'h' } });
+  const cont = (h) => (h.match(/data-slide-continued=/g) || []).length;
+  assert.equal(cont(build(SLIDE_ITEM_MAX)), 0, '上限ちょうど');
+  assert.equal(cont(build(SLIDE_ITEM_MAX + 1)), 1, '超過');
+  const one = build(1);
+  assert.equal(cont(one), 0, '1 件');
+  assert.ok(one.includes('<li>要点0</li>'));
 });
 
 // FR-100 AC-589: 設定で選ぶ → 小さい文字の要素に警告（図・テキスト一覧・状態）。保存物は変えない。端末ごとに保存
