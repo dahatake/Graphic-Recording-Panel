@@ -492,6 +492,13 @@ export function mountUI(app, doc = document) {
       const vol = doc.createElement('input'); vol.type = 'range'; vol.min = '0'; vol.max = '100'; vol.step = '1';
       vol.addEventListener('input', () => app.setRpgVolume(Number(vol.value)));
       row('rpg.volume', app.t('rpg.audio.volume'), vol);
+      // FR-111 AC-632: 演出の強さ（なし・控えめ・標準。端末ごとに保存。キーでも切り替えられる）
+      if (app.getCinematicOptions) {
+        const cs = doc.createElement('select'); cs.dataset.cinematicField = 'level';
+        for (const c of app.getCinematicOptions()) { const op = doc.createElement('option'); op.value = c.value; op.textContent = c.label; cs.append(op); }
+        cs.addEventListener('change', () => app.setCinematicLevel(cs.value));
+        row('cinematic.level', app.t('cinematic.level'), cs);
+      }
       // FR-080 AC-436・AC-440: 再配置の周期（0〜300 の整数・秒。0 は自動＝会話の区切り）。判定・保存・メッセージは app が行う
       const af = d.fields.find((f) => f.id === 'arrange.interval');
       if (af) {
@@ -605,6 +612,7 @@ export function mountUI(app, doc = document) {
     const au = app.getRpgAudio();
     setEl.querySelector('#settings-rpg\\.mute').checked = au.muted;
     setEl.querySelector('#settings-rpg\\.volume').value = String(au.volume);
+    { const cs = setEl.querySelector('[data-cinematic-field="level"]'); if (cs && app.getCinematic) cs.value = app.getCinematic().level; }
     for (const cb of setEl.querySelectorAll('input[type=checkbox]:not([role=switch])')) cb.checked = vals['layout.types'].includes(cb.value);
     { // FR-068
       const f = Object.fromEntries(d.fields.map((x) => [x.id, x]));

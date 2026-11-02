@@ -75,9 +75,11 @@ function paint3D(host, app, ctx, io) {
   const rot = g.camera.animated && tgt ? Math.round(-p.x / 20) : 0;
   const vp = g.viewpoint;
   // 位置の y は「大きいほど上」。CSS の y は下向きなので符号を反転して描く。
-  world.style.transform = `translateZ(${vp.distance}px) rotateX(${vp.elevation}deg) rotateY(${rot + vp.azimuth}deg) translate3d(${-p.x + vp.panX}px, ${p.y + vp.panY}px, ${-p.z}px)`;
+  // FR-111 AC-632: プレゼンテーション中の演出（寄り）。倍率は 1 以上で、文字は最小サイズを下回らない
+  const cine = st.presentation.status !== 'idle' && g.camera.animated ? app.getCinematicCamera?.() : null;
+  world.style.transform = `translateZ(${vp.distance * (cine ? cine.zoom : 1)}px) rotateX(${vp.elevation}deg) rotateY(${rot + vp.azimuth}deg) translate3d(${-p.x + vp.panX}px, ${p.y + vp.panY}px, ${-p.z}px)`;
   // 手動の視点操作の変化は短く、プレゼンのカメラ移動は 1.2s。動きの軽減では常にアニメーションなし（FR-021 AC-111）。
-  world.style.transition = !g.camera.animated ? 'none' : (io.manual ? 'transform 0.2s ease-out' : 'transform 1.2s ease-in-out');
+  world.style.transition = !g.camera.animated ? 'none' : (io.manual ? 'transform 0.2s ease-out' : (cine ? `transform ${cine.ms}ms ease-in-out` : 'transform 1.2s ease-in-out'));
   const t = app.t;
   for (const n of g.nodes) {
     const sc = st.scenes.find((s) => s.id === n.sceneId);
