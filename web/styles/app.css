@@ -316,7 +316,7 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 /* FR-103: 初回の案内・ヘルプ（中央のモーダル）と「サンプル」の印 */
 .onboarding-dialog { padding: 0; border: var(--stroke) solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-8); width: min(36rem, calc(100vw - 2 * var(--space-4))); max-height: calc(100vh - 2 * var(--space-5)); overflow: auto; margin: auto; }
 .onboarding-dialog[hidden] { display: none; }
-.onboarding-dialog[open] { display: flex; flex-direction: column; animation: apikeys-in 120ms ease-out; }
+.onboarding-dialog[open] { display: flex; flex-direction: column; position: fixed; inset: auto var(--space-4) var(--space-4) auto; max-width: min(28rem, calc(100vw - 2rem)); max-height: 60vh; overflow: auto; z-index: 50; animation: apikeys-in 120ms ease-out; }
 .onboarding-dialog::backdrop { background: rgb(60 60 60 / 0.55); }
 .onboarding-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: var(--stroke) solid var(--color-border); }
 .onboarding-head h2, .onboarding-step-title { margin: 0; }

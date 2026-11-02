@@ -50,6 +50,7 @@ export function mountOnboardingUI(app, doc = globalThis.document) {
   }
 
   dlg.addEventListener('cancel', (e) => { e.preventDefault(); app.onboarding.skip(); }); // Esc = スキップ
+  dlg.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); app.onboarding.skip(); } }); // 非モーダルは cancel が来ないため
 
   function helpButton() {
     const b = doc.querySelector('#help-button');
@@ -68,7 +69,7 @@ export function mountOnboardingUI(app, doc = globalThis.document) {
       if (!wasOpen || shownStep !== o.step || shownLang !== lang) {
         build(o); shownStep = o.step; shownLang = lang;
         dlg.hidden = false;
-        if (!dlg.open) { if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', ''); }
+        if (!dlg.open) { if (dlg.show) dlg.show(); else dlg.setAttribute('open', ''); } // 非モーダル: 操作を塞がない（FR-062 の帯と同じ流儀）
         (dlg.querySelector('[data-id="onboarding.next"]'))?.focus();
       }
       wasOpen = true;
