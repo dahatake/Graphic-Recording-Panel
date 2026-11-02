@@ -115,6 +115,13 @@
 | FR-103 | 初回の案内・ヘルプ・練習用のサンプル | 承認済み | web/src/onboarding.js, web/src/onboarding-ui.js, web/src/i18n.js, web/src/main.js, web/src/app.js, web/index.html, web/styles/app.css, web/sw.js | tests/unit/onboarding.test.js, tests/system/onboarding.test.js | アプリ組立, デザイン基盤 |
 | FR-104 | 公開範囲の選択と表示・機密の要点の除外 | 承認済み | web/src/visibility.js, web/src/meeting.js, web/src/meetingout.js, web/src/figuredesc.js, web/src/diagram.js, web/src/presetdiagram.js, web/src/imageprompt.js, web/src/persist.js, web/src/ui.js, web/src/app.js, web/styles/app.css, web/sw.js | tests/unit/visibility.test.js | キーマップ |
 | FR-105 | 読み順の型の選択（Z 型・F 型・左右比較・フロー） | 承認済み | web/src/readingorder.js, web/src/layouttypes.js, web/src/settings.js, web/src/ui.js, web/sw.js | tests/unit/readingorder.test.js | レイアウト型レジストリ, i18n |
+| FR-106 | 投票と評価の基準（単一端末での代理入力） | 承認済み | 未実装 | 未実装 | - |
+| FR-107 | 役割（記録者・進行役・決定者）の設定と確認の問いかけ | 承認済み | 未実装 | 未実装 | - |
+| FR-108 | シーンの詳細からの戻りでの画面の状態の復元 | 承認済み | 未実装 | 未実装 | - |
+| FR-109 | 数値を含む要点のゲージ・棒グラフ | 承認済み | 未実装 | 未実装 | - |
+| FR-110 | 人物の絵記号のバリエーション（バストアップ） | 承認済み | 未実装 | 未実装 | - |
+| FR-111 | 映画的な演出（シーンの確定・トピックの切り替え） | 承認済み | 未実装 | 未実装 | - |
+| FR-112 | ペン・タッチによる自由描画 | 承認済み | 未実装 | 未実装 | - |
 
 ## API・イベント
 
