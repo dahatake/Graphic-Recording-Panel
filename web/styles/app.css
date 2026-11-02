@@ -187,7 +187,14 @@ textarea:focus { border-bottom-color: var(--color-primary); }
    リボンが下のパネル領域に重ならず・押し出さない。ボタンは文字（開く／閉じる）と形（▼▲）と aria-expanded で状態を示す。 */
 .ribbon-toggle { display: inline-flex; margin: var(--space-1) var(--space-3); }
 /* AC-579・AC-641・AC-642: 折りたたみは窓の高さによらず使える。起動時の既定（窓の高さ < PARAM-155 なら折りたたむ）と保存は ribbontoggle.js */
-.commandbar[data-collapsed="true"] { display: none; }
+/* AC-645: 折りたたんでも、開始（session.start）と停止（session.stop）の主操作ボタンは折りたたみの対象外（元のボタンをそのまま残す）。
+   バー自身は visibility:hidden（E2E-280: 折りたたみ中のリボンは見えない）にし、主操作ボタンだけ visible に戻す。それ以外は表示しない */
+.commandbar[data-collapsed="true"] { visibility: hidden; max-height: none; overflow: visible; border-bottom-color: transparent; }
+.commandbar[data-collapsed="true"] .toolbar-group:not(:has([data-command="session.start"], [data-command="session.stop"])) { display: none; }
+.commandbar[data-collapsed="true"] .toolbar-group-heading { display: none; }
+.commandbar[data-collapsed="true"] .toolbar-group > :not(:has([data-command="session.start"], [data-command="session.stop"])) { display: none; }
+.commandbar[data-collapsed="true"] .toolbar-group > .tooltip-host > :not([data-command="session.start"]):not([data-command="session.stop"]) { display: none; }
+.commandbar[data-collapsed="true"] .toolbar-group > .tooltip-host > [data-command="session.start"], .commandbar[data-collapsed="true"] .toolbar-group > .tooltip-host > [data-command="session.stop"] { visibility: visible; }
 @media (max-height: 600px) {
   .commandbar { max-height: 40vh; overflow-y: auto; overscroll-behavior: contain; position: relative; z-index: 0; }
 }
