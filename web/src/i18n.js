@@ -111,6 +111,7 @@ const BASE = {
     'diagram.empty': 'まだ図がありません。記録を開始して発話を入力してください',
     'diagram.relMore': '他 {n} 件', // FR-053 AC-584
     'cmd.settings.arrangeInterval': '再配置の周期を設定', // FR-080 AC-440
+ 'cmd.help.open': 'ヘルプを開く', 'cmd.onboarding.next': '案内の次へ', 'cmd.onboarding.back': '案内の戻る', 'cmd.onboarding.skip': '案内をスキップ', 'cmd.sample.load': '練習用のサンプルを読み込む', // FR-103
     'cmd.settings.layoutMode': 'レイアウトの決め方を切り替え', 'cmd.sound.toggleMute': '音のミュートを切り替え', 'cmd.sound.setVolume': '音量を上げる', 'cmd.arrange.setInterval': '再配置の周期を切り替え', // FR-030 AC-519
     // FR-098・FR-005・FR-091・FR-097: 議題タイマー・手修正を元に戻す・進行の段階・種類別スタイル
     'cmd.timer.start': '議題タイマーを開始', 'cmd.timer.pause': '議題タイマーを一時停止', 'cmd.timer.resume': '議題タイマーを再開', 'cmd.timer.next': '次の議題へ切り替え', 'cmd.timer.stop': '議題タイマーを終了',
@@ -219,6 +220,7 @@ const BASE = {
     'diagram.empty': 'No diagram yet. Start recording and enter an utterance',
     'diagram.relMore': '+{n} more', // FR-053 AC-584
     'cmd.settings.arrangeInterval': 'Set the rearrange interval', // FR-080 AC-440
+ 'cmd.help.open': 'Open help', 'cmd.onboarding.next': 'Guide: next', 'cmd.onboarding.back': 'Guide: back', 'cmd.onboarding.skip': 'Skip the guide', 'cmd.sample.load': 'Load the practice sample', // FR-103
     'cmd.settings.layoutMode': 'Switch how the layout is decided', 'cmd.sound.toggleMute': 'Toggle sound mute', 'cmd.sound.setVolume': 'Raise the volume', 'cmd.arrange.setInterval': 'Switch the rearrange interval', // FR-030 AC-519
     'cmd.timer.start': 'Start the agenda timer', 'cmd.timer.pause': 'Pause the agenda timer', 'cmd.timer.resume': 'Resume the agenda timer', 'cmd.timer.next': 'Switch to the next agenda item', 'cmd.timer.stop': 'End the agenda timer',
     'cmd.edit.undo': 'Undo the last manual edit', 'cmd.phase.next': 'Advance the meeting phase', 'cmd.kindStyle.toggle': 'Toggle styles by kind', 'cmd.kindStyle.recommend': 'Apply the recommended styles by kind',
