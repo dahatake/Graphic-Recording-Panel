@@ -15,7 +15,7 @@ export function headerModel(out, lang = 'ja') {
   if (one(out.date)) lines.push(one(out.date));
   const where = [one(out.series), one(out.venue)].filter(Boolean).join(' / ');
   if (where) lines.push(where);
-  for (const k of ['visibilityLine', 'excludedLine', 'conflictLine', 'objectionLine']) if (one(out[k])) lines.push(one(out[k])); // FR-104 AC-604・AC-606 / FR-099 AC-588
+  for (const k of ['visibilityLine', 'excludedLine', 'conflictLine', 'objectionLine', 'rolesLine', 'questionLine']) if (one(out[k])) lines.push(one(out[k])); // FR-104 AC-604・AC-606 / FR-099 AC-588 / FR-107 AC-620
   const agenda = (out.agenda ?? []).map(one).filter(Boolean);
   if (agenda.length) { lines.push(`${L.agenda}:`); agenda.forEach((n, i) => lines.push(`${i + 1}. ${n}`)); }
   return { title: one(out.title), lines };
@@ -74,7 +74,7 @@ export function markdownHead(meta, lang = 'ja') {
   if (one(meta.date)) out.push(mdText(meta.date), '');
   const where = [one(meta.series), one(meta.venue)].filter(Boolean).map(mdText).join(' / ');
   if (where) out.push(where, '');
-  for (const k of ['visibilityLine', 'excludedLine', 'conflictLine', 'objectionLine']) if (one(meta[k])) out.push(mdText(meta[k]), ''); // FR-104 AC-604・AC-606 / FR-099 AC-588
+  for (const k of ['visibilityLine', 'excludedLine', 'conflictLine', 'objectionLine', 'voteLine', 'rolesLine', 'questionLine']) if (one(meta[k])) out.push(mdText(meta[k]), ''); // FR-104 AC-604・AC-606 / FR-099 AC-588 / FR-107
   const agenda = (meta.agenda ?? []).map(one).filter(Boolean);
   if (agenda.length) { out.push(`**${L.agenda}**`, ''); agenda.forEach((n, i) => out.push(`${i + 1}. ${mdText(n)}`)); out.push(''); }
   if (one(meta.purpose)) out.push(`**${L.purpose}**: ${mdText(meta.purpose)}`, '');
@@ -94,6 +94,9 @@ export function htmlHead(meta, lang, esc) {
   if (one(meta.excludedLine)) parts.push(`<p data-meeting="excluded">${esc(one(meta.excludedLine))}</p>`); // FR-104 AC-606
   if (one(meta.conflictLine)) parts.push(`<p data-meeting="conflict">${esc(one(meta.conflictLine))}</p>`); // FR-099 AC-587
   if (one(meta.objectionLine)) parts.push(`<p data-meeting="objection">${esc(one(meta.objectionLine))}</p>`); // FR-099 AC-588
+  if (one(meta.voteLine)) parts.push(`<p data-meeting="vote">${esc(one(meta.voteLine))}</p>`); // FR-106 AC-616
+  if (one(meta.rolesLine)) parts.push(`<p data-meeting="roles">${esc(one(meta.rolesLine))}</p>`); // FR-107
+  if (one(meta.questionLine)) parts.push(`<p data-meeting="question">${esc(one(meta.questionLine))}</p>`); // FR-107
   if (one(meta.purpose)) parts.push(`<p data-meeting="purpose"><strong>${esc(L.purpose)}</strong>: ${esc(one(meta.purpose))}</p>`);
   if (one(meta.audience)) parts.push(`<p data-meeting="audience"><strong>${esc(L.audience)}</strong>: ${esc(one(meta.audience))}</p>`);
   const agenda = (meta.agenda ?? []).map(one).filter(Boolean);
