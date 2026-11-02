@@ -5,6 +5,7 @@
 import { isPartKey, getPartKeys, getPartInfo, getPartGroup, getPartSvg, buildCharacter, CHARACTER_OPTIONS, EXPRESSION_LABELS } from './parts.js';
 import { escapeHtml } from './outline.js';
 import { acceptGeneratedSvg } from './svgsanitize.js';
+import { withoutConfidential } from './visibility.js';
 
 export const EXTRACT_PATH = '/api/llm/extract'; // 中継サーバーが /api/llm/responses と同じ中継をする
 export const SVG_PATH = '/api/llm/svg'; // FR-065 方式2
@@ -162,7 +163,8 @@ export function llmDrawModule(ctx) {
     + (svgGeneration ? ' For an object that has no suitable part, use key "other" and give a short "label" naming it.' : '');
 
   function requestFor(scene) {
-    const raw = [scene.heading, ...scene.points.map((p) => p.text)].join('\n');
+    const [safe] = withoutConfidential([scene], state.lang === 'en' ? 'en' : 'ja'); // 機密の要点は公開範囲に関わらず LLM へ送らない（監査 S-1）
+    const raw = [safe.heading, ...safe.points.map((p) => p.text)].join('\n');
     const masked = masking ? maskText(raw, maskWords) : raw;
     return clampText(masked, MAX_SEND_CHARS);
   }
