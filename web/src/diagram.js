@@ -654,6 +654,18 @@ export function mountDiagramPanel(host, app, doc = host.ownerDocument) {
   paint(host, app);
 }
 
+// AC-646: 図の中の文字の画面上の高さの下限（PARAM-163）と、図の中の最小の文字の大きさ（図の座標系）を測る
+export const DIAGRAM_MIN_TEXT_PX = 10; // PARAM-163
+export function minTextFontSize(svgEl) {
+  let min = 0;
+  for (const t of svgEl.querySelectorAll('text')) {
+    if (!(t.textContent ?? '').trim()) continue;
+    const fs = parseFloat(globalThis.getComputedStyle?.(t)?.fontSize) || parseFloat(t.getAttribute('font-size')) || 0;
+    if (fs > 0 && (min === 0 || fs < min)) min = fs;
+  }
+  return min;
+}
+
 function paint(host, app) {
   const t = (k) => app.t(k);
   const tools = host.querySelector('.diagram-tools');
@@ -689,7 +701,11 @@ function paint(host, app) {
     if (vb === null) el.removeAttribute('viewBox'); else el.setAttribute('viewBox', vb);
     // 既定は「幅に合わせる」: パネルより広い図は縮めて、右にはみ出さない（ボタンで拡大・縮小すると解除）
     const avail = canvas.clientWidth - 2;
-    const fit = host._fit !== false && avail > 0 && w > avail ? avail / w : 1;
+    // AC-646（PARAM-163）: 幅に合わせて縮めても、図の中の最小の文字の画面上の高さが下限（10px）を下回らないようにする。
+    // 下限で止めた分は、図のパネルの中でスクロールして読む（利用者が縮小ボタンで下げたときは、その操作に従う）
+    if (!reuse || host._minFont === undefined) host._minFont = minTextFontSize(el);
+    const minFit = host._minFont > 0 ? DIAGRAM_MIN_TEXT_PX / host._minFont : 0;
+    const fit = host._fit !== false && avail > 0 && w > avail ? Math.max(avail / w, minFit) : 1;
     const z = host._fit !== false ? fit * host._zoom : host._zoom;
     // 紙面（背景）は図の大きさではなく、表示域の全体を覆う。小さい図でも、パネルの領域を全部使って描く（文字は等倍のまま）
     const availH = canvas.clientHeight - 2;
