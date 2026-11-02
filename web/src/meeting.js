@@ -106,7 +106,7 @@ export function meetingModule(ctx) {
   // FR-095 AC-560: 出力（PNG・PDF・SVG・Markdown・HTML）が載せる会議の文脈。表題は演題（未入力は従来の表題）、日付は入力のまま（出力日を補わない）
   api.getMeetingOutput = () => {
     const ti = api.getTitleInfo?.() ?? {};
-    return { title: String(ti.theme ?? '').trim() || ctx.t('app.title'), date: ti.date ?? '', series: ti.series ?? '', venue: ti.venue ?? '', agenda: state.meeting.agenda.map((a) => a.name), purpose: state.meeting.purpose, audience: state.meeting.audience, ...(api.getVisibilityLines?.() ?? {}), ...(api.getConflictLines?.() ?? {}) }; // FR-104: 公開範囲（と除外の件数）の行。FR-099 AC-588: 対立の組・異論の状況の行
+    return { title: String(ti.theme ?? '').trim() || ctx.t('app.title'), date: ti.date ?? '', series: ti.series ?? '', venue: ti.venue ?? '', agenda: state.meeting.agenda.map((a) => a.name), purpose: state.meeting.purpose, audience: state.meeting.audience, ...(api.getVisibilityLines?.() ?? {}), ...(api.getConflictLines?.() ?? {}), ...(api.getVoteLines?.() ?? {}) }; // FR-104: 公開範囲（と除外の件数）の行。FR-099 AC-588: 対立の組・異論の状況の行
   };
   // FR-096 AC-561〜563: 図の説明。画面の詳細度（FR-026）に従い、その詳細度で出ない要点は含めない（生成 AI・外部通信なし）
   api.getFigureDescription = () => {
