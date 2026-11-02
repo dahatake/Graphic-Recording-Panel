@@ -576,6 +576,22 @@ export function mountUI(app, doc = document) {
       const llmTestRes = doc.createElement('p'); llmTestRes.id = 'settings-llm-test-result'; llmTestRes.setAttribute('role', 'status'); llmTestRes.className = 'settings-status';
       row('llm.test', d.fields.find((f) => f.id === 'llm.test').label, llmTest);
       form.append(llmSt, llmActs, llmCred, llmTestRes);
+      // AC-474: 簡易マスキングの有効・無効と登録語（入力欄で追加し、一覧で個別に削除）。LLM 連携の有効・無効にかかわらず操作でき、端末のブラウザ内にだけ保存される
+      const mkf = d.fields.find((f) => f.id === 'llm.mask'); const mwf = d.fields.find((f) => f.id === 'llm.maskWords');
+      if (mkf && mwf) {
+        const msw = doc.createElement('input'); msw.type = 'checkbox'; msw.setAttribute('role', 'switch');
+        msw.addEventListener('click', (e) => { e.preventDefault(); app.setLlmMasking(!app.getLlmMasking()); });
+        row('llm.mask', mkf.label, msw);
+        const mnote = doc.createElement('p'); mnote.className = 'settings-status settings-note'; mnote.id = 'settings-llm-mask-note'; mnote.textContent = mkf.note; form.append(mnote);
+        const mwi = doc.createElement('input'); mwi.type = 'text'; mwi.autocomplete = 'off';
+        const mwb = doc.createElement('button'); mwb.type = 'button'; mwb.className = 'btn'; mwb.textContent = mwf.addLabel; mwb.dataset.action = 'mask-word-add';
+        const addWord = () => { if (app.addLlmMaskWord(mwi.value).ok) mwi.value = ''; };
+        mwb.addEventListener('click', addWord);
+        mwi.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addWord(); } });
+        const mwBox = doc.createElement('div'); mwBox.className = 'settings-inline'; mwBox.append(mwi, mwb);
+        row('llm.maskWords', mwf.label, mwBox); mwi.id = 'settings-llm.maskWords-input';
+        const mwl = doc.createElement('ul'); mwl.id = 'settings-llm-mask-words'; mwl.className = 'settings-list'; form.append(mwl);
+      }
       buildAzureSpeech(form, d);
       const close =  doc.createElement('button'); close.type = 'button'; close.className = 'btn btn-primary'; close.textContent = o.closeLabel; close.dataset.action = 'settings-close';
       close.addEventListener('click', () => app.commands['settings.close']());
@@ -643,6 +659,25 @@ export function mountUI(app, doc = document) {
       const tr = f['llm.test'].status; setEl.querySelector('#settings-llm-test-result').textContent = tr.text ? `${tr.icon} ${tr.text}` : '';
     }
     syncAzureSpeech(d);
+    { // AC-474: 簡易マスキングの表示と登録語の一覧
+      const mkf = d.fields.find((f) => f.id === 'llm.mask'); const mwf = d.fields.find((f) => f.id === 'llm.maskWords');
+      const msw = setEl.querySelector('#settings-llm\\.mask'); const mwl = setEl.querySelector('#settings-llm-mask-words');
+      if (mkf && mwf && msw && mwl) {
+        msw.checked = !!mkf.value;
+        const key = JSON.stringify([mwf.words, (app.getUiState?.() ?? app.getState()).lang]);
+        if (mwl.dataset.key !== key) {
+          mwl.dataset.key = key; mwl.textContent = '';
+          if (!mwf.words.length) { const li = doc.createElement('li'); li.textContent = mwf.emptyText; mwl.append(li); }
+          for (const w of mwf.words) {
+            const li = doc.createElement('li'); li.dataset.word = w;
+            const sp = doc.createElement('span'); sp.textContent = w;
+            const rm = doc.createElement('button'); rm.type = 'button'; rm.className = 'btn'; rm.textContent = mwf.removeLabel; rm.setAttribute('aria-label', `${mwf.removeLabel}: ${w}`);
+            rm.addEventListener('click', () => app.removeLlmMaskWord(w));
+            li.append(sp, rm); mwl.append(li);
+          }
+        }
+      }
+    }
     const wasHidden = setEl.hidden; setEl.hidden = false;
     if (wasHidden) setEl.querySelector('select')?.focus();
     { // FR-089 AC-524: 予算の表示
