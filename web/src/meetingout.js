@@ -15,7 +15,7 @@ export function headerModel(out, lang = 'ja') {
   if (one(out.date)) lines.push(one(out.date));
   const where = [one(out.series), one(out.venue)].filter(Boolean).join(' / ');
   if (where) lines.push(where);
-  for (const k of ['visibilityLine', 'excludedLine', 'conflictLine', 'objectionLine']) if (one(out[k])) lines.push(one(out[k])); // FR-104 AC-604・AC-606 / FR-099 AC-588
+  for (const k of ['visibilityLine', 'excludedLine', 'conflictLine', 'objectionLine', 'rolesLine', 'questionLine']) if (one(out[k])) lines.push(one(out[k])); // FR-104 AC-604・AC-606 / FR-099 AC-588 / FR-107 AC-620
   const agenda = (out.agenda ?? []).map(one).filter(Boolean);
   if (agenda.length) { lines.push(`${L.agenda}:`); agenda.forEach((n, i) => lines.push(`${i + 1}. ${n}`)); }
   return { title: one(out.title), lines };
@@ -74,7 +74,7 @@ export function markdownHead(meta, lang = 'ja') {
   if (one(meta.date)) out.push(mdText(meta.date), '');
   const where = [one(meta.series), one(meta.venue)].filter(Boolean).map(mdText).join(' / ');
   if (where) out.push(where, '');
-  for (const k of ['visibilityLine', 'excludedLine', 'conflictLine', 'objectionLine']) if (one(meta[k])) out.push(mdText(meta[k]), ''); // FR-104 AC-604・AC-606 / FR-099 AC-588
+  for (const k of ['visibilityLine', 'excludedLine', 'conflictLine', 'objectionLine', 'rolesLine', 'questionLine']) if (one(meta[k])) out.push(mdText(meta[k]), ''); // FR-104 AC-604・AC-606 / FR-099 AC-588
   const agenda = (meta.agenda ?? []).map(one).filter(Boolean);
   if (agenda.length) { out.push(`**${L.agenda}**`, ''); agenda.forEach((n, i) => out.push(`${i + 1}. ${mdText(n)}`)); out.push(''); }
   if (one(meta.purpose)) out.push(`**${L.purpose}**: ${mdText(meta.purpose)}`, '');
