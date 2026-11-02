@@ -29,7 +29,7 @@ export function mountGlossaryUI(app, doc = globalThis.document) {
     ti.addEventListener('input', sync); vi.addEventListener('input', sync);
     for (const i of [ti, vi]) i.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); sync(); app.submitGlossaryInput(); } });
     add.addEventListener('click', () => { sync(); app.submitGlossaryInput(); });
-    close.addEventListener('click', () => app.commands['glossary.close']());
+    close.addEventListener('click', () => app.closeGlossary());
     dlg.append(tl, vl, el('div', { class: 'glossary-actions' }), el('p', { class: 'hint' }, app.t('glossary.hint')));
     dlg.querySelector('.glossary-actions').append(add, close);
     const ul = el('ul', { 'aria-label': v.label });

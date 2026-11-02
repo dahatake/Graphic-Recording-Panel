@@ -341,3 +341,21 @@ textarea:focus { border-bottom-color: var(--color-primary); }
   .apikeys-signin, .apikeys-code { border-color: CanvasText; }
   .apikeys-link { color: LinkText; }
 }
+
+/* FR-093 AC-549 用語集の画面（デザイン基盤のトークンを使う。状態は文字でも示し、色だけに頼らない。動きなし） */
+.glossary-dialog { padding: var(--space-5); border: var(--stroke) solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-8); width: min(36rem, calc(100vw - 2 * var(--space-4))); max-height: calc(100vh - 2 * var(--space-5)); overflow: auto; margin: auto; box-sizing: border-box; }
+.glossary-dialog::backdrop { background: rgb(60 60 60 / 0.55); }
+.glossary-dialog h2 { margin: 0 0 var(--space-2); }
+.glossary-dialog label { display: block; margin-bottom: var(--space-3); font-weight: var(--font-weight-semibold); }
+.glossary-dialog input[type="text"] { display: block; width: 100%; box-sizing: border-box; min-height: 2.5rem; margin-top: var(--space-1); padding: var(--space-2); color: inherit; background: var(--color-surface); border: var(--stroke) solid var(--color-border); border-radius: var(--radius); font: inherit; }
+.glossary-dialog [role="alert"] { margin: 0 0 var(--space-3); color: var(--color-danger); font-weight: var(--font-weight-semibold); }
+.glossary-dialog [role="alert"]:not(:empty)::before { content: "⚠ "; }
+.glossary-dialog [role="alert"]:empty { display: none; }
+.glossary-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
+.glossary-dialog .hint { margin: 0 0 var(--space-3); font-size: 0.875rem; }
+.glossary-dialog ul { list-style: none; margin: 0; padding: 0; }
+.glossary-dialog li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2); border-bottom: var(--stroke) solid var(--color-border); overflow-wrap: anywhere; }
+.glossary-dialog li > span { flex: 1 1 12rem; min-width: 0; }
+.glossary-dialog li:focus-visible, .glossary-dialog button:focus-visible, .glossary-dialog input:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .glossary-dialog { animation: none; transition: none; } }
+@media (forced-colors: active) { .glossary-dialog, .glossary-dialog input[type="text"] { border-color: CanvasText; } }

@@ -144,7 +144,7 @@ export function glossaryModule(ctx) {
     return { ok: true };
   };
   ctx.registerCommand('glossary.open', openView);
-  ctx.registerCommand('glossary.close', closeView);
+  api.closeGlossary = closeView; // 閉じる操作のキーは Esc（handleKey）。コマンドとしては登録しない（全コマンドにキー割り当てが要るため）
   ctx.registerKey({ key: ',', alt: true, shift: true, command: 'glossary.open' });
   api.focusGlossary = (id) => { if (!open || !order().includes(id)) return false; focusId = id; notify(); return true; };
 
