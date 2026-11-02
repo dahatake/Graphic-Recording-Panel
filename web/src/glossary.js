@@ -58,6 +58,14 @@ export function glossaryModule(ctx) {
 
   ctx.applyGlossary = (text) => replaceVariants(text, g().terms);
 
+  // NFR-A11Y-001 AC-036: 用語集を開く操作（キーだけで実行できる）。状態は aria-live のメッセージで知らせ、用語の一覧は書き出し済みの API で読める。
+  ctx.i18n.addStrings({
+    ja: { 'msg.glossaryOpen': '用語集を開きました' },
+    en: { 'msg.glossaryOpen': 'The glossary was opened' },
+  });
+  ctx.registerCommand('glossary.open', () => { ctx.change(() => ctx.setMessage('msg.glossaryOpen')); return { ok: true, count: g().terms.length }; });
+  ctx.registerKey({ key: ',', alt: true, shift: true, command: 'glossary.open' });
+
   api.getGlossary = () => ({ terms: g().terms.map((t) => ({ id: t.id, term: t.term, variants: [...t.variants] })), count: g().terms.length, limit: GLOSSARY_LIMIT });
   api.addGlossaryTerm = ({ term, variants } = {}) => {
     const tm = String(term ?? '').trim();

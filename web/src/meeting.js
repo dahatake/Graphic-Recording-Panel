@@ -35,7 +35,14 @@ export function meetingModule(ctx) {
       'meeting.series': 'Series', 'meeting.theme': 'Title', 'meeting.date': 'Date', 'meeting.venue': 'Venue', 'meeting.purpose': 'Purpose', 'meeting.audience': 'Audience',
       'meeting.agenda': 'Agenda (one item per line: "name | minutes")', 'meeting.group': 'Meeting context' },
   });
+  // NFR-A11Y-001 AC-036: 議題を開く操作（キーだけで実行できる。状態は aria-live のメッセージで知らせる）
+  ctx.i18n.addStrings({
+    ja: { 'msg.agendaOpen': '議題を開きました' },
+    en: { 'msg.agendaOpen': 'The agenda was opened' },
+  });
   state.meeting = { agenda: [], purpose: '', audience: '' };
+  ctx.registerCommand('agenda.open', () => { ctx.change(() => ctx.setMessage('msg.agendaOpen')); return { ok: true, count: state.meeting.agenda.length }; });
+  ctx.registerKey({ key: '.', alt: true, shift: true, command: 'agenda.open' });
   let idSeq = 0;
   const newId = () => { const used = new Set(state.meeting.agenda.map((a) => a.id)); let id; do { id = `a${++idSeq}`; } while (used.has(id)); return id; };
 
