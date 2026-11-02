@@ -172,6 +172,6 @@ export function presentExportModule(ctx) {
   ctx.registerCommand('save.html', () => run('html', 'text/html', () => buildHtml({
     scenes: ctx.state.scenes, topics: api.getTopics?.() ?? [], lang: ctx.state.lang, title: meetingTitle(), meta: meetingMeta(), ...minutesArgs(),
     labels: { auto: ctx.t('present.auto'), hint: ctx.t('present.hint'), untitled: ctx.t('present.untitled'), none: ctx.t('present.none'), review: ctx.t('minutes.review') },
-    svgOf: (ss) => renderDiagramSvg(ss, { lang: ctx.state.lang, t: ctx.t, title: ctx.t('app.title'), style: api.getDrawStyleSpec?.(api.getDrawStyle?.()) }),
+    svgOf: (ss) => { const svg = renderDiagramSvg(ss, { lang: ctx.state.lang, t: ctx.t, title: ctx.t('app.title'), style: api.getDrawStyleSpec?.(api.getDrawStyle?.()) }); return api.renderDrawLayer ? api.renderDrawLayer(svg, { forExport: true }) : svg; }, // FR-112 AC-638: 手描きの線も図と同じ位置で含める
   })));
 }

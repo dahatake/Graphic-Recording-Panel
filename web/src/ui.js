@@ -479,6 +479,11 @@ export function mountUI(app, doc = document) {
         const ve = doc.createElement('input'); ve.type = 'checkbox'; ve.setAttribute('role', 'switch'); ve.dataset.visibilityField = 'exclude';
         ve.addEventListener('change', () => app.setExcludeConfidential(ve.checked));
         row('visibility.exclude', vf.excludeLabel, ve);
+        // FR-112 AC-638: 「機密の要点を除く」のとき、手描きの線が残る旨の警告（AC-606 の警告）を文字で出す
+        const sw = doc.createElement('p'); sw.setAttribute('role', 'status'); sw.dataset.id = 'save.warnings';
+        const showWarn = () => { sw.textContent = (app.getSaveWarnings?.() ?? []).join(' '); };
+        ve.addEventListener('change', showWarn); showWarn();
+        form.append(sw);
       }
       // FR-051 AC-228: RPG風の音（端末ごとに保存。ミュート・音量）
       const mute = doc.createElement('input'); mute.type = 'checkbox';
