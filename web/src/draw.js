@@ -12,6 +12,8 @@ export const MIN_CONTRAST = 3; // PARAM-083
 export const STROKE_MAX = 500; // PARAM-151
 export const STROKE_WIDTH = 3;
 const POINTS_MAX = 3000;
+export const DRAW_KEY_STEP = 8; // PARAM-160: 矢印キー 1 回に進む距離（図の座標の px）
+const KB_START = { x: 40, y: 40 }; // キーボード描画のカーソルの初期位置（図の座標）
 const HIDDEN_KEY = 'grp.draw.hidden'; // 端末ごとの設定（AC-640）
 const HIT_TOLERANCE = 6; // 消しゴムの当たり判定（図の座標での余裕）
 // PARAM-150: 手描きの色の一覧（名前つき）
@@ -121,6 +123,7 @@ export function drawModule(ctx) {
       'draw.group': '手描きの操作', 'draw.hint': 'ペン・マウス・タッチで図の上に線を描きます。キーボードでは、モード・色・消しゴム・取り消し・やり直し・全消去・表示を操作できます。',
       'draw.confirmText': '手描きの線をすべて消します。取り消しで戻せます。', 'draw.confirm': '全消去する', 'draw.cancel': 'キャンセル', 'draw.modeOn': '描画のモード: オン', 'draw.modeOff': '描画のモード: オフ',
       'draw.toolPen': '道具: ペン', 'draw.toolEraser': '道具: 消しゴム', 'draw.shown': '表示中', 'draw.canvasHint': '描画のモードです。ポインタで線を描きます',
+      'msg.drawCursor': '描画のカーソル', 'msg.drawPenDown': 'ペンを下ろしました（矢印キーで線を描いています。Space で終了、Esc で取りやめ）', 'msg.drawPenUp': 'ペンを上げて線を描き終えました', 'msg.drawKbErase': '消しゴムで消しています（矢印キーで動かし、Space で終了）', 'msg.drawKbCancel': '描きかけの線を取りやめました',
       'msg.drawOn': '描画のモードをオンにしました', 'msg.drawOff': '描画のモードをオフにしました', 'msg.drawColor': '手描きの色', 'msg.drawEraserOn': '消しゴムにしました', 'msg.drawEraserOff': 'ペンに戻しました',
       'msg.drawUndone': '手描きを取り消しました', 'msg.drawRedone': '手描きをやり直しました', 'msg.drawNothingUndo': '取り消せる手描きの操作がありません', 'msg.drawNothingRedo': 'やり直せる手描きの操作がありません',
       'msg.drawErased': '線を 1 本消しました', 'msg.drawCleared': '手描きをすべて消しました', 'msg.drawNone': '消す手描きの線がありません', 'msg.drawConfirm': '手描きの全消去の確認を開きました', 'msg.drawCancelled': '手描きの全消去をやめました',
@@ -131,6 +134,7 @@ export function drawModule(ctx) {
       'draw.group': 'Free drawing controls', 'draw.hint': 'Draw on the diagram with a pen, mouse or touch. With the keyboard you can control the mode, color, eraser, undo, redo, clear and visibility.',
       'draw.confirmText': 'This removes every drawn stroke. You can bring them back with undo.', 'draw.confirm': 'Clear all', 'draw.cancel': 'Cancel', 'draw.modeOn': 'Draw mode: on', 'draw.modeOff': 'Draw mode: off',
       'draw.toolPen': 'Tool: pen', 'draw.toolEraser': 'Tool: eraser', 'draw.shown': 'Shown', 'draw.canvasHint': 'Draw mode. Draw lines with the pointer',
+      'msg.drawCursor': 'Drawing cursor', 'msg.drawPenDown': 'Pen down (drawing with the arrow keys. Space to finish, Esc to cancel)', 'msg.drawPenUp': 'Pen up. The stroke is finished', 'msg.drawKbErase': 'Erasing (move with the arrow keys, Space to finish)', 'msg.drawKbCancel': 'The stroke in progress was cancelled',
       'msg.drawOn': 'Draw mode is on', 'msg.drawOff': 'Draw mode is off', 'msg.drawColor': 'Drawing color', 'msg.drawEraserOn': 'The eraser is selected', 'msg.drawEraserOff': 'Back to the pen',
       'msg.drawUndone': 'A drawing action was undone', 'msg.drawRedone': 'A drawing action was redone', 'msg.drawNothingUndo': 'There is no drawing action to undo', 'msg.drawNothingRedo': 'There is no drawing action to redo',
       'msg.drawErased': 'One stroke was erased', 'msg.drawCleared': 'All drawing was cleared', 'msg.drawNone': 'There is no stroke to clear', 'msg.drawConfirm': 'The clear-all confirmation was opened', 'msg.drawCancelled': 'Clearing the drawing was cancelled',
@@ -327,12 +331,12 @@ export function drawModule(ctx) {
   api.getDrawDialog = () => (dialogOpen ? { kind: 'draw-clear', text: ctx.t('draw.confirmText'), countText: countText(), buttons: [{ id: 'confirm', label: ctx.t('draw.confirm') }, { id: 'cancel', label: ctx.t('draw.cancel') }] } : null);
 
   // ---- モード・道具・表示 ----
-  api.toggleDraw = () => { mode = !mode; if (!mode) {   current = null; erasing = false; tool = 'pen'; } viewOnly(() => msg(mode ? 'msg.drawOn' : 'msg.drawOff')); return { ok: true, mode }; };
+  api.toggleDraw = () => { mode = !mode; if (!mode) {   current = null; erasing = false; tool = 'pen'; kbPenDown = false; } viewOnly(() => msg(mode ? 'msg.drawOn' : 'msg.drawOff')); return { ok: true, mode }; };
     api.toggleDrawEraser = () => { tool = tool === 'eraser' ? 'pen' : 'eraser'; viewOnly(() => msg(tool === 'eraser' ? 'msg.drawEraserOn' : 'msg.drawEraserOff')); return { ok: true, tool }; };
   api.toggleDrawVisibility = () => {
     visible = !visible;
     try { if (visible) ctx.storage?.removeItem?.(HIDDEN_KEY); else ctx.storage?.setItem?.(HIDDEN_KEY, '1'); } catch { /* 端末の設定が書けなくても動く */ }
-    if (!visible) { current = null; erasing = false; }
+    if (!visible) { current = null; erasing = false; kbPenDown = false; }
     // 線がなければ図の SVG は変わらない（表示の切替は見た目だけ）。線があるときだけ版数を上げて図を作り直す
     const note = () => msg(visible ? 'msg.drawShown' : 'msg.drawHiddenNow');
     if (strokes.length) ctx.change(note); else viewOnly(note);
@@ -347,9 +351,40 @@ export function drawModule(ctx) {
   ctx.registerCommand('draw.visibility', () => api.toggleDrawVisibility());
   // Ctrl+Alt+Shift+記号（使用済みの組み合わせと重ならないもの）
   for (const [key, command] of [['!', 'draw.toggle'], ['@', 'draw.color.next'], ['#', 'draw.erase'], ['$', 'draw.undo'], ['%', 'draw.redo'], ['^', 'draw.clear'], ['&', 'draw.visibility']]) ctx.registerKey({ key, ctrl: true, alt: true, shift: true, command });
+  // ---- キーボードで線を描く（AC-644・AC-635・AC-036）: 手描きのモード中、矢印キーでカーソルを PARAM-160（8）ずつ動かし、Space・Enter でペンの上げ下げ、Esc で描きかけを取りやめる ----
+  let kbCursor = { x: KB_START.x, y: KB_START.y }; let kbPenDown = false;
+  api.getDrawCursor = () => (mode && visible ? { x: kbCursor.x, y: kbCursor.y, penDown: kbPenDown } : null);
+  const ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  const kbDraw = (ev) => {
+    if (!mode || dialogOpen || !ev || ev.ctrlKey || ev.altKey || ev.inTextInput || ev.inControl) return null;
+    const key = ev.key; const code = ev.code;
+    if (ARROWS[key]) {
+      const step = DRAW_KEY_STEP * (ev.shiftKey ? 4 : 1); const [dx, dy] = ARROWS[key];
+      kbCursor = { x: Math.max(0, r2(kbCursor.x + dx * step)), y: Math.max(0, r2(kbCursor.y + dy * step)) };
+      if (kbPenDown) api.drawPointer('move', kbCursor);
+      viewOnly(() => msg('msg.drawCursor', ` (${kbCursor.x}, ${kbCursor.y})`));
+      return 'draw.cursor';
+    }
+    if (key === ' ' || code === 'Space' || key === 'Enter') {
+      if (ev.shiftKey) return null;
+      if (!kbPenDown) {
+        const r = api.drawPointer('down', kbCursor);
+        if (!r.ok) return 'draw.penDown';
+        kbPenDown = true; viewOnly(() => msg(tool === 'eraser' ? 'msg.drawKbErase' : 'msg.drawPenDown'));
+        return 'draw.penDown';
+      }
+      kbPenDown = false; msg('msg.drawPenUp');
+      api.drawPointer('up', kbCursor);
+      return 'draw.penUp';
+    }
+    if (key === 'Escape' && kbPenDown) { kbPenDown = false; api.drawPointer('cancel'); viewOnly(() => msg('msg.drawKbCancel')); return 'draw.kbCancel'; }
+    return null;
+  };
   const baseKey = api.handleKey;
   api.handleKey = (ev) => {
     if (dialogOpen && ev?.key === 'Escape' && !ev?.ctrlKey && !ev?.altKey) { api.cancelDrawClear(); return 'draw.cancel'; }
+    const kb = kbDraw(ev);
+    if (kb) return kb;
     return baseKey(ev);
   };
 
@@ -389,6 +424,6 @@ export function drawModule(ctx) {
   ctx.registerPersist('draw', {
     export: () => (strokes.length ? { strokes: strokes.map(copyStroke), seq } : undefined),
     import: (v) => { const p = parse(v); strokes = p.strokes; seq = p.seq; undoStack = []; redoStack = []; current = null; erasing = false; dialogOpen = false; },
-    reset: () => { strokes = []; seq = 0; undoStack = []; redoStack = []; current = null; erasing = false; dialogOpen = false; mode = false; tool = 'pen'; },
+    reset: () => { strokes = []; seq = 0; undoStack = []; redoStack = []; current = null; erasing = false; dialogOpen = false; mode = false; tool = 'pen'; kbPenDown = false; },
   });
 }

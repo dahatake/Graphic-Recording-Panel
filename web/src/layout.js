@@ -13,6 +13,8 @@ export const DEFAULT_WORK_AREA = { w: 1000, h: 560 };
 export const KINDS = ['tile', 'focus', 'maximized', 'free']; // free: 利用者が手で動かした後（表示用）
 // タイル配置の列の幅の比（FR-013: 認識文字列パネルは図より右）
 const TILE_ORDER = ['diagram', 'outline', 'input'];
+export const DIAGRAM_MIN_RATIO = 0.5; // PARAM-157: 既定のタイルで図のパネルが占める幅の下限
+export const WORK_AREA_MIN_PCT = 55; // PARAM-156: 作業領域の高さの下限（窓の高さに対する %）
 const TILE_WEIGHT = { diagram: 410, outline: 232, input: 320 };
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -33,9 +35,15 @@ export function applyTile(layout) {
   const ids = visibleIds(layout);
   const { w: W, h: H } = layout.workArea;
   const total = ids.reduce((s, id) => s + TILE_WEIGHT[id], 0);
+  // AC-643: 図のパネルは幅の PARAM-157（50）% 以上。残りを、ほかのパネルが重みの比で分ける。
+  const others = ids.filter((id) => id !== 'diagram');
+  const hasDiagram = ids.includes('diagram');
+  const diagramShare = !hasDiagram ? 0 : (others.length ? Math.max(TILE_WEIGHT.diagram / total, DIAGRAM_MIN_RATIO) : 1);
+  const othersTotal = others.reduce((s, id) => s + TILE_WEIGHT[id], 0);
+  const share = (id) => (id === 'diagram' ? diagramShare : (1 - diagramShare) * TILE_WEIGHT[id] / othersTotal);
   let x = 0;
   ids.forEach((id, i) => {
-    const w = i === ids.length - 1 ? W - x : Math.round((W * TILE_WEIGHT[id]) / total);
+    const w = i === ids.length - 1 ? W - x : Math.round(W * share(id));
     setRect(layout.panels[id], x, 0, w, H);
     x += w;
   });

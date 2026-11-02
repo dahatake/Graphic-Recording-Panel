@@ -58,7 +58,7 @@ test('FR-004 AC-010 異常系: シーン 0 件のとき図にシーンは現れ�
   assert.ok(!/data-scene-id=/.test(app.renderSvg()));
 });
 
-test(`NFR-PERF-001 AC-038: 100 件の後の 1 件の要点が ${PARAM.UPPER_SEC} 秒以内に表示される`, async () => {
+test(`NFR-PERF-001 AC-038: 100 件の後の 1 件の手入力の要点が ${PARAM.SINGLE_SEC} 秒（PARAM-158）以内に表示される`, async () => {
   const { app, env } = await newApp(); toDetail(app);
   app.commands['session.start']();
   for (let i = 0; i < 100; i++) {
@@ -71,7 +71,7 @@ test(`NFR-PERF-001 AC-038: 100 件の後の 1 件の要点が ${PARAM.UPPER_SEC}
   const svg = app.renderSvg();
   const dt = (performance.now() - t0) / 1000;
   assert.ok(svg.includes('最後に追加する新しい要点'));
-  assert.ok(dt <= PARAM.UPPER_SEC, `${dt}s`);
+  assert.ok(dt <= PARAM.SINGLE_SEC, `${dt}s`);
 });
 
 test('NFR-PERF-001 AC-038 異常系: 確定した要点が失われず 101 件目として数えられる', async () => {

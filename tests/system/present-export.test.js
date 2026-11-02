@@ -159,7 +159,7 @@ test('FR-090 AC-528: 未確認の要点の見出し行の行末に「 [要確認
     }
     await app.commands['save.html']();
     const html = String(env.downloads.at(-1).data);
-    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
     try {
       const page = await ctx.newPage();
       await page.setContent(html, { waitUntil: 'load' });
@@ -203,7 +203,7 @@ test('FR-090 AC-530: HTML 保存で概要 1 枚＋トピックごとに 1 枚の
   assert.ok(!/url\(\s*["']?(https?:)?\/\//i.test(html) && !/@import/i.test(html), 'CSS から外部を読まない');
   assert.ok(!html.includes('<script>window.__x=1</script>') && !/<img[^>]*onerror/i.test(html), '会議の文字列がタグとして入らない');
 
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
   const external = [];
   await ctx.route('**/*', (route) => { const u = route.request().url(); if (!/^(data|blob|about):/.test(u)) external.push(u); route.abort(); });
   const page = await ctx.newPage();

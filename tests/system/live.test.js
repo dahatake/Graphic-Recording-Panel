@@ -74,7 +74,7 @@ test('FR-022 AC-523: 録画済み会議の .vtt／.txt の取込は、更新間�
   const { app, env } = await newApp(); toDetail(app);
   const lines = Array.from({ length: 30 }, (_, i) => `テキスト取込の行${i}の要点`);
   assert.equal((await app.importTextFile(file('m.txt', lines.join('\n'), 'text/plain'))).ok, true);
-  env.scheduler.advance(PARAM.UPPER_SEC * SEC);
+  env.scheduler.advance(PARAM.SINGLE_SEC * SEC); // PARAM-158（単発の反映）。PARAM-001 ではない
   for (const l of lines) assert.ok(app.renderSvg().includes(l), l);
 });
 
@@ -84,7 +84,7 @@ test('FR-022 AC-523 異常系: 取り込めない（テキストでない・空�
   const c0 = count(app); const before = app.renderSvg();
   assert.equal((await app.importTextFile(file('x.bin', 'バイナリ', 'application/octet-stream'))).ok, false);
   assert.equal((await app.importTextFile(file('e.vtt', ''))).ok, false);
-  env.scheduler.advance(PARAM.UPPER_SEC * SEC);
+  env.scheduler.advance(PARAM.SINGLE_SEC * SEC);
   assert.equal(count(app), c0);
   assert.equal(app.renderSvg(), before);
 });

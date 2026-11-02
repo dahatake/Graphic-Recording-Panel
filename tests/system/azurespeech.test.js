@@ -182,7 +182,7 @@ test('FR-081 AC-442: Azure Speech では、デバイス内処理が使えても 
   assert.equal(app.getConsentUi().visible, false);
 });
 
-test('FR-081 AC-442: 未同意の間は開始されず同意待ちと同意すれば始まる旨を示し、同意後に上流の確定結果が発話として 1 件追加され PARAM-001 秒以内に図に反映される', async () => {
+test('FR-081 AC-442: 未同意の間は開始されず同意待ちと同意すれば始まる旨を示し、同意後に上流の確定結果が発話として 1 件追加され PARAM-001＋PARAM-104 秒以内に図に反映される', async () => {
   const { app, env, azure } = await bootAzure({ configured: true });
   app.setSpeechMethod('azure');
   await cmd(app, 'session.start');
@@ -198,8 +198,8 @@ test('FR-081 AC-442: 未同意の間は開始されず同意待ちと同意す�
   assert.equal(azure.startCalls[0].lang, 'ja-JP');
   azure.emit('予算の見直しが必要です'); await flush();
   assert.deepEqual(texts(app), ['予算の見直しが必要です'], '確定結果が発話として 1 件');
-  env.scheduler.advance(PARAM.UPPER_SEC * 1000);
-  assert.ok(app.renderSvg().includes('予算の見直しが必要です'), 'PARAM-001 秒以内に図へ反映');
+  env.scheduler.advance((PARAM.UPPER_SEC + PARAM.RENDER_SEC) * 1000); // ライブの上限 PARAM-001＋PARAM-104（AC-053）
+  assert.ok(app.renderSvg().includes('予算の見直しが必要です'), 'PARAM-001＋PARAM-104 秒以内に図へ反映');
 });
 
 test('FR-081 AC-442 異常系: 同意は保存されず、再読込後は未同意に戻り開始されない。同意を外すと停止する', async () => {

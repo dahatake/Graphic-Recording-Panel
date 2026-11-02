@@ -6,6 +6,15 @@ export const RIBBON_COMPACT_MAX_HEIGHT = 600; // PARAM-130
 
 export function isCompactHeight(height) { return Number.isFinite(height) && height <= RIBBON_COMPACT_MAX_HEIGHT; }
 
+// AC-641・AC-642: 窓の高さがこれ未満ならリボンを折りたたんで起動する（保存がないときだけ）。保存は端末ごと（localStorage）。
+export const RIBBON_COLLAPSE_BELOW_HEIGHT = 900; // PARAM-155
+export const RIBBON_STORAGE_KEY = 'grp.ribbon.collapsed'; // '1' = 折りたたみ、'0' = 開く。それ以外（壊れた値）は無視して既定へ
+export function initialCollapsed(stored, height) {
+  if (stored === '1') return true;
+  if (stored === '0') return false;
+  return Number.isFinite(height) && height < RIBBON_COLLAPSE_BELOW_HEIGHT;
+}
+
 // 状態（折りたたみか）から、ボタンの見た目と aria を決める。DOM に依存しない。
 export function ribbonToggleView(collapsed, t) {
   return {
@@ -17,11 +26,15 @@ export function ribbonToggleView(collapsed, t) {
 }
 
 // ボタン #ribbon-toggle と対象（#toolbar）を結ぶ。折りたたみは data-collapsed で示し、CSS が低い窓でだけ効かせる。
-export function mountRibbonToggle(app, doc = document) {
+export function mountRibbonToggle(app, doc = document, storage = null) {
   const btn = doc.querySelector('#ribbon-toggle');
   const target = doc.querySelector('#toolbar');
   if (!btn || !target) return null;
-  let collapsed = false;
+  let store = storage;
+  if (!store) { try { store = globalThis.localStorage ?? null; } catch { store = null; } }
+  let stored = null;
+  try { stored = store?.getItem?.(RIBBON_STORAGE_KEY) ?? null; } catch { stored = null; }
+  let collapsed = initialCollapsed(stored, doc.defaultView?.innerHeight);
   const sync = () => {
     const v = ribbonToggleView(collapsed, (k) => app.t(k));
     btn.setAttribute('aria-expanded', v.ariaExpanded);
@@ -32,7 +45,10 @@ export function mountRibbonToggle(app, doc = document) {
     if (text) text.textContent = v.text;
     target.dataset.collapsed = collapsed ? 'true' : 'false';
   };
-  btn.addEventListener('click', () => { collapsed = !collapsed; sync(); });
+  btn.addEventListener('click', () => {
+    collapsed = !collapsed; sync();
+    try { store?.setItem?.(RIBBON_STORAGE_KEY, collapsed ? '1' : '0'); } catch { /* 端末の設定が書けなくても動く */ }
+  });
   app.subscribe?.(sync);
   sync();
   return { sync, isCollapsed: () => collapsed };

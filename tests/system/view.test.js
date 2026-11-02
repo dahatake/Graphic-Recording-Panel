@@ -175,6 +175,40 @@ test('NFR-A11Y-001 AC-036: glossary.open（Alt+Shift+,）・agenda.open（Alt+Sh
   assert.equal(app.handleKey({ key: '.', altKey: true, shiftKey: true, ctrlKey: false }), 'agenda.open');
   assert.equal(app.getState().message?.key, 'msg.agendaOpen');
   assert.ok(String(app.getState().message?.text ?? '').length > 0);
+  // 物理キー（KeyboardEvent.code）で判定: US 配列以外（key が別の文字）でも同じキーで開く（A-608）
+  assert.equal(app.handleKey({ key: ';', code: 'Comma', altKey: true, shiftKey: true, ctrlKey: false }), 'glossary.open', 'code=Comma は key によらず glossary.open');
+  assert.equal(app.handleKey({ key: ':', code: 'Period', altKey: true, shiftKey: true, ctrlKey: false }), 'agenda.open', 'code=Period は key によらず agenda.open');
+  assert.notEqual(app.handleKey({ key: ',', code: 'KeyZ', altKey: true, shiftKey: true, ctrlKey: false }), 'glossary.open', 'code が Comma でなければ開かない');
+});
+
+// NFR-A11Y-001 AC-036（FR-112 AC-635・AC-644: 矢印キーによる線の描画。手描きのモードがオフでもキーボードの操作は有効）
+test('NFR-A11Y-001 AC-036: 手描きのモードで、矢印キーでカーソルを動かし Space で線の開始・終了を切り替えると 1 本の線になる。Esc で描きかけを取りやめ、異常系はモードオフで線が増えない', async () => {
+  const { app } = await newApp();
+  const k = (key, code = key) => app.handleKey({ key, code, altKey: false, shiftKey: false, ctrlKey: false });
+  // 異常系: 手描きのモードがオフのとき、矢印と Space では線は描かれない
+  const n0 = app.getStrokes().length;
+  k('ArrowRight'); k(' ', 'Space'); k('ArrowRight'); k(' ', 'Space');
+  assert.equal(app.getStrokes().length, n0, 'モードがオフでは線が増えない');
+  assert.equal(app.getDrawState().mode, false);
+  app.handleKey(keyFor(app, 'draw.toggle'));
+  assert.equal(app.getDrawState().mode, true);
+  k(' ', 'Space');
+  assert.ok(String(app.getState().message?.text ?? '').length > 0, '線を描いている状態が文字で示される（status）');
+  k('ArrowRight'); k('ArrowRight'); k('ArrowDown');
+  k(' ', 'Space');
+  const strokes = app.getStrokes();
+  assert.equal(strokes.length, n0 + 1, '開始から終了までの軌跡が 1 本の線になる');
+  const pts = strokes.at(-1).points;
+  assert.ok(pts.length >= 2, '軌跡の点が 2 つ以上');
+  assert.ok(pts.at(-1).x > pts[0].x && pts.at(-1).y > pts[0].y, '右・下へ動いた軌跡');
+  // Esc で描きかけの線を取りやめる
+  k('Enter'); k('ArrowLeft'); k('Escape');
+  k('ArrowLeft'); k('Enter');
+  assert.equal(app.getStrokes().length, n0 + 1, 'Esc で取りやめた線は残らない（その後の Enter は新しい開始のみ）');
+  k('Escape');
+  // 取り消しも同じ操作（キー）
+  app.handleKey(keyFor(app, 'draw.undo'));
+  assert.equal(app.getStrokes().length, n0, '取り消しで戻る');
 });
 
 test('NFR-A11Y-001 AC-036: 案内・ヘルプ・サンプル・読み順の型・種類別スタイル・設定（投影のプリセット）がキーだけで操作できる', async () => {

@@ -1,5 +1,5 @@
 // DOM との結び付け（ブラウザ専用。app.js は DOM を知らない）。app の状態を描くだけで、状態は持たない。
-import { PANEL_IDS, PANEL_COMMANDS, MIN_H } from './layout.js';
+import { PANEL_IDS, PANEL_COMMANDS, MIN_H, WORK_AREA_MIN_PCT } from './layout.js';
 
 import { coalesceFrame } from './frame.js';
 import { patchHtml } from './morph.js';
@@ -324,8 +324,10 @@ export function mountUI(app, doc = document) {
     if (app.getLayoutMode() !== 'floating') return;
     const w = Math.floor(workspace.clientWidth);
     const top = workspace.getBoundingClientRect?.().top ?? 0;
-    const vh = (doc.defaultView?.innerHeight ?? 0) - Math.max(0, top) - 16;
-    const h = Math.max(MIN_H, Math.floor(vh));
+    const vw = doc.defaultView?.innerHeight ?? 0;
+    const vh = vw - Math.max(0, top) - 16;
+    // AC-641: 作業領域の高さは窓の高さの PARAM-156（55）% 以上（上部が高くても、読める広さを確保する。ページは縦にスクロールする）
+    const h = Math.max(MIN_H, Math.floor(vh), Math.ceil(vw * WORK_AREA_MIN_PCT / 100));
     if (w > 0) app.setWorkArea(w, h);
   }
   doc.defaultView?.addEventListener('resize', measureWorkArea);
@@ -986,7 +988,8 @@ export function mountUI(app, doc = document) {
   doc.addEventListener('keydown', (e) => {
     const t = e.target; const tag = String(t?.tagName ?? '').toUpperCase();
     const inTextInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t?.isContentEditable === true;
-    const cmd = app.handleKey({ key: e.key, ctrlKey: e.ctrlKey, altKey: e.altKey, shiftKey: e.shiftKey, inTextInput });
+    const inControl = !!t?.closest?.('button, a, summary, [role="button"]');
+    const cmd = app.handleKey({ key: e.key, code: e.code, ctrlKey: e.ctrlKey, altKey: e.altKey, shiftKey: e.shiftKey, inTextInput, inControl });
     if (cmd) e.preventDefault();
   });
   // FR-024: オブジェクト選択のポップアップ（図の上。role=dialog・名前つき。Esc・外側の操作で閉じる）
