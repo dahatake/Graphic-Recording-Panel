@@ -39,18 +39,19 @@ export function popupModule(ctx) {
   // FR-024 AC-572・AC-573・FR-092: 要点に元の発話（sources）・手追加（manual）・AI 要約（aiSummary）・確認状態（review）を添える
   const pointView = (p) => { const i = api.getPointInfo?.(p.id) ?? { sources: [], manual: false, aiSummary: false }; return { id: p.id, text: p.text, sources: i.sources, manual: i.manual, aiSummary: i.aiSummary, ...(i.review ? { review: i.review } : {}) }; };
   const sel = () => state.scenes.find((s) => s.id === state.selectedSceneId) ?? null;
-  const close = () => { if (!open && !focused) return; open = false; focused = false; topicId = null; notify(); };
+  const close = () => { if (!open && !focused) return; open = false; focused = false; topicId = null; notify(); ctx.emit('popup:closed'); }; // FR-108: 実際に閉じたとき
+  const beforeOpen = () => { if (!open) ctx.emit('popup:beforeOpen'); }; // FR-108: 開く直前の画面の状態を記録させる
 
   const baseSelect = api.selectScene;
   api.selectScene = (id) => {
     topicId = null;
     if (id === null || id === undefined) { chosenId = null; open = false; focused = false; ctx.change((s) => { s.selectedSceneId = null; }); return true; }
     if (!state.scenes.some((s) => s.id === id)) return false;
-    open = true; focused = false; chosenId = id; baseSelect(id);
+    beforeOpen(); open = true; focused = false; chosenId = id; baseSelect(id);
   };
   api.selectTopic = (id) => {
     if (!api.getTopics().some((tp) => tp.id === id)) return { ok: false, reason: 'not_found' };
-    open = true; focused = false; topicId = id; notify();
+    beforeOpen(); open = true; focused = false; topicId = id; notify();
     return { ok: true };
   };
   const topicPopup = () => {
@@ -86,8 +87,8 @@ export function popupModule(ctx) {
   };
   ctx.registerCommand('scene.next', () => move(1));
   ctx.registerCommand('scene.prev', () => move(-1));
-  ctx.registerCommand('popup.open', () => { if (!sel() || open || chosenId !== state.selectedSceneId) return; open = true; notify(); });
-  ctx.registerCommand('popup.focusContent', () => { if (!sel() || chosenId !== state.selectedSceneId) return; open = true; focused = true; notify(); });
+  ctx.registerCommand('popup.open', () => { if (!sel() || open || chosenId !== state.selectedSceneId) return; beforeOpen(); open = true; notify(); });
+  ctx.registerCommand('popup.focusContent', () => { if (!sel() || chosenId !== state.selectedSceneId) return; beforeOpen(); open = true; focused = true; notify(); });
   ctx.registerCommand('popup.close', close);
   for (const [key, command] of [['8', 'scene.next'], ['9', 'scene.prev'], ['5', 'popup.open'], ['6', 'popup.focusContent'], ['7', 'popup.close']]) {
     ctx.registerKey({ key, alt: true, shift: true, command });
