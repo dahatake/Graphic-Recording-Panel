@@ -675,6 +675,7 @@ function paint(host, app) {
     const places = app.getRpgMap?.()?.places;
     if (places) { const names = new Map(places.map((p) => [p.refId, p.label])); enhanceRpgDom(el, (id) => names.get(id)); }
   }
+  if (el && !reuse) app.enhanceGauges?.(el, host); // FR-109 AC-626: 指標のホバー・フォーカスで数値を示す（画面の DOM にだけ足す）
   if (el) {
     if (!reuse) { host._svgEl = el; host._base = { w: Number(el.getAttribute('width')), h: Number(el.getAttribute('height')), vb: el.getAttribute('viewBox') }; }
     const { w, h, vb } = host._base;

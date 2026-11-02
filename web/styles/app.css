@@ -121,7 +121,13 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .badge { display: inline-block; font-size: var(--font-size-caption); padding: 0 var(--space-2); border: var(--stroke) solid var(--color-border); border-radius: var(--radius-control); margin-left: var(--space-1); }
 .badge-confirmed { font-weight: var(--font-weight-semibold); }
 /* FR-092・FR-024: 「要確認」「AI 要約」「手追加」の印は、枠と文字・記号で示す（色だけに頼らない。AC-231 と同じ方針） */
-.badge-review, .badge-ai, .badge-manual, .badge-confidential { font-weight: var(--font-weight-semibold); border-color: currentColor; }
+.badge-review, .badge-ai, .badge-manual, .badge-confidential, .badge-gauge { font-weight: var(--font-weight-semibold); border-color: currentColor; }
+/* FR-109: 指標のバッジ（折り返して読める）と、ホバー・フォーカスで出す数値のツールチップ。フォーカスの輪郭を必ず見せる（動きなし） */
+.badge-gauge { white-space: normal; }
+.gauge-tip { position: fixed; z-index: 50; max-width: 320px; padding: var(--space-2) var(--space-3); background: var(--color-surface); color: var(--color-text); border: var(--stroke-thick) solid var(--color-border); border-radius: var(--radius); box-shadow: var(--shadow-8); font-size: var(--font-size-caption); pointer-events: none; }
+.gauge-tip ul { margin: var(--space-1) 0 0; padding-left: var(--space-4); }
+.diagram-canvas [data-gauge-point]:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .gauge-tip { transition: none; animation: none; } }
 .badge-selected { font-weight: var(--font-weight-semibold); text-decoration: underline; }
 
 /* 手修正フォーム（テキスト一覧パネルの下のカード） */
