@@ -8,6 +8,7 @@ import { escapeHtml } from './outline.js';
 export const PROJECTION_KEY = 'grp.projection';
 export const PRESENTATION_MIN_PX = 24; // PARAM-137
 export const PRESENTATION_BASE_WIDTH = 1920;
+export const SLIDE_ITEM_MAX = 16; // PARAM-142: 1 枚に載せる項目の数
 // PARAM-138: 投影のプリセット（既定は「使わない」＝ null）
 export const PROJECTION_PRESETS = Object.freeze([
   Object.freeze({ id: 'meeting-small', widthPx: 1280, distanceM: 3, minPx: 18 }),
