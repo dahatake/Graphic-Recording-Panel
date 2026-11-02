@@ -161,3 +161,39 @@ test('NFR-A11Y-001 AC-036 異常系: 存在しない要点は選べず、機密�
   app.handleKey(keyFor(app, 'point.confidential'));
   assert.ok(app.getState().scenes.flatMap((s) => s.points).every((q) => q.confidential !== true), '選択がないので印は付かない');
 });
+
+// NFR-A11Y-001 AC-036（5c05a4e の改訂: 用語集・議題の観察点、案内・ヘルプ・投影・読み順の型・種類別スタイルの設定もキー対象。契約: CONTRACT-P1.md §3）
+test('NFR-A11Y-001 AC-036: glossary.open（Alt+Shift+,）・agenda.open（Alt+Shift+.）がキーだけで実行でき、状態メッセージで受け付けが分かる', async () => {
+  const { app } = await newApp();
+  const g = app.keymap.find((k) => k.command === 'glossary.open');
+  const a = app.keymap.find((k) => k.command === 'agenda.open');
+  assert.deepEqual([g.key, !!g.alt, !!g.shift, !!g.ctrl], [',', true, true, false], 'glossary.open は Alt+Shift+,');
+  assert.deepEqual([a.key, !!a.alt, !!a.shift, !!a.ctrl], ['.', true, true, false], 'agenda.open は Alt+Shift+.');
+  assert.equal(app.handleKey({ key: ',', altKey: true, shiftKey: true, ctrlKey: false }), 'glossary.open');
+  assert.equal(app.getState().message?.key, 'msg.glossaryOpen');
+  assert.ok(String(app.getState().message?.text ?? '').length > 0, '読み上げる文字がある');
+  assert.equal(app.handleKey({ key: '.', altKey: true, shiftKey: true, ctrlKey: false }), 'agenda.open');
+  assert.equal(app.getState().message?.key, 'msg.agendaOpen');
+  assert.ok(String(app.getState().message?.text ?? '').length > 0);
+});
+
+test('NFR-A11Y-001 AC-036: 案内・ヘルプ・サンプル・読み順の型・種類別スタイル・設定（投影のプリセット）がキーだけで操作できる', async () => {
+  const { app } = await newApp();
+  const cmds = ['help.open', 'sample.load', 'onboarding.next', 'onboarding.back', 'onboarding.skip',
+    'layoutType.timeline', 'layoutType.add.timeline', 'layoutType.clear', 'kindStyle.toggle', 'kindStyle.recommend', 'settings.open'];
+  for (const c of cmds) { assert.equal(typeof app.commands[c], 'function', `commands[${c}]`); assert.ok(keyFor(app, c), `keymap に ${c}`); }
+  const combos = app.keymap.map((k) => `${!!k.ctrl}${!!k.alt}${!!k.shift}${k.key}`);
+  assert.equal(new Set(combos).size, combos.length, 'キーの割り当てが重複しない');
+  assert.equal(app.handleKey(keyFor(app, 'help.open')), 'help.open');
+  assert.equal(app.getOnboarding()?.step, 1, 'ヘルプのキーで案内が開く');
+  assert.equal(app.handleKey(keyFor(app, 'onboarding.skip')), 'onboarding.skip');
+  assert.equal(app.getOnboarding(), null);
+  const before = app.getState().kindStyles?.enabled ?? app.getState().kindStyles;
+  app.handleKey(keyFor(app, 'kindStyle.toggle'));
+  assert.notDeepEqual(app.getState().kindStyles?.enabled ?? app.getState().kindStyles, before, '種類別スタイルの有効・無効がキーで切り替わる');
+  app.handleKey(keyFor(app, 'settings.open'));
+  assert.ok(app.getSettingsDialog(), 'キーで設定が開く');
+  assert.ok(app.getSettingsView().fields.some((f) => /projection/i.test(f.id)), '投影のプリセットの項目が設定にある（キーで選べる combobox）');
+  assert.equal(app.setProjectionPreset('hall').ok, true);
+  assert.equal(app.getProjectionPreset().id, 'hall');
+});

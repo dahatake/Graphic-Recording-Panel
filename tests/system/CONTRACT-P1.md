@@ -32,3 +32,8 @@ System Test（`preview.test.js`・`onboarding.test.js`・`view.test.js` の AC-0
 
 ## 6. AC-426 の種類の順（9 種類）
 `rearrange-util.js` の `KIND_ORDER` は 結論・課題・提案・アイデア・未決定・質問・根拠・行動・補足。`T.question`（「どの会議室を予約しますか」）・`T.evidence`（「たとえば昨年は二十名でした」）・`T.action`（「田中さんが見積を共有します」）を加え、E2E-220（`AC-435` の pattern。FR-079 の AC-426 を含む）の同じテストを広げた。台帳の system ケースは E2E-220 のまま（AC-426 の検証レベルは integration）。
+
+### 3 追記（5c05a4e。AC-036 の改訂）
+- `glossary.open`（Alt+Shift+,）・`agenda.open`（Alt+Shift+.）は、キーで実行すると `getState().message` が `{ key:'msg.glossaryOpen'|'msg.agendaOpen', text }`（空でない文字）になる（status で読み上げ）。専用の画面は次の run。
+- キー対象に、案内・ヘルプ・サンプル（`help.open` `sample.load` `onboarding.*`）、読み順の型（`layoutType.*`・`layoutType.clear`）、種類別スタイル（`kindStyle.toggle`・`kindStyle.recommend`）、設定（`settings.open` と、その中の投影のプリセットの項目）を含む。
+- AC-358: 機密の印（`point.confidential`）の要点は、保存の選択によらず `/api/llm/extract` の `body.input` に含まれない（`llm-consent-persist.test.js`）。
