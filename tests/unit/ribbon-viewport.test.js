@@ -59,7 +59,7 @@ test('NFR-UX-003 AC-641・AC-642: 窓の高さ 768 で折りたたんで起動�
 
 test('NFR-UX-003 AC-579: 開閉ボタンは窓の高さによらず表示され、折りたたみは CSS が常に効く', () => {
   assert.match(css, /\.ribbon-toggle \{ display: inline-flex;/);
-  assert.match(css, /\.commandbar\[data-collapsed="true"\] \{ display: none; \}/);
+  assert.match(css, /\.commandbar\[data-collapsed="true"\] \{ visibility: hidden;/); // AC-645: 主操作ボタンだけ visible に戻す（display:none にしない）
   assert.match(css, /body \{ overflow-y: auto; \}/);
 });
 

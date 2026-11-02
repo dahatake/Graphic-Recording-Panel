@@ -124,9 +124,11 @@ test('FR-078 AC-420 / FR-077 AC-414: 既存 4 つの画風の一覧の短い説�
       assert.equal(opts.find((o) => o.id === id).description, text, `${lang} ${id}`);
       assert.notEqual(text, app.getDrawStyleDescription(id).drawing, '画像生成用の記述とは別');
     }
-    // 9 つの風は従来どおり画風の記述（描画の文）を短い説明に使う
+    // 9 つの風は画風の記述（描画の文）の最初の文を短い説明に使い、PARAM-170（40 文字。英語は半角で 2 倍）以内に収める
     const yb = opts.find((o) => o.id === 'yellowBlack');
-    assert.equal(yb.description, app.getDrawStyleDescription('yellowBlack').drawing);
+    const drawing = app.getDrawStyleDescription('yellowBlack').drawing;
+    assert.ok(drawing.startsWith(yb.description.replace(/…$/, '')), `${lang}: ${yb.description}`);
+    assert.ok(yb.description.length > 0 && yb.description.length <= drawing.length);
   }
 });
 

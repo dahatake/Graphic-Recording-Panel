@@ -411,9 +411,18 @@ export async function createApp(options = {}) {
   app.searchCommands = (query) => {
     const q = String(query ?? '').trim().toLowerCase();
     if (!q) return [];
+    // 並び（AC-133・PARAM-164）: 完全一致 → 「見出し: 項目」の項目部分が完全一致 → 前方一致 → 部分一致。同順位は登録順
+    const rank = (label) => {
+      const l = label.toLowerCase();
+      if (l === q) return 0;
+      if (l.split(/[:：]\s*/).slice(1).some((seg) => seg.trim() === q)) return 1;
+      return l.startsWith(q) ? 2 : 3;
+    };
     return Object.keys(commands)
-      .map((command) => ({ command, label: i18n.t(`cmd.${command}`) }))
-      .filter((c) => c.label && c.label !== `cmd.${c.command}` && c.label.toLowerCase().includes(q));
+      .map((command, i) => ({ command, label: i18n.t(`cmd.${command}`), i }))
+      .filter((c) => c.label && c.label !== `cmd.${c.command}` && c.label.toLowerCase().includes(q))
+      .sort((a, b) => rank(a.label) - rank(b.label) || a.i - b.i)
+      .map(({ command, label }) => ({ command, label }));
   };
 
   // ---- キーボード ----

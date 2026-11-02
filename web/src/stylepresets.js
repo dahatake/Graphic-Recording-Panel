@@ -13,6 +13,8 @@ export const HEADING_DECORATIONS = ['band', 'marker', 'sticky', 'classic'];
 export const BALLOON_SHAPES = ['cloud', 'rounded', 'sticky'];
 export const PALETTE_ROLES = ['background', 'primary', 'accent', 'text', 'secondary'];
 export const DESCRIPTION_AXES = ['color', 'drawing', 'font', 'mood'];
+export const DESCRIPTION_AXIS_MAX = 60; // PARAM-169: 画風の記述（1 軸）の最大の長さ（日本語の文字数。英語は半角で 2 倍）
+export const textWeight = (s) => [...String(s ?? '')].reduce((n, ch) => n + (ch.codePointAt(0) >= 0x2e80 ? 1 : 0.5), 0);
 export const VISUAL_KEYS = ['palette', 'paper', 'font', 'headingDecoration', 'balloon', 'stroke', 'figures', 'icons'];
 // PARAM-007: 本文の文字の最小コントラスト比。PARAM-083: 要点の枠・吹き出しの輪郭と紙面の最小コントラスト比。
 export const MIN_TEXT_CONTRAST = 4.5;
@@ -128,7 +130,7 @@ export function validatePresetFields(def) {
   if (def.icons !== undefined && typeof def.icons !== 'boolean') return { ok: false, reason: 'invalid_icons' };
   if (def.description !== undefined) {
     const d = def.description;
-    const axesOk = (o) => isObj(o) && DESCRIPTION_AXES.every((a) => typeof o[a] === 'string' && o[a].trim());
+    const axesOk = (o) => isObj(o) && DESCRIPTION_AXES.every((a) => typeof o[a] === 'string' && o[a].trim() && textWeight(o[a].trim()) <= DESCRIPTION_AXIS_MAX);
     if (!isObj(d) || !Object.keys(d).length || !Object.values(d).every(axesOk)) return { ok: false, reason: 'invalid_description' };
   }
   return { ok: true };
@@ -160,7 +162,7 @@ export const PRESET_STYLES = [
     paper: 'plain', font: 'handwriting', headingDecoration: 'band', balloon: 'cloud', stroke: { wobble: 1, width: 3.2 }, figures: true, icons: true,
     description: {
       ja: d('白い紙に黄色・黒・グレーの 3 色。黄色は強調・吹き出し・アイコンの塗り、黒は文字と枠、グレーは区切り線と影', '揺らぎのある太めの手描きの線。黄色い雲形の吹き出しに黒の輪郭線。丸い頭と細い線のシンプルな人物の線画と小さなアイコン', '手書き風の柔らかく少し太めで丸みのある文字。見出しは黒い帯に白抜きの文字', 'やさしく温かく親しみやすい'),
-      en: d('Three colors on white paper: yellow, black and gray. Yellow for highlights, speech balloons and icon fills, black for text and frames, gray for dividers and shadows', 'Bold hand-drawn lines with a slight wobble. Yellow cloud speech balloons with black outlines. Simple line-art people with round heads and thin lines, plus small icons', 'Soft, slightly bold and rounded handwritten lettering. Headings in white letters on black bands', 'Gentle, warm and friendly'),
+      en: d('Yellow, black and gray on white paper. Yellow for highlights and balloons, black for text and frames, gray for dividers', 'Bold, slightly wobbly hand-drawn lines. Yellow cloud balloons with black outlines. Simple line-art people, small icons', 'Soft, slightly bold and rounded handwritten lettering. Headings in white letters on black bands', 'Gentle, warm and friendly'),
     },
   },
   {
@@ -169,7 +171,7 @@ export const PRESET_STYLES = [
     paper: 'chalkboard', font: 'handwriting', headingDecoration: 'marker', balloon: 'rounded', stroke: { wobble: 1.2, width: 3 }, figures: true, icons: true,
     description: {
       ja: d('濃い緑の黒板に白いチョーク。強調は黄・ピンク・水色の色チョーク、薄い白の消し跡', 'やや太めで揺らぎのあるチョークの線。粉っぽい質感。チョークで描いた角丸の吹き出しと人物の線画・絵記号', '手書き風のチョークの文字。見出しはチョークの下線で強調', '授業のような親しみ'),
-      en: d('White chalk on a dark green chalkboard. Yellow, pink and light blue colored chalk for emphasis, with faint white eraser marks', 'Slightly thick, wobbly chalk lines with a dusty texture. Rounded chalk speech balloons, line-art people and pictograms', 'Handwritten chalk lettering. Headings underlined with chalk', 'Friendly, like a classroom lesson'),
+      en: d('White chalk on a dark green chalkboard. Yellow, pink and light blue chalk for emphasis, with faint eraser marks', 'Slightly thick, wobbly chalk lines with a dusty texture. Rounded chalk speech balloons, line-art people and pictograms', 'Handwritten chalk lettering. Headings underlined with chalk', 'Friendly, like a classroom lesson'),
     },
   },
   {
@@ -187,7 +189,7 @@ export const PRESET_STYLES = [
     paper: 'ruled', font: 'handwriting', headingDecoration: 'marker', balloon: 'rounded', stroke: { wobble: 1.6, width: 1.4 }, figures: true, icons: true,
     description: {
       ja: d('薄い青の罫線のノートに青の色鉛筆。強調は赤・橙の色鉛筆、文字は濃いグレーの鉛筆', '細めで揺らぎの大きい色鉛筆の線。角丸の吹き出し、人物の線画と絵記号', '手書き風の少し歪んだ鉛筆の文字。見出しは色鉛筆の下線で強調', '柔らかい手描きのノート'),
-      en: d('Blue colored pencil on a notebook with light blue ruled lines. Red and orange pencil for emphasis, dark gray pencil for text', 'Thin, noticeably wobbly colored-pencil lines. Rounded speech balloons, line-art people and pictograms', 'Slightly uneven handwritten pencil lettering. Headings underlined in colored pencil', 'A soft hand-drawn notebook'),
+      en: d('Blue colored pencil on a notebook with light blue ruled lines. Red and orange for emphasis, dark gray for text', 'Thin, noticeably wobbly colored-pencil lines. Rounded speech balloons, line-art people and pictograms', 'Slightly uneven handwritten pencil lettering. Headings underlined in colored pencil', 'A soft hand-drawn notebook'),
     },
   },
   {

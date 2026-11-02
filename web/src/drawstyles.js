@@ -20,7 +20,7 @@ const dsc = (color, drawing, font, mood) => ({ color, drawing, font, mood });
 const LEGACY_DESCRIPTIONS = {
   handwritten: {
     ja: dsc('白い紙に黒の線と文字。要点の種類ごとに緑・赤・橙・青・紫・青緑の落ち着いた色の枠で区別する', '少し揺らぐ手描きの線で描いた枠と矢印。要点ごとに小さな絵記号を添える', '読みやすい標準の太さの文字。見出しは本文より大きく', '手描きの温かみがあり、落ち着いた'),
-    en: dsc('Black lines and text on white paper. Points are told apart by frames in calm green, red, orange, blue, purple and teal by kind', 'Frames and arrows drawn with slightly wobbly hand-drawn lines, with a small pictogram for each point', 'Easy-to-read lettering of regular weight. Headings larger than the body text', 'Calm, with a warm hand-drawn feel'),
+    en: dsc('Black lines and text on white paper. Kinds of points get calm green, red, orange, blue, purple or teal frames', 'Frames and arrows drawn with slightly wobbly hand-drawn lines, with a small pictogram for each point', 'Easy-to-read lettering of regular weight. Headings larger than the body text', 'Calm, with a warm hand-drawn feel'),
   },
   anime: {
     ja: dsc('白い背景に、要点の種類ごとの色を淡く塗った面と、同じ色の濃い輪郭', '揺らぎのない太めのくっきりした輪郭線と、角の丸い塗りの面。絵記号を添える', '太字の見出しと、はっきりした本文の文字', 'くっきりと明るいアニメのような'),

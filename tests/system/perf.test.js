@@ -22,7 +22,7 @@ function assertResponsive(r, label) {
 function assertSmooth(r, label) {
   assert.ok(r.fps >= PERF.MIN_FPS, `${label}: 平均 ${r.fps.toFixed(1)}fps < ${PERF.MIN_FPS}fps`);
   const worst = Math.max(0, ...r.long);
-  assert.ok(worst <= PERF.RESPONSE_MS, `${label}: 長いタスク ${worst.toFixed(1)}ms > ${PERF.RESPONSE_MS}ms`);
+  assert.ok(worst <= PERF.LONG_MS, `${label}: 長いタスク ${worst.toFixed(1)}ms > ${PERF.LONG_MS}ms`);
 }
 
 // NFR-PERF-002 AC-395
@@ -46,11 +46,11 @@ test('NFR-PERF-002 AC-395: 準備中でコマンドバーに押せるボタン�
 });
 
 // NFR-PERF-002 AC-396
-test('NFR-PERF-002 AC-396: 準備中でコマンドバー・パネル・図へのクリックとホバー各 20 回の入力 → 次の描画が 95 パーセンタイルで 100ms 以内', async () => {
+test('NFR-PERF-002 AC-396: 準備中でコマンドバー・パネル・図へのクリックとホバー各 PARAM-166（50）回の入力 → 次の描画が 95 パーセンタイルで 100ms 以内', async () => {
   await withApp(async (page) => {
     await warm(page);
     await measureStart(page);
-    await clickHoverRounds(page, 20);
+    await clickHoverRounds(page, PERF.SAMPLES);
     await settle(page);
     assertResponsive(await measureStop(page), 'クリック・ホバー');
   });
@@ -152,7 +152,7 @@ async function measurePaused(page, n) {
   await settle(page);
   await warm(page);
   await measureStart(page);
-  await clickHoverRounds(page, 20);
+  await clickHoverRounds(page, PERF.SAMPLES);
   await settle(page);
   const ch = await measureStop(page);
   await measureStart(page);
@@ -173,7 +173,7 @@ test('NFR-PERF-003 AC-536: 一時停止のセッションで、5000 件のクリ
       assert.equal(r.after.session, 'paused', `${label}: 操作の後に一時停止のままでない`);
       assertSmooth(r.dr, `${label}（${n} 件）のドラッグ・スクロール`);
       const worstClick = Math.max(0, ...r.ch.long);
-      assert.ok(worstClick <= PERF.RESPONSE_MS, `${label}（${n} 件）のクリック・ホバー中に長いタスク ${worstClick.toFixed(1)}ms > ${PERF.RESPONSE_MS}ms`);
+      assert.ok(worstClick <= PERF.LONG_MS, `${label}（${n} 件）のクリック・ホバー中に長いタスク ${worstClick.toFixed(1)}ms > ${PERF.LONG_MS}ms`);
     }
     assertResponsive(huge.ch, `${PERF.HUGE_UTTERANCES} 件のクリック・ホバー`);
     const b = p95(base.ch.lat); const h = p95(huge.ch.lat); const inc = h - b;
