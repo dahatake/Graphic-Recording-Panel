@@ -52,3 +52,22 @@ test('FR-112 AC-639: 2 色で 2 本描き、1 本を消しゴムで消して取�
   assert.deepEqual(strokes(app).map((s) => s.points), two.map((s) => s.points), '読込で同じ位置に復元');
   assert.ok(app.renderSvgForSave().includes('data-stroke-id'), '読込後の SVG にも含まれる');
 });
+
+// FR-112 AC-639（rd-author 5cd447f の改訂: 手描きの機密の扱い AC-638）。台帳は blocked（次の run で実装）。
+test('FR-112 AC-639 異常系: 「機密の要点を除く」の保存では、機密の要点と重なる線だけが出力から除かれ、重ならない線は残り、残る線があるとき警告が出る', async () => {
+  const { app, env } = await newApp();
+  await seedThreeScenes(app, env); toDetail(app);
+  const p = app.getState().scenes.at(-1).points[0];
+  app.selectPoint(p.id); app.commands['point.confidential']();
+  const box = app.getPointBox(p.id); // 図の座標の外接矩形 { x, y, width, height }（契約 §4）
+  app.commands['draw.toggle']();
+  drawLine(app, { x: box.x + 2, y: box.y + 2 }, { x: box.x + box.width - 2, y: box.y + box.height - 2 });
+  drawLine(app, { x: 5, y: 5 }, { x: 30, y: 8 });
+  const [over, free] = app.getStrokes();
+  app.setExcludeConfidential(true);
+  const svg = app.renderSvgForSave();
+  assert.ok(!svg.includes(`data-stroke-id="${over.id}"`), '機密の要点と重なる線は除かれる');
+  assert.ok(svg.includes(`data-stroke-id="${free.id}"`), '重ならない線は残る');
+  assert.ok(app.getSaveWarnings().some((w) => w.includes('手描きは図の座標に固定され要点に結びつかないため、要点と重ならない線は残ります')), '警告が文字で出る');
+  assert.equal(app.getStrokes().length, 2, 'アプリ内の線は変わらない');
+});

@@ -79,3 +79,40 @@ test('FR-106 AC-616 異常系・参考: 位置づけが「参考」の結果は�
   const o = await outputs(app, env);
   for (const [k, s] of Object.entries(o)) for (const w of ['参考', '重大なリスク', '未評価']) assert.ok(s.includes(w), `${k}: 「${w}」`);
 });
+// FR-106 AC-616（rd-author 5cd447f の改訂: 投票者は任意のラベル・持ち票数は投票者ごと・機密の要点の選択肢は「除く」保存から除く。AC-606・AC-620）
+test('FR-106 AC-616 異常系: 投票者は任意のラベル（省略時は連番）で持ち票数は投票者ごと、集計は合算。機密の要点の選択肢と結果は「機密の要点を除く」の保存から除かれる', async () => {
+  const { app, env } = await newApp();
+  await seedThreeScenes(app, env); toDetail(app);
+  const p = app.getState().scenes.at(-1).points[0];
+  app.selectPoint(p.id); app.commands['point.confidential']();
+  assert.equal(app.getState().scenes.at(-1).points.find((q) => q.id === p.id).confidential, true);
+  // 投票者 2 人（2 人目のラベルは省略）。選択肢 C は機密の要点に由来する
+  assert.equal(app.startVote({ options: ['A案', 'B案', { label: 'C機密案XYZ', pointId: p.id }], voters: ['営業部', ''] }).ok, true);
+  const voters = app.getVote().voters;
+  assert.equal(voters.length, 2);
+  assert.equal(voters[0].label, '営業部');
+  assert.equal(voters[1].label, '投票者 2', '省略時は連番');
+  assert.equal(app.setVoteStance('decision').ok, true);
+  const v1 = voters[0].id, v2 = voters[1].id;
+  for (let i = 0; i < 3; i++) assert.equal(app.castVote(optId(app, 'A案'), v1).ok, true);
+  assert.equal(app.castVote(optId(app, 'B案'), v1).ok, false, '持ち票数は投票者 1 人あたり。超える票は受け付けない');
+  for (const l of ['C機密案XYZ', 'C機密案XYZ', 'B案']) assert.equal(app.castVote(optId(app, l), v2).ok, true, '別の投票者は別に 3 票持つ');
+  assert.equal(app.tallyVote().ok, true);
+  const r = app.getVote().result.ranking;
+  assert.equal(r.find((x) => x.optionId === optId(app, 'A案')).votes, 3, '集計は投票者を合算');
+  assert.equal(r.find((x) => x.optionId === optId(app, 'C機密案XYZ')).votes, 2);
+  // 画面・テキスト一覧には機密の選択肢も残り、「除かない」保存には載る
+  assert.ok(app.renderVote().includes('C機密案XYZ'));
+  app.setExcludeConfidential(false);
+  env.downloads.length = 0;
+  await app.commands['save.markdown'](); assert.ok(String(env.downloads.at(-1).data).includes('C機密案XYZ'), '除かない保存には載る');
+  // 「除く」保存: 選択肢・結果が 5 形式から除かれ、除外の件数だけが載る
+  app.setExcludeConfidential(true);
+  await app.commands['save.markdown'](); const md = String(env.downloads.at(-1).data);
+  await app.commands['save.html'](); const html = String(env.downloads.at(-1).data);
+  for (const [k, s] of Object.entries({ md, html })) {
+    assert.ok(!s.includes('C機密案XYZ'), `${k}: 機密の選択肢の文字が載らない`);
+    assert.ok(s.includes('機密の要点を除外'), `${k}: 除外の件数が載る`);
+  }
+  assert.ok(app.getVote().options.some((o) => o.label === 'C機密案XYZ'), 'セッションの保存・アプリ内の表示は対象外（残る）');
+});
