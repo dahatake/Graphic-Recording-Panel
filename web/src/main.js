@@ -5,6 +5,7 @@ import { mountEditUI } from './edit-ui.js';
 import { mountMinutesUI } from './minutes-ui.js';
 import { mountPromptFallback, mountPromptNotice } from './imageprompt-ui.js';
 import { mountApiKeysUI } from './apikeys-ui.js';
+import { mountGlossaryUI } from './glossary-ui.js';
 import { mountOnboardingUI } from './onboarding-ui.js';
 import { mountRibbonToggle } from './ribbontoggle.js';
 import { relayRequest } from './relayclient.js';
@@ -31,6 +32,7 @@ const ui = mountUI(app);
 void app.refreshAzureSpeechStatus?.();
 mountEditUI(app);
 mountMinutesUI(app); // FR-094 AC-553〜555: 議事項目の一覧（候補の確定・却下・編集、項目の追加）
+mountGlossaryUI(app); // FR-093 AC-549: 用語集の画面
 mountApiKeysUI(app); // FR-084・FR-085: 接続キー画面（中央のモーダル）
 mountOnboardingUI(app); // FR-103: 初回の案内・ヘルプ・サンプルの印
 mountPromptNotice(app); // FR-078 AC-470〜473: コピーの前の注意（伏せ字の選択・コピー・キャンセル）
