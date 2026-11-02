@@ -9,7 +9,18 @@ export const UNDO_LIMIT = 50; // PARAM-123
 // ---- 判定（AC-544） ----
 const NUM_RE = /[0-9０-９]|[〇二三四五六七八九]|一(?=[つ日月年人回番時分秒件台個本枚円万千百十])|[一二三四五六七八九十百千](?=[十百千万億兆])|[十百千](?=[一二三四五六七八九])/u;
 const DATE_RE = /[0-9０-９〇一二三四五六七八九十]+\s*[年月日]|[月火水木金土日]曜|来週|再来週|今週|先週|明日|明後日|昨日|今日|来月|先月|今月|来年|去年|今年|翌日|翌週|翌月/u;
-const PROPER_RE = /[ァ-ヶー]{3,}|[A-ZＡ-Ｚ]{3,}|(?<!く)さん|(?<![同多異模各仕一])様(?![々子式態])|株式会社|有限会社|合同会社|（株）|\(株\)|㈱/u;
+const PROPER_REST_RE = /[A-ZＡ-Ｚ]{3,}|(?<!く)さん|(?<![同多異模各仕一])様(?![々子式態])|株式会社|有限会社|合同会社|（株）|\(株\)|㈱/u;
+export const KATAKANA_MIN = 3; // PARAM-141
+// AC-544・A-287: 通常語の除外語（PARAM-159。完全一致。連続するカタカナの並びがこの語そのものなら固有名詞らしい語にしない）
+export const KATAKANA_STOPWORDS = Object.freeze(['システム', 'メンバー', 'サービス', 'データ', 'ユーザー', 'プロジェクト', 'チーム', 'スケジュール', 'ミーティング', 'コミュニケーション', 'アクション', 'メール', 'ファイル', 'ページ', 'テスト', 'レビュー', 'リスク', 'コスト', 'プラン', 'イメージ']);
+const KATAKANA_RUN_RE = /[ァ-ヶー]+/gu;
+function hasProperKatakana(s) {
+  for (const m of s.matchAll(KATAKANA_RUN_RE)) {
+    if ([...m[0]].length >= KATAKANA_MIN && !KATAKANA_STOPWORDS.includes(m[0])) return true;
+  }
+  return false;
+}
+const isProperLike = (s) => hasProperKatakana(s) || PROPER_REST_RE.test(s);
 export const REASONS = ['number', 'date', 'proper', 'ai', 'provisional'];
 
 export function judgeReview(text, { glossary = [], aiGuess = false, provisional = false } = {}) {
@@ -18,7 +29,7 @@ export function judgeReview(text, { glossary = [], aiGuess = false, provisional 
   if (NUM_RE.test(s)) reasons.push('number');
   if (DATE_RE.test(s)) reasons.push('date');
   const low = s.normalize('NFKC').toLowerCase();
-  if (PROPER_RE.test(s) || (glossary ?? []).some((g) => { const k = String(g ?? '').normalize('NFKC').trim().toLowerCase(); return k && low.includes(k); })) reasons.push('proper');
+  if (isProperLike(s) || (glossary ?? []).some((g) => { const k = String(g ?? '').normalize('NFKC').trim().toLowerCase(); return k && low.includes(k); })) reasons.push('proper');
   if (aiGuess === true) reasons.push('ai');
   if (provisional === true) reasons.push('provisional');
   return { needsReview: reasons.length > 0, reasons };
