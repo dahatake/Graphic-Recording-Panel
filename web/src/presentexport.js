@@ -6,6 +6,7 @@ import { renderDiagramSvg, classifyPoint } from './diagram.js';
 import { stampName } from './export.js';
 import { markdownHead, htmlHead } from './meetingout.js';
 import { PHRASES } from './minutes.js';
+import { SLIDE_ITEM_MAX } from './projection.js';
 
 export const DWELL_SEC = 8; // PARAM-004
 
@@ -87,7 +88,7 @@ export function buildMarkdown({ scenes, topics, relations = [], level = 'detail'
   return `${out.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()}\n`;
 }
 // FR-100 AC-590: 表示される文字は 24 px（図の幅 1920 px 換算＝幅の 1.25%）を下回らない。基準の文字（1rem）を max(1.25vw,16px) にし、見出し・項目・操作は 1rem 以上
-export const SLIDE_ITEM_MAX = 16; // 1 枚に載せる項目の数。超えるときは文字を縮めず、次のスライドへ分ける（どの項目も省かない）
+export { SLIDE_ITEM_MAX }; // PARAM-142（projection.js で定義）。超えるときは文字を縮めず、次のスライドへ分ける（どの項目も省かない）
 const CSS = 'html{font-size:max(1.25vw,16px)}html,body{margin:0;height:100%;background:#fff;color:#1a1a1a;font-family:system-ui,"Yu Gothic","Hiragino Sans",sans-serif}'
   + 'main{height:100%;display:flex;flex-direction:column}section[data-slide]{display:none;flex:1;overflow:auto;padding:24px 32px}'
   + 'section[data-slide][data-active="true"]{display:block}h1{font-size:1.5rem;margin:0 0 12px}ul{padding:0;margin:0;list-style:none}li{display:inline-block;font-size:1rem;margin:4px 6px 4px 0;padding:4px 10px;border:1px solid #888;border-radius:8px}'
