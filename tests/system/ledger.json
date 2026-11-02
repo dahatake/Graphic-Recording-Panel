@@ -267,7 +267,9 @@
     "AC-645": "sha256:b180b72c6128d0eb",
     "AC-646": "sha256:cc50a25366453ab8",
     "AC-493": "sha256:34a86b8f73b84efa",
-    "AC-494": "sha256:94d5d9224ca1d351"
+    "AC-494": "sha256:94d5d9224ca1d351",
+    "AC-341": "sha256:18c82ba246abe2dd",
+    "AC-454": "sha256:6761f82854320b79"
   },
   "cases": [
     {
@@ -3963,13 +3965,13 @@
         "NFR-SEC-003"
       ],
       "ac_ids": [
-        "AC-494"
+        "AC-341"
       ],
       "title": "リポジトリにキー・トークンの実値らしい文字列が 0 件",
       "layer": "contract",
       "command": "node --test --test-name-pattern=AC-341 tests/system/llmrelay.test.js",
       "canary": false,
-      "status": "not_run",
+      "status": "blocked",
       "last_commit": null,
       "last_run_at": null,
       "evidence": null,
@@ -3991,6 +3993,18 @@
           "by": "test-designer",
           "change": "ac_ids: ['AC-341'] -> ['AC-494']",
           "reason": "AC-341 を AC-494 に統合（A-210）。ブロックのまま寄せる"
+        },
+        {
+          "at": "2026-11-02T18:21:17+09:00",
+          "by": "test-designer",
+          "change": "ac_ids: ['AC-494'] -> ['AC-341']",
+          "reason": "AC-494 は integration のため system 台帳の対象外。元の AC に戻し、ブロックのまま（AC-494 へ統合済み）"
+        },
+        {
+          "at": "2026-11-02T18:21:40+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-494 に統合（AC-341 は廃止）"
         }
       ]
     },
@@ -4115,6 +4129,12 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "検証レベルが integration のため System Test の対象外（単体・結合で確認。テストは参考として残す）"
+        },
+        {
+          "at": "2026-11-02T18:21:41+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-343 の対象は integration"
         }
       ]
     },
@@ -7108,13 +7128,13 @@
         "NFR-SEC-005"
       ],
       "ac_ids": [
-        "AC-493"
+        "AC-454"
       ],
       "title": "キーは git 管理外の保管先に DPAPI（Windows）/0600 で保存され平文を含まず、再起動後も設定済み",
       "layer": "api",
       "command": "node --test --test-name-pattern=\"AC-454\" tests/system/azurespeech-relay.test.js",
       "canary": false,
-      "status": "not_run",
+      "status": "blocked",
       "last_commit": null,
       "last_run_at": null,
       "evidence": null,
@@ -7136,6 +7156,18 @@
           "by": "test-designer",
           "change": "ac_ids: ['AC-454'] -> ['AC-493']",
           "reason": "AC-454 を AC-493 に統合（A-210）。ブロックのまま寄せる"
+        },
+        {
+          "at": "2026-11-02T18:21:18+09:00",
+          "by": "test-designer",
+          "change": "ac_ids: ['AC-493'] -> ['AC-454']",
+          "reason": "AC-493 は integration のため system 台帳の対象外。元の AC に戻し、ブロックのまま（AC-493 へ統合済み）"
+        },
+        {
+          "at": "2026-11-02T18:21:41+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-493 に統合（AC-454 は廃止）"
         }
       ]
     },
