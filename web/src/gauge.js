@@ -72,10 +72,11 @@ export const fmt = (n) => (Number.isInteger(n) ? String(n) : String(Math.round(n
 const withUnit = (n, u) => `${fmt(n)}${u ?? ''}`;
 const pctOf = (v, unit) => (unit === '割' ? v * 10 : v); // 比率に向く単位（% と 割）を % の値にそろえる
 
+const RE_QUICK = new RegExp(`\\d\\s?${UNIT}|目標|KPI|前年比|前月比|target|goal`, 'i'); // 指標になり得ない要点は、重い判定の前に外す
 // 要点の文字から指標を検出する（決定的）。指標がなければ null。
 export function detectGauge(text, lang = 'ja') {
   const raw = String(text ?? '');
-  if (!/[0-9０-９]/.test(raw)) return null;
+  if (!/[0-9０-９]/.test(raw) || !RE_QUICK.test(raw.normalize('NFKC'))) return null;
   let s = raw.normalize('NFKC').replace(RE_DATE, ' ');
   // 目標
   let target = null; let targetUnit = '';
@@ -255,14 +256,14 @@ export function gaugeModule(ctx) {
     en: { 'gauge.heading': 'Metrics (numeric points)', 'gauge.tip': 'Metric values' },
   });
   const lang = () => state.lang;
-  // 同じ文字・同じ言語は同じ結果（NFR-PERF-003: 要点ごとの判定を繰り返さない）
-  const memo = new Map();
-  const detect = (text) => {
-    const k = `${lang()}\u0001${text}`;
-    if (memo.has(k)) return memo.get(k);
-    if (memo.size > 5000) memo.clear();
-    const g = detectGauge(text, lang());
-    memo.set(k, g);
+  // 同じ要点（文字・言語が同じ）は同じ結果を使い回す（NFR-PERF-003: 5000 件でも描画のたびに判定し直さない）
+  const memo = new WeakMap();
+  const detect = (p) => {
+    const L = lang();
+    const m = memo.get(p);
+    if (m && m.text === p.text && m.lang === L) return m.g;
+    const g = detectGauge(p.text, L);
+    memo.set(p, { text: p.text, lang: L, g });
     return g;
   };
   const decorate = (g, p) => {
@@ -273,7 +274,7 @@ export function gaugeModule(ctx) {
   };
   const compute = (scenes) => {
     const out = [];
-    for (const s of scenes) for (const p of s.points) { const g = detect(p.text); if (g) out.push(decorate(g, p)); }
+    for (const s of scenes) for (const p of s.points) { const g = detect(p); if (g) out.push(decorate(g, p)); }
     return out;
   };
   let cache = { ver: -2, lang: '', list: [] };
@@ -303,7 +304,7 @@ export function gaugeModule(ctx) {
   const baseExtra = api.getPointExtraHtml;
   api.getPointExtraHtml = (p) => {
     const base = baseExtra ? baseExtra(p) : '';
-    const g0 = /[0-9０-９]/.test(p.text) ? detect(p.text) : null;
+    const g0 = /[0-9０-９]/.test(p.text) ? detect(p) : null;
     if (!g0) return base;
     const g = decorate(g0, p);
     return `${base} <span class="badge badge-gauge" data-gauge-point="${escapeHtml(p.id)}" data-gauge-kind="${g.kind}">${g.kind === 'ring' ? '◎' : g.kind === 'bar' ? '▮' : '＃'} ${escapeHtml(gaugeLine(g, lang(), false))}</span>`;
