@@ -130,3 +130,70 @@ test('NFR-A11Y-001 AC-036 異常系: 割り当てのないキーは何も実行�
   const { app } = await newApp();
   assert.equal(app.handleKey({ key: 'F24', ctrlKey: true, altKey: true, shiftKey: true }), null);
 });
+
+// NFR-A11Y-001 AC-036（FR-092〜094・099・101・102・104 の追加分。契約: tests/system/CONTRACT-P1.md §3）
+test('NFR-A11Y-001 AC-036: 用語集・議事・プレビュー・地図・対立の組・機密の印の操作にキー割り当てがあり、キーだけで実行できる', async () => {
+  const { app, env } = await newApp();
+  await seedThreeScenes(app, env);
+  const added = ['glossary.open', 'agenda.open', 'preview.show', 'map.focusNext', 'map.focusPrev', 'map.activate', 'conflict.group', 'conflict.ungroup', 'point.confidential'];
+  for (const c of added) {
+    assert.equal(typeof app.commands[c], 'function', `commands[${c}]`);
+    assert.ok(keyFor(app, c), `keymap に ${c}`);
+  }
+  const combos = app.keymap.map((k) => `${!!k.ctrl}${!!k.alt}${!!k.shift}${k.key}`);
+  assert.equal(new Set(combos).size, combos.length, 'キーの割り当てが重複しない');
+  for (const c of added) assert.equal(app.handleKey(keyFor(app, c)), c, `handleKey が ${c} を実行して名前を返す`);
+  // 機密の印: 選択した要点へキーだけで付け・外せる（AC-605 の入口）
+  const p = app.getState().scenes[0].points[0];
+  assert.equal(app.selectPoint(p.id).ok, true);
+  const mark = () => app.getState().scenes[0].points.find((q) => q.id === p.id).confidential === true;
+  const before = mark();
+  app.handleKey(keyFor(app, 'point.confidential'));
+  assert.equal(mark(), !before, 'キーで機密の印が切り替わる');
+  app.handleKey(keyFor(app, 'point.confidential'));
+  assert.equal(mark(), before, 'もう一度で元に戻る');
+});
+
+test('NFR-A11Y-001 AC-036 異常系: 存在しない要点は選べず、機密の印は変わらない', async () => {
+  const { app, env } = await newApp();
+  await seedThreeScenes(app, env);
+  assert.equal(app.selectPoint('no-such-point').ok, false);
+  app.handleKey(keyFor(app, 'point.confidential'));
+  assert.ok(app.getState().scenes.flatMap((s) => s.points).every((q) => q.confidential !== true), '選択がないので印は付かない');
+});
+
+// NFR-A11Y-001 AC-036（5c05a4e の改訂: 用語集・議題の観察点、案内・ヘルプ・投影・読み順の型・種類別スタイルの設定もキー対象。契約: CONTRACT-P1.md §3）
+test('NFR-A11Y-001 AC-036: glossary.open（Alt+Shift+,）・agenda.open（Alt+Shift+.）がキーだけで実行でき、状態メッセージで受け付けが分かる', async () => {
+  const { app } = await newApp();
+  const g = app.keymap.find((k) => k.command === 'glossary.open');
+  const a = app.keymap.find((k) => k.command === 'agenda.open');
+  assert.deepEqual([g.key, !!g.alt, !!g.shift, !!g.ctrl], [',', true, true, false], 'glossary.open は Alt+Shift+,');
+  assert.deepEqual([a.key, !!a.alt, !!a.shift, !!a.ctrl], ['.', true, true, false], 'agenda.open は Alt+Shift+.');
+  assert.equal(app.handleKey({ key: ',', altKey: true, shiftKey: true, ctrlKey: false }), 'glossary.open');
+  assert.equal(app.getState().message?.key, 'msg.glossaryOpen');
+  assert.ok(String(app.getState().message?.text ?? '').length > 0, '読み上げる文字がある');
+  assert.equal(app.handleKey({ key: '.', altKey: true, shiftKey: true, ctrlKey: false }), 'agenda.open');
+  assert.equal(app.getState().message?.key, 'msg.agendaOpen');
+  assert.ok(String(app.getState().message?.text ?? '').length > 0);
+});
+
+test('NFR-A11Y-001 AC-036: 案内・ヘルプ・サンプル・読み順の型・種類別スタイル・設定（投影のプリセット）がキーだけで操作できる', async () => {
+  const { app } = await newApp();
+  const cmds = ['help.open', 'sample.load', 'onboarding.next', 'onboarding.back', 'onboarding.skip',
+    'layoutType.timeline', 'layoutType.add.timeline', 'layoutType.clear', 'kindStyle.toggle', 'kindStyle.recommend', 'settings.open'];
+  for (const c of cmds) { assert.equal(typeof app.commands[c], 'function', `commands[${c}]`); assert.ok(keyFor(app, c), `keymap に ${c}`); }
+  const combos = app.keymap.map((k) => `${!!k.ctrl}${!!k.alt}${!!k.shift}${k.key}`);
+  assert.equal(new Set(combos).size, combos.length, 'キーの割り当てが重複しない');
+  assert.equal(app.handleKey(keyFor(app, 'help.open')), 'help.open');
+  assert.equal(app.getOnboarding()?.step, 1, 'ヘルプのキーで案内が開く');
+  assert.equal(app.handleKey(keyFor(app, 'onboarding.skip')), 'onboarding.skip');
+  assert.equal(app.getOnboarding(), null);
+  const before = app.getState().kindStyles?.enabled ?? app.getState().kindStyles;
+  app.handleKey(keyFor(app, 'kindStyle.toggle'));
+  assert.notDeepEqual(app.getState().kindStyles?.enabled ?? app.getState().kindStyles, before, '種類別スタイルの有効・無効がキーで切り替わる');
+  app.handleKey(keyFor(app, 'settings.open'));
+  assert.ok(app.getSettingsDialog(), 'キーで設定が開く');
+  assert.ok(app.getSettingsView().fields.some((f) => /projection/i.test(f.id)), '投影のプリセットの項目が設定にある（キーで選べる combobox）');
+  assert.equal(app.setProjectionPreset('hall').ok, true);
+  assert.equal(app.getProjectionPreset().id, 'hall');
+});

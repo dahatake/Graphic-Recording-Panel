@@ -8,8 +8,8 @@ import { classifyPoint, kindLabelOf } from './diagram.js';
 
 export const GROUP_MAX = 7; // PARAM-088: 1 つのまとまりの要素の数の上限
 export const ALIGN_TOLERANCE_PX = 1; // PARAM-091: 整列の許容差（実装は同じ値で揃えるので差は 0）
-// AC-426: 種類の順（結論・課題・提案・アイデア・未決定・補足）
-export const KIND_ORDER = ['conclusion', 'issue', 'proposal', 'idea', 'undecided', 'note'];
+// AC-426: 種類の順（結論・課題・提案・アイデア・未決定・質問・根拠・行動・補足。AC-427 の 9 種類）
+export const KIND_ORDER = ['conclusion', 'issue', 'proposal', 'idea', 'undecided', 'question', 'evidence', 'action', 'note'];
 // AC-431: 強調のない基準の文字の大きさの階層（コントラスト）。同じ階層は図のどこでも同じ大きさ（反復）。
 export const TYPE_SCALE = Object.freeze({ title: 22, theme: 22, topic: 20, scene: 18, point: 14 });
 
@@ -101,8 +101,54 @@ export function leaves(tree) {
   return tree.children.flatMap((n) => (n.type === 'subgroup' ? n.children : [n]));
 }
 
-// 下位のまとまりの小見出し（種類のラベルと件数。分けたときは「1/2」の番号）
+// FR-099 AC-587: 確定した対立の組を「比較」の 1 つのまとまり（左右 2 列）として木に加える（比較は 7 つ目のレイアウト型ではなく、まとまりの中の配置）。
+// groups: [{ id, sides: [{ id:'left', name, pointIds }, { id:'right', name, pointIds }] }]（確定した組だけ）。
+// 組の要点はまとまりの外の並び（AC-426）から抜き、最初の要点があった位置に 1 つのまとまりとして置く。
+// まとまりの中は、列の順（左→右）が先で、各列の中は種類の順（結論が列の先頭。AC-426）・同じ種類は話順。シーン全体の先頭への昇格は、まとまりの外の要点だけ。
+// 少数の側も件数にかかわらず省かない（0 件の列も残し、「異論の記録なし」を出せるようにする。AC-587・AC-588）。木が変わらないとき（組がない）は同じ木を返す。
+export function applyConflicts(tree, scene, groups) {
+  if (!groups?.length) return tree;
+  const pointById = new Map((scene.points ?? []).map((p, i) => [p.id, { p, i }]));
+  const groupOf = new Map(); const sideOf = new Map();
+  for (const g of groups) for (const s of g.sides) for (const id of s.pointIds ?? []) if (pointById.has(id) && !groupOf.has(id)) { groupOf.set(id, g); sideOf.set(id, s.id); }
+  if (!groupOf.size) return tree;
+  const picked = new Map(); // group id → { g, leaves: Map(side id → [leaf]) }
+  const children = [];
+  const take = (leaf) => {
+    const first = leaf.refIds.find((id) => groupOf.has(id));
+    if (first === undefined) return false;
+    const g = groupOf.get(first);
+    let e = picked.get(g.id);
+    if (!e) { e = { g, leaves: new Map(g.sides.map((s) => [s.id, []])), slot: { placeholder: g.id } }; picked.set(g.id, e); children.push(e.slot); }
+    (e.leaves.get(sideOf.get(first)) ?? e.leaves.get(g.sides[0].id)).push(leaf);
+    return true;
+  };
+  for (const n of tree.children) {
+    if (n.type !== 'subgroup') { if (!take(n)) children.push(n); continue; }
+    const rest = n.children.filter((l) => !take(l));
+    if (rest.length === n.children.length) children.push(n); else if (rest.length) children.push({ ...n, children: rest });
+  }
+  if (!picked.size) return tree;
+  const rank = (leaf) => { const e = pointById.get(leaf.refIds[0]); return [e ? kindRank(kindOf(e.p)) : KIND_ORDER.length, e?.i ?? 0]; };
+  const out = children.map((c) => {
+    if (!c.placeholder) return c;
+    const e = picked.get(c.placeholder);
+    const sides = e.g.sides.map((s) => {
+      const list = e.leaves.get(s.id).slice().sort((a, b) => { const x = rank(a); const y = rank(b); return x[0] - y[0] || x[1] - y[1]; });
+      return { id: s.id, name: s.name, leaves: list, count: list.reduce((n, l) => n + l.refIds.length, 0) };
+    });
+    return { type: 'subgroup', key: `cmp:${e.g.id}`, kind: 'compare', part: 1, parts: 1, children: sides.flatMap((s) => s.leaves), compare: { id: e.g.id, sides: sides.map(({ leaves: _l, ...s }) => ({ ...s, keys: _l.map((l) => l.key) })) } };
+  });
+  return { ...tree, children: out };
+}
+
+const COMPARE_WORD = { ja: '比較', en: 'Compare' };
+export const COMPARE_EMPTY = { ja: '異論の記録なし', en: 'No objections recorded' };
+export const sideSummary = (sides, lang) => sides.map((s) => `${s.name} ${s.count}`).join(lang === 'en' ? ' / ' : '／');
+
+// 下位のまとまりの小見出し（種類のラベルと件数。分けたときは「1/2」の番号）。比較のまとまりは「⇄ 比較: 賛成 3／反対 1」
 export function subgroupLabel(node, lang, count) {
+  if (node.compare) return `⇄ ${COMPARE_WORD[lang === 'en' ? 'en' : 'ja']}: ${sideSummary(node.compare.sides, lang)}`;
   const name = kindLabelOf(node.kind, lang);
   const no = node.parts > 1 ? ` ${node.part}/${node.parts}` : '';
   return lang === 'en' ? `${name}${no} (${count})` : `${name}${no}（${count}）`;

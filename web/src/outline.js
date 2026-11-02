@@ -24,19 +24,40 @@ export function renderOutline(scenes, selectedSceneId, t, annot = null, topics =
     const sel = s.id === selectedSceneId;
     const status = `<span class="badge badge-${escapeHtml(s.status)}"><span aria-hidden="true">${STATUS_MARK[s.status] ?? ''}</span> ${escapeHtml(t(`scene.status.${s.status}`))}</span>`;
     const selected = sel ? ` <span class="badge badge-selected"><span aria-hidden="true">${SELECTED_MARK}</span> ${escapeHtml(t('scene.selected'))}</span>` : '';
-    const ptHtml = (p) => `<li data-point-id="${escapeHtml(p.id)}">${kinds ? `<span class="badge badge-kind">${escapeHtml(kinds.label(p.text, p))}</span> ` : ''}${kinds?.markOf?.(p) ? `<span class="badge badge-phase">${escapeHtml(kinds.markOf(p))}</span> ` : ''}${escapeHtml(p.text)}${kinds?.extra ? kinds.extra(p) : ''}${note(p.id)}</li>`;
+    const ptHtml = (p) => `<li data-point-id="${escapeHtml(p.id)}" tabindex="0">${kinds ? `<span class="badge badge-kind">${escapeHtml(kinds.label(p.text, p))}</span> ` : ''}${kinds?.markOf?.(p) ? `<span class="badge badge-phase">${escapeHtml(kinds.markOf(p))}</span> ` : ''}${escapeHtml(p.text)}${kinds?.extra ? kinds.extra(p) : ''}${note(p.id)}</li>`;
     // NFR-PERF-003 AC-536: 要点は OUTLINE_CHUNK 件ずつのリストに分ける（画面外のまとまりは CSS の content-visibility で配置・描画を省く）
     const pts = [];
     for (let i = 0; i < s.points.length || i === 0; i += OUTLINE_CHUNK) { const part = s.points.slice(i, i + OUTLINE_CHUNK); pts.push(`<ul class="outline-points" data-chunk="${escapeHtml(s.id)}:${i}" style="--n:${part.length}">${part.map(ptHtml).join('')}</ul>`); }
     // FR-098 AC-571: 議題の名前をシーンの見出しの近くに文字で付ける（議題を使っているときだけ）
     const ag = kinds?.agendaOf?.(s.id);
     const agHtml = ag ? ` <span class="outline-agenda" data-agenda-of="${escapeHtml(s.id)}">${escapeHtml(kinds.agendaLabel ?? '')}: ${escapeHtml(ag)}</span>` : '';
-    return `<li class="outline-scene${sel ? ' is-selected' : ''}" data-scene-id="${escapeHtml(s.id)}"${sel ? ' aria-current="true"' : ''}>`
+    return `<li class="outline-scene${sel ? ' is-selected' : ''}" data-scene-id="${escapeHtml(s.id)}" tabindex="0"${sel ? ' aria-current="true"' : ''}>`
       + `<h3>${escapeHtml(s.heading)}</h3>${kinds?.headingExtra ? kinds.headingExtra(s) : ''}${agHtml}${note(s.id)} ${status}${selected}${pts.join('')}</li>`;
   });
   const head = annot ? `<p class="outline-arrange-head">${escapeHtml(annot.header)}</p>` : '';
   // FR-052 AC-231 / FR-053: 要点の種類のラベル（kinds.label）と、関係（kinds.relations）を文字で示す
   const texts = new Map(scenes.flatMap((s) => s.points).map((p) => [p.id, p.text]));
-  const relBlock = kinds?.relations?.length ? `<ul class="outline-relations">${kinds.relations.map((r) => `<li data-relation-from="${escapeHtml(r.from)}" data-relation-to="${escapeHtml(r.to)}" data-relation-kind="${escapeHtml(r.kind)}" data-relation-basis="${escapeHtml(r.basis)}">${escapeHtml(r.kindLabel)}: ${escapeHtml(texts.get(r.from) ?? '')} → ${escapeHtml(texts.get(r.to) ?? '')} （${escapeHtml(r.basisLabel)}${r.evidence ? `: ${escapeHtml([...String(r.evidence.text)].slice(0, EVIDENCE_MAX).join(''))}` : ''}）</li>`).join('')}</ul>` : '';
+  const relBlock = kinds?.relations?.length ? `<ul class="outline-relations">${kinds.relations.map((r) => `<li data-relation-from="${escapeHtml(r.from)}" data-relation-to="${escapeHtml(r.to)}" data-relation-kind="${escapeHtml(r.kind)}" data-relation-basis="${escapeHtml(r.basis)}">${escapeHtml(r.kindLabel)}: ${escapeHtml(texts.get(r.from) ?? '')} ${r.bidirectional ? '↔' : '→'} ${escapeHtml(texts.get(r.to) ?? '')} （${escapeHtml(r.basisLabel)}${r.evidence ? `: ${escapeHtml([...String(r.evidence.text)].slice(0, EVIDENCE_MAX).join(''))}` : ''}）</li>`).join('')}</ul>` : '';
   return `${topicBlock}${head}<ol class="outline">${items.join('')}</ol>${relBlock}`;
+}
+
+// FR-099 AC-585〜588: 対立の組（確定した「比較」・候補）のテキスト一覧。側ごとの列（◀ 名前（件数）／▶ 名前（件数））、少数の側も省かず同じ形で並べる。
+// 0 件の側は「異論の記録なし」と書く（「合意」とは書かない）。候補は文字「候補」と記号 ◇、確定は「対立」と記号 ⇄ で見分ける（色に頼らない）。
+// model: { heading, list:[{ id, status, label, summary, sceneHeading, sides:[{ id, name, count, points:[{id,text}], empty, emptyLabel }] }], objectionLine, selection, labels }
+export function renderConflictOutline(model) {
+  const L = model.labels ?? {};
+  const btn = (act, id, label) => `<button type="button" class="btn btn-small" data-conflict-act="${escapeHtml(act)}" data-id="${escapeHtml(id)}">${escapeHtml(label)}</button>`;
+  const sel = model.selection
+    ? `<div class="outline-conflict-selection" data-conflict-selection="${model.selection.count}"><p>${escapeHtml(model.selection.label)}</p><ul>${model.selection.items.map((i) => `<li>${escapeHtml(i.text)}</li>`).join('')}</ul>${model.selection.count >= 2 ? btn('group', '', model.selection.makeLabel) : ''}</div>` : '';
+  const items = model.list.map((c) => {
+    const sides = c.sides.map((s, i) => `<section class="outline-conflict-side" data-conflict-side="${escapeHtml(s.id)}"><h4><span aria-hidden="true">${i === 0 ? '◀' : '▶'}</span> ${escapeHtml(s.name)}（${s.count}）</h4>`
+      + (s.empty ? `<p data-conflict-empty="1">${escapeHtml(s.emptyLabel)}</p>`
+        : `<ul>${s.points.map((p) => `<li data-conflict-point="${escapeHtml(p.id)}">${escapeHtml(p.text)}${c.status === 'confirmed' ? ` ${btn('flip', p.id, L.flip ?? '')}` : ''}</li>`).join('')}</ul>`) + '</section>').join('');
+    const acts = c.status === 'candidate' ? `${btn('confirm', c.id, L.confirm ?? '')} ${btn('dismiss', c.id, L.dismiss ?? '')}` : btn('ungroup', c.id, L.ungroup ?? '');
+    return `<li class="outline-conflict" data-conflict-id="${escapeHtml(c.id)}" data-conflict-status="${escapeHtml(c.status)}" data-conflict-scene="${escapeHtml(c.sceneId)}">`
+      + `<h3><span aria-hidden="true">${c.status === 'candidate' ? '◇' : '⇄'}</span> ${escapeHtml(c.label)}: ${escapeHtml(c.summary)}${c.sceneHeading ? ` <span class="outline-conflict-scene">（${escapeHtml(L.scene ?? '')}: ${escapeHtml(c.sceneHeading)}）</span>` : ''}</h3>`
+      + `<div class="outline-conflict-sides">${sides}</div><div class="outline-conflict-actions">${acts}</div></li>`;
+  }).join('');
+  const obj = model.objectionLine ? `<p class="outline-objection" data-objection="1">${escapeHtml(model.objectionLine)}</p>` : '';
+  return `<section class="outline-conflicts" aria-label="${escapeHtml(model.heading)}"><h2>${escapeHtml(model.heading)}</h2>${sel}${items ? `<ul class="outline-conflict-list">${items}</ul>` : ''}${obj}</section>`;
 }

@@ -121,7 +121,7 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .badge { display: inline-block; font-size: var(--font-size-caption); padding: 0 var(--space-2); border: var(--stroke) solid var(--color-border); border-radius: var(--radius-control); margin-left: var(--space-1); }
 .badge-confirmed { font-weight: var(--font-weight-semibold); }
 /* FR-092・FR-024: 「要確認」「AI 要約」「手追加」の印は、枠と文字・記号で示す（色だけに頼らない。AC-231 と同じ方針） */
-.badge-review, .badge-ai, .badge-manual { font-weight: var(--font-weight-semibold); border-color: currentColor; }
+.badge-review, .badge-ai, .badge-manual, .badge-confidential { font-weight: var(--font-weight-semibold); border-color: currentColor; }
 .badge-selected { font-weight: var(--font-weight-semibold); text-decoration: underline; }
 
 /* 手修正フォーム（テキスト一覧パネルの下のカード） */
@@ -248,6 +248,14 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .scene-popup:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
 .scene-popup h3 { margin: 0 0 8px; }
 .scene-popup ul { margin: 0; padding-left: 20px; }
+/* FR-101 AC-593: ホバー・フォーカスの簡易プレビュー（固定のポップアップより軽い。pointer-events は残し、上へ動かしても消えない） */
+.preview-tip { position: fixed; z-index: 45; max-width: 320px; padding: var(--space-2) var(--space-3); background: var(--color-surface); color: var(--color-text); border: var(--stroke-thick) solid var(--color-border); border-radius: var(--radius-control); box-shadow: var(--shadow); font-size: var(--font-size-caption); }
+.preview-tip p { margin: var(--space-1) 0 0; }
+/* FR-102 AC-597: 地図・一覧の選べる要素のフォーカスの印は枠（色だけに頼らない） */
+[data-rpg-place] { cursor: pointer; }
+[data-rpg-place]:focus { outline: none; }
+[data-rpg-place]:focus-visible [data-role="rpg-hit"] { stroke: var(--color-focus); stroke-width: 3; stroke-dasharray: 6 3; }
+.outline-scene:focus-visible, .outline-points li:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
 
 /* FR-050: RPG風の仮想パッドとコマンドウィンドウ（黒地に白枠。ボタンは 44px 以上＝PARAM-032） */
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
@@ -305,6 +313,27 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .apikeys-dialog[data-layout="stacked"] .apikeys-nav { flex: 0 0 auto; flex-direction: row; border-right: 0; padding-right: 0; }
 @media (prefers-reduced-motion: reduce) { .apikeys-dialog[open] { animation: none; } }
 .apikeys-dialog[data-motion="none"][open] { animation: none; }
+/* FR-103: 初回の案内・ヘルプ（中央のモーダル）と「サンプル」の印 */
+.onboarding-dialog { padding: 0; border: var(--stroke) solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-8); width: min(36rem, calc(100vw - 2 * var(--space-4))); max-height: calc(100vh - 2 * var(--space-5)); overflow: auto; margin: auto; }
+.onboarding-dialog[hidden] { display: none; }
+.onboarding-dialog[open] { display: flex; flex-direction: column; position: fixed; inset: auto var(--space-4) var(--space-4) auto; max-width: min(28rem, calc(100vw - 2rem)); max-height: 60vh; overflow: auto; z-index: 50; animation: apikeys-in 120ms ease-out; }
+.onboarding-dialog::backdrop { background: rgb(60 60 60 / 0.55); }
+.onboarding-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: var(--stroke) solid var(--color-border); }
+.onboarding-head h2, .onboarding-step-title { margin: 0; }
+.onboarding-progress, .onboarding-note { margin: 0; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.onboarding-body { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); }
+.onboarding-steps { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.onboarding-dot { padding: var(--space-1) var(--space-3); border: var(--stroke) solid var(--color-border); border-radius: var(--radius); font-size: var(--font-size-caption); }
+.onboarding-dot[data-current="true"] { font-weight: 600; border-width: 3px; } /* 現在のステップは太字と太い枠でも示す（色だけに頼らない） */
+.onboarding-text { margin: 0; line-height: 1.6; }
+.onboarding-sample { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); padding: var(--space-3); border: var(--stroke) solid var(--color-border); border-radius: var(--radius); background: var(--color-surface-2); }
+.onboarding-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-top: var(--stroke) solid var(--color-border); }
+.onboarding-nav { display: flex; gap: var(--space-2); }
+.onboarding-dialog .btn { min-height: var(--target-size); }
+.sample-badge { font-weight: 600; border: var(--stroke) solid currentColor; }
+.help-button { margin-left: auto; min-height: var(--target-size); }
+@media (prefers-reduced-motion: reduce) { .onboarding-dialog[open] { animation: none; } }
+@media (forced-colors: active) { .onboarding-dialog { border-color: CanvasText; } .onboarding-dialog::backdrop { background: Canvas; opacity: 0.7; } .onboarding-dot[data-current="true"] { outline: 2px solid Highlight; } }
 @media (forced-colors: active) {
   .apikeys-dialog { border-color: CanvasText; }
   .apikeys-dialog::backdrop { background: Canvas; opacity: 0.7; }

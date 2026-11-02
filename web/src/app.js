@@ -27,6 +27,7 @@ import { commandBarModule } from './commandbar.js';
 import { arrangeModule } from './arrange.js';
 import { sessionModule } from './session.js';
 import { popupModule } from './popup.js';
+import { previewModule } from './preview.js';
 import { topicsModule } from './topics.js';
 import { settingsModule } from './settings.js';
 import { stylePickerModule } from './stylepicker.js';
@@ -55,6 +56,10 @@ import { agendaTimerModule } from './agendatimer.js';
 import { editHistoryModule } from './edithistory.js';
 import { facilitationModule } from './facilitation.js';
 import { kindStylesModule } from './kindstyles.js';
+import { visibilityModule } from './visibility.js';
+import { conflictModule } from './conflict.js';
+import { projectionModule } from './projection.js';
+import { onboardingModule } from './onboarding.js';
 
 const GAP_MS_DEFAULT = 20_000; // PARAM-002
 // NFR-PERF-003 AC-539: 自動保存の間引き（PARAM-108。0 なら変更のたびに即時保存）
@@ -315,7 +320,8 @@ export async function createApp(options = {}) {
     const tmr = app.renderAgendaTimer?.() ?? '';
     const ph = `${app.renderEditHistory?.() ?? ''}`;
     const mn = app.getMinutesOutlineHtml?.() ?? ''; // FR-094 AC-557: 議事項目（決定事項ほか・候補・未定）を同じ語で一覧にも出す
-    return groups.length ? `${tmr}${ph}${html}${mn}${ws}<section class="outline-groups" aria-label="${i18n.t('outline.groups')}"><h2>${i18n.t('outline.groups')}</h2><ul>${groups.map((g) => `<li data-group-id="${escapeHtml(g.id)}">${escapeHtml(g.heading)}</li>`).join('')}</ul></section>` : `${tmr}${ph}${html}${mn}${ws}`;
+    const cfo = app.getConflictOutlineHtml?.() ?? ''; // FR-099 AC-585〜588: 対立の組（候補・確定）と異論の状況を、図と同じ語（対立・側の名前）で一覧にも出す
+    return groups.length ? `${tmr}${ph}${html}${mn}${cfo}${ws}<section class="outline-groups" aria-label="${i18n.t('outline.groups')}"><h2>${i18n.t('outline.groups')}</h2><ul>${groups.map((g) => `<li data-group-id="${escapeHtml(g.id)}">${escapeHtml(g.heading)}</li>`).join('')}</ul></section>` : `${tmr}${ph}${html}${mn}${cfo}${ws}`;
   };
   app.clearSavedSession = () => { cancelPendingSave(); P.remove(storage, P.SESSION_KEY); };
   // NFR-PERF-003 AC-539: 保留中の自動保存を直ちに行う（保存したら true）。
@@ -414,7 +420,7 @@ export async function createApp(options = {}) {
   app.subscribe = (fn) => on('change', fn);
   app.getPanelRenderer = (id) => panelRenderers.get(id) ?? null;
   app.use = async (mod) => { await mod(ctx); };
-  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, sessionModule, settingsModule, stylePickerModule, autoLayoutModule, layoutKindsModule, rpgModule, rpgAudioModule, llmModule, llmDrawModule, stylePresetModule, workshopModule, relayoutModule, liveRefreshModule, speechSettingsModule, budgetModule, presentExportModule, meetingModule, minutesModule, agendaTimerModule, editHistoryModule, facilitationModule, kindStylesModule, glossaryModule, reviewModule, ...(options.modules ?? [])]) await app.use(mod);
+  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, sessionModule, settingsModule, stylePickerModule, autoLayoutModule, layoutKindsModule, rpgModule, rpgAudioModule, llmModule, llmDrawModule, stylePresetModule, workshopModule, relayoutModule, liveRefreshModule, speechSettingsModule, budgetModule, presentExportModule, meetingModule, minutesModule, agendaTimerModule, editHistoryModule, facilitationModule, kindStylesModule, glossaryModule, reviewModule, previewModule, visibilityModule, conflictModule, projectionModule, onboardingModule, ...(options.modules ?? [])]) await app.use(mod);
 
   // 機能ごとの保存項目の復元（モジュールが保存項目を登録した後）
   if (saved?.extras) ctx.importExtras(saved.extras);

@@ -73,6 +73,20 @@ test('NFR-PRIV-003 AC-358: 送信内容は要点の文字（と固定の指示�
   assert.ok(!/userAgent|navigator|session|audio/i.test(JSON.stringify({ input: sent[0].body.input })));
 });
 
+// NFR-PRIV-003 AC-358 / 監査 S-1: 機密の要点は公開範囲に関わらず LLM へ送らず、送信内容の確認（getLlmLastSent）にも出ない
+test('NFR-PRIV-003 AC-358: 機密の要点は送信内容・確認表示のどちらにも含まれない', async () => {
+  const { app, r } = await enabled({ objects: [], people: [], emotions: [], metaphors: [] });
+  await say(app, 'ひみつの件');
+  const id = app.getState().scenes.flatMap((s) => s.points).find((p) => p.text.includes('ひみつ')).id;
+  app.setPointConfidential(id, true);
+  await say(app, 'こうかいの件');
+  const bodies = r.calls.filter((c) => c.path === '/api/llm/extract').map((c) => c.body);
+  const last = bodies[bodies.length - 1];
+  assert.ok(last.input.includes('こうかい'));
+  assert.ok(!JSON.stringify(last).includes('ひみつ'));
+  assert.ok(!JSON.stringify(app.getLlmLastSent()).includes('ひみつ'));
+});
+
 // NFR-PRIV-003 AC-359: 簡易マスキング（登録語・敬称付きの人名らしい語・メール・電話）。伏せ字は元に戻さない
 test('NFR-PRIV-003 AC-359: 登録語・人名らしい語・メール・電話が伏せ字になる', () => {
   const t = maskText('山田さんと Acme の件。a.b@example.com / 03-1234-5678 / Mr. Smith', ['Acme']);

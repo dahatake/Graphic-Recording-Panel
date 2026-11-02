@@ -38,6 +38,9 @@ const BASE = {
     'cmd.theme.toggle': '配色の切替（ダーク／ライト）',
     'cmd.layout.reset': '既定のレイアウトに戻す',
   'cmd.review.confirm': '選択中のシーンの要点を確認済みにする',
+  'cmd.point.confidential': '選択した要点の機密の印を付け外し',
+  'cmd.conflict.group': '選択した要点を対立の組にする（候補は確定）',
+  'cmd.conflict.ungroup': '選択した要点の対立の組・候補を解除',
   'cmd.edit.undo': '直前の手修正を元に戻す',
     'cmd.layout.tile': 'タイル配置に整列',
     'cmd.layout.focus': 'フォーカス（メインを大きく表示）',
@@ -71,7 +74,7 @@ const BASE = {
     'cmd.speech.consent': '外部送信の同意を切り替え',
     'cmd.speech.retryAzure': 'Azure Speech で再試行', 'cmd.speech.useBrowser': '音声認識をブラウザ標準に切り替え',
     'cmd.scene.next': '次のシーンを選択', 'cmd.scene.prev': '前のシーンを選択',
-    'cmd.popup.open': 'シーンのポップアップを開く', 'cmd.popup.focusContent': 'ポップアップの内容へ移る', 'cmd.popup.close': 'ポップアップを閉じる',
+    'cmd.popup.open': 'シーンのポップアップを開く', 'cmd.glossary.open': '用語集を開く', 'cmd.agenda.open': '議題を開く', 'cmd.preview.show': 'フォーカス中の要素のプレビューを出す', 'cmd.map.focusNext': '地図の次の要素へ移る', 'cmd.map.focusPrev': '地図の前の要素へ戻る', 'cmd.map.activate': '地図の要素の詳細を開く', 'cmd.popup.focusContent': 'ポップアップの内容へ移る', 'cmd.popup.close': 'ポップアップを閉じる',
     'cmd.prompt.copy': '画像生成 AI 向けのプロンプトをコピー', // FR-078
     'popup.label': 'シーンのテキスト',
     'panel.input': '認識文字列',
@@ -106,7 +109,9 @@ const BASE = {
     'outline.empty': 'まだシーンがありません',
     'outline.groups': 'まとまりの小見出し',
     'diagram.empty': 'まだ図がありません。記録を開始して発話を入力してください',
+    'diagram.relMore': '他 {n} 件', // FR-053 AC-584
     'cmd.settings.arrangeInterval': '再配置の周期を設定', // FR-080 AC-440
+ 'cmd.help.open': 'ヘルプを開く', 'cmd.onboarding.next': '案内の次へ', 'cmd.onboarding.back': '案内の戻る', 'cmd.onboarding.skip': '案内をスキップ', 'cmd.sample.load': '練習用のサンプルを読み込む', // FR-103
     'cmd.settings.layoutMode': 'レイアウトの決め方を切り替え', 'cmd.sound.toggleMute': '音のミュートを切り替え', 'cmd.sound.setVolume': '音量を上げる', 'cmd.arrange.setInterval': '再配置の周期を切り替え', // FR-030 AC-519
     // FR-098・FR-005・FR-091・FR-097: 議題タイマー・手修正を元に戻す・進行の段階・種類別スタイル
     'cmd.timer.start': '議題タイマーを開始', 'cmd.timer.pause': '議題タイマーを一時停止', 'cmd.timer.resume': '議題タイマーを再開', 'cmd.timer.next': '次の議題へ切り替え', 'cmd.timer.stop': '議題タイマーを終了',
@@ -144,6 +149,9 @@ const BASE = {
     'cmd.theme.toggle': 'Switch color theme (dark/light)',
     'cmd.layout.reset': 'Restore default layout',
   'cmd.review.confirm': 'Confirm the points of the selected scene',
+  'cmd.point.confidential': 'Toggle the confidential mark of the selected point',
+  'cmd.conflict.group': 'Make the selected point an opposition (confirm a candidate)',
+  'cmd.conflict.ungroup': 'Ungroup the opposition or dismiss the candidate of the selected point',
   'cmd.edit.undo': 'Undo the last manual edit',
     'cmd.layout.tile': 'Arrange panels as tiles',
     'cmd.layout.focus': 'Focus (enlarge the main panel)',
@@ -175,7 +183,7 @@ const BASE = {
     'cmd.speech.consent': 'Toggle consent to external transmission',
     'cmd.speech.retryAzure': 'Retry Azure Speech', 'cmd.speech.useBrowser': 'Switch speech recognition to the browser',
     'cmd.scene.next': 'Select next scene', 'cmd.scene.prev': 'Select previous scene',
-    'cmd.popup.open': 'Open scene popup', 'cmd.popup.focusContent': 'Move to popup content', 'cmd.popup.close': 'Close popup',
+    'cmd.popup.open': 'Open scene popup', 'cmd.glossary.open': 'Open the glossary', 'cmd.agenda.open': 'Open the agenda', 'cmd.preview.show': 'Show preview of the focused element', 'cmd.map.focusNext': 'Move to the next map element', 'cmd.map.focusPrev': 'Move to the previous map element', 'cmd.map.activate': 'Open details of the map element', 'cmd.popup.focusContent': 'Move to popup content', 'cmd.popup.close': 'Close popup',
     'cmd.prompt.copy': 'Copy prompt for image-generation AI', // FR-078
     'popup.label': 'Scene text',
     'panel.input': 'Transcript',
@@ -210,7 +218,9 @@ const BASE = {
     'outline.empty': 'No scenes yet',
     'outline.groups': 'Group subheadings',
     'diagram.empty': 'No diagram yet. Start recording and enter an utterance',
+    'diagram.relMore': '+{n} more', // FR-053 AC-584
     'cmd.settings.arrangeInterval': 'Set the rearrange interval', // FR-080 AC-440
+ 'cmd.help.open': 'Open help', 'cmd.onboarding.next': 'Guide: next', 'cmd.onboarding.back': 'Guide: back', 'cmd.onboarding.skip': 'Skip the guide', 'cmd.sample.load': 'Load the practice sample', // FR-103
     'cmd.settings.layoutMode': 'Switch how the layout is decided', 'cmd.sound.toggleMute': 'Toggle sound mute', 'cmd.sound.setVolume': 'Raise the volume', 'cmd.arrange.setInterval': 'Switch the rearrange interval', // FR-030 AC-519
     'cmd.timer.start': 'Start the agenda timer', 'cmd.timer.pause': 'Pause the agenda timer', 'cmd.timer.resume': 'Resume the agenda timer', 'cmd.timer.next': 'Switch to the next agenda item', 'cmd.timer.stop': 'End the agenda timer',
     'cmd.edit.undo': 'Undo the last manual edit', 'cmd.phase.next': 'Advance the meeting phase', 'cmd.kindStyle.toggle': 'Toggle styles by kind', 'cmd.kindStyle.recommend': 'Apply the recommended styles by kind',

@@ -1,6 +1,8 @@
 // FR-047・FR-048: RPG風の描画スタイルのアプリ組立（getRpgMap・勇者の移動）。後続の項目（会話・BGM・SE・操作）は、この module の api に足す。
 import { buildRpgMap, stepHero, isWalkable, RPG_STYLE_ID } from './rpgmap.js';
 import { classifyPoint } from './diagram.js';
+// RPG 風の印は従来の種類の絵（質問・根拠・行動は補足の印。FR-047）
+const rpgKind = (x) => { const k = classifyPoint(x); return k === 'question' || k === 'evidence' || k === 'action' ? 'note' : k; };
 
 export function rpgModule(ctx) {
   ctx.i18n.addStrings({
@@ -15,7 +17,7 @@ export function rpgModule(ctx) {
   ctx.api.getRpgMap = () => {
     if (!isRpg()) return null;
     const scenes = ctx.state.scenes.map((s) => ({ id: s.id, heading: s.heading, status: s.status, points: s.points.map((p) => ({ id: p.id, text: p.text })), relations: (s.relations ?? []).map((r) => ({ from: r.from, to: r.to })) }));
-    const map = buildRpgMap(scenes, { size: sizeOf(ctx.api.renderBaseSvg?.()), kindOf: classifyPoint });
+    const map = buildRpgMap(scenes, { size: sizeOf(ctx.api.renderBaseSvg?.()), kindOf: rpgKind });
     const ok = hero && isWalkable(map, hero.x, hero.y) && !map.residents.some((r) => r.x === hero.x && r.y === hero.y);
     if (ok) map.hero = { ...hero }; else hero = { ...map.hero };
     return map;

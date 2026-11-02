@@ -285,3 +285,27 @@ test('FR-065 AC-334 異常系: 保存された SVG に危険な要素が混ざ�
   const svg = b.app.renderSvg();
   assert.ok(!/<script|onload=|alert\(/i.test(svg), '再サニタイズされていない');
 });
+
+// NFR-PRIV-003 AC-358（5c05a4e の改訂: 機密の印の要点は公開範囲・保存の選択によらず送信の要点の文字から常に除く）
+test('NFR-PRIV-003 AC-358: 機密の印が付いた要点は、送信の要点の文字に含まれない（保存の選択が「除かない」でも）', async () => {
+  const { app, env, relay } = await appWith();
+  await enable(app);
+  app.commands['session.start']();
+  type(app, env, '公開してよい要点ALPHA', '社外秘の要点BRAVO');
+  const sc = app.getState().scenes.at(-1);
+  const p = sc.points.find((q) => q.text.includes('BRAVO'));
+  assert.ok(p, '機密にする要点がある');
+  assert.equal(app.selectPoint(p.id).ok, true);
+  app.commands['point.confidential']();
+  assert.equal(app.getState().scenes.at(-1).points.find((q) => q.id === p.id).confidential, true);
+  const before = relay.extractCalls().length;
+  type(app, env, 'もう一つの要点CHARLIE');
+  await app.flushLlm();
+  const calls = relay.extractCalls().slice(before);
+  assert.ok(calls.length >= 1, '送信は行われる');
+  for (const c of calls) {
+    const s = JSON.stringify(c.body);
+    assert.ok(!s.includes('BRAVO'), '機密の要点の文字が送られた');
+    assert.ok(s.includes('CHARLIE') || s.includes('ALPHA'), 'ほかの要点は送られる');
+  }
+});

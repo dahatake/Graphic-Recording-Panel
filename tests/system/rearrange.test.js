@@ -121,15 +121,20 @@ test('FR-080 AC-435 FR-079 AC-426 AC-430: 再配置後、シーンの要点は�
   scheduler.advanceTo(PERIOD + 1000); say(env, T.problem);
   scheduler.advanceTo(PERIOD + 2000); say(env, T.proposal);
   scheduler.advanceTo(PERIOD + 3000); say(env, T.conclusion);
+  // 質問・根拠・行動（AC-426・AC-427 の 9 種類）。話順は 行動→根拠→質問 にして、種類の順への並べ替えを確かめる
+  scheduler.advanceTo(PERIOD + 4000); say(env, T.action);
+  scheduler.advanceTo(PERIOD + 5000); say(env, T.evidence);
+  scheduler.advanceTo(PERIOD + 6000); say(env, T.question);
   scheduler.advanceTo(2 * PERIOD);
   assert.deepEqual(app.getState().scenes.map((s) => s.id), scenes0, '新しいシーンはできていない');
   const sc1 = elementOfScene(app, scenes0[0]); const sc2 = elementOfScene(app, scenes0[1]);
   const pts = pointsOfScene(app, sc2.id).sort((a, b) => a.readIndex - b.readIndex);
-  assert.equal(pts.length, 4, '2 シーン目の 4 要点がすべて描かれる');
+  assert.equal(pts.length, 7, '2 シーン目の 7 要点がすべて描かれる');
+  for (const [t, label] of [[T.question, '質問'], [T.evidence, '根拠'], [T.action, '行動'], [T.plain3, '補足']]) assert.equal(kindLabelOf(app, pointIdOf(app, t)), label, `「${t}」の種類`);
   const concl = elementOfPoint(app, pointIdOf(app, T.conclusion));
   assert.equal(pts[0].id, concl.id, '結論の要点がシーンの読み順の先頭');
   for (const o of pts.slice(1)) assert.ok(before(concl, o), `結論は ${o.id} より上（同じ高さなら左）`);
-  // 種類の順（結論・課題・提案・アイデア・未決定・補足）、同じ種類の中は話順
+  // 種類の順（結論・課題・提案・アイデア・未決定・質問・根拠・行動・補足）、同じ種類の中は話順
   const talk = app.getState().scenes[1].points.map((p) => p.id);
   const keys = pts.map((e) => { const lb = kindLabelOf(app, e.refIds[0]); assert.ok(KIND_ORDER.includes(lb), `種類のラベル ${lb}`); return [KIND_ORDER.indexOf(lb), talk.indexOf(e.refIds[0])]; });
   for (let i = 1; i < keys.length; i++) assert.ok(keys[i - 1][0] < keys[i][0] || (keys[i - 1][0] === keys[i][0] && keys[i - 1][1] < keys[i][1]), `読み順 ${i - 1}→${i} が種類の順・話順`);

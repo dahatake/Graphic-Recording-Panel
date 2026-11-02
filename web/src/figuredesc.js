@@ -11,7 +11,7 @@ const one = (s) => String(s ?? '').replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' 
 const cut = (s) => { const a = [...s]; return a.length > MAX_CHARS ? `${a.slice(0, MAX_CHARS - 1).join('')}…` : s; };
 const clean = (list) => (Array.isArray(list) ? list : []).map(one).filter(Boolean).map(cut);
 
-export function buildFigureDescription({ title = '', purpose = '', audience = '', topics = [], relations = [], conclusions = [], unresolved = [], lang = 'ja' } = {}) {
+export function buildFigureDescription({ title = '', purpose = '', audience = '', topics = [], relations = [], conclusions = [], unresolved = [], lang = 'ja', extra = [] } = {}) {
   const L = LABELS[lang === 'en' ? 'en' : 'ja'];
   const lines = [];
   const head = one(title);
@@ -24,6 +24,8 @@ export function buildFigureDescription({ title = '', purpose = '', audience = ''
     const more = items.length > shown.length ? `${L.sep}…(+${items.length - shown.length})` : '';
     lines.push(`${L[key]}: ${shown.length ? shown.join(L.sep) + more : L.none}`);
   }
+  // FR-104 AC-604・AC-606: 公開範囲（と除外した件数）の行（呼び出し側が組み立てた文字列）
+  for (const x of Array.isArray(extra) ? extra : []) if (one(x)) lines.push(one(x));
   return { title: head, text: lines.join('\n') };
 }
 

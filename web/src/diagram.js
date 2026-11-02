@@ -2,8 +2,8 @@
 // 純粋関数 renderDiagramSvg（単体で SVG ファイルとしても自立する。色は属性で持つ）と、パネル描画（拡大・縮小・移動）。
 import { sceneEmotions } from './emotion.js';
 import { matchParts, getPartGroup } from './parts.js';
-import { renderRpgSvg, RPG_STYLE_ID } from './rpgmap.js';
-import { provisionalTree, leaves, subgroupLabel, countMark, TYPE_SCALE } from './infodesign.js';
+import { renderRpgSvg, enhanceRpgDom, RPG_STYLE_ID } from './rpgmap.js';
+import { provisionalTree, leaves, subgroupLabel, countMark, TYPE_SCALE, COMPARE_EMPTY } from './infodesign.js';
 // NFR-UX-012 AC-466: 既存の 4 つの描画スタイルの図の書体の指定（欧文専用の書体がないため Yu Gothic UI が先頭。stylepresets.js の LEGACY_FONT_FAMILY と同じ）
 const SVG_FONT_FAMILY = `font-family="'Yu Gothic UI', system-ui, 'Hiragino Sans', Meiryo, sans-serif"`;
 
@@ -27,14 +27,18 @@ export const KINDS = {
   // FR-052: 提案・未決定は結論と別の種類（色・形・絵記号が異なる）
   proposal: { color: '#6b2a8f', shape: 'tab', icon: 'bolt' },
   undecided: { color: '#0b6070', shape: 'slant', icon: 'cloud' },
+  // FR-079 AC-427・AC-580: 質問（？の絵記号＋二重の枠）・根拠（例の絵記号＋左の太い縦線）・行動（チェックボックス＋角の丸い枠）。形・絵記号・ラベルで見分ける（色だけに頼らない）
+  question: { color: '#8a1f5c', shape: 'double', icon: 'question' },
+  evidence: { color: '#5a4a00', shape: 'bar', icon: 'example' },
+  action: { color: '#0a5c4a', shape: 'rounded', icon: 'checkbox' },
 };
 // FR-015 の 4 種類（3D の評価軸などの従来の集計用）。提案はアイデア、未決定は補足に含める。
 export const BASE_KIND_IDS = ['conclusion', 'issue', 'idea', 'note'];
-export const baseKind = (k) => (k === 'proposal' ? 'idea' : k === 'undecided' ? 'note' : k);
+export const baseKind = (k) => (k === 'proposal' ? 'idea' : (k === 'undecided' || k === 'question' || k === 'evidence' || k === 'action') ? 'note' : k);
 // FR-052 AC-231: 種類の文字のラベル（図と一覧で同じ語）
 export const KIND_LABELS = {
-  ja: { conclusion: '結論', issue: '課題', idea: 'アイデア', note: '補足', proposal: '提案', undecided: '未決定' },
-  en: { conclusion: 'Conclusion', issue: 'Issue', idea: 'Idea', note: 'Note', proposal: 'Proposal', undecided: 'Undecided' },
+  ja: { conclusion: '結論', issue: '課題', idea: 'アイデア', note: '補足', proposal: '提案', undecided: '未決定', question: '質問', evidence: '根拠', action: '行動' },
+  en: { conclusion: 'Conclusion', issue: 'Issue', idea: 'Idea', note: 'Note', proposal: 'Proposal', undecided: 'Undecided', question: 'Question', evidence: 'Evidence', action: 'Action' },
 };
 export const kindLabelOf = (kind, lang) => KIND_LABELS[lang === 'en' ? 'en' : 'ja'][kind] ?? kind;
 // ASSUMPTION: 種類は語のパターンで決める（決定的・外部通信なし）。上から順に最初に合うもの、どれにも合わなければ補足。
@@ -46,8 +50,14 @@ const KIND_RULES = [
   // AC-231: 「〜と決まりました」など合意済みの決定は、アイデア・案の語を含んでいても結論
   ['conclusion', /決ま(りまし|った)|決定しまし|決めまし|合意しまし|採用(が)?決定/],
   ['idea', /アイデア|ひらめ|\bidea\b/i],
+  // FR-079 AC-427: 上の 5 種類に当てはまらない要点だけを、質問（PARAM-131）→ 根拠（PARAM-132）→ 行動（PARAM-129）の順に判定する。
+  // 日本語は部分一致、英語の語は語境界つきの単語単位（how は however・show に、what は whatever に一致しない）。大文字小文字は区別しない。
+  // 下の弱い規則（「します」「どう」など）より先に判定する（「依頼しますか」は結論でなく質問、「連絡します」は結論でなく行動）。
+  ['question', /[?？]|でしょうか|ですか|ますか|ませんか|でしょう|(?<![a-z0-9])(why|how|what)(?![a-z0-9])/i],
+  ['evidence', /なぜなら|たとえば|例えば|根拠|理由は|データでは|実績|(?<![a-z0-9])because(?![a-z0-9])|(?<![a-z0-9])for example(?![a-z0-9])|(?<![a-z0-9])e\.g\./i],
+  ['action', /お願いします|してください|対応する|やります|確認します|共有します|調整します|対応します|連絡します|までに|担当|todo|action item/i], // PARAM-129（minutes.js と同じ語）
   ['conclusion', /決め|決定|決ま|結論|合意|方針|採用|にする|します|decid|conclu|agree|resolv|chose/i],
-  ['idea', /案|しよう|してみ|かも|どう|how about|what if|maybe|[?？]/i],
+  ['idea', /案|しよう|してみ|かも|どう|how about|what if|maybe/i],
 ];
 // FR-091 AC-577: 語のパターンに当てはまる種類（当てはまらなければ null）。進行の段階の既定はここが null のときだけ使う。
 export function classifyPointRule(text) {
@@ -99,6 +109,18 @@ function wobblyD(pts, seed, closed, amp0 = 1.2) {
   if (!closed) { const [lx, ly] = pts[n - 1]; out.push([lx + (rand() - 0.5) * amp, ly + (rand() - 0.5) * amp]); }
   return out.map(([x, y], i) => `${i ? 'L' : 'M'}${r1(x)} ${r1(y)}`).join('') + (closed ? 'Z' : '');
 }
+// 角の丸い長方形の頂点（各角 3 点）
+function roundedPts(x, y, w, h, r) {
+  const k = r * 0.29;
+  return [[x + r, y], [x + w - r, y], [x + w - k, y + k], [x + w, y + r], [x + w, y + h - r], [x + w - k, y + h - k], [x + w - r, y + h],
+    [x + r, y + h], [x + k, y + h - k], [x, y + h - r], [x, y + r], [x + k, y + k]];
+}
+// AC-580: 質問の二重の枠（内側の枠）・根拠の左の太い縦線。外形のあとに足す（スタイルによらず保つ）。
+export function kindExtraSvg(shape, x, y, w, h, color, sw = 2) {
+  if (shape === 'double') return `<rect data-role="kind-inner-frame" x="${x + 4}" y="${y + 4}" width="${w - 8}" height="${h - 8}" rx="2" fill="none" stroke="${color}" stroke-width="${Math.max(1, sw * 0.6)}"/>`;
+  if (shape === 'bar') return `<rect data-role="kind-bar" x="${x}" y="${y}" width="7" height="${h}" fill="${color}" stroke="${color}" stroke-width="1"/>`;
+  return '';
+}
 export function outline(shape, x, y, w, h) {
   switch (shape) {
     case 'banner': return [[x, y], [x + w - 14, y], [x + w, y + h / 2], [x + w - 14, y + h], [x, y + h]];
@@ -106,6 +128,7 @@ export function outline(shape, x, y, w, h) {
     case 'hexagon': return [[x + 14, y], [x + w - 14, y], [x + w, y + h / 2], [x + w - 14, y + h], [x + 14, y + h], [x, y + h / 2]];
     case 'tab': return [[x, y], [x + w - 22, y], [x + w, y + 12], [x + w, y + h], [x, y + h]];
     case 'slant': return [[x + 14, y], [x + w, y], [x + w - 14, y + h], [x, y + h]];
+    case 'rounded': return roundedPts(x, y, w, h, 9); // AC-580 行動: 角の丸い枠
     default: return [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
   }
 }
@@ -116,11 +139,29 @@ const attr = (s) => esc(s).replace(/"/g, '&quot;');
 
 // FR-092 AC-545: 「要確認」の印。文字「要確認」＋枠つきの記号（▲）で示し、色だけに頼らない（AC-231 と同じ方針）。吹き出しの下の余白に置く。
 export function reviewMarkSvg(mark, x, y, w, h = BUBBLE_H) {
-  if (!mark || !mark.needsReview) return '';
+  if (!mark) return '';
+  const by = y + h + 3;
+  let confSvg = ''; let confW = 0;
+  if (mark.conflict) { // FR-099 AC-585・AC-587: 対立の組の候補は「◇ 候補」、確定した組は「⇄ 対立」＋側の名前（文字と形。色だけに頼らない）。吹き出しの左下
+    const cf = mark.conflict;
+    const text = `${cf.status === 'candidate' ? '◇' : '⇄'} ${cf.label}`;
+    const cw = Math.min(Math.max(60, textWidth(text, 11) + 14), Math.max(60, w - 40));
+    confSvg += `<rect data-conflict-mark="${attr(cf.status)}" x="${x + 30}" y="${by}" width="${cw}" height="16" rx="${cf.status === 'candidate' ? 8 : 3}" fill="#ffffff" stroke="${INK}" stroke-width="1.5"${cf.status === 'candidate' ? ' stroke-dasharray="3 2"' : ''}/>`
+      + `<text data-role="conflict-label" x="${x + 36}" y="${by + 12}" font-size="11" font-weight="700" fill="${INK}">${esc(text)}</text>`;
+  }
+  let secSvg = ''; // 機密・要確認の印と並べる（右下）。左下の対立の印を壊さない
+  if (mark.confidential) { // FR-104 AC-605: 「機密」＋錠の記号（色だけに頼らない）
+    const cl = String(mark.confidentialLabel ?? '機密');
+    confW = Math.min(Math.max(60, cl.length * 12 + 26), w);
+    const cx = x + w - confW;
+    secSvg = `<rect data-confidential-mark="1" x="${cx}" y="${by}" width="${confW}" height="16" rx="3" fill="#ffffff" stroke="${INK}" stroke-width="1.5"/>`
+      + `<text data-role="confidential-label" x="${cx + 6}" y="${by + 12}" font-size="11" font-weight="700" fill="${INK}">🔒 ${esc(cl)}</text>`;
+  }
+  if (!mark.needsReview) return confSvg + secSvg;
   const label = String(mark.label ?? '要確認');
-  const bw = Math.min(Math.max(60, label.length * 12 + 26), w);
-  const bx = x + w - bw; const by = y + h + 3;
-  return `<rect data-review-mark="1" data-review-reasons="${attr(mark.reasons.join(' '))}" x="${bx}" y="${by}" width="${bw}" height="16" rx="3" fill="#ffffff" stroke="${INK}" stroke-width="1.5"/>`
+  const bw = Math.min(Math.max(60, label.length * 12 + 26), Math.max(60, w - confW - 4));
+  const bx = x + w - confW - (confW ? 4 : 0) - bw;
+  return confSvg + secSvg + `<rect data-review-mark="1" data-review-reasons="${attr(mark.reasons.join(' '))}" x="${bx}" y="${by}" width="${bw}" height="16" rx="3" fill="#ffffff" stroke="${INK}" stroke-width="1.5"/>`
     + `<text data-role="review-label" x="${bx + 6}" y="${by + 12}" font-size="11" font-weight="700" fill="${INK}">▲ ${esc(label)}</text>`; // 枠（rect）と文字・記号（▲）の 2 要素だけ（5000 件でも DOM を増やしすぎない）
 }
 export function textWidth(s, size) {
@@ -143,6 +184,9 @@ export const ICON_GLYPHS = {
   note: '<path d="M5 3h10l4 4v14H5z"/><path d="M8 11h8M8 15h8"/>',
   star: '<path d="M12 2l3 7 7 .5-5.500 4.500 2 7.500-6.500-4-6.500 4 2-7.500L2 9.500 9 9z"/>',
   drop: '<path d="M12 2q7 8 7 13a7 7 0 0 1-14 0q0-5 7-13z"/>',
+  question: '<circle cx="12" cy="12" r="10"/><path d="M9 9.500a3 3 0 1 1 4.500 2.600c-1 .6-1.500 1.200-1.500 2.400M12 17.500v.5"/>',
+  example: '<path d="M7 4L4 10M5.500 8v12M9.500 7h6M12.500 7L9.500 12h6M12.500 12v8M20 6v12M17.500 7v8"/>',
+  checkbox: '<rect x="3" y="3" width="18" height="18" rx="4"/><path d="M7.500 12.500l3 3 6-7"/>',
 };
 export const iconGlyph = (shape) => ICON_GLYPHS[shape] ?? '<circle cx="12" cy="12" r="9"/>';
 // 絵記号（24x24 の枠に収まる図形）。(x,y) は左上。
@@ -154,6 +198,9 @@ function iconShape(shape, x, y, color) {
 // 描画（renderDiagramSvg）と図の要素の外枠（app.getDiagramElements）が同じ値を使う。trees: Map(sceneId → 木。infodesign.js)。
 // 木がないシーンは話順のまま（まとめない）。列の幅と高さはそのシーンの内容だけで決まるので、後ろのシーンの変化で前の列は動かない（AC-432(b)）。
 const SUB_HEAD = 26; const SUB_PAD = 10; const SUB_GAP = 20; const FS_SUB = 15;
+const CMP_COL_HEAD = 24; const CMP_COL_GAP = 12; const CMP_EMPTY_H = 28; // FR-099: 比較（2 列）の列の見出しの高さ・列の間隔・0 件の列の文字の高さ
+const sideMark = (i) => (i === 0 ? '◀' : '▶'); // 列の記号（色だけに頼らない）
+const columnHead = (side, i) => `${sideMark(i)} ${side.name}（${side.count}）`;
 export function detailGeometry(scenes, trees = null, lang = 'ja', originX = 0) {
   const out = []; let x = MARGIN + originX;
   for (const s of scenes) {
@@ -166,11 +213,34 @@ export function detailGeometry(scenes, trees = null, lang = 'ja', originX = 0) {
     const pw = (leaf) => { const p = byId.get(leaf.refIds[0]); const c = countMark(leaf.refIds.length); return textWidth(p?.text ?? '', FS) + 32 + ICON_W + textWidth(kindLabelOf(classifyPoint(p), lang), 11) + 12 + (c ? textWidth(c, 11) + 8 : 0) + inset * 2; };
     const count = (n) => n.children.reduce((a, l) => a + l.refIds.length, 0);
     const subs = tree.children.filter((n) => n.type === 'subgroup').map((n) => textWidth(subgroupLabel(n, lang, count(n)), FS_SUB) + SUB_PAD * 2 + 8);
-    const w = Math.ceil(Math.max(240, textWidth(s.heading, FS_HEAD) + 70, ...leaves(tree).map(pw), ...subs, emoW + 32));
+    // FR-099 AC-587: 比較は 2 列（同じ幅・同じ基準の文字の大きさ）。1 列の幅は、列の中で最も長い要点・列の見出しに合わせてそろえる。
+    const cmps = tree.children.filter((n) => n.compare);
+    const colNeed = (n) => Math.max(...n.children.map((l) => pw(l) - inset * 2), ...n.compare.sides.map((sd, si) => textWidth(columnHead(sd, si), FS_SUB) + 16), 120);
+    const cmpW = cmps.map((n) => colNeed(n) * 2 + CMP_COL_GAP + SUB_PAD * 2);
+    const w = Math.ceil(Math.max(240, textWidth(s.heading, FS_HEAD) + 70, ...leaves(tree).map(pw), ...subs, ...cmpW, emoW + 32));
     const points = []; const subgroups = [];
     let y = MARGIN + HEAD_H + GAP;
-    const place = (leaf, parent, idx, px, ww) => { points.push({ key: leaf.key, refIds: [...leaf.refIds], parent, readIndex: idx, x: px, y, w: ww, h: BUBBLE_H, provisional: leaf.provisional === true }); y += BUBBLE_H + GAP; };
+    const place = (leaf, parent, idx, px, ww, column = null) => { points.push({ key: leaf.key, refIds: [...leaf.refIds], parent, readIndex: idx, x: px, y, w: ww, h: BUBBLE_H, provisional: leaf.provisional === true, ...(column == null ? {} : { column }) }); y += BUBBLE_H + GAP; };
     tree.children.forEach((n, ci) => {
+      if (n.compare) {
+        const top = y; y += SUB_HEAD;
+        const colW = Math.floor((w - SUB_PAD * 2 - CMP_COL_GAP) / 2);
+        const colTop = y; let colBottom = colTop + CMP_COL_HEAD; let idx = 0;
+        const columns = n.compare.sides.map((sd, si) => {
+          const cx0 = x + SUB_PAD + si * (colW + CMP_COL_GAP);
+          y = colTop + CMP_COL_HEAD;
+          const leafOf = new Map(n.children.map((l) => [l.key, l]));
+          for (const key of sd.keys) { place(leafOf.get(key), n.key, idx++, cx0, colW, si); }
+          if (!sd.keys.length) y += CMP_EMPTY_H + GAP; // 0 件の列: 「異論の記録なし」の文字の行
+          colBottom = Math.max(colBottom, y - GAP + 8 + 4);
+          return { id: sd.id, name: sd.name, count: sd.count, index: si, x: cx0, w: colW, label: columnHead(sd, si), empty: sd.keys.length === 0, emptyLabel: COMPARE_EMPTY[lang === 'en' ? 'en' : 'ja'] };
+        });
+        for (const c of columns) { c.y = colTop; c.h = colBottom - colTop; }
+        const bottom = colBottom + SUB_PAD;
+        subgroups.push({ key: n.key, node: n, readIndex: ci, x, y: top, w, h: bottom - top, label: subgroupLabel(n, lang, count(n)), refIds: n.children.flatMap((l) => l.refIds), provisional: false, compare: { id: n.compare.id, columns } });
+        y = bottom + SUB_GAP;
+        return;
+      }
       if (n.type !== 'subgroup') { place(n, null, ci, x, w); return; }
       const top = y; y += SUB_HEAD;
       n.children.forEach((l, li) => place(l, n.key, li, x + SUB_PAD, w - SUB_PAD * 2));
@@ -186,6 +256,27 @@ export function detailGeometry(scenes, trees = null, lang = 'ja', originX = 0) {
   }
   return out;
 }
+
+export const REL_MAX_PER_ELEMENT = 4; // PARAM-136: 1 つの要素に付けて描く関係線の本数の上限
+// FR-053 AC-584: 優先度（明示を推測より先、同じなら話順）で図に残す線を決める。残らない関係は hidden に回り（テキスト一覧には全部ある）、要素ごとの件数が moreCount に入る。
+// 決定的で、入力の関係の並び（話順）だけで決まる（再配置の前後で同じ規則）。
+export function limitRelations(relations, max = REL_MAX_PER_ELEMENT) {
+  const list = relations ?? [];
+  const order = list.map((r, i) => ({ r, i })).sort((x, y) => (x.r.basis === 'inferred') - (y.r.basis === 'inferred') || x.i - y.i);
+  const used = new Map(); const keep = new Set(); const moreCount = new Map();
+  for (const { r, i } of order) {
+    if ((used.get(r.from) ?? 0) < max && (used.get(r.to) ?? 0) < max) { keep.add(i); used.set(r.from, (used.get(r.from) ?? 0) + 1); used.set(r.to, (used.get(r.to) ?? 0) + 1); }
+    else for (const id of new Set([r.from, r.to])) moreCount.set(id, (moreCount.get(id) ?? 0) + 1);
+  }
+  return { drawn: list.filter((_, i) => keep.has(i)), hidden: list.filter((_, i) => !keep.has(i)), moreCount };
+}
+// 関係線の線種（色だけに頼らない）: 種類ごとに線の形を変え、推測は破線。対立は両端が矢印。
+export function relationStroke(r) {
+  if (r.basis === 'inferred') return { dash: '5 4', width: 2 };
+  return { dash: { opposition: '9 3 2 3', evidence: '2 4' }[r.kind] ?? '', width: r.kind === 'next-step' ? 3.2 : 2 };
+}
+export const relationLabelText = (r) => `${r.kindLabel}（${r.basisLabel}）`;
+export const relationArrow = (r) => (r.bidirectional ? '↔' : '→');
 
 // scenes: アプリの状態のシーン配列。opts: { selectedSceneId, t, title, trees（FR-079 の再配置の木） }
 export function renderDiagramSvg(scenes, opts = {}) {
@@ -214,6 +305,15 @@ export function renderDiagramSvg(scenes, opts = {}) {
     const dash = s.status === 'in_progress' ? ' stroke-dasharray="6 4"' : '';
     const byId = new Map(s.points.map((p) => [p.id, p]));
     for (const sg of g.subgroups) {
+      if (sg.compare) { // FR-099 AC-587: 文字「比較」と対の記号（⇄）の見出し、側ごとの 2 列（列の枠の線種・記号・文字で見分ける。色だけに頼らない）
+        const cols = sg.compare.columns.map((c) => `<g data-compare-column="${attr(c.id)}" data-side-index="${c.index}">`
+          + `<path d="${wobblyD(outline('rect', c.x - 4, c.y, c.w + 8, c.h), `${sg.key}:${c.id}`, true, 0.6)}" fill="none" stroke="${INK}" stroke-width="${sw(1.4)}"${c.index === 0 ? '' : ' stroke-dasharray="7 3"'} data-role="compare-column-frame"/>`
+          + `<text x="${c.x + 4}" y="${c.y + 17}" font-size="${FS_SUB}" font-weight="700" fill="${INK}" data-role="compare-column-heading">${esc(c.label)}</text>`
+          + (c.empty ? `<text x="${c.x + 8}" y="${c.y + 24 + 20}" font-size="${FS}" fill="${INK}" data-role="compare-empty">${esc(c.emptyLabel)}</text>` : '') + '</g>').join('');
+        body.push(`<g data-subgroup="${attr(sg.key)}" data-subgroup-kind="compare" data-conflict-id="${attr(sg.compare.id)}"><path d="${wobblyD(outline('rect', sg.x, sg.y, sg.w, sg.h), `${sg.key}:g`, true, 0.8)}" fill="none" stroke="${INK}" stroke-width="${sw(2.2)}" data-role="subgroup-frame"/>`
+          + `<text x="${sg.x + SUB_PAD}" y="${sg.y + 18}" font-size="${FS_SUB}" font-weight="700" fill="${INK}" data-role="subgroup-heading">${esc(sg.label)}</text>${cols}</g>`);
+        continue;
+      }
       body.push(`<g data-subgroup="${attr(sg.key)}" data-subgroup-kind="${attr(sg.node.kind)}"><path d="${wobblyD(outline('rect', sg.x, sg.y, sg.w, sg.h), `${sg.key}:g`, true, 0.8)}" fill="none" stroke="${color}" stroke-width="${sw(1.2)}" stroke-dasharray="4 3" data-role="subgroup-frame"/>`
         + `<text x="${sg.x + SUB_PAD}" y="${sg.y + 18}" font-size="${FS_SUB}" font-weight="700" fill="${INK}" data-role="subgroup-heading">${esc(sg.label)}</text></g>`);
     }
@@ -235,6 +335,7 @@ export function renderDiagramSvg(scenes, opts = {}) {
       const dupSvg = dup ? `<text data-role="dup-count" x="${r1(px + pw - 14 - textWidth(label, 11))}" y="${y + 12}" font-size="11" font-weight="700" text-anchor="end" fill="${INK}">${esc(dup)}</text>` : '';
       body.push(`<g data-point-id="${attr(p.id)}"${g1.refIds.length > 1 ? ` data-point-ids="${attr(g1.refIds.join(' '))}"` : ''} data-kind="${kind}"${hl ? ' data-highlight="1"' : ''}${g1.provisional ? ' data-provisional="1"' : ''}>${frame}`
         + `<path d="${wobblyD(outline(k.shape, px, y, pw, BUBBLE_H), p.id, true)}" fill="${paper}" stroke="${stroke}" stroke-width="${sWidth}" stroke-linejoin="round"${dash}/>`
+        + kindExtraSvg(k.shape, px, y, pw, BUBBLE_H, stroke, sWidth)
         + `<path d="${wobblyD([[px + 18, y + BUBBLE_H], [px + 12, y + BUBBLE_H + 8], [px + 26, y + BUBBLE_H]], `${p.id}:t`, false, 0.4)}"         fill="${paper}" stroke="${stroke}" stroke-width="${sw(2.5)}" stroke-linejoin="round"/>`
         + decoIcon(k.icon, px + 8, y + 7, stroke)
         + `<text x="${px + 8 + ICON_W}" y="${y + 24}" font-size="${FS}"${concl ? ' ' + 'font-weight="800"' : ''} fill="${INK}">${esc(p.text)}</text>`
@@ -247,7 +348,7 @@ export function renderDiagramSvg(scenes, opts = {}) {
       const a = top.get(r.from); const b = top.get(r.to);
       if (a == null || b == null || a === b) continue; // FR-079 AC-429: まとめた要素の中の関係は描かない
       const sa = slot.get(r.from); const sb = slot.get(r.to);
-      if (sa.parent !== sb.parent || Math.abs(sa.readIndex - sb.readIndex) !== 1) continue;
+      if (sa.parent !== sb.parent || Math.abs(sa.readIndex - sb.readIndex) !== 1 || sa.column != null || sb.column != null) continue; // FR-099: 比較の列の中の要点は、列をまたぐので縦の線を引かない（関係はテキスト一覧にある）
       const [from, to] = a <= b ? [a, b] : [b, a];
       const hot = hlId != null && (r.from === hlId || r.to === hlId);
       body.push(`<path data-relation="${attr(r.from)}>${attr(r.to)}"${hot ? ' data-highlight="1"' : ''} d="${wobblyD([[cx, from + BUBBLE_H + 4], [cx, to - 3]], `${r.from}>${r.to}`, false, 1)}" fill="none" stroke="${hot ? HL_COLOR : color}" stroke-width="${sw(hot ? 5 : 2.5)}" stroke-linecap="round" marker-end="url(#${hot ? 'arrow-hl' : `arrow-${i % PALETTE.length}`})"/>`);
@@ -273,12 +374,13 @@ export function renderDiagramSvg(scenes, opts = {}) {
     x += w + SCENE_GAP;
   });
   // FR-053: 要点どうしの関係線（種類のラベル・向き=始点→終点の矢印・明示/推測）。推測は破線＋文字「推測」で、明示と見分ける。
-  const relSvg = (opts.relations ?? []).map((r, ri) => {
+  const limited = limitRelations(opts.relations ?? []);
+  const relSvg = limited.drawn.map((r, ri) => {
     const a = rects.get(r.from); const b = rects.get(r.to);
     if (!a || !b || (a.x === b.x && a.y === b.y)) return '';
-    const inferred = r.basis === 'inferred';
-    const dashA = inferred ? ' stroke-dasharray="5 4"' : '';
-    const label = `${r.kindLabel}（${r.basisLabel}）`;
+    const st = relationStroke(r);
+    const dashA = st.dash ? ` stroke-dasharray="${st.dash}"` : '';
+    const label = relationLabelText(r);
     const ya = a.y + BUBBLE_H / 2; const yb = b.y + BUBBLE_H / 2;
     let d; let lx; let ly;
     if (a.sceneId === b.sceneId) {
@@ -288,9 +390,11 @@ export function renderDiagramSvg(scenes, opts = {}) {
       const fwd = b.x >= a.x; const x1 = fwd ? a.x + a.w : a.x; const x2 = fwd ? b.x - 3 : b.x + b.w + 3;
       d = `M${r1(x1)} ${r1(ya)} L${r1(x2)} ${r1(yb)}`; lx = (x1 + x2) / 2; ly = (ya + yb) / 2 - 4;
     }
-    return `<g data-role="point-relation"><path data-relation-kind="${attr(r.kind)}" data-relation-from="${attr(r.from)}" data-relation-to="${attr(r.to)}" data-relation-basis="${attr(r.basis)}" d="${d}" fill="none" stroke="${INK}" stroke-width="2"${dashA} marker-end="url(#arrow-flow)"/>`
+    return `<g data-role="point-relation"><path data-relation-kind="${attr(r.kind)}" data-relation-from="${attr(r.from)}" data-relation-to="${attr(r.to)}" data-relation-basis="${attr(r.basis)}"${r.bidirectional ? ' data-relation-bidirectional="1"' : ''} d="${d}" fill="none" stroke="${INK}" stroke-width="${st.width}"${dashA} marker-end="url(#arrow-flow)"${r.bidirectional ? ' marker-start="url(#arrow-flow)"' : ''}/>`
       + `<text data-relation-label x="${r1(lx)}" y="${r1(ly)}" font-size="11" font-weight="700" fill="${INK}">${esc(label)}</text></g>`;
-  }).join('');
+  }).join('')
+    // AC-584: 図に描かない関係の件数を、要素の脇に文字で示す（関係はテキスト一覧にある）
+    + [...limited.moreCount].map(([id, n]) => { const a = rects.get(id); return a ? `<text data-role="relation-more" data-relation-more-for="${attr(id)}" x="${r1(a.x + a.w - 4)}" y="${r1(a.y + BUBBLE_H + 11)}" font-size="10" text-anchor="end" fill="${INK}">${esc(t('diagram.relMore').replace('{n}', String(n)))}</text>` : ''; }).join('');
   // シーン間の矢印（時系列）
   const flows = heads.slice(0, -1).map((h, i) => {
     const y = MARGIN + HEAD_H / 2; const nx = heads[i + 1].x;
@@ -300,7 +404,7 @@ export function renderDiagramSvg(scenes, opts = {}) {
   const width = Math.max(320, emptyW, x - SCENE_GAP + MARGIN);
   const height = Math.max(160, maxH);
   const markers = PALETTE.map((c, i) => `<marker id="arrow-${i}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`).join('')
-    + `<marker id="arrow-flow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="${INK}"/></marker>`
+      + `<marker id="arrow-flow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${INK}"/></marker>`
     + `<marker id="arrow-hl" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="${HL_COLOR}"/></marker>`;
   const title = esc(opts.title ?? '');
   const empty = scenes.length ? '' : `<text x="${MARGIN}" y="${MARGIN + 24}" font-size="${FS}" fill="${INK}">${esc(t('diagram.empty'))}</text>`;
@@ -475,6 +579,7 @@ export function renderArrangedSvg(scenes, model, opts = {}) {
       const dup = countMark(refIds.length); // FR-079 AC-429: 同一の要点のまとめの件数
       parts.push(`<g data-point-id="${attr(p.id)}"${refIds.length > 1 ? ` data-point-ids="${attr(refIds.join(' '))}"` : ''} data-kind="${kind}" data-assigned="${it.unclassified ? 'unclassified' : 'assigned'}"${hl ? ' data-highlight="1"' : ''}>${reason}`
         + `<path d="${wobblyD(outline(k.shape, it.x, it.y, it.w, BUBBLE_H), p.id, true)}" fill="${PAPER}" stroke="${stroke}" stroke-width="${hl ? 5 : 2.5}" stroke-linejoin="round"/>`
+        + kindExtraSvg(k.shape, it.x, it.y, it.w, BUBBLE_H, stroke, 2.5)
         + iconShape(k.icon, it.x + 8, it.y + 7, stroke)
         + `<text x="${it.x + 8 + ICON_W}" y="${it.y + 24}" font-size="${FS}" fill="${INK}">${esc(p.text)}</text>`
         + (dup ? `<text data-role="dup-count" x="${it.x + it.w - 8}" y="${it.y + 12}" font-size="11" font-weight="700" text-anchor="end" fill="${INK}">${esc(dup)}</text>` : '')
@@ -523,7 +628,7 @@ export function mountDiagramPanel(host, app, doc = host.ownerDocument) {
     });
     canvas.addEventListener('click', (ev) => {
       const g = ev.target?.closest?.('[data-point-id]');
-      if (g) { app.highlightPoint(g.getAttribute('data-point-id'), 'pointer'); return; }
+      if (g) { app.highlightPoint(g.getAttribute('data-point-id'), 'pointer'); app.activateElement?.({ kind: 'point', id: g.getAttribute('data-point-id'), surface: 'diagram' }, 'click'); return; } // FR-101 AC-592・AC-595: クリック・タップで固定のポップアップ
       app.clearHighlight();
       // FR-026 AC-137: 2D でトピック（大項目）・シーン（中項目）を選ぶ
       const tp = ev.target?.closest?.('[data-topic-id]'); const sc = ev.target?.closest?.('[data-scene-id]');
@@ -559,13 +664,17 @@ function paint(host, app) {
   const svg = same ? host._lastSvg : app.renderSvg();
   host._ver = ver;
   // 同じ SVG・同じ拡大率・同じ幅なら、DOM を作り直さない（NFR-PERF-002/003: ドラッグ・ホバー中の全再構築を避ける）
-  const sig = `${host._zoom}|${host._fit}|${canvas.clientWidth}`;
+  const sig = `${host._zoom}|${host._fit}|${canvas.clientWidth}|${app.getProjectionSignature?.() ?? ''}`;
   if (host._lastSvg === svg && host._lastSig === sig) return;
   // SVG が同じで幅・拡大率だけ変わったとき（パネルの大きさ変更中）は、図の DOM を作り直さず寸法だけ直す（長いタスクの回避）
   const reuse = host._lastSvg === svg && host._base && host._svgEl && host._svgEl.isConnected;
   host._lastSvg = svg; host._lastSig = sig;
   if (!reuse) canvas.innerHTML = svg;
   const el = reuse ? host._svgEl : canvas.querySelector('svg');
+  if (el && !reuse) { // FR-102: RPG風の地図の選べる要素に名前・役割・Tab の順序を足す（書き出す SVG は変えない）
+    const places = app.getRpgMap?.()?.places;
+    if (places) { const names = new Map(places.map((p) => [p.refId, p.label])); enhanceRpgDom(el, (id) => names.get(id)); }
+  }
   if (el) {
     if (!reuse) { host._svgEl = el; host._base = { w: Number(el.getAttribute('width')), h: Number(el.getAttribute('height')), vb: el.getAttribute('viewBox') }; }
     const { w, h, vb } = host._base;
@@ -582,6 +691,30 @@ function paint(host, app) {
     el.setAttribute('viewBox', `0 0 ${cw / z} ${ch / z}`);
   }
   if (dv && (canvas.scrollLeft !== dv.scrollX || canvas.scrollTop !== dv.scrollY)) { canvas.scrollLeft = dv.scrollX; canvas.scrollTop = dv.scrollY; }
+  applyProjectionWarnings(canvas, app);
+}
+// FR-100 AC-589: 投影のプリセットの最小文字サイズを下回る要素に、文字「小さい文字」と枠つきの記号の警告を付ける。
+// 画面の DOM にだけ足す（保存物 renderSvg の文字列・図の内容・配置は変えない）。色だけに頼らない
+function applyProjectionWarnings(canvas, app) {
+  for (const old of canvas.querySelectorAll('[data-projection-warn]')) old.remove();
+  const w = app.getProjectionWarnings?.();
+  const svg = canvas.querySelector('svg');
+  if (!w || !w.count || !svg || !svg.ownerDocument.createElementNS) return;
+  const NS = svg.namespaceURI; const doc = svg.ownerDocument;
+  for (const it of w.items) {
+    const host = it.kind === 'scene' ? svg.querySelector(`text[data-role="scene-heading"][data-scene-id="${CSS.escape?.(it.id) ?? it.id}"]`) : svg.querySelector(`g[data-point-id="${CSS.escape?.(it.id) ?? it.id}"]`);
+    if (!host || !host.getBBox) continue;
+    let b; try { b = host.getBBox(); } catch { continue; }
+    const g = doc.createElementNS(NS, 'g'); g.setAttribute('data-projection-warn', '1'); g.setAttribute('data-warn-id', it.id);
+    const r = doc.createElementNS(NS, 'rect'); const tx = doc.createElementNS(NS, 'text');
+    const label = `▣ ${it.label}`; const wd = label.length * 11 + 8;
+    r.setAttribute('x', String(b.x + b.width - wd)); r.setAttribute('y', String(b.y - 14)); r.setAttribute('width', String(wd)); r.setAttribute('height', '16'); r.setAttribute('rx', '3');
+    r.setAttribute('fill', '#fff'); r.setAttribute('stroke', '#1a1a1a'); r.setAttribute('stroke-width', '1.5'); r.setAttribute('stroke-dasharray', '4 2'); // 枠（破線）で形でも示す
+    tx.setAttribute('x', String(b.x + b.width - wd + 4)); tx.setAttribute('y', String(b.y - 2)); tx.setAttribute('font-size', '11'); tx.setAttribute('font-weight', '700'); tx.setAttribute('fill', '#1a1a1a');
+    tx.textContent = label;
+    const title = doc.createElementNS(NS, 'title'); title.textContent = it.text;
+    g.append(title, r, tx); svg.append(g);
+  }
 }
 // FR-035: 比喩の絵（SVG の図形だけ。色だけにせず、各要素に文字のラベル）
 function metaphorSvg(m) {
