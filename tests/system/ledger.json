@@ -23,7 +23,7 @@
     "AC-030": "sha256:4ff8c6e5383e0179",
     "AC-031": "sha256:dbc47a4570d83d70",
     "AC-032": "sha256:70a43cf878f66a04",
-    "AC-036": "sha256:114111a7c5551918",
+    "AC-036": "sha256:2ce233e08814f555",
     "AC-038": "sha256:773c32c1766736b7",
     "AC-049": "sha256:b530880830288c02",
     "AC-050": "sha256:9d9068d925e207dd",
@@ -260,7 +260,11 @@
     "AC-560": "sha256:ded5157cc1b42aa1",
     "AC-569": "sha256:04134336b0865378",
     "AC-592": "sha256:edf7cef7e7116967",
-    "AC-599": "sha256:a4d0cd264eb1f3e9"
+    "AC-599": "sha256:a4d0cd264eb1f3e9",
+    "AC-610": "sha256:f933a4eada0cb5c3",
+    "AC-611": "sha256:c8542cab1fab58c5",
+    "AC-616": "sha256:67f8c2275aacce96",
+    "AC-639": "sha256:9b0ba636ba258031"
   },
   "cases": [
     {
@@ -8248,6 +8252,112 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計 FR-103"
+        }
+      ]
+    },
+    {
+      "id": "E2E-276",
+      "requirement_ids": [
+        "FR-093"
+      ],
+      "ac_ids": [
+        "AC-610"
+      ],
+      "title": "用語集の画面の登録で別表記が正しい表記に置き換わり、元の発話が残り、保存・読込で残る",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-610\" tests/system/glossary-agenda.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-11-02T10:41:42+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-277",
+      "requirement_ids": [
+        "FR-095"
+      ],
+      "ac_ids": [
+        "AC-611"
+      ],
+      "title": "議題の画面で追加・編集・削除・並べ替え・上限・進行中の議題の保護・保存復元ができる",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-611\" tests/system/glossary-agenda.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-11-02T10:41:44+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-278",
+      "requirement_ids": [
+        "FR-106"
+      ],
+      "ac_ids": [
+        "AC-616"
+      ],
+      "title": "投票の票・評価・重大なリスク・決定事項の候補・保存復元・初期化・出力",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-616\" tests/system/vote.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-11-02T10:41:45+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-279",
+      "requirement_ids": [
+        "FR-112"
+      ],
+      "ac_ids": [
+        "AC-639"
+      ],
+      "title": "手描きの 2 本の線が消しゴム・取り消し・再配置・保存・SVG で保たれる",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-639\" tests/system/draw.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-11-02T10:41:47+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-11-02T10:41:55+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "次 run で実装（FR-112）"
         }
       ]
     }

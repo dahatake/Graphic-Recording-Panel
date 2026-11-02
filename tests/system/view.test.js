@@ -197,3 +197,16 @@ test('NFR-A11Y-001 AC-036: 案内・ヘルプ・サンプル・読み順の型�
   assert.equal(app.setProjectionPreset('hall').ok, true);
   assert.equal(app.getProjectionPreset().id, 'hall');
 });
+
+// NFR-A11Y-001 AC-036（FR-106・107 の追加分。契約: tests/system/CONTRACT-P2.md §キー）
+test('NFR-A11Y-001 AC-036: 投票・役割・確認の問いかけの操作にキー割り当てがあり、キーだけで実行できる', async () => {
+  const { app } = await newApp();
+  const cmds = ['vote.open', 'vote.tally', 'roles.open', 'question.open'];
+  for (const c of cmds) { assert.equal(typeof app.commands[c], 'function', `commands[${c}]`); assert.ok(keyFor(app, c), `keymap に ${c}`); }
+  const combos = app.keymap.map((k) => `${!!k.ctrl}${!!k.alt}${!!k.shift}${k.key}`);
+  assert.equal(new Set(combos).size, combos.length, 'キーの割り当てが重複しない');
+  for (const c of ['vote.open', 'roles.open', 'question.open']) {
+    assert.equal(app.handleKey(keyFor(app, c)), c, `handleKey が ${c} を実行して名前を返す`);
+    assert.ok(String(app.getState().message?.text ?? '').length > 0, `${c}: 状態メッセージで受け付けが分かる`);
+  }
+});
