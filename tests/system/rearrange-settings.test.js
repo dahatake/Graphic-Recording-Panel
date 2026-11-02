@@ -150,6 +150,21 @@ test('FR-080 AC-440: コマンドの検索から周期の設定を開き、キ�
   assert.equal(app.getSettingsDialog(), null);
 });
 
+// FR-080 AC-440（操作回数 PARAM-164＝3 回以内: 検索の入力 1・候補の選択 1・確定 1）
+test('FR-080 AC-440 操作回数: コマンドの検索から周期の変更が 3 回（PARAM-164）以内で終わる', async () => {
+  const { app } = await arrangeApp();
+  const hits = app.searchCommands('再配置').map((x) => x.command);
+  const idx = hits.indexOf('settings.arrangeInterval');
+  assert.ok(idx >= 0, 'コマンドの検索で見つかる');
+  const ops = 1 + idx + 1 + 1; // 検索 1 + 候補までの移動 + 選択 1 + 確定（Enter）1
+  assert.ok(ops <= 3, `操作回数 ${ops} > 3`);
+  app.commands['settings.arrangeInterval']();
+  assert.equal(app.getSettingsDialog().focusedField, 'arrange.interval', '選択だけで周期の項目にフォーカスが移る');
+  app.setSettingsFieldDraft('arrange.interval', '20');
+  assert.equal(app.handleKey({ key: 'Enter' }), 'settings.arrange.commit');
+  assert.equal(app.getArrangeInterval().sec, 20);
+});
+
 // FR-080 AC-440 異常系
 test('FR-080 AC-440 異常系: キーボード・マウスの操作で範囲外・不正な値にはならず、値は保たれる', async () => {
   const { app } = await arrangeApp();

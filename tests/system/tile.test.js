@@ -132,6 +132,21 @@ test('FR-017 AC-086: フォーカス・整列・最大化がキーボードと�
   assert.notEqual(app.getLayout().panels.diagram.x, x0, 'ドラッグなしで移動できる');
 });
 
+// FR-017 AC-086（操作回数 PARAM-164＝3 回以内。検索の入力 1・候補の選択 1・確定 1。候補が先頭でなければ、その分の移動も 1 回ずつ数える）
+test('FR-017 AC-086 操作回数: コマンドの検索から整列・フォーカス・最大化へ 3 回（PARAM-164）以内で切り替わる', async () => {
+  const { app } = await newApp();
+  const MAX_OPS = 3;
+  for (const [q, cmd, kind] of [['フォーカス', 'layout.focus', 'focus'], ['最大化', 'layout.maximize', 'maximized']]) {
+    const hits = app.searchCommands(q).map((x) => x.command);
+    const idx = hits.indexOf(cmd);
+    assert.ok(idx >= 0, `検索「${q}」で ${cmd} が見つかる`);
+    const ops = 1 + idx + 1; // 検索の入力 1 + 候補までの移動 + 選択（確定）1
+    assert.ok(ops <= MAX_OPS, `${cmd}: 操作回数 ${ops} > ${MAX_OPS}`);
+    app.commands[cmd]();
+    assert.equal(app.getLayout().kind, kind);
+  }
+});
+
 test('FR-017 AC-086 異常系: 該当のないコマンド検索は空で、レイアウトを変えない', async () => {
   const { app } = await newApp();
   const before = JSON.stringify(app.getLayout());

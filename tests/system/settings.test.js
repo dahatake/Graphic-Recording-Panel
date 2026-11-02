@@ -146,6 +146,19 @@ test('FR-030 AC-151: ［設定］画面はキーボードとコマンドの検�
   assert.equal(app.getSettingsDialog(), null);
 });
 
+// FR-030 AC-151（操作回数 PARAM-164＝3 回以内）
+test('FR-030 AC-151 操作回数: コマンドの検索から［設定］画面を開くまで 3 回（PARAM-164）以内', async () => {
+  const { app } = await newApp();
+  const btn = app.getCommandBar().items.find((i) => i.command === 'settings.open');
+  const hits = app.searchCommands(btn.label).map((x) => x.command);
+  const idx = hits.indexOf('settings.open');
+  assert.ok(idx >= 0, '検索で見つかる');
+  const ops = 1 + idx + 1;
+  assert.ok(ops <= 3, `操作回数 ${ops} > 3`);
+  app.commands['settings.open']();
+  assert.ok(app.getSettingsDialog(), '設定画面が開く');
+});
+
 test('FR-030 AC-151: 各項目のラベルは PARAM-011（6 文字）以内で、英語に切り替えても同様', async () => {
   const { app } = await newApp();
   app.commands['settings.open']();

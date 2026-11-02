@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { WEB } from './helpers.js';
 
 // PARAM-076..080（docs/requirements-definition.md の PARAM 表）
-export const PERF = { RESPONSE_MS: 100, MIN_FPS: 30, BIG_UTTERANCES: 500, IDLE_CPU_PCT: 5, FIRST_SEC: 2, UPPER_SEC: 15 /* PARAM-001（ライブ更新の間隔の上限） */, SINGLE_SEC: 3 /* PARAM-158（単発の反映の上限。2026-11-02） */,
+export const PERF = { RESPONSE_MS: 100, MIN_FPS: 30, SAMPLES: 50 /* PARAM-166（応答時間の試行回数） */, LONG_MS: 50 /* PARAM-168（長いタスクの上限） */, BIG_UTTERANCES: 500, IDLE_CPU_PCT: 5, FIRST_SEC: 2, UPPER_SEC: 15 /* PARAM-001（ライブ更新の間隔の上限） */, SINGLE_SEC: 3 /* PARAM-158（単発の反映の上限。2026-11-02） */,
    WINDOW_H_MAX: 900 /* PARAM-155 */, PANEL_MIN_PCT: 55 /* PARAM-156 */,
   // PARAM-005（性能測定時の事前入力の件数）、PARAM-106（データ量の検証規模）、PARAM-107（増分の上限 %）、PARAM-109（ばらつきとして無視する増分 ms）
   BASE_UTTERANCES: 100, HUGE_UTTERANCES: 5000, GROWTH_PCT: 20, GROWTH_FLOOR_MS: 16 };
@@ -114,8 +114,8 @@ const INIT = `
 })();
 `;
 
-export async function openApp(browser, url) {
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
+export async function openApp(browser, url, viewport = { width: 1280, height: 1000 }) {
+  const ctx = await browser.newContext({ viewport });
   await ctx.addInitScript(INIT);
   const page = await ctx.newPage();
   await page.goto(url, { waitUntil: 'load' });

@@ -153,6 +153,18 @@ test('FR-026 AC-133: 詳細度はキーボードとコマンドの検索から�
   assert.equal(app.getDetailLevel(), 'detail');
 });
 
+// FR-026 AC-133（操作回数 PARAM-164＝3 回以内）
+test('FR-026 AC-133 操作回数: コマンドの検索から詳細度の変更が 3 回（PARAM-164）以内で終わる', async () => {
+  const { app } = await newApp();
+  const hits = app.searchCommands('詳細').map((x) => x.command);
+  const idx = hits.indexOf('detail.detail');
+  assert.ok(idx >= 0, '「詳細」の検索で detail.detail が見つかる');
+  const ops = 1 + idx + 1; // 検索の入力 1 + 候補までの移動 + 選択（確定）1
+  assert.ok(ops <= 3, `操作回数 ${ops} > 3`);
+  app.commands['detail.detail']();
+  assert.equal(app.getDetailLevel(), 'detail');
+});
+
 test('FR-026 AC-133: 操作のラベルは PARAM-011（6）文字以内で、変更の結果は画面の読み上げ対象のメッセージで示される（ja・en）', async () => {
   const { app } = await newApp();
   const width = (s) => [...s].reduce((n, ch) => n + (/[\u3000-\u30ff\u3400-\u9fff\uff00-\uffef]/.test(ch) ? 1 : 0.5), 0);
