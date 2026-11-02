@@ -362,3 +362,14 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .agenda-dialog [role="alertdialog"] { margin-top: var(--space-3); padding: var(--space-3); border: var(--stroke) solid var(--color-danger); border-radius: var(--radius); }
 .agenda-dialog [role="alertdialog"] button:focus-visible, .agenda-dialog .agenda-timer button:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
 @media (forced-colors: active) { .glossary-dialog, .glossary-dialog input[type="text"] { border-color: CanvasText; } }
+/* FR-106: 投票と評価（用語集の画面の見た目を再利用。注記・印は枠と文字で示し、色だけに頼らない） */
+.vote-dialog textarea, .vote-dialog input[type="number"], .vote-dialog select { display: block; width: 100%; box-sizing: border-box; min-height: 2.5rem; margin-top: var(--space-1); padding: var(--space-2); color: inherit; background: var(--color-surface); border: var(--stroke) solid var(--color-border); border-radius: var(--radius); font: inherit; }
+.vote-dialog fieldset { margin: 0 0 var(--space-3); border: var(--stroke) solid var(--color-border); border-radius: var(--radius); }
+.vote-dialog .vote-radio { display: inline-block; margin-right: var(--space-3); }
+.vote-dialog .vote-radio input { display: inline-block; width: auto; min-height: 0; }
+.vote-dialog li { display: block; }
+.vote-dialog select:focus-visible, .vote-dialog textarea:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.vote-notice { margin: var(--space-2) 0; padding: var(--space-2); border: var(--stroke) dashed var(--color-border); border-radius: var(--radius); }
+.badge-critical-risk { display: inline-block; padding: 0 var(--space-2); border: 2px solid var(--color-danger); border-radius: var(--radius); font-weight: var(--font-weight-semibold); }
+.vote-unrated { font-style: italic; }
+@media (forced-colors: active) { .vote-dialog textarea, .vote-dialog select, .vote-notice, .badge-critical-risk { border-color: CanvasText; } }

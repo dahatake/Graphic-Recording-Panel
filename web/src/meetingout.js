@@ -74,7 +74,7 @@ export function markdownHead(meta, lang = 'ja') {
   if (one(meta.date)) out.push(mdText(meta.date), '');
   const where = [one(meta.series), one(meta.venue)].filter(Boolean).map(mdText).join(' / ');
   if (where) out.push(where, '');
-  for (const k of ['visibilityLine', 'excludedLine', 'conflictLine', 'objectionLine']) if (one(meta[k])) out.push(mdText(meta[k]), ''); // FR-104 AC-604・AC-606 / FR-099 AC-588
+  for (const k of ['visibilityLine', 'excludedLine', 'conflictLine', 'objectionLine', 'voteLine']) if (one(meta[k])) out.push(mdText(meta[k]), ''); // FR-104 AC-604・AC-606 / FR-099 AC-588
   const agenda = (meta.agenda ?? []).map(one).filter(Boolean);
   if (agenda.length) { out.push(`**${L.agenda}**`, ''); agenda.forEach((n, i) => out.push(`${i + 1}. ${mdText(n)}`)); out.push(''); }
   if (one(meta.purpose)) out.push(`**${L.purpose}**: ${mdText(meta.purpose)}`, '');
@@ -94,6 +94,7 @@ export function htmlHead(meta, lang, esc) {
   if (one(meta.excludedLine)) parts.push(`<p data-meeting="excluded">${esc(one(meta.excludedLine))}</p>`); // FR-104 AC-606
   if (one(meta.conflictLine)) parts.push(`<p data-meeting="conflict">${esc(one(meta.conflictLine))}</p>`); // FR-099 AC-587
   if (one(meta.objectionLine)) parts.push(`<p data-meeting="objection">${esc(one(meta.objectionLine))}</p>`); // FR-099 AC-588
+  if (one(meta.voteLine)) parts.push(`<p data-meeting="vote">${esc(one(meta.voteLine))}</p>`); // FR-106 AC-616
   if (one(meta.purpose)) parts.push(`<p data-meeting="purpose"><strong>${esc(L.purpose)}</strong>: ${esc(one(meta.purpose))}</p>`);
   if (one(meta.audience)) parts.push(`<p data-meeting="audience"><strong>${esc(L.audience)}</strong>: ${esc(one(meta.audience))}</p>`);
   const agenda = (meta.agenda ?? []).map(one).filter(Boolean);
