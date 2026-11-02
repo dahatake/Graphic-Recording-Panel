@@ -210,3 +210,22 @@ test('NFR-A11Y-001 AC-036: 投票・役割・確認の問いかけの操作に�
     assert.ok(String(app.getState().message?.text ?? '').length > 0, `${c}: 状態メッセージで受け付けが分かる`);
   }
 });
+
+// NFR-A11Y-001 AC-036（FR-112 手描きの管理・FR-111 演出の強さ。契約: tests/system/CONTRACT-P2.md §4 §6）
+test('NFR-A11Y-001 AC-036: 手描きの管理（描画のモード・色・消しゴム・取り消し・やり直し・全消去・表示の切り替え）と演出の強さの選択にキー割り当てがあり、キーだけで実行できる', async () => {
+  const { app } = await newApp();
+  const cmds = ['draw.toggle', 'draw.color.next', 'draw.erase', 'draw.undo', 'draw.redo', 'draw.clear', 'draw.visibility', 'cinematic.next'];
+  for (const c of cmds) { assert.equal(typeof app.commands[c], 'function', `commands[${c}]`); assert.ok(keyFor(app, c), `keymap に ${c}`); }
+  const combos = app.keymap.map((k) => `${!!k.ctrl}${!!k.alt}${!!k.shift}${k.key}`);
+  assert.equal(new Set(combos).size, combos.length, 'キーの割り当てが重複しない');
+  // draw.clear は確認つき（ダイアログ）なのでキーの実行はここでは省く。ほかはキーで実行できる
+  for (const c of cmds.filter((x) => x !== 'draw.clear')) {
+    assert.equal(app.handleKey(keyFor(app, c)), c, `handleKey が ${c} を実行して名前を返す`);
+    assert.ok(String(app.getState().message?.text ?? '').length > 0, `${c}: 状態メッセージで受け付けが分かる`);
+  }
+  assert.equal(app.getDrawState().mode, true, 'draw.toggle のキーで描画のモードが入る（他は状態に応じて受け付ける）');
+  const levels = [app.getCinematic().level];
+  assert.equal(app.setCinematicLevel('none').ok, true);
+  assert.equal(app.getCinematic().level, 'none');
+  assert.ok(levels[0] !== undefined);
+});

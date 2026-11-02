@@ -8342,7 +8342,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-639\" tests/system/draw.test.js",
       "canary": false,
-      "status": "blocked",
+      "status": "not_run",
       "last_commit": null,
       "last_run_at": null,
       "evidence": null,
@@ -8358,6 +8358,12 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "次 run で実装（FR-112）"
+        },
+        {
+          "at": "2026-11-02T12:47:04+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "FR-112 を今 run で実装するため解除"
         }
       ]
     }
