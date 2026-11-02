@@ -7,6 +7,8 @@ import { isPersonPartKey, personVariantFor, personGroupFor } from './personvaria
 import { escapeHtml } from './outline.js';
 import { acceptGeneratedSvg } from './svgsanitize.js';
 import { withoutConfidential } from './visibility.js';
+import { readJson, writeJson } from './persist.js';
+export const LLM_LABEL_MAX = 24; // PARAM-165: LLM が返したラベル文字列の最大の長さ（文字）
 
 export const EXTRACT_PATH = '/api/llm/extract'; // 中継サーバーが /api/llm/responses と同じ中継をする
 export const SVG_PATH = '/api/llm/svg'; // FR-065 方式2
@@ -74,7 +76,7 @@ export function parseUnbundled(body) {
   const out = [];
   for (const it of b.objects) {
     if (!isObj(it) || isPartKey(it.key) || typeof it.label !== 'string') continue;
-    const label = [...it.label.replace(/[<>&"'\u0000-\u001f]/g, ' ').trim()].slice(0, 24).join('');
+    const label = [...it.label.replace(/[<>&"'\u0000-\u001f]/g, ' ').trim()].slice(0, LLM_LABEL_MAX).join('');
     if (label && !out.includes(label)) out.push(label);
     if (out.length >= MAX_GENERATED) break;
   }
@@ -97,11 +99,11 @@ export function llmDrawModule(ctx) {
   const { api, state } = ctx;
   ctx.i18n.addStrings({
     ja: {
-      'llmdraw.mask': '送信前の簡易マスキング', 'llmdraw.maskNote': '利用者が登録した語・敬称付きの人名らしい語・メールアドレス・電話番号を伏せ字にします。検出は簡易で、完全な個人情報の除去は保証しません。',
+      'llmdraw.mask': '送信前の簡易マスキング', 'llmdraw.maskWords': '登録語', 'llmdraw.maskWordAdd': '追加', 'llmdraw.maskWordRemove': '削除', 'llmdraw.maskWordsEmpty': '登録語はありません', 'llmdraw.maskNote': '利用者が登録した語・敬称付きの人名らしい語・メールアドレス・電話番号を伏せ字にします。検出は簡易で、完全な個人情報の除去は保証しません。',
       'llmdraw.truncated': '送る文字数の上限を超えたため、超過分は送っていません', 'llmdraw.heading': 'LLM が抽出した描画', 'llmdraw.person': '人物（汎用キャラ）', 'llmdraw.emotion': '感情', 'llmdraw.svgFailed': 'SVG の生成結果を使えなかったため、汎用のアイコンにしました',
     },
     en: {
-      'llmdraw.mask': 'Simple masking before sending', 'llmdraw.maskNote': 'Registered words, name-like words with honorifics, email addresses and phone numbers are replaced with a mask. Detection is simple and does not guarantee complete removal of personal information.',
+      'llmdraw.mask': 'Simple masking before sending', 'llmdraw.maskWords': 'Words', 'llmdraw.maskWordAdd': 'Add', 'llmdraw.maskWordRemove': 'Remove', 'llmdraw.maskWordsEmpty': 'No registered words', 'llmdraw.maskNote': 'Registered words, name-like words with honorifics, email addresses and phone numbers are replaced with a mask. Detection is simple and does not guarantee complete removal of personal information.',
       'llmdraw.truncated': 'The text exceeded the send limit, so the excess was not sent', 'llmdraw.heading': 'Drawn from LLM extraction', 'llmdraw.person': 'Person (generic character)', 'llmdraw.emotion': 'Emotion', 'llmdraw.svgFailed': 'The generated SVG could not be used, so a generic icon is shown',
     },
   });
@@ -110,12 +112,19 @@ export function llmDrawModule(ctx) {
   api.getPartKeys = () => getPartKeys();
   api.getPartInfo = (key) => getPartInfo(key, state.lang);
 
-  // ---- 簡易マスキングの設定（初期値は有効。Q-017 の推奨どおり。保存しない） ----
+  // ---- 簡易マスキングの設定（初期値は有効。Q-017 の推奨どおり）と登録語（AC-474）。端末のブラウザ内にだけ保存し（セッションファイル・データの初期化・LLM 連携の送信には含めない）、LLM 連携の有効・無効にかかわらず設定画面で操作できる ----
+  const MASK_KEY = 'grp.llmMask';
   let masking = true;
   let maskWords = [];
+  { const raw = readJson(ctx.storage, MASK_KEY); if (raw && typeof raw === 'object') { if (typeof raw.enabled === 'boolean') masking = raw.enabled; if (Array.isArray(raw.words)) maskWords = raw.words.map((w) => String(w ?? '').trim()).filter(Boolean); } }
+  const saveMask = () => writeJson(ctx.storage, MASK_KEY, { enabled: masking, words: maskWords });
   api.getLlmMasking = () => masking;
-  api.setLlmMasking = (v) => { masking = v === true; ctx.emit('change', api); return masking; };
-  api.setLlmMaskWords = (list) => { maskWords = (Array.isArray(list) ? list : []).map((w) => String(w ?? '').trim()).filter(Boolean); return [...maskWords]; };
+  api.setLlmMasking = (v) => { masking = v === true; saveMask(); ctx.emit('change', api); return masking; };
+  api.setLlmMaskWords = (list) => { maskWords = [...new Set((Array.isArray(list) ? list : []).map((w) => String(w ?? '').trim()).filter(Boolean))]; saveMask(); ctx.emit('change', api); return [...maskWords]; };
+  api.getLlmMaskWords = () => [...maskWords];
+  // 登録語の追加（入力欄）と個別の削除（一覧）。登録語そのものは外へ送らない
+  api.addLlmMaskWord = (w) => { const s = String(w ?? '').trim(); if (!s) return { ok: false, reason: 'empty' }; if (!maskWords.includes(s)) { maskWords = [...maskWords, s]; saveMask(); ctx.emit('change', api); } return { ok: true, words: [...maskWords] }; };
+  api.removeLlmMaskWord = (w) => { const had = maskWords.includes(w); if (had) { maskWords = maskWords.filter((x) => x !== w); saveMask(); ctx.emit('change', api); } return { ok: had, words: [...maskWords] }; };
   // 簡易マスキングを文字に適用する（設定の有効・無効によらず、登録した語と同じ対象・伏せ字で）。FR-078 AC-471 の注意の伏せ字が使う。端末の中だけで行う
   api.applyLlmMask = (text) => maskText(text, maskWords);
 
@@ -151,7 +160,7 @@ export function llmDrawModule(ctx) {
       if (!isObj(it) || typeof it.sceneId !== 'string' || typeof it.label !== 'string') continue;
       const svg = norm(it.svg);
       if (!svg) continue;
-      generated.set(it.sceneId, [...(generated.get(it.sceneId) ?? []), { label: [...it.label].slice(0, 24).join(''), svg }]);
+      generated.set(it.sceneId, [...(generated.get(it.sceneId) ?? []), { label: [...it.label].slice(0, LLM_LABEL_MAX).join(''), svg }]);
     }
     ctx.emit('change', api);
   };
@@ -210,7 +219,7 @@ export function llmDrawModule(ctx) {
     if (e.kind === 'person') return `${ctx.t('llmdraw.person')}: ${EXPRESSION_LABELS[e.attrs.expression][lang()]}`;
     return `${ctx.t('llmdraw.emotion')}: ${EXPRESSION_LABELS[e.key][lang()]}`;
   };
-  const clip = (s) => [...String(s)].slice(0, 24).join('');
+  const clip = (s) => [...String(s)].slice(0, LLM_LABEL_MAX).join('');
   // PNG・PDF に含める絵（物・比喩・汎用キャラ）。感情は文字だけ。
   api.getLlmDrawItems = () => {
     const items = entries().filter((e) => e.kind !== 'emotion').map((e) => ({
@@ -259,10 +268,12 @@ export function llmDrawModule(ctx) {
   const baseDialog = api.getSettingsDialog;
   api.getSettingsDialog = () => {
     const d = baseDialog();
-    return d ? { ...d, fields: [...d.fields, { id: 'llm.mask', label: ctx.t('llmdraw.mask'), role: 'switch', value: masking, note: ctx.t('llmdraw.maskNote'), focusable: true }] } : null;
+    return d ? { ...d, fields: [...d.fields,
+      { id: 'llm.mask', label: ctx.t('llmdraw.mask'), role: 'switch', value: masking, note: ctx.t('llmdraw.maskNote'), focusable: true },
+      { id: 'llm.maskWords', label: ctx.t('llmdraw.maskWords'), role: 'list', words: [...maskWords], addLabel: ctx.t('llmdraw.maskWordAdd'), removeLabel: ctx.t('llmdraw.maskWordRemove'), emptyText: ctx.t('llmdraw.maskWordsEmpty'), focusable: true }] } : null;
   };
   const baseView = api.getSettingsView;
-  api.getSettingsView = (...a) => { const v = baseView(...a); return { ...v, fields: [...v.fields, { id: 'llm.mask', visible: true }] }; };
+  api.getSettingsView = (...a) => { const v = baseView(...a); return { ...v, fields: [...v.fields, { id: 'llm.mask', visible: true }, { id: 'llm.maskWords', visible: true }] }; };
 
   // 設定画面の llm.mask を Enter / Space で切り替える（AC-360）
   let maskFocus = false;

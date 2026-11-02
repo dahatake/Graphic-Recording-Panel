@@ -11,6 +11,7 @@ export const SELECT_PREFIX = 'drawStyle.select.';
 // 一覧の寸法の見積もり（px。app.css の .drawstyle-list・.drawstyle-option とトークンに合わせる）
 const VIEW = { margin: 8, gap: 4, maxW: 352, chrome: 56, listPad: 10, optPad: 20, nameLine: 21, descLine: 17, emName: 14, emDesc: 12 };
 const weight = (s) => [...String(s ?? '')].reduce((n, ch) => n + (ch.codePointAt(0) >= 0x2e80 ? 1 : 0.5), 0);
+export const DESC_SHORT_MAX = 40; // PARAM-170: 画風の一覧の「短い説明」の最大の長さ
 
 // 組込みの画風の短い説明（既存の 4 つはこれを使う。それ以外は定義の description {ja,en} が優先）
 const DESC = {
@@ -43,12 +44,20 @@ export function stylePickerModule(ctx) {
     if (v && typeof v === 'object') for (const k of ['drawing', 'mood', 'color', 'font']) if (typeof v[k] === 'string' && v[k].trim()) return v[k].trim();
     return '';
   };
+  // PARAM-170: 一覧の短い説明の最大の長さ（日本語の文字数。英語は半角で 2 倍）。長いときは最初の文にし、なお超えるときは切り詰める
+  const shortOf = (s) => {
+    const first = s.split(/(?<=[。.])\s*/)[0].replace(/[。.]$/, '').trim() || s;
+    if (weight(first) <= DESC_SHORT_MAX) return first;
+    let out = ''; let w = 0;
+    for (const ch of first) { const cw = ch.codePointAt(0) >= 0x2e80 ? 1 : 0.5; if (w + cw > DESC_SHORT_MAX - 1) break; out += ch; w += cw; }
+    return `${out.trimEnd()}…`;
+  };
   // FR-078: 既存の 4 つは画像生成用の画風の記述（長い文）を持つが、一覧の短い説明は組込みの説明（DESC）を優先して変えない
   const describe = (id, label) => {
     if (Object.hasOwn(DESC, id)) return t(`drawStyle.desc.${id}`);
     const d = api.getDrawStyleSpec?.(id)?.description; // 契約の getDrawStyleSpec(id)（FR-075。画風の記述 {ja:{color,drawing,font,mood}}）
     const own = textOf(d) || (d && typeof d === 'object' ? textOf(d[lang()] ?? d.ja ?? d.en) : '');
-    if (own) return own;
+    if (own) return shortOf(own);
     const key = `drawStyle.desc.${id}`; const v = t(key);
     return v && v !== key ? v : label;
   };

@@ -13,7 +13,7 @@ export const SILENCE_SEC = 3; // PARAM-086（会話の区切りとみなす無�
 export const HOLD_MAX_SEC = 30; // PARAM-087（周期 0 で再配置を保留する上限）
 export const INTERVAL_KEY = 'grp.arrangeInterval'; // 端末ごとの設定（初期化・セッションファイルの対象外。AC-436）
 const FIELD_ID = 'arrange.interval';
-const TRANSITION_MS = 300; // 再配置の移動のアニメーションの長さ（動きを減らす設定では 0）
+const TRANSITION_MS = 300; // PARAM-162: 再配置の移動のアニメーションの長さ（上限。動きを減らす設定では 0）
 
 export const isValidSec = (v) => Number.isInteger(v) && v >= 0 && v <= INTERVAL_MAX_SEC;
 // 周期の入力（数値、または入力欄の文字列）の判定。AC-436: 空・整数でない・範囲外は受け付けない。
@@ -143,9 +143,12 @@ export function relayoutModule(ctx) {
   const vis = ctx.options.visibility ?? null;
   const isHidden = () => Boolean(vis ? vis.hidden : globalThis.document?.hidden);
   let deferred = false;
+  // AC-439: プレゼンテーション（FR-010）の再生中は、再生中の図を動かさず再配置を保留する（休止・終了した後の最初の時点で行う）
+  const isPlaying = () => state.presentation?.status === 'playing';
+  let wasPlaying = false;
   const request = () => {
     if (!pending()) return;
-    if (isHidden()) { deferred = true; return; }
+    if (isHidden() || isPlaying()) { deferred = true; return; }
     rearrange();
   };
   const onVisibility = () => {
@@ -191,6 +194,7 @@ export function relayoutModule(ctx) {
 
   ctx.on('change', () => {
     if (inRearrange) return;
+    { const playing = isPlaying(); if (wasPlaying && !playing && deferred && !isHidden()) { deferred = false; arm('soon', 0, request); } wasPlaying = playing; } // 休止・終了の後の最初の時点で、保留した再配置を行う（AC-439）
     const p = pending();
     if (!p) { firstPendingAt = null; clear('hold'); }
     else if (firstPendingAt == null) { firstPendingAt = now(); armHold(); }

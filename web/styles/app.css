@@ -228,6 +228,10 @@ body { overflow-y: auto; }
 .settings-row input[type="number"] { font: inherit; color: var(--color-text); background: var(--color-surface); border: var(--stroke) solid var(--color-border); border-bottom-width: 2px; border-radius: var(--radius-control); padding: var(--space-1) var(--space-2); min-height: var(--target-size); width: 8rem; max-width: 100%; box-sizing: border-box; }
 .settings-row input[type="number"]:focus { border-bottom-color: var(--color-primary); }
 .settings-check { display: inline-flex; align-items: center; gap: var(--space-1); margin-right: var(--space-3); }
+.settings-inline { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.settings-inline input[type="text"] { font: inherit; color: var(--color-text); background: var(--color-surface); border: var(--stroke) solid var(--color-border); border-bottom-width: 2px; border-radius: var(--radius-control); padding: var(--space-1) var(--space-2); min-height: var(--target-size); min-width: 0; flex: 1 1 10rem; box-sizing: border-box; }
+.settings-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-1); }
+.settings-list li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .settings-status { margin: 0; font-size: var(--font-size-300, 0.875rem); }
 /* FR-082 Azure Speech の設定（グループ・方式のラジオ・入力欄・操作の並び）。デザイン基盤のトークンだけを使う */
 .settings-group { display: flex; flex-direction: column; gap: var(--space-3); margin: 0; padding: var(--space-3); border: var(--stroke) solid var(--color-border-subtle); border-radius: var(--radius); min-width: 0; }
