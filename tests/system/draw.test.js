@@ -1,4 +1,4 @@
-// FR-112 AC-639（手描きの主要な流れ。AC-635〜638 を通しで確かめる）。次の run で実装する（台帳は blocked）。
+// FR-112 AC-639（手描きの主要な流れ。AC-635〜638 を通しで確かめる）。run 202611021246 で実装する（台帳は not_run）。
 // （System Test。契約: tests/system/CONTRACT-P2.md）
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -53,7 +53,8 @@ test('FR-112 AC-639: 2 色で 2 本描き、1 本を消しゴムで消して取�
   assert.ok(app.renderSvgForSave().includes('data-stroke-id'), '読込後の SVG にも含まれる');
 });
 
-// FR-112 AC-639（rd-author 5cd447f の改訂: 手描きの機密の扱い AC-638）。台帳は blocked（次の run で実装）。
+// FR-112 AC-638 AC-639（機密の扱い。重なりの判定: 線の外接矩形（線幅の半分を外側に含む）と機密の要点の外接矩形が図の座標で 1 点でも交わる＝接するだけも重なる。決定的）。
+// 機密の要点の外接矩形（getPointBox）の内側に完全に入る線は必ず重なる／要点から十分離れた線は必ず重ならない、という境界から離れた値で確かめる。
 test('FR-112 AC-639 異常系: 「機密の要点を除く」の保存では、機密の要点と重なる線だけが出力から除かれ、重ならない線は残り、残る線があるとき警告が出る', async () => {
   const { app, env } = await newApp();
   await seedThreeScenes(app, env); toDetail(app);

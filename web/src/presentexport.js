@@ -39,7 +39,7 @@ const ACTION_RE = new RegExp(ACTION_WORDS.map((w) => w.replace(/[.*+?^${}()|[\]\
 // kindOf: 要点の文字列 → 種類 id（'conclusion' を決定事項にする）
 // minutes（FR-094 AC-556）: { sections:[{title, lines}], candidateCount, labels } を渡すと、末尾の 4 節は確定した議事項目だけにする（候補は出さない）。
 // reviewTexts（AC-547）: 渡すと末尾に「要確認」の節（確認されていない要点。詳細度によらず常に出す。0 件は「なし」）を置く
-export function buildMarkdown({ scenes, topics, relations = [], level = 'detail', title = '', kindOf = () => 'note', noneLabel = 'なし', labels = {}, minutes = null, reviewTexts = null, meta = null, lang = 'ja', review = null }) {  const L = { decisions: '決定事項', actions: 'アクション項目', untitled: '(未分類)', ...labels };
+export function buildMarkdown({ scenes, topics, relations = [], level = 'detail', title = '', kindOf = () => 'note', noneLabel = 'なし', labels = {}, minutes = null, reviewTexts = null, meta = null, lang = 'ja', review = null, gauges = null }) {  const L = { decisions: '決定事項', actions: 'アクション項目', untitled: '(未分類)', ...labels };
   // AC-547: review = { confirmed, total, ids:Set } で、要点の行の印・確認の状況・「要確認」の節（常に）を出す
   const mark = (p) => (review?.ids.has(p.id) ? ` ${REVIEW_MARK}` : '');
   // AC-547: 1 要点 1 行「要点の文字（理由: 数値、日付…）」。理由は review.reasons（要点 id → 理由の語の配列）
@@ -80,6 +80,11 @@ export function buildMarkdown({ scenes, topics, relations = [], level = 'detail'
       out.push('');
     }
   }
+  if (gauges?.length) { // FR-109 AC-627・AC-628: 指標の文字（現在値・目標・単位・方向・種類と理由・元の数値・要確認）。詳細度によらず常に出す
+    out.push(`## ${L.gauges ?? '指標'}`, '');
+    gauges.forEach((x) => out.push(`- ${oneLine(x)}`));
+    out.push('');
+  }
   if (reviewTexts) {
     out.push(`## ${L.review ?? '要確認'}`, '');
     if (reviewTexts.length) reviewTexts.forEach((x) => out.push(`- ${oneLine(x)}`)); else out.push(`- ${noneLabel}`);
@@ -109,10 +114,11 @@ show(0);})();`;
 
 // 最初に概要 1 枚（data-slide-kind="overview"）、続いてトピックごとに 1 枚（data-topic-id。見出し・要点・図）。AC-530
 // svgOf(scenes[]) → その範囲の図の SVG
-export function buildHtml({ scenes, topics = [], lang = 'ja', title = '', labels, svgOf, minutes = null, reviewTexts = null, meta = null, review = null }) {
+export function buildHtml({ scenes, topics = [], lang = 'ja', title = '', labels, svgOf, minutes = null, reviewTexts = null, meta = null, review = null, gauges = null }) {
   const L = labels ?? { auto: 'Auto', hint: '← →' };
   if (review && !reviewTexts && minutes) reviewTexts = scenes.flatMap((s) => s.points).filter((p) => review.ids.has(p.id)).map((p) => p.text);
-  const statusBlock = review ? `<p data-review-status>${escapeHtml(statusLine(review))}</p><p data-review-unconfirmed>${escapeHtml(`未確認 ${review.ids.size} 件`)}</p>` : ''; // AC-547
+  const gaugeBlock = gauges?.length ? `<section data-gauges><h2>${escapeHtml(L.gauges ?? '指標')}</h2><ul>${gauges.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul></section>` : ''; // FR-109 AC-628
+  const statusBlock = gaugeBlock + (review ? `<p data-review-status>${escapeHtml(statusLine(review))}</p><p data-review-unconfirmed>${escapeHtml(`未確認 ${review.ids.size} 件`)}</p>` : ''); // AC-547
   const groups = groupScenes(scenes, topics);
   // FR-094 AC-556: 確定した議事項目の節（見出し付き）を概要のスライドに置く（スライド数は変えない）。候補は含めず、未確定の候補の件数を文字で示す
   const minutesBlock = minutes ? `<div class="minutes" data-minutes>${minutes.sections.map((sec) => `<section data-minutes-kind="${escapeHtml(sec.kind)}"><h2>${escapeHtml(sec.title)}</h2>${sec.lines.length ? `<ul>${sec.lines.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul>` : `<p>${escapeHtml(L.none ?? 'なし')}</p>`}</section>`).join('')}`
@@ -166,12 +172,12 @@ export function presentExportModule(ctx) {
   ctx.registerCommand('save.markdown', () => run('md', 'text/markdown', () => buildMarkdown({
     scenes: ctx.state.scenes, topics: api.getTopics?.() ?? [], relations: api.getOutlineRelations?.() ?? [],
     level: api.getDetailLevel?.() ?? 'detail', title: meetingTitle(), meta: meetingMeta(), lang: ctx.state.lang,
-    kindOf: classifyPoint, noneLabel: ctx.t('present.none'), ...minutesArgs(),
-    labels: { decisions: ctx.t('present.decisions'), actions: ctx.t('present.actions'), untitled: ctx.t('present.untitled'), review: ctx.t('minutes.review') },
+    kindOf: classifyPoint, noneLabel: ctx.t('present.none'), ...minutesArgs(), gauges: api.getGaugeLines?.() ?? null,
+    labels: { decisions: ctx.t('present.decisions'), actions: ctx.t('present.actions'), untitled: ctx.t('present.untitled'), review: ctx.t('minutes.review'), gauges: ctx.t('gauge.heading') },
   })));
   ctx.registerCommand('save.html', () => run('html', 'text/html', () => buildHtml({
-    scenes: ctx.state.scenes, topics: api.getTopics?.() ?? [], lang: ctx.state.lang, title: meetingTitle(), meta: meetingMeta(), ...minutesArgs(),
-    labels: { auto: ctx.t('present.auto'), hint: ctx.t('present.hint'), untitled: ctx.t('present.untitled'), none: ctx.t('present.none'), review: ctx.t('minutes.review') },
-    svgOf: (ss) => renderDiagramSvg(ss, { lang: ctx.state.lang, t: ctx.t, title: ctx.t('app.title'), style: api.getDrawStyleSpec?.(api.getDrawStyle?.()) }),
+    scenes: ctx.state.scenes, topics: api.getTopics?.() ?? [], lang: ctx.state.lang, title: meetingTitle(), meta: meetingMeta(), ...minutesArgs(), gauges: api.getGaugeLines?.() ?? null,
+    labels: { auto: ctx.t('present.auto'), hint: ctx.t('present.hint'), untitled: ctx.t('present.untitled'), none: ctx.t('present.none'), review: ctx.t('minutes.review'), gauges: ctx.t('gauge.heading') },
+    svgOf: (ss) => { let svg = renderDiagramSvg(ss, { lang: ctx.state.lang, t: ctx.t, title: ctx.t('app.title'), style: api.getDrawStyleSpec?.(api.getDrawStyle?.()) }); svg = api.appendGaugeStrip?.(svg, ss) ?? svg; return api.renderDrawLayer ? api.renderDrawLayer(svg, { forExport: true }) : svg; }, // FR-112 AC-638: 手描きの線も図と同じ位置で含める。FR-109: 指標も含める
   })));
 }

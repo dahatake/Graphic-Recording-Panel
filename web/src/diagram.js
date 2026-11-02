@@ -2,6 +2,12 @@
 // 純粋関数 renderDiagramSvg（単体で SVG ファイルとしても自立する。色は属性で持つ）と、パネル描画（拡大・縮小・移動）。
 import { sceneEmotions } from './emotion.js';
 import { matchParts, getPartGroup } from './parts.js';
+import { personGroupFor, isPersonPartKey } from './personvariants.js';
+
+// FR-110: 人物の絵記号は、場面の識別子から決めたバリエーションで描く（2 つ目以降は識別子に番号を足す）。
+export function partGroupFor(key, sceneId, nth = 0) {
+  return isPersonPartKey(key) ? personGroupFor(nth ? `${sceneId}#${nth}` : sceneId) : getPartGroup(key);
+}
 import { renderRpgSvg, enhanceRpgDom, RPG_STYLE_ID } from './rpgmap.js';
 import { provisionalTree, leaves, subgroupLabel, countMark, TYPE_SCALE, COMPARE_EMPTY } from './infodesign.js';
 // NFR-UX-012 AC-466: 既存の 4 つの描画スタイルの図の書体の指定（欧文専用の書体がないため Yu Gothic UI が先頭。stylepresets.js の LEGACY_FONT_FAMILY と同じ）
@@ -361,8 +367,9 @@ export function renderDiagramSvg(scenes, opts = {}) {
     // FR-064: 同梱部品（語の辞書で対応づけた汎用の物体。LLM 連携なしで描く）
     const objs = matchParts([s.heading, ...s.points.map((p) => p.text)].join('\n'), 4);
     if (objs.length) {
+      let pn = 0;
       objs.forEach((o, n) => {
-        body.push(`<g data-part-key="${attr(o.key)}" transform="translate(${x + 14 + n * 56} ${y - 8})">${getPartGroup(o.key)}</g>`);
+        body.push(`<g data-part-key="${attr(o.key)}" transform="translate(${x + 14 + n * 56} ${y - 8})">${partGroupFor(o.key, s.id, isPersonPartKey(o.key) ? pn++ : 0)}</g>`);
       });
       y += 48;
     }
@@ -675,6 +682,7 @@ function paint(host, app) {
     const places = app.getRpgMap?.()?.places;
     if (places) { const names = new Map(places.map((p) => [p.refId, p.label])); enhanceRpgDom(el, (id) => names.get(id)); }
   }
+  if (el && !reuse) app.enhanceGauges?.(el, host); // FR-109 AC-626: 指標のホバー・フォーカスで数値を示す（画面の DOM にだけ足す）
   if (el) {
     if (!reuse) { host._svgEl = el; host._base = { w: Number(el.getAttribute('width')), h: Number(el.getAttribute('height')), vb: el.getAttribute('viewBox') }; }
     const { w, h, vb } = host._base;
