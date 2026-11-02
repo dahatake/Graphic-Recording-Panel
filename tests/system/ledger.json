@@ -7,8 +7,8 @@
     "AC-005": "sha256:4b9d73a494c7f3b2",
     "AC-009": "sha256:ea12566b56bfd7f6",
     "AC-010": "sha256:d15f6cc674edfd2b",
-    "AC-013": "sha256:23aaa621d64f59af",
-    "AC-015": "sha256:f243e18493b9e15d",
+    "AC-013": "sha256:5bb18a1bbaca9bea",
+    "AC-015": "sha256:0a28f596c7425b66",
     "AC-016": "sha256:1bd7bc8e31179e43",
     "AC-018": "sha256:294489eeb428a8fa",
     "AC-019": "sha256:c86aad8dac65920b",
@@ -451,9 +451,9 @@
       "command": "node --test --test-name-pattern=\"AC-013\" tests/system/export.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "1624a4b",
-      "last_run_at": "2026-11-02T20:05:43+09:00",
-      "evidence": "work/runs/202611021950/logs/system-test/E2E-007-202611022003.log",
+      "last_commit": "d1808bd",
+      "last_run_at": "2026-11-02T20:12:29+09:00",
+      "evidence": "work/runs/202611021950/logs/system-test/E2E-007-202611022012.log",
       "history": [
         {
           "at": "2026-10-14T03:16:01+09:00",
@@ -482,9 +482,9 @@
       "command": "node --test --test-name-pattern=\"AC-015\" tests/system/export.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "1624a4b",
-      "last_run_at": "2026-11-02T20:05:43+09:00",
-      "evidence": "work/runs/202611021950/logs/system-test/E2E-008-202611022003.log",
+      "last_commit": "d1808bd",
+      "last_run_at": "2026-11-02T20:12:29+09:00",
+      "evidence": "work/runs/202611021950/logs/system-test/E2E-008-202611022012.log",
       "history": [
         {
           "at": "2026-10-14T03:16:02+09:00",
