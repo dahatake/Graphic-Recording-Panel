@@ -4,7 +4,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp, PARAM, toDetail } from './helpers.js';
 
-const REFLECT_MS = PARAM.UPPER_SEC * 1000; // PARAM-001（15 秒）
+const REFLECT_MS = PARAM.UPPER_SEC * 1000; // PARAM-001（15 秒。ライブ）
+const SINGLE_MS = PARAM.SINGLE_SEC * 1000; // PARAM-158（3 秒。手入力・ファイル取込の単発の反映）
 const MB = 1024 * 1024;       // PARAM-003
 const finals = (app) => app.getTranscript().finals.map((f) => f.text);
 const startRec = (app) => { app.commands['session.start'](); app.startSpeech(); };
@@ -147,22 +148,22 @@ test('FR-014 AC-053 異常系: 一時停止中に届いた確定結果は一覧�
 });
 
 // FR-014 AC-054（件数は AC の文言から決まる範囲: 手入力 1 件、取込は 100 行（各 40 文字以下）。上限 1 MB 全行の負荷は AC から決まらないので範囲外）
-test('FR-014 AC-054: 手入力の確定結果が、送信から 15 秒（PARAM-001）以内に図へ反映される', async () => {
+test('FR-014 AC-054: 手入力の確定結果が、送信から 3 秒（PARAM-158。ライブ更新の間隔を待たない）以内に図へ反映される', async () => {
   const { app, env } = await newApp(); toDetail(app);
   app.commands['session.start']();
   app.setDraft('手入力の要点');
   assert.equal(app.submitDraft().ok, true);
-  env.scheduler.advance(REFLECT_MS);
+  env.scheduler.advance(SINGLE_MS);
   assert.ok(app.renderSvg().includes('手入力の要点'));
 });
 
-test('FR-014 AC-054: ファイル取込の確定結果（100 行）が、取込の完了から 15 秒（PARAM-001）以内に図へ反映される', async () => {
+test('FR-014 AC-054: ファイル取込の確定結果（100 行）が、取込の完了から 3 秒（PARAM-158）以内に図へ反映される', async () => {
   const { app, env } = await newApp(); toDetail(app);
   app.commands['session.start']();
   const lines = Array.from({ length: 100 }, (_, i) => `取込行${i + 1}の要点`);
   const r = await app.importTextFile({ name: 'm.txt', type: 'text/plain', size: 2000, text: lines.join('\n') });
   assert.equal(r.ok, true);
-  env.scheduler.advance(REFLECT_MS);
+  env.scheduler.advance(SINGLE_MS);
   const svg = app.renderSvg();
   for (const l of lines) assert.ok(svg.includes(l), `${l} が図にある`);
 });
@@ -182,6 +183,6 @@ test('FR-014 AC-054 異常系: 受け付けられなかった手入力・不正�
   assert.equal(app.getState().scenes.length, 0);
   const ok = await app.importTextFile({ name: 'x.txt', type: 'text/plain', size: 5, text: '準備中の取込' });
   assert.equal(ok.ok, true);
-  env.scheduler.advance(REFLECT_MS);
+  env.scheduler.advance(SINGLE_MS);
   assert.ok(app.renderSvg().includes('準備中の取込'));
 });

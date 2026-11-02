@@ -102,16 +102,23 @@ test('NFR-PERF-003 AC-399: 500 件の発話の状態で、スクロール・ホ�
 });
 
 // NFR-PERF-003 AC-401（NFR-PERF-001 AC-038: 要点の表示が発話から 3 秒以内）
-test('NFR-PERF-003 AC-401: 記録中・500 件でも、新しい発話の要点が 3 秒以内に図へ表示される（AC-038）', async () => {
+test('NFR-PERF-003 AC-401: 記録中・500 件でも、単発（手入力）の要点が PARAM-158（3 秒）以内、ライブの描画の開始が PARAM-001（15 秒）以内に図へ表示される（AC-038・AC-053）', async () => {
   await withApp(async (page) => {
     await startRecording(page);
     await emitMany(page, PERF.BIG_UTTERANCES);
     await page.waitForFunction((n) => globalThis.__app.getState().utterances.length >= n, PERF.BIG_UTTERANCES, { timeout: 30000 });
+    // 単発の反映（手入力）: 更新間隔を待たず PARAM-158 以内。
+    const single = '手入力で追加する検証用の発言です';
+    const t1 = Date.now();
+    await page.evaluate((t) => { globalThis.__app.setDraft(t); return globalThis.__app.submitDraft(); }, single);
+    await page.waitForFunction((t) => globalThis.__app.getState().scenes.some((s) => s.points.some((p) => p.text.includes(t))) || globalThis.__app.renderSvg().includes(t), single, { timeout: PERF.SINGLE_SEC * 1000 + 500 });
+    assert.ok(Date.now() - t1 <= PERF.SINGLE_SEC * 1000 + 500, `単発の要点の表示に ${(Date.now() - t1)}ms（上限 ${PERF.SINGLE_SEC} 秒）`);
+    // ライブ（注入した音声入力源）: PARAM-001 以内に描画が始まる。
     const text = '最後に追加する検証用の発言です';
     const t0 = Date.now();
     await emit(page, text);
     await page.waitForFunction((t) => globalThis.__app.getState().scenes.some((s) => s.points.some((p) => p.text.includes(t))) || globalThis.__app.renderSvg().includes(t), text, { timeout: PERF.UPPER_SEC * 1000 });
-    assert.ok(Date.now() - t0 <= PERF.UPPER_SEC * 1000 + 500, `要点の表示に ${(Date.now() - t0)}ms`);
+    assert.ok(Date.now() - t0 <= PERF.UPPER_SEC * 1000 + 500, `ライブの要点の表示に ${(Date.now() - t0)}ms`);
   });
 });
 

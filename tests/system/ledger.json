@@ -6,7 +6,7 @@
     "AC-004": "sha256:9d23cebd5d6f64f1",
     "AC-005": "sha256:ca21d66a2f9cd592",
     "AC-009": "sha256:ea12566b56bfd7f6",
-    "AC-010": "sha256:7ad499846fb55b0e",
+    "AC-010": "sha256:d15f6cc674edfd2b",
     "AC-013": "sha256:6ebb085466e41b33",
     "AC-015": "sha256:b2531b038c06c507",
     "AC-016": "sha256:1bd7bc8e31179e43",
@@ -23,13 +23,13 @@
     "AC-030": "sha256:4ff8c6e5383e0179",
     "AC-031": "sha256:dbc47a4570d83d70",
     "AC-032": "sha256:70a43cf878f66a04",
-    "AC-036": "sha256:2ce233e08814f555",
-    "AC-038": "sha256:773c32c1766736b7",
+    "AC-036": "sha256:c0e8d5e0a6ca17c2",
+    "AC-038": "sha256:a3b3b390af6fb4b9",
     "AC-049": "sha256:b530880830288c02",
     "AC-050": "sha256:9d9068d925e207dd",
     "AC-052": "sha256:bf4a4635a20763f2",
-    "AC-053": "sha256:970459e02942b52d",
-    "AC-054": "sha256:d489cc7dc4fa8346",
+    "AC-053": "sha256:7e453859c67b7aaf",
+    "AC-054": "sha256:e0469cf22849d7a3",
     "AC-057": "sha256:ac812e004e7762a3",
     "AC-060": "sha256:906295de64a708e1",
     "AC-061": "sha256:a53d20561fde87e2",
@@ -75,7 +75,7 @@
     "AC-118": "sha256:8f14f90c0aad8c92",
     "AC-119": "sha256:d6cf9e60e552fc4a",
     "AC-120": "sha256:50fda30e54962d68",
-    "AC-122": "sha256:5764f9320d1a1171",
+    "AC-122": "sha256:03467f7bb4a4c841",
     "AC-123": "sha256:156739a7cf5488fd",
     "AC-124": "sha256:3905a9f0693ba233",
     "AC-125": "sha256:5133d2fd677f9133",
@@ -102,7 +102,7 @@
     "AC-233": "sha256:b9d2711eadcd1beb",
     "AC-234": "sha256:bbd9adc53f6f99d7",
     "AC-235": "sha256:d64c78bb50977fdb",
-    "AC-236": "sha256:e5c97586cd5b659b",
+    "AC-236": "sha256:a840cb982779a06b",
     "AC-214": "sha256:baa1feff9fe15926",
     "AC-217": "sha256:2cbe707a3d9e3ba5",
     "AC-219": "sha256:e56ef9a818fc6958",
@@ -131,7 +131,7 @@
     "AC-344": "sha256:151826f8e900011e",
     "AC-345": "sha256:ad4e314f2ba254d4",
     "AC-330": "sha256:a46dccb8ff7599ad",
-    "AC-346": "sha256:b102e2cc33e8edc6",
+    "AC-346": "sha256:a445d2cab9687439",
     "AC-347": "sha256:1c02624bc17e8540",
     "AC-348": "sha256:023db2b5771313e3",
     "AC-349": "sha256:8e8a1fefe1f5c2e1",
@@ -185,7 +185,7 @@
     "AC-397": "sha256:c01a818784e12058",
     "AC-398": "sha256:fbbd0b2aabd53dfa",
     "AC-399": "sha256:bac7405a3162f881",
-    "AC-401": "sha256:12e526603201d57f",
+    "AC-401": "sha256:f3d1b6140cfea751",
     "AC-402": "sha256:3525c8cc4738a353",
     "AC-459": "sha256:9fc4bd0b14220c09",
     "AC-460": "sha256:e5633f20b76bcbf4",
@@ -193,7 +193,7 @@
     "AC-462": "sha256:788240e79830f31d",
     "AC-463": "sha256:6e96cc8c51660daa",
     "AC-464": "sha256:dfdd92720d94b458",
-    "AC-435": "sha256:4b85ba28e525e746",
+    "AC-435": "sha256:61fc4d4198d4e51f",
     "AC-436": "sha256:1d5cad323ac8017b",
     "AC-439": "sha256:f1a7a0c6fd121fc0",
     "AC-440": "sha256:ca69a4ca1c024d77",
@@ -264,7 +264,8 @@
     "AC-610": "sha256:f933a4eada0cb5c3",
     "AC-611": "sha256:c8542cab1fab58c5",
     "AC-616": "sha256:91847a6dcf354dee",
-    "AC-639": "sha256:9b0ba636ba258031"
+    "AC-639": "sha256:9b0ba636ba258031",
+    "AC-641": "sha256:c162d9e5c171f7fc"
   },
   "cases": [
     {
@@ -931,7 +932,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-036\" tests/system/view.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "6ee9e17",
       "last_run_at": "2026-11-02T15:24:49+09:00",
       "evidence": "work/runs/202611021246/logs/system-test/E2E-023-202611021524.log",
@@ -947,6 +948,12 @@
           "by": "test-designer",
           "change": "title: '全操作がキーボードだけでできる' -> '全操作（用語集・議事・プレビュー・地図・対立の組・機密の印を含む）がキーボードだけでできる'",
           "reason": "AC-036 の追加の操作（FR-092〜094・099・101・102・104）を同じケースで検証"
+        },
+        {
+          "at": "2026-11-02T16:01:31+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC 改訂（run 202611021537）に合わせてテストを更新したため再実行"
         }
       ]
     },
@@ -962,7 +969,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-038\" tests/system/scenes.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "6ee9e17",
       "last_run_at": "2026-11-02T15:24:49+09:00",
       "evidence": "work/runs/202611021246/logs/system-test/E2E-024-202611021524.log",
@@ -978,6 +985,12 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "PARAM-001 変更に合わせてテストを更新（再実行が必要）"
+        },
+        {
+          "at": "2026-11-02T16:01:31+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC 改訂（run 202611021537）に合わせてテストを更新したため再実行"
         }
       ]
     },
@@ -1123,7 +1136,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-054\" tests/system/rightpanel.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "6ee9e17",
       "last_run_at": "2026-11-02T15:24:49+09:00",
       "evidence": "work/runs/202611021246/logs/system-test/E2E-029-202611021524.log",
@@ -1157,6 +1170,12 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "PARAM-001 変更に合わせてテストを更新（再実行が必要）"
+        },
+        {
+          "at": "2026-11-02T16:01:32+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC 改訂（run 202611021537）に合わせてテストを更新したため再実行"
         }
       ]
     },
@@ -2757,7 +2776,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-122\" tests/system/importstatus.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "6ee9e17",
       "last_run_at": "2026-11-02T15:24:49+09:00",
       "evidence": "work/runs/202611021246/logs/system-test/E2E-079-202611021524.log",
@@ -2767,6 +2786,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-11-02T16:01:32+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC 改訂（run 202611021537）に合わせてテストを更新したため再実行"
         }
       ]
     },
@@ -6207,7 +6232,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-401\" tests/system/perf.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "6ee9e17",
       "last_run_at": "2026-11-02T15:24:49+09:00",
       "evidence": "work/runs/202611021246/logs/system-test/E2E-197-202611021524.log",
@@ -6217,6 +6242,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610200342）"
+        },
+        {
+          "at": "2026-11-02T16:01:32+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC 改訂（run 202611021537）に合わせてテストを更新したため再実行"
         }
       ]
     },
@@ -6449,7 +6480,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-435\" tests/system/rearrange.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "6ee9e17",
       "last_run_at": "2026-11-02T15:24:49+09:00",
       "evidence": "work/runs/202611021246/logs/system-test/E2E-220-202611021524.log",
@@ -6465,6 +6496,12 @@
           "by": "test-designer",
           "change": "command: 'node --test --test-name-pattern=\"AC-435(:| [^F])\" tests/system/rearrange.test.js' -> 'node --test --test-name-pattern=\"AC-435\" tests/system/rearrange.test.js'",
           "reason": "CHK-33: E2E-221 と同じ AC を保証するため、E2E-221 のテストを含む command に寄せて統合"
+        },
+        {
+          "at": "2026-11-02T16:01:33+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC 改訂（run 202611021537）に合わせてテストを更新したため再実行"
         }
       ]
     },
@@ -8364,6 +8401,31 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "FR-112 を今 run で実装するため解除"
+        }
+      ]
+    },
+    {
+      "id": "E2E-280",
+      "requirement_ids": [
+        "NFR-UX-003"
+      ],
+      "ac_ids": [
+        "AC-641"
+      ],
+      "title": "実ブラウザ（1024x768・1280x720）でリボン既定折りたたみ・作業領域が窓の55%以上・1画面に収まる（異常系: 開く操作・スクロール到達を含む）",
+      "layer": "e2e",
+      "command": "node --test tests/system/ribbon-viewport.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-11-02T16:01:17+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
         }
       ]
     }
