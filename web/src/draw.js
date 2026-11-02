@@ -149,6 +149,8 @@ export function drawModule(ctx) {
   const copyStroke = (s) => ({ id: s.id, color: s.color, width: s.width, points: s.points.map((p) => ({ x: p.x, y: p.y })) });
   const msg = (key, extra = '') => { state.message = { key, text: `${ctx.t(key)}${extra}` }; };
   const fail = (reason, extra) => ({ ok: false, reason, ...extra });
+  // NFR-PERF-003: 発話・シーン・線を変えない操作（モード・道具・色・確認の開閉・拒否の通知）は、データの版数を上げず画面だけ更新する（全データの再計算・自動保存をしない）
+  const viewOnly = (fn) => { fn(); (ctx.emitView ?? (() => ctx.emit('change', api)))(); };
 
   // ---- 図の座標・機密の外接矩形 ----
   const baseRender = api.renderSvg;
@@ -170,9 +172,13 @@ export function drawModule(ctx) {
     if (!api.getExcludeConfidential?.() || !strokes.length || !confidentialIds().length) return [];
     return withoutOverlapping(strokes, confidentialBoxes()).length ? [w().warning] : [];
   };
+  let paperMemo = { svg: null, paper: '#ffffff' };
+  const paperMemoOf = (svg) => { if (paperMemo.svg !== svg) paperMemo = { svg, paper: paperOf(svg) }; return paperMemo.paper; };
   api.renderDrawLayer = (svg, { forExport = inExport() } = {}) => {
     const list = forExport ? exportStrokes() : strokes;
-    const layer = renderStrokesSvg(list, { background: paperOf(svg), hidden: !visible && !forExport, label: w().title, nameOf: colorName });
+    // NFR-PERF-003: 線が 0 本なら紙面の色の探索（図の全文の正規表現）をしない。線があるときも同じ SVG なら探索結果を使い回す
+    if (!list.length) return svg;
+    const layer = renderStrokesSvg(list, { background: paperMemoOf(svg), hidden: !visible && !forExport, label: w().title, nameOf: colorName });
     if (!layer) return svg;
     const end = svg.lastIndexOf('</svg>');
     return end < 0 ? svg : `${svg.slice(0, end)}${layer}${svg.slice(end)}`;
@@ -210,7 +216,7 @@ export function drawModule(ctx) {
   api.getDrawBackgroundContrast = (id, background = '#ffffff') => ({ ratio: contrastRatio(hexOf(id), background), halo: haloFor(hexOf(id), [background]) });
   api.setDrawColor = (id) => {
     if (!COLOR_IDS.has(id)) return fail('invalid_color');
-    ctx.change(() => { colorId = id; msg('msg.drawColor', `: ${colorName(id)}`); });
+    viewOnly(() => { colorId = id; msg('msg.drawColor', `: ${colorName(id)}`); });
     return { ok: true, colorId: id, colorName: colorName(id) };
   };
   const nextColor = () => { const i = DRAW_COLORS.findIndex((c) => c.id === colorId); return api.setDrawColor(DRAW_COLORS[(i + 1) % DRAW_COLORS.length].id); };
@@ -248,13 +254,13 @@ export function drawModule(ctx) {
   // ポインタ（ペン・マウス・タッチ）の操作。座標は図の座標。down → move … → up（cancel で破棄）
   api.drawPointer = (phase, pt) => {
     if (phase === 'cancel') { const had = !!current; current = null; erasing = false; return { ok: true, cancelled: had }; }
-    if (!mode) { ctx.change(() => msg('msg.drawNotMode')); return fail('not_in_draw_mode'); }
-    if (!visible) { ctx.change(() => msg('msg.drawHiddenRefuse')); return fail('hidden'); }
+    if (!mode) { viewOnly(() => msg('msg.drawNotMode')); return fail('not_in_draw_mode'); }
+    if (!visible) { viewOnly(() => msg('msg.drawHiddenRefuse')); return fail('hidden'); }
     if (phase === 'down') {
       if (!validPt(pt)) return fail('invalid_point');
       const p = clean(pt);
       if (tool === 'eraser') { erasing = true; const id = hit(p); return id ? { ...doErase(id), erased: id } : { ok: true, erased: null }; }
-      if (strokes.length >= STROKE_MAX) { ctx.change(() => msg('msg.drawLimit')); return fail('limit', { max: STROKE_MAX }); }
+      if (strokes.length >= STROKE_MAX) { viewOnly(() => msg('msg.drawLimit')); return fail('limit', { max: STROKE_MAX }); }
       current = { color: colorId, width: STROKE_WIDTH, points: [p] };
       return { ok: true };
     }
@@ -281,7 +287,7 @@ export function drawModule(ctx) {
   // ---- 取り消し・やり直し・全消去 ----
   api.undoDraw = () => {
     const rec = undoStack.pop();
-    if (!rec) { ctx.change(() => msg('msg.drawNothingUndo')); return fail('nothing'); }
+    if (!rec) { viewOnly(() => msg('msg.drawNothingUndo')); return fail('nothing'); }
     if (rec.type === 'add') strokes = strokes.filter((s) => s.id !== rec.stroke.id);
     else if (rec.type === 'erase') strokes.splice(Math.min(rec.index, strokes.length), 0, rec.stroke);
     else if (rec.type === 'clear') strokes = rec.strokes.map(copyStroke);
@@ -291,7 +297,7 @@ export function drawModule(ctx) {
   };
   api.redoDraw = () => {
     const rec = redoStack.pop();
-    if (!rec) { ctx.change(() => msg('msg.drawNothingRedo')); return fail('nothing'); }
+    if (!rec) { viewOnly(() => msg('msg.drawNothingRedo')); return fail('nothing'); }
     if (rec.type === 'add') strokes.push(rec.stroke);
     else if (rec.type === 'erase') strokes = strokes.filter((s) => s.id !== rec.stroke.id);
     else if (rec.type === 'clear') strokes = [];
@@ -300,8 +306,8 @@ export function drawModule(ctx) {
     return { ok: true, count: strokes.length };
   };
   api.requestDrawClear = () => {
-    if (!strokes.length) { ctx.change(() => msg('msg.drawNone')); return fail('none'); }
-    dialogOpen = true; ctx.change(() => msg('msg.drawConfirm'));
+    if (!strokes.length) { viewOnly(() => msg('msg.drawNone')); return fail('none'); }
+    dialogOpen = true; viewOnly(() => msg('msg.drawConfirm'));
     return { ok: true, pending: true };
   };
   api.confirmDrawClear = () => {
@@ -315,19 +321,21 @@ export function drawModule(ctx) {
   };
   api.cancelDrawClear = () => {
     if (!dialogOpen) return fail('no_dialog');
-    dialogOpen = false; ctx.change(() => msg('msg.drawCancelled'));
+    dialogOpen = false; viewOnly(() => msg('msg.drawCancelled'));
     return { ok: true };
   };
   api.getDrawDialog = () => (dialogOpen ? { kind: 'draw-clear', text: ctx.t('draw.confirmText'), countText: countText(), buttons: [{ id: 'confirm', label: ctx.t('draw.confirm') }, { id: 'cancel', label: ctx.t('draw.cancel') }] } : null);
 
   // ---- モード・道具・表示 ----
-  api.toggleDraw = () => { mode = !mode; if (!mode) { current = null; erasing = false; tool = 'pen'; } ctx.change(() => msg(mode ? 'msg.drawOn' : 'msg.drawOff')); return { ok: true, mode }; };
-  api.toggleDrawEraser = () => { tool = tool === 'eraser' ? 'pen' : 'eraser'; ctx.change(() => msg(tool === 'eraser' ? 'msg.drawEraserOn' : 'msg.drawEraserOff')); return { ok: true, tool }; };
+  api.toggleDraw = () => { mode = !mode; if (!mode) {   current = null; erasing = false; tool = 'pen'; } viewOnly(() => msg(mode ? 'msg.drawOn' : 'msg.drawOff')); return { ok: true, mode }; };
+    api.toggleDrawEraser = () => { tool = tool === 'eraser' ? 'pen' : 'eraser'; viewOnly(() => msg(tool === 'eraser' ? 'msg.drawEraserOn' : 'msg.drawEraserOff')); return { ok: true, tool }; };
   api.toggleDrawVisibility = () => {
     visible = !visible;
     try { if (visible) ctx.storage?.removeItem?.(HIDDEN_KEY); else ctx.storage?.setItem?.(HIDDEN_KEY, '1'); } catch { /* 端末の設定が書けなくても動く */ }
     if (!visible) { current = null; erasing = false; }
-    ctx.change(() => msg(visible ? 'msg.drawShown' : 'msg.drawHiddenNow'));
+    // 線がなければ図の SVG は変わらない（表示の切替は見た目だけ）。線があるときだけ版数を上げて図を作り直す
+    const note = () => msg(visible ? 'msg.drawShown' : 'msg.drawHiddenNow');
+    if (strokes.length) ctx.change(note); else viewOnly(note);
     return { ok: true, visible };
   };
   ctx.registerCommand('draw.toggle', () => api.toggleDraw());
