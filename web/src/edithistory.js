@@ -10,16 +10,26 @@ const clone = (v) => JSON.parse(JSON.stringify(v));
 const p2 = (n) => String(n).padStart(2, '0');
 export const formatAt = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`; };
 
+// A-285 AC-575: 件数（HISTORY_MAX）に数えるのは手修正だけ。「元に戻した」の記録は数えない
+// （元に戻すたびに古い手修正の記録が消えない）。新しい順の並びで、HISTORY_MAX 件を超える手修正より古い記録を落とす。
+export function trimHistory(list) {
+  let n = 0;
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].kind !== 'undo' && ++n > HISTORY_MAX) { list.length = i; break; }
+  }
+  return list;
+}
+
 export function parseHistory(raw) {
   if (!Array.isArray(raw)) return [];
   const out = [];
-  for (const h of raw.slice(0, HISTORY_MAX)) {
+  for (const h of raw) {
     if (!h || typeof h !== 'object' || !KINDS.includes(h.kind) || typeof h.id !== 'string') continue;
     const str = (v) => (v == null ? null : String(v));
     const u = h.undo && typeof h.undo === 'object' && Array.isArray(h.undo.scenes) ? { scenes: clone(h.undo.scenes), createdSceneIds: Array.isArray(h.undo.createdSceneIds) ? h.undo.createdSceneIds.filter((x) => typeof x === 'string') : [], createdPointIds: Array.isArray(h.undo.createdPointIds) ? h.undo.createdPointIds.filter((x) => typeof x === 'string') : [], selectedSceneId: typeof h.undo.selectedSceneId === 'string' ? h.undo.selectedSceneId : null } : null;
     out.push({ id: h.id, kind: h.kind, before: str(h.before), after: str(h.after), at: typeof h.at === 'string' ? h.at : '', ...(u ? { undo: u } : {}), ...(h.undone ? { undone: true } : {}) });
   }
-  return out;
+  return trimHistory(out);
 }
 
 export function editHistoryModule(ctx) {
@@ -46,7 +56,7 @@ export function editHistoryModule(ctx) {
 
   const push = (entry) => {
     state.editHistory.unshift(entry);
-    if (state.editHistory.length > HISTORY_MAX) state.editHistory.length = HISTORY_MAX;
+    trimHistory(state.editHistory);
   };
   // 操作の前後で、触れたシーンの修正前の写しを取る。opts.scenes: 触れるシーンの id。run() が成功（ok）なら履歴に足す。
   function recorded(kind, sceneIdsOf, describe) {
