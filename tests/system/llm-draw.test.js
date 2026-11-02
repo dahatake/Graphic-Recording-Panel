@@ -140,13 +140,13 @@ test('FR-063 AC-321 形式に合わない応答では絵が図・一覧に出な
 });
 
 // FR-063 AC-323
-test('FR-063 AC-323 LLM の応答を待たずに PARAM-001（15 秒）以内にルールベースの描画が出て、応答後に絵が加わる', async () => {
+test('FR-063 AC-323 LLM の応答を待たずに PARAM-158（3 秒。手入力の単発の反映）以内にルールベースの描画が出て、応答後に絵が加わる', async () => {
   const probe = await newApp();
   const key = probe.app.getPartKeys()[0];
   const h = makeRelay({ extract: answerWith(key), deferExtract: true });
   const { app, env } = await enabledApp(h);
   app.setDraft(UTTERANCE); assert.equal(app.submitDraft().ok, true);
-  env.tick(PARAM.UPPER_SEC); env.scheduler.advance(PARAM.UPPER_SEC * 1000);
+  env.tick(PARAM.SINGLE_SEC); env.scheduler.advance(PARAM.SINGLE_SEC * 1000);
   assert.ok(app.renderSvg().includes(UTTERANCE), '応答が未着でもルールベースの要点が表示済み');
   assert.ok(!app.renderSvg().includes('data-part-key'), 'まだ絵は加わっていない');
   h.release();
@@ -156,11 +156,11 @@ test('FR-063 AC-323 LLM の応答を待たずに PARAM-001（15 秒）以内に�
 });
 
 // FR-063 AC-323（異常系: 応答が失敗しても要点は 3 秒以内に表示される）
-test('FR-063 AC-323 LLM の要求が失敗しても要点は 15 秒（PARAM-001）以内に表示され続ける', async () => {
+test('FR-063 AC-323 LLM の要求が失敗しても要点は 3 秒（PARAM-158。手入力の単発の反映）以内に表示され続ける', async () => {
   const h = makeRelay({ extract: 'fail' });
   const { app, env } = await enabledApp(h);
   app.setDraft(UTTERANCE); app.submitDraft();
-  env.tick(PARAM.UPPER_SEC); env.scheduler.advance(PARAM.UPPER_SEC * 1000);
+  env.tick(PARAM.SINGLE_SEC); env.scheduler.advance(PARAM.SINGLE_SEC * 1000);
   assert.ok(app.renderSvg().includes(UTTERANCE));
   await app.flushLlm();
   assert.ok(app.renderSvg().includes(UTTERANCE));

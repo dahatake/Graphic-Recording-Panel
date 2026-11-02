@@ -25,7 +25,7 @@ for (const size of [{ width: 1024, height: 768 }, { width: 1280, height: 720 }])
   const name = `${size.width}×${size.height}`;
 
   // NFR-UX-003 AC-641
-  test(`AC-641: 窓 ${name} で起動すると、リボンは折りたたみ（開閉ボタンのラベルは表示され、1 操作で開ける）、作業領域は窓の高さの ${PERF.PANEL_MIN_PCT}% 以上で、上部と作業領域が 1 画面に収まる`, async () => {
+  test(`AC-641: 窓 ${name} で（保存された開閉状態がなければ）起動すると、リボンは折りたたみ（開閉ボタンのラベルは表示され、1 操作で開ける）、作業領域は窓の高さの ${PERF.PANEL_MIN_PCT}% 以上で、上部と作業領域が 1 画面に収まる`, async () => {
     assert.ok(size.height < PERF.WINDOW_H_MAX, `窓の高さ ${size.height} は PARAM-155（${PERF.WINDOW_H_MAX}）未満`);
     const { ctx, page } = await open(size);
     try {
