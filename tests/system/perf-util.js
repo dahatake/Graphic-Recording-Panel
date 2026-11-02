@@ -115,7 +115,7 @@ const INIT = `
 `;
 
 export async function openApp(browser, url) {
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
   await ctx.addInitScript(INIT);
   const page = await ctx.newPage();
   await page.goto(url, { waitUntil: 'load' });
