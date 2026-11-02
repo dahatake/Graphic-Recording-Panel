@@ -92,7 +92,7 @@ export function wrapLines(text, fs, width) {
 const rgb = (v) => [1, 3, 5].map((i) => (parseInt(hex6(v).slice(i, i + 2), 16) / 255).toFixed(3)).join(' ');
 const JAG_PX = 3; // 保存（PNG・PDF）の感情の吹き出しの歯の高さ（行の間隔に収める）
 // FR-076 AC-467: emotion（吹き出し型で感情語を含むトピックのシーンの id の集合）のシーンの要点は、ギザギザの吹き出し（jaggedPoints）で描く
-export function buildPdf(scenes, { title = '', arrange = null, parts = null, look = null, emotion = null, header = null, desc = '', descLabel = '', infoTitle = '' } = {}) {
+export function buildPdf(scenes, { title = '', arrange = null, parts = null, look = null, emotion = null, header = null, desc = '', descLabel = '', infoTitle = '', strokes = null } = {}) {
   const FS_H = 15; const FS_P = 11; const LH_H = 22; const LH_P = 16;
   const width = A4.w - A4.margin * 2;
   // FR-077 AC-419: 描画スタイルの紙面（背景色・方眼・罫線）を各ページの最初に描く
@@ -178,6 +178,21 @@ export function buildPdf(scenes, { title = '', arrange = null, parts = null, loo
     for (const l of String(desc).split('\n')) block(l, FS_P, LH_P, 0);
   }
 
+  // FR-112 AC-638: 手描きの線（図の座標）を 1 ページ目に重ねる。ページに収まらないときは、縦横比を保って縮める
+  if (strokes?.length) {
+    const pts = strokes.flatMap((s) => s.points);
+    const mx = Math.max(...pts.map((p) => p.x)) + 4; const my = Math.max(...pts.map((p) => p.y)) + 4;
+    const k = Math.min(1, (A4.w - A4.margin * 2) / mx, (A4.h - A4.margin * 2) / my);
+    const num = (n) => (Math.round(n * 100) / 100).toString();
+    let g = 'q 1 J 1 j\n';
+    for (const s of strokes) {
+      const path = s.points.map((p, i) => `${num(A4.margin + p.x * k)} ${num(A4.h - A4.margin - p.y * k)} ${i ? 'l' : 'm'}`).join(' ') + (s.points.length === 1 ? ` ${num(A4.margin + s.points[0].x * k)} ${num(A4.h - A4.margin - s.points[0].y * k)} l` : '');
+      if (s.halo) g += `${rgb(s.halo)} RG ${num(((s.width ?? 3) + 2) * k)} w ${path} S\n`;
+      g += `${rgb(s.color)} RG ${num((s.width ?? 3) * k)} w ${path} S\n`;
+    }
+    pages[0].push(`${g}Q\n`);
+  }
+
   const objs = []; // 1 起点の番号 → 本文
   const add = (body) => { objs.push(body); return objs.length; };
   add('<< /Type /Catalog /Pages 2 0 R >>'); // 1
@@ -239,9 +254,33 @@ async function partsBand(items, width, imageFactory) {
 // ---- PNG（canvasFactory に全シーンの見出しと要点を描く） ----
 // FR-095 AC-560: header（表題・日付・議題。meetingout.headerModel）を上端に描く。FR-096 AC-562: meta（{ title, description }）を iTXt（UTF-8）で付ける。
 export async function renderPng(scenes, canvasFactory, opts = {}) {
-  const bytes = await renderPngBody(scenes, canvasFactory, opts);
+  const bytes = await renderPngBody(scenes, withStrokes(canvasFactory, opts.strokes), opts);
   const meta = opts.meta;
   return meta ? addPngText(bytes, [['Title', meta.title], ['Description', meta.description]]) : bytes;
+}
+// FR-112 AC-638: 手描きの線（図の座標）を PNG の末尾に描く。キャンバスは線が入る大きさまで広げる（図の座標のまま描く）。縁取りのある線は先に縁取りを描く
+function withStrokes(factory, strokes) {
+  if (!strokes?.length) return factory;
+  const pts = strokes.flatMap((s) => s.points);
+  const need = { w: Math.ceil(Math.max(...pts.map((p) => p.x)) + 8), h: Math.ceil(Math.max(...pts.map((p) => p.y)) + 8) };
+  return (w, h) => {
+    if (w <= 8 && h <= 8) return factory(w, h); // 文字幅の計測用
+    const c = factory(Math.max(w, need.w), Math.max(h, need.h));
+    const toBytes = c.toBytes?.bind(c);
+    if (toBytes) {
+      c.toBytes = () => {
+        const g = c.getContext('2d');
+        g.setTransform?.(1, 0, 0, 1, 0, 0); g.lineCap = 'round'; g.lineJoin = 'round';
+        for (const s of strokes) {
+          const trace = (color, width) => { g.strokeStyle = color; g.lineWidth = width; g.beginPath(); s.points.forEach((p, i) => (i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y))); if (s.points.length === 1) g.lineTo(s.points[0].x, s.points[0].y); g.stroke(); };
+          if (s.halo) trace(s.halo, (s.width ?? 3) + 2);
+          trace(s.color, s.width ?? 3);
+        }
+        return toBytes();
+      };
+    }
+    return c;
+  };
 }
 // 見出しの帯を描く（呼び出し側が先に紙面を塗る）。以降の描画は帯の高さだけ下へずらす。
 function drawHeader(g, hdr, ink, w) {
@@ -477,11 +516,12 @@ export function exportModule(ctx) {
     const mo = meetingOut(); const fd = ctx.api.getFigureDescription?.() ?? null;
     return { title: mo?.title || ctx.t('app.title'), header: headerModel(mo, ctx.state.lang), desc: fd?.text ?? '', descLabel: meetingLabels(ctx.state.lang).desc, infoTitle: mo?.title || ctx.t('app.title') };
   };
-  ctx.registerCommand('save.pdf', () => run('pdf', 'application/pdf', () => buildPdf(arranged() ? ctx.state.scenes : scenes(), { ...pdfMeeting(), arrange: arranged(), parts: drawn(), look: look(), emotion: emotion() })));
+  ctx.registerCommand('save.pdf', () => run('pdf', 'application/pdf', () => buildPdf(arranged() ? ctx.state.scenes : scenes(), { ...pdfMeeting(), arrange: arranged(), parts: drawn(), look: look(), emotion: emotion(), strokes: ctx.api.getDrawExportStrokes?.() ?? null })));
   ctx.registerCommand('save.png', () => run('png', 'image/png', async () => {
     const factory = ctx.options.canvasFactory ?? browserCanvasFactory();
     if (!factory) throw new Error('no canvas');
     const mo = meetingOut(); const fd = ctx.api.getFigureDescription?.() ?? null;
-    return renderPng(arranged() ? ctx.state.scenes : scenes(), factory, { arrange: arranged(), rpg: ctx.api.getRpgMap?.() ?? null, parts: drawn(), imageFactory: ctx.options.imageFactory ?? null, look: look(), emotion: emotion(), header: mo ? headerModel(mo, ctx.state.lang) : null, meta: fd ? { title: fd.title || mo?.title || ctx.t('app.title'), description: fd.text } : null });
+    const strokes = ctx.api.getDrawExportStrokes?.() ?? null; // 保存の作成中の線（機密を除くときは重なる線を除いたもの）。状態が差し替わる前に同期で取る
+    return renderPng(arranged() ? ctx.state.scenes : scenes(), factory, { strokes, arrange: arranged(), rpg: ctx.api.getRpgMap?.() ?? null, parts: drawn(), imageFactory: ctx.options.imageFactory ?? null, look: look(), emotion: emotion(), header: mo ? headerModel(mo, ctx.state.lang) : null, meta: fd ? { title: fd.title || mo?.title || ctx.t('app.title'), description: fd.text } : null });
   }));
 }

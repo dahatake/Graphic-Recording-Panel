@@ -379,3 +379,18 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .badge-question { display: inline-block; min-width: 1.25rem; text-align: center; border: var(--stroke) solid var(--color-border); border-radius: var(--radius); }
 @media (forced-colors: active) { .roles-dialog select, .badge-question { border-color: CanvasText; } }
 @media (forced-colors: active) { .vote-dialog textarea, .vote-dialog select, .vote-notice, .badge-critical-risk { border-color: CanvasText; } }
+
+/* 手描き（FR-112 AC-635〜640）: 図の操作の行に並べる。状態は文字でも示す（色だけに頼らない）。動き・アニメーションは使わない */
+.diagram-tools { flex-wrap: wrap; align-items: center; }
+.draw-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.draw-tools .btn[aria-pressed="true"]::before { content: "● "; }
+.draw-tools .btn[aria-pressed="false"]::before { content: "○ "; }
+.draw-tools .draw-color-label { display: inline-flex; align-items: center; gap: var(--space-1); margin: 0; font-weight: var(--font-weight-semibold); }
+.draw-tools select { min-height: 2rem; color: inherit; background: var(--color-surface); border: var(--stroke) solid var(--color-border); border-radius: var(--radius); }
+.draw-tools .draw-status { font-size: 0.875rem; overflow-wrap: anywhere; }
+.draw-tools .btn:focus-visible, .draw-tools select:focus-visible, .draw-dialog button:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.diagram-canvas.is-drawing { cursor: crosshair; touch-action: none; user-select: none; }
+.diagram-canvas.is-erasing { cursor: cell; }
+.outline-draw p { margin: 0 0 var(--space-1); }
+@media (prefers-reduced-motion: reduce) { .draw-dialog { animation: none; transition: none; } }
+@media (forced-colors: active) { .draw-tools select, .draw-dialog { border-color: CanvasText; } }
