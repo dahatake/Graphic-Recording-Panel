@@ -185,12 +185,15 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 
 /* NFR-UX-003 AC-579（PARAM-130 = 600px）: 窓の高さが小さいとき、リボンは窓の 40% までで中をスクロールし、開閉ボタンで折りたためる。
    リボンが下のパネル領域に重ならず・押し出さない。ボタンは文字（開く／閉じる）と形（▼▲）と aria-expanded で状態を示す。 */
-.ribbon-toggle { display: none; margin: var(--space-1) var(--space-3); }
+.ribbon-toggle { display: inline-flex; margin: var(--space-1) var(--space-3); }
+/* AC-579・AC-641・AC-642: 折りたたみは窓の高さによらず使える。起動時の既定（窓の高さ < PARAM-155 なら折りたたむ）と保存は ribbontoggle.js */
+.commandbar[data-collapsed="true"] { display: none; }
 @media (max-height: 600px) {
-  .ribbon-toggle { display: inline-flex; }
   .commandbar { max-height: 40vh; overflow-y: auto; overscroll-behavior: contain; position: relative; z-index: 0; }
-  .commandbar[data-collapsed="true"] { display: none; }
 }
+/* AC-641: 上部（リボン・状態欄）が高いときはページ全体を縦にスクロールして全項目へ到達できる */
+html { overflow-y: auto; }
+body { overflow-y: auto; }
 
 /* FR-018/019: 確認ダイアログ */
 .dialog-backdrop { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; background: rgb(0 0 0 / 0.45); padding: var(--space-4); }
@@ -394,6 +397,8 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .draw-tools .draw-color-label { display: inline-flex; align-items: center; gap: var(--space-1); margin: 0; font-weight: var(--font-weight-semibold); }
 .draw-tools select { min-height: 2rem; color: inherit; background: var(--color-surface); border: var(--stroke) solid var(--color-border); border-radius: var(--radius); }
 .draw-tools .draw-status { font-size: 0.875rem; overflow-wrap: anywhere; }
+.draw-tools [hidden] { display: none !important; }
+.draw-tools[data-mode="off"] { flex-wrap: nowrap; } /* AC-644: オフのときは「手描き」「表示」を 1 行で */
 .draw-tools .btn:focus-visible, .draw-tools select:focus-visible, .draw-dialog button:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
 .diagram-canvas.is-drawing { cursor: crosshair; touch-action: none; user-select: none; }
 .diagram-canvas.is-erasing { cursor: cell; }

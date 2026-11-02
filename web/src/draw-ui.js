@@ -70,7 +70,7 @@ export function mountDrawUI(app, doc = globalThis.document) {
     const b = ensureBar();
     if (!b) return;
     const s = app.getDrawState(); const colors = app.getDrawColors();
-    const sig = JSON.stringify([s.mode, s.tool, s.colorId, s.count, s.visible, s.canUndo, s.canRedo, app.getUiState?.().lang, colors.map((c) => c.name)]);
+    const sig = JSON.stringify([s.mode, s.tool, s.colorId, s.count, s.visible, s.canUndo, s.canRedo, s.hiddenText, app.getUiState?.().lang, colors.map((c) => c.name)]);
     if (sig !== barSig) {
       barSig = sig;
       const set = (id, text, pressed) => { const x = b.querySelector(`[data-id="draw.${id}"]`); x.textContent = text; if (pressed != null) x.setAttribute('aria-pressed', String(pressed)); return x; };
@@ -82,12 +82,20 @@ export function mountDrawUI(app, doc = globalThis.document) {
       sel.replaceChildren(...colors.map((c) => { const o = el('option', { value: c.id }, c.name); if (c.id === s.colorId) o.selected = true; return o; }));
       sel.setAttribute('aria-label', `${app.t('draw.color')}: ${s.colorName}`);
       // 状態は文字でも示す（モード・道具・選んだ色の名前・線の件数・非表示）
-      b.querySelector('[data-id="draw.status"]').textContent = [s.modeText, s.mode ? s.toolText : '', `${app.t('draw.color')}: ${s.colorName}`, s.countText, s.hiddenText].filter(Boolean).join(' / ');
+      const status = b.querySelector('[data-id="draw.status"]');
+      // AC-644: オフのときは「手描き」「表示」の 2 ボタンだけ（状態は文字で 1 語だけ添える）。オンのときだけ色・消しゴム・取り消し・やり直し・全消去・状態文
+      for (const x of b.querySelectorAll('.draw-color-label, [data-id="draw.erase"], [data-id="draw.undo"], [data-id="draw.redo"], [data-id="draw.clear"]')) x.hidden = !s.mode;
+      b.dataset.mode = s.mode ? 'on' : 'off';
+      status.textContent = s.mode
+        ? [s.modeText, s.toolText, `${app.t('draw.color')}: ${s.colorName}`, s.countText, s.hiddenText].filter(Boolean).join(' / ')
+        : [s.modeText, s.hiddenText].filter(Boolean).join(' / ');
     }
   }
   function syncCanvas() {
     const c = canvasOf();
     if (!c) return;
+    const svg = c.querySelector('svg');
+    if (svg && !drawing) paintLive(svg); // キーボードで描いている線（ポインタの操作中は onMove が描く）
     const on = app.getDrawState().mode && app.getDrawState().visible;
     c.classList.toggle('is-drawing', on);
     c.classList.toggle('is-erasing', on && app.getDrawState().tool === 'eraser');

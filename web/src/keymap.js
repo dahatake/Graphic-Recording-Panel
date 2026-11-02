@@ -35,8 +35,13 @@ export const KEYMAP = [
   { key: 'Escape', ...AS, command: 'highlight.clear' },
 ];
 
+const PHYSICAL = { ',': 'Comma', '.': 'Period' }; // A-608: 物理キー（KeyboardEvent.code）で判定する記号（US 配列以外でも同じキーで開く）
 export function matchKey(keymap, ev) {
   const key = String(ev?.key ?? '').toLowerCase();
-  return keymap.find((k) => k.key.toLowerCase() === key
-    && !!k.ctrl === !!ev.ctrlKey && !!k.alt === !!ev.altKey && !!k.shift === !!ev.shiftKey) || null;
+  const code = typeof ev?.code === 'string' ? ev.code : '';
+  return keymap.find((k) => {
+    const phys = PHYSICAL[k.key];
+    const keyOk = phys && code ? code === phys : k.key.toLowerCase() === key;
+    return keyOk && !!k.ctrl === !!ev.ctrlKey && !!k.alt === !!ev.altKey && !!k.shift === !!ev.shiftKey;
+  }) || null;
 }
