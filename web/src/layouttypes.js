@@ -56,18 +56,34 @@ export function timelineLayout(input) {
   const bodyY = M + TITLE_H + GAP / 2;
   const uw = Math.floor((W - M * 2 - GAP * (COLS - 1)) / COLS);
   const cells = []; let row = -1; let col = COLS; let prev = null;
+  // FR-105 AC-609: 読み順の型。z（既定）= 上の行から左→右・次の行へ。f = 上の 2 行を横に、その下は左端を縦に。
+  // compare = 左の列を上から、次に右の列（2 列）。flow = 1 列で前の段階から後の段階へ一方向（下へ）。
+  const rt = ['f', 'compare', 'flow'].includes(input.readingType) ? input.readingType : 'z';
+  const n = src.length; const half = Math.ceil(n / 2);
+  const colW2 = Math.floor((W - M * 2 - GAP) / 2); const colW1 = W - M * 2;
+  const place = (i) => {
+    if (rt === 'f') return i < COLS ? { row: 0, col: i, region: 'bar1', w: uw } : i < COLS + 2 ? { row: 1, col: i - COLS, region: 'bar2', w: uw } : { row: i - COLS - 2 + 2, col: 0, region: 'stem', w: uw };
+    if (rt === 'compare') return i < half ? { row: i, col: 0, region: 'L', w: colW2 } : { row: i - half, col: 1, region: 'R', w: colW2 };
+    return { row: i, col: 0, region: 'flow', w: colW1 };
+  };
+  const colX = (c, w) => M + (rt === 'compare' ? c * (colW2 + GAP) : c * (uw + GAP));
   src.forEach((u, i) => {
-    if (u.run !== prev || col >= COLS) { row += 1; col = 0; } // トピックが変わるか行が埋まったら次の行
-    prev = u.run;
-    cells.push({ ...u, order: i, row, x: M + col * (uw + GAP), y: bodyY + row * (H + GAP), w: uw, h: H });
-    col += 1;
+    if (rt === 'z') {
+      if (u.run !== prev || col >= COLS) { row += 1; col = 0; } // トピックが変わるか行が埋まったら次の行
+      prev = u.run;
+      cells.push({ ...u, order: i, row, region: 'z', x: M + col * (uw + GAP), y: bodyY + row * (H + GAP), w: uw, h: H });
+      col += 1;
+    } else {
+      const p = place(i); row = Math.max(row, p.row);
+      cells.push({ ...u, order: i, row: p.row, region: p.region, x: colX(p.col, p.w), y: bodyY + p.row * (H + GAP), w: p.w, h: H });
+    }
   });
   const rows = row + 1;
   const bodyH = rows ? rows * H + (rows - 1) * GAP : 0;
   const runs = []; // 連続した同じトピックの範囲 = 1 つのまとまり
   for (const c of cells) {
     const last = runs.at(-1);
-    if (last && last.run === c.run) last.cells.push(c); else runs.push({ run: c.run, heading: c.heading, cells: [c] });
+    if (last && last.run === c.run && last.region === c.region) last.cells.push(c); else runs.push({ run: c.run, region: c.region, heading: c.heading, cells: [c] });
   }
   const seen = new Map();
   const groups = runs.map((r) => {
@@ -77,7 +93,7 @@ export function timelineLayout(input) {
     const frame = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
     return { id: n === 1 ? r.run : `${r.run}#${n}`, kind: 'topic', heading: String(r.heading ?? '').trim() || String(r.run), frame, headingRect: { x: x0 + 8, y: y0 + 4, w: x1 - x0 - 16, h: 18 }, top: y0 };
   });
-  const units = cells.map(({ run, heading, row: rw, ...c }) => {
+  const units = cells.map(({ run, heading, row: rw, region, ...c }) => {
     const top = groups.find((g) => g.top === c.y && c.x >= g.frame.x && c.x + c.w <= g.frame.x + g.frame.w) ? 24 : 6; // 小見出しの下に収める
     return { ...c, x: c.x + 8, w: c.w - 16, y: c.y + top, h: c.h - top - 6 };
   });
@@ -85,7 +101,7 @@ export function timelineLayout(input) {
   return {
     canvas: { w: W, h: bodyY + bodyH + M }, title,
     body: { x: M, y: bodyY, w: W - M * 2, h: bodyH },
-    units, arrows, orderMark: 'both', groups: groups.map(({ top, ...g }) => g), centered: false,
+    units, arrows, readingType: rt, orderMark: 'both', groups: groups.map(({ top, ...g }) => g), centered: false,
     titleLines: ['series', 'theme', 'date', 'venue'].map((k) => String(info[k] ?? '').trim()).filter(Boolean),
   };
 }

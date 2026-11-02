@@ -445,6 +445,15 @@ export function mountUI(app, doc = document) {
       for (const s of o.styles) { const op = doc.createElement('option'); op.value = s.value; op.textContent = s.label; style.append(op); }
       style.addEventListener('change', () => app.setSettings({ drawStyle: style.value }));
       row('drawStyle', d.fields[2].label, style);
+      // FR-105 AC-608: 読み順の型（図単位）。現在の型と選ばれた理由を文字で示し、手動で選び直す・自動に戻す
+      if (d.readingOrder) {
+        const ro = doc.createElement('select'); ro.dataset.readingOrderField = 'mode';
+        for (const m of d.readingOrder.options) { const op = doc.createElement('option'); op.value = m.value; op.textContent = m.label; ro.append(op); }
+        ro.addEventListener('change', () => app.setReadingOrder(ro.value));
+        row('readingOrder', d.readingOrder.label, ro);
+        const rs = doc.createElement('p'); rs.id = 'settings-readingOrder-status'; rs.className = 'settings-status'; rs.setAttribute('role', 'status');
+        form.append(rs);
+      }
       // FR-095 AC-558: タイトル欄（シリーズ名・演題・日付・会場）と同じ場所に、目的・対象読者・議題の入力欄。変更したら保存される
       const mfs = app.getMeetingFormSpec?.();
       if (mfs) {
@@ -573,6 +582,10 @@ export function mountUI(app, doc = document) {
     const vals = Object.fromEntries(d.fields.map((f) => [f.id, f.value]));
     setEl.querySelector('select#settings-layout\\.mode').value = vals['layout.mode'];
     setEl.querySelector('select#settings-drawStyle').value = vals.drawStyle;
+    if (d.readingOrder) { // FR-105 AC-608
+      const rsel = setEl.querySelector('select#settings-readingOrder'); if (rsel && rsel.value !== d.readingOrder.mode) rsel.value = d.readingOrder.mode;
+      const rst = setEl.querySelector('#settings-readingOrder-status'); if (rst && rst.textContent !== d.readingOrder.text) rst.textContent = d.readingOrder.text;
+    }
     { // FR-095 AC-558: 入力欄の値を保存値に合わせる（入力中の欄は触らない）
       const mv = app.getMeetingFormValues?.();
       if (mv) for (const c of setEl.querySelectorAll('[data-meeting-field]')) if (doc.activeElement !== c && c.value !== (mv[c.dataset.meetingField] ?? '')) c.value = mv[c.dataset.meetingField] ?? '';

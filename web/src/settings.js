@@ -8,6 +8,7 @@ import { createDrawStyleRegistry, DEFAULT_STYLE_ID } from './drawstyles.js';
 import { createLayoutTypeRegistry, validTypeList, LAYOUT_TYPE_IDS, LAYOUT_TYPE_META, DEFAULT_LAYOUT_TYPE, fitTitle } from './layouttypes.js';
 import { TYPE_SCALE } from './infodesign.js';
 import { KEY_ICON } from './commandbar.js';
+import { READING_MODES, resolveReadingOrder } from './readingorder.js';
 
 export const SETTINGS_KEY = 'grp.settings';
 export const FIELD_IDS = ['layout.mode', 'layout.types', 'drawStyle'];
@@ -36,6 +37,11 @@ export function settingsModule(ctx) {
       'settings.categories': '分類', 'settings.category.general': '全般', 'settings.category.general.description': 'レイアウト型・描画スタイル・音・再配置の周期を設定します', 'settings.category.apiKeys': '接続キー', 'settings.category.apiKeys.description': 'Foundry・Azure Speech のキーと GitHub Copilot の認証を登録します', 'settings.category.invalid': '選べない分類です',
       'settings.changed': '設定を変更しました', 'settings.invalid': '設定の値が正しくないため変更しませんでした', 'drawStyle.changed': '描画スタイル', 'drawStyle.invalid': '選べない描画スタイルです',
       'cmd.settings.open': '設定を開く', 'cmd.settings.close': '設定を閉じる', 'label.settings.open': '設定', 'tooltip.settings.open': '既定のレイアウトと描画スタイルを選ぶ設定画面を開きます',
+      'settings.readingOrder': '読み順の型', 'settings.readingOrder.current': '現在の図の読み順の型', 'settings.readingOrder.reason': '選ばれた理由',
+      'readingOrder.auto': '自動', 'readingOrder.z': 'Z 型', 'readingOrder.f': 'F 型', 'readingOrder.compare': '左右比較', 'readingOrder.flow': 'フロー',
+      'readingOrder.reason.compare': '対立・比較の言い回し', 'readingOrder.reason.flow': '手順の言い回し', 'readingOrder.reason.enumeration': '列挙の言い回し', 'readingOrder.reason.default': '当てはまる言い回しがないため既定',
+      'readingOrder.reason.manual': '手動の選択', 'readingOrder.reason.na': '適用しない（放射状・RPG風地図は固有の順）', 'readingOrder.invalid': '選べない読み順の型です',
+      'readingOrder.changed': '読み順の型',
     },
     en: {
       ...strings('en'),
@@ -47,6 +53,11 @@ export function settingsModule(ctx) {
       'settings.categories': 'Categories', 'settings.category.general': 'General', 'settings.category.general.description': 'Set the layout types, draw style, sound and rearrange interval', 'settings.category.apiKeys': 'API Keys', 'settings.category.apiKeys.description': 'Register the Foundry and Azure Speech keys and GitHub Copilot sign-in', 'settings.category.invalid': 'That category cannot be selected',
       'settings.changed': 'Settings changed', 'settings.invalid': 'The settings were not changed because a value is invalid', 'drawStyle.changed': 'Draw style', 'drawStyle.invalid': 'That draw style cannot be selected',
       'cmd.settings.open': 'Open settings', 'cmd.settings.close': 'Close settings', 'label.settings.open': 'Settings', 'tooltip.settings.open': 'Open the settings for the default layout and draw style',
+      'settings.readingOrder': 'Reading order', 'settings.readingOrder.current': 'Reading order of the current diagram', 'settings.readingOrder.reason': 'Reason',
+      'readingOrder.auto': 'Auto', 'readingOrder.z': 'Z pattern', 'readingOrder.f': 'F pattern', 'readingOrder.compare': 'Left-right compare', 'readingOrder.flow': 'Flow',
+      'readingOrder.reason.compare': 'comparison wording', 'readingOrder.reason.flow': 'step-by-step wording', 'readingOrder.reason.enumeration': 'listing wording', 'readingOrder.reason.default': 'no matching wording, so the default',
+      'readingOrder.reason.manual': 'chosen manually', 'readingOrder.reason.na': 'not applied (radial and RPG-map layouts keep their own order)', 'readingOrder.invalid': 'That reading order cannot be selected',
+      'readingOrder.changed': 'Reading order',
     },
   });
   const t = ctx.t;
@@ -57,9 +68,11 @@ export function settingsModule(ctx) {
   // ---- 端末ごとの設定（grp.settings） ----
   const defaults = () => ({ layout: { mode: 'fixed', types: [DEFAULT_LAYOUT_TYPE] }, drawStyle: DEFAULT_STYLE_ID });
   let settings = defaults();
+  let readingOrder = 'auto'; // FR-105 AC-608: 読み順の型の手動の選択（auto | z | f | compare | flow）。端末ごとの設定（grp.settings）に保存する
   { // 復元。壊れた値・未知の値は初期値のまま（起動を妨げない）
     const raw = P.readJson(storage, SETTINGS_KEY);
     if (raw && typeof raw === 'object') {
+      if (READING_MODES.includes(raw.readingOrder)) readingOrder = raw.readingOrder;
       const l = raw.layout;
       if (l && typeof l === 'object') {
         if (MODES.includes(l.mode)) settings.layout.mode = l.mode;
@@ -68,7 +81,7 @@ export function settingsModule(ctx) {
       if (styles.has(raw.drawStyle)) settings.drawStyle = raw.drawStyle;
     }
   }
-  const saveSettings = () => P.writeJson(storage, SETTINGS_KEY, settings);
+  const saveSettings = () => P.writeJson(storage, SETTINGS_KEY, { ...settings, readingOrder });
 
   // ---- 手動の選択・描画スタイルの現在値（セッションファイルの対象。grp.* には保存しない） ----
   let manual = null; // null | [typeId]
@@ -169,11 +182,34 @@ export function settingsModule(ctx) {
     reset: () => { titleInfo = { ...EMPTY_TITLE }; },
   });
 
+  // ---- FR-105 読み順の型（AC-607〜609）: 図の単位。手動の選択は自動の判定より優先し、auto で自動に戻る ----
+  const readingApplicable = () => api.getLayoutInfo().head !== 'diverge' && api.getDrawStyle?.() !== 'rpg'; // 放射状・RPG風地図は固有の順を保つ
+  api.getReadingOrder = () => {
+    const applicable = readingApplicable();
+    const r = resolveReadingOrder(state.scenes, readingOrder);
+    const type = applicable ? r.type : null;
+    const reason = applicable ? r.reason : 'na';
+    const typeLabelText = type ? t(`readingOrder.${type}`) : '—';
+    const reasonText = t(`readingOrder.reason.${reason}`) + (applicable && r.phrase ? `（${r.phrase}）` : '');
+    return {
+      mode: readingOrder, type, reason, phrase: applicable ? r.phrase : null, applicable, label: t('settings.readingOrder'), typeLabel: typeLabelText, reasonText,
+      text: `${t('settings.readingOrder.current')}: ${typeLabelText} / ${t('settings.readingOrder.reason')}: ${reasonText}`,
+      options: READING_MODES.map((m) => ({ value: m, label: t(`readingOrder.${m}`) })),
+    };
+  };
+  api.setReadingOrder = (mode) => {
+    if (!READING_MODES.includes(mode)) return reject('readingOrder.invalid', 'invalid');
+    readingOrder = mode; saveSettings();
+    say('msg.readingOrder', () => `${t('readingOrder.changed')}: ${t(`readingOrder.${mode}`)}`);
+    return { ok: true };
+  };
+
   // ---- 2D・時系列の配置（型ごとの実装はレジストリで差し替える。先頭の型が配置を決める） ----
   api.getDiagramLayout = () => {
     const info = api.getLayoutInfo();
     const level = api.getDetailLevel?.() ?? 'detail';
-    const input = { level, topics: api.getTopics?.() ?? [], scenes: state.scenes, titleInfo: api.getTitleInfo?.() ?? null, types: info.selected, lang: lang(), arranged: api.getArrangeView?.()?.trees ?? null };
+    const ro = api.getReadingOrder();
+    const input = { level, topics: api.getTopics?.() ?? [], scenes: state.scenes, titleInfo: api.getTitleInfo?.() ?? null, types: info.selected, lang: lang(), arranged: api.getArrangeView?.()?.trees ?? null, readingType: ro.type ?? undefined };
     const base = types.layoutFor(info.head)(input);
     for (const id of info.selected.slice(1)) { const ov = types.overlayFor(id); if (ov) ov(base, input); }
     fitTitle(base, TYPE_SCALE.title); // タイトル欄を欄の幅で折り返し、収まらなければ欄を高くする（AC-166・AC-431）
@@ -223,7 +259,7 @@ export function settingsModule(ctx) {
     return { ok: true };
   };
   api.getSettingsDialog = () => (open ? {
-    open: true, role: 'dialog', modal: true, label: t('settings.title'), focused: true, categories: categories(), selectedCategory: category,
+    open: true, role: 'dialog', modal: true, label: t('settings.title'), focused: true, categories: categories(), selectedCategory: category, readingOrder: api.getReadingOrder(),
     fields: FIELD_IDS.map((id) => ({ id, label: t(`settings.${id}`), value: id === 'layout.mode' ? settings.layout.mode : id === 'layout.types' ? [...settings.layout.types] : settings.drawStyle,
       // FR-077 AC-418: 既定の描画スタイルの選択肢は、上部の一覧と同じ登録簿（同じ ID・名前・並び）から作る
       ...(id === 'drawStyle' ? { options: styles.list(lang()).map((s) => ({ value: s.id, label: s.label })) } : {}) })),
