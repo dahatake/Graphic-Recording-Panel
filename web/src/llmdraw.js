@@ -193,7 +193,16 @@ export function llmDrawModule(ctx) {
     if (svgGeneration) { const labels = parseUnbundled(res.body); if (labels.length) { ctx.emit('change', api); await generate(scene.id, labels, n); return; } }
     ctx.emit('change', api);
   }
-  ctx.on('utterance', () => { if (active()) void extract(); });
+  // 取込などで発話が短時間に大量に来ても、要求は同時に 1 件だけ（処理中に来た分は終わった後に 1 回にまとめる）
+  let extracting = false; let again = false;
+  async function extractCoalesced() {
+    if (extracting) { again = true; return; }
+    extracting = true;
+    try {
+      do { again = false; if (active()) await extract(); } while (again && active());
+    } catch { /* ルールベース描画のまま */ } finally { extracting = false; }
+  }
+  ctx.on('utterance', () => { if (active()) void extractCoalesced(); });
 
   // ---- 描かれる内容（存在するシーンの分だけ。無効のときは空） ----
   const sceneIds = () => new Set(state.scenes.map((s) => s.id));
