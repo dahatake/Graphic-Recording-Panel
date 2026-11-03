@@ -811,7 +811,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-043\" tests/system/persist.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "1624a4b",
       "last_run_at": "2026-11-02T20:05:43+09:00",
       "evidence": "work/runs/202611021950/logs/system-test/E2E-019-202611022003.log",
@@ -821,6 +821,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-11-03T23:03:48+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC-034/043/394 と NFR-PRIV-001 の新仕様（再読込後の同意の初期状態は方式別）に合わせ、ブラウザ標準の前提を明記しコメント・題名を更新。Azure Speech の期待値は AC-442 の既定を同意済みに修正"
         }
       ]
     },
@@ -1553,7 +1559,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-034\" tests/system/speech.test.js",
       "canary": false,
-      "status": "blocked",
+      "status": "not_run",
       "last_commit": null,
       "last_run_at": null,
       "evidence": null,
@@ -1581,6 +1587,12 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "検証レベルは integration（System Test の対象外）。テストは speech.test.js に参考として残し、可否は実装者の結合テストで行う。契約は CONTRACT.md「音声認識の日本語対応」"
+        },
+        {
+          "at": "2026-11-03T23:03:47+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC-034/043/394 と NFR-PRIV-001 の新仕様（再読込後の同意の初期状態は方式別）に合わせ、ブラウザ標準の前提を明記しコメント・題名を更新。Azure Speech の期待値は AC-442 の既定を同意済みに修正"
         }
       ]
     },
@@ -5308,7 +5320,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-394\" tests/system/startbar.test.js",
       "canary": false,
-      "status": "blocked",
+      "status": "not_run",
       "last_commit": null,
       "last_run_at": null,
       "evidence": null,
@@ -5324,6 +5336,12 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "検証レベルが integration のため System Test の対象外（implementer が統合テストで担保）。テストは tests/system/startbar.test.js に参考として残す"
+        },
+        {
+          "at": "2026-11-03T23:03:48+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC-034/043/394 と NFR-PRIV-001 の新仕様（再読込後の同意の初期状態は方式別）に合わせ、ブラウザ標準の前提を明記しコメント・題名を更新。Azure Speech の期待値は AC-442 の既定を同意済みに修正"
         }
       ]
     },
@@ -6781,6 +6799,12 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "テストを新仕様に更新"
+        },
+        {
+          "at": "2026-11-03T23:03:49+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC-442 の既定は同意済み"
         }
       ]
     },

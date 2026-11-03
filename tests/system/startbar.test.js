@@ -194,7 +194,7 @@ test('FR-072 AC-394: (b) 未同意なら再開・再記録でも開始されず�
   assert.equal(env.speech.startCalls.length, 1);
 });
 
-test('FR-072 AC-394: (b) 復元直後は再読込後のため未同意で、再開しても開始されず、同意すれば始まる', async () => {
+test('FR-072 AC-394: (b) 復元直後は再読込後のため同意の初期状態に戻り（方式がブラウザ標準は未同意。Azure Speech は同意済みで azurespeech.test.js AC-458 (d) が検証）、再開しても開始されず、同意すれば始まる', async () => {
   const { app, env, createApp } = await boot(REMOTE);
   app.setSpeechConsent(true);
   await cmd(app, 'session.start');

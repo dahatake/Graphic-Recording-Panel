@@ -184,7 +184,7 @@ test('FR-081 AC-442: Azure Speech では、デバイス内処理が使えても 
   assert.equal(c.region, 'top');
   assert.match(c.label, /Azure Speech/); assert.match(c.label, /同意/);
   assert.ok(c.notice.includes(DUMMY_HOST), '送信先のホスト名を表示');
-  assert.equal(c.checked, false, '既定は未同意');
+  assert.equal(c.checked, true, '既定は同意済み（AC-442。2026-11-03）。外せる');
   // 方式がブラウザ標準（デバイス内）に戻ると、この同意は出ない（ブラウザ標準の挙動は変えない）
   app.setSpeechMethod('browser'); await flush();
   assert.equal(app.getConsentUi().visible, false);
