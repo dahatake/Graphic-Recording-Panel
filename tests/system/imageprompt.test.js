@@ -125,6 +125,30 @@ test('FR-078 AC-420: 配色〜雰囲気は選んでいる描画スタイルの�
   for (const id of OLD) assert.ok(all.includes(id));
 });
 
+// FR-078 AC-420 AC-650 AC-471: 内容の文字と文字の部分の列挙の文言は、伏せ字の選択（初期値は簡易マスキングの設定）に従う
+test('FR-078 AC-420: 内容の文字と文字の部分の列挙の文言は伏せ字の選択（初期値は簡易マスキングの設定）に従い、選ばなければ元の文字で入る（A-820）', async () => {
+  const { app, env, clipboard } = await appWith();
+  app.setLlmMaskWords(MASK_WORDS);
+  seedTargets(app, env);
+  app.setDetailLevel('detail');
+  // 伏せ字の選択を変えずに「コピー」: 初期値は簡易マスキングの設定と同じ
+  const r0 = await copyVia(app);
+  assert.equal(r0.ok, true);
+  assert.equal(r0.masked, app.getLlmMasking(), '初期値は簡易マスキングの設定');
+  assert.equal(r0.masked, true, '前提: 簡易マスキングの初期値は有効');
+  const typo0 = sec(app.getImagePrompt({ mask: true }), 'typography').body;
+  assert.equal(sec(app.getImagePrompt({ mask: r0.masked }), 'typography').body, typo0);
+  for (const x of TARGETS) assert.ok(!clipboard.writes[0].includes(x.t), `${x.k}: 初期値のままでは列挙にも内容にも元の文字は入らない`);
+  // 伏せ字を適用しない: 列挙の文言も元の文字
+  const r1 = await copyVia(app, { mask: false });
+  assert.equal(r1.masked, false);
+  const typoPlain = sec(app.getImagePrompt({ mask: false }), 'typography').body;
+  assert.equal(clipboard.writes[1], app.getImagePrompt().text);
+  assert.ok(app.getState().scenes.every((s) => typoPlain.includes(s.heading)), '伏せ字なしの列挙に図に出る見出しが元の文字で入る');
+  assert.ok(TARGETS.some((x) => typoPlain.includes(x.t)));
+  assert.ok(TARGETS.every((x) => !typo0.includes(x.t)), '伏せ字ありの列挙には対象の文字がない');
+});
+
 test('FR-078 AC-420: キーボードだけで（キーの割り当て・コマンドの検索 → 注意の「コピー」を Tab と Enter で）コピーできる', async () => {
   const { app, env, clipboard } = await appWith();
   await seedThreeScenes(app, env);
@@ -539,18 +563,30 @@ test('FR-078 AC-471: 伏せ字の適用を選んでコピーすると、内容�
   app.setLlmMaskWords(MASK_WORDS);
   seedTargets(app, env);
   app.setDrawStyle('anime');
+  app.setDetailLevel('detail'); // 見出しと要点まで図に出る（文字の部分の列挙に、トピックとシーンの見出しが入る。AC-650）
   const r = await copyVia(app, { mask: true });
   assert.equal(r.ok, true); assert.equal(r.masked, true);
   const M = clipboard.writes[0];
   for (const x of TARGETS) {
-    assert.ok(!M.includes(x.t), `${x.k}「${x.t}」は文章に残らない（トピック・見出し・要点のどこにも）`);
+    assert.ok(!M.includes(x.t), `${x.k}「${x.t}」は文章に残らない（トピック・見出し・要点・文字の部分の列挙のどこにも）`);
     assert.ok(M.includes(`「${ph[x.k]}」について${x.suf}`), `${x.k} は AC-359 と同じ伏せ字「${ph[x.k]}」になる`);
   }
   const plain = app.getImagePrompt({ mask: false });
-  const others = plain.sections.filter((s) => s.key !== 'content');
-  assert.equal(inOrder(M, others.flatMap((s) => [s.heading, s.body])), null, '目的〜構成は伏せ字を適用しないときと同じ');
   const mp = app.getImagePrompt({ mask: true });
   assert.equal(M, mp.text);
+  // 文字の部分: 列挙の文言にも内容と同じ伏せ字が適用される（AC-650）。列挙以外（画風の文字の記述・制約の文）は伏せ字なしと同じ
+  const maskT = (s) => TARGETS.reduce((a, x) => a.split(x.t).join(ph[x.k]), s);
+  const items = [...app.getState().scenes.map((s) => s.heading), ...app.getTopics().map((t) => t.title)].filter((h) => h && TARGETS.some((x) => h.includes(x.t)));
+  assert.ok(items.length >= 1, '前提: 伏せ字の対象を含む見出しが図に出る');
+  const typoP = sec(plain, 'typography').body; const typoM = sec(mp, 'typography').body;
+  for (const h of items) {
+    assert.ok(typoP.includes(h), `伏せ字なしの列挙に見出し「${h}」がある`);
+    assert.ok(typoM.includes(maskT(h)), `伏せ字ありの列挙は「${maskT(h)}」（内容と同じ伏せ字）`);
+  }
+  const strip = (body, list) => [...list].sort((a, b) => b.length - a.length).reduce((a, h) => a.split(h).join(''), body);
+  assert.equal(strip(typoM, items.map(maskT)), strip(typoP, items), '文字の部分は、列挙の文言を除けば伏せ字なしと同じ');
+  const others = plain.sections.filter((s) => s.key !== 'content' && s.key !== 'typography');
+  assert.equal(inOrder(M, others.flatMap((s) => [s.heading, s.body])), null, '目的・配色・イラスト・雰囲気・構成は伏せ字を適用しないときと同じ');
   for (const s of others) assert.equal(sec(mp, s.key).body, s.body, `${s.key} は同じ`);
   assert.equal(app.getState().message.masked, true, 'メッセージは伏せ字を適用したことを示す');
 });
@@ -561,11 +597,13 @@ test('FR-078 AC-471: 伏せ字を適用しないを選ぶと、内容の部分�
   seedTargets(app, env);
   assert.equal((await copyVia(app, { mask: true })).masked, true);
   const msgMasked = app.getState().message;
+  app.setDetailLevel('detail'); // 列挙（AC-650）にシーンの見出しも入れる
   const r = await copyVia(app, { mask: false });
   assert.equal(r.ok, true); assert.equal(r.masked, false);
   const U = clipboard.writes[1];
   for (const x of TARGETS) assert.ok(U.includes(x.t), `${x.k}「${x.t}」は元の文字で入る`);
   assert.equal(U, app.getImagePrompt().text, 'AC-420・AC-421 のとおりの文章');
+  assert.ok(TARGETS.some((x) => sec(app.getImagePrompt(), 'typography').body.includes(x.t)), '文字の部分の列挙の文言も元の文字で入る（AC-650）');
   const msgPlain = app.getState().message;
   assert.equal(msgPlain.masked, false);
   assert.ok(msgPlain.text.trim() && msgMasked.text.trim());
