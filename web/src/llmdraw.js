@@ -178,8 +178,8 @@ export function llmDrawModule(ctx) {
     const masked = masking ? maskText(raw, maskWords) : raw;
     return clampText(masked, MAX_SEND_CHARS);
   }
-  async function extract() {
-    const scene = state.scenes[state.scenes.length - 1];
+  async function extract(sceneId) {
+    const scene = sceneId === undefined ? state.scenes[state.scenes.length - 1] : state.scenes.find((s) => s.id === sceneId);
     if (!scene) return;
     const { text, truncated } = requestFor(scene);
     const n = ++seq; latest.set(scene.id, n);
@@ -193,16 +193,16 @@ export function llmDrawModule(ctx) {
     if (svgGeneration) { const labels = parseUnbundled(res.body); if (labels.length) { ctx.emit('change', api); await generate(scene.id, labels, n); return; } }
     ctx.emit('change', api);
   }
-  // 取込などで発話が短時間に大量に来ても、要求は同時に 1 件だけ（処理中に来た分は終わった後に 1 回にまとめる）
-  let extracting = false; let again = false;
+  // 取込などで発話が短時間に大量に来ても、要求は同時に 1 件だけ。処理中に来た発話は、発話のあったシーンごとに 1 回へまとめて（同じシーンへの複数発話は 1 回）、終わった後に順に送る（AC-359・AC-471）
+  let extracting = false; const dirty = new Set();
   async function extractCoalesced() {
-    if (extracting) { again = true; return; }
+    if (extracting) return;
     extracting = true;
     try {
-      do { again = false; if (active()) await extract(); } while (again && active());
-    } catch { /* ルールベース描画のまま */ } finally { extracting = false; }
+      while (dirty.size && active()) { const id = dirty.values().next().value; dirty.delete(id); await extract(id); }
+    } catch { /* ルールベース描画のまま */ } finally { extracting = false; if (!active()) dirty.clear(); }
   }
-  ctx.on('utterance', () => { if (active()) void extractCoalesced(); });
+  ctx.on('utterance', () => { if (!active()) return; const last = state.scenes[state.scenes.length - 1]; if (last) dirty.add(last.id); void extractCoalesced(); });
 
   // ---- 描かれる内容（存在するシーンの分だけ。無効のときは空） ----
   const sceneIds = () => new Set(state.scenes.map((s) => s.id));
