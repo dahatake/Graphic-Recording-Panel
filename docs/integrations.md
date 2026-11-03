@@ -47,7 +47,7 @@
 ## 項目
 
 #### INT-002 Microsoft Foundry（LLM 連携）
-- 連携先: 利用者が設定した Microsoft Foundry のエンドポイント（ベース URL は https://<your-resource>.services.ai.azure.com/openai/v1 の形式、model はデプロイ名）
+- 連携先: 利用者が設定した Microsoft Foundry のエンドポイント（ベース URL は https://<your-resource>.services.ai.azure.com/openai/v1 の形式、model はデプロイ名。プロジェクト URL（…/api/projects/<名前>）も使え、同じホストの /openai/v1/responses へ送る）
 - 方向: 双方向
 - 方式: REST（HTTPS、Responses API）。ブラウザからは直接呼ばず、ローカル中継サーバー（127.0.0.1・同一オリジンのみ）が中継する
 - データ分類: 会議の発話の要点（利用者の社内情報を含み得る）
