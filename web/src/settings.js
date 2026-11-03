@@ -162,8 +162,8 @@ export function settingsModule(ctx) {
   api.getLayoutTypeRegistry = () => types;
 
   // ---- FR-036 AC-166: タイトル情報（シリーズ名・演題・日付・会場）。FR-095 AC-559 で、保存（grp.session・セッションファイル）に含める ----
-  const TITLE_KEYS = ['series', 'theme', 'date', 'venue'];
-  let titleInfo = { series: '', theme: '', date: '', venue: '' };
+  const TITLE_KEYS = ['series', 'theme', 'date', 'venue', 'speaker'];
+  let titleInfo = { series: '', theme: '', date: '', venue: '', speaker: '' };
   api.getTitleInfo = () => ({ ...titleInfo });
   api.setTitleInfo = (info) => {
     if (!info || typeof info !== 'object' || Array.isArray(info)) return { ok: false, reason: 'invalid' };
@@ -173,7 +173,7 @@ export function settingsModule(ctx) {
     return { ok: true };
   };
   // FR-095 AC-559: タイトル情報（AC-166 の変更）は、ブラウザ内の保存・セッションファイルに含め、再読込・読込で復元し、データの初期化で消す
-  const EMPTY_TITLE = { series: '', theme: '', date: '', venue: '' };
+  const EMPTY_TITLE = { series: '', theme: '', date: '', venue: '', speaker: '' };
   ctx.registerPersist?.('titleInfo', {
     export: () => (TITLE_KEYS.some((k) => titleInfo[k]) ? { ...titleInfo } : undefined),
     import: (v) => {
