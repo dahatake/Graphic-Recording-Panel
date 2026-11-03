@@ -8152,10 +8152,10 @@
       "layer": "nonfunctional",
       "command": "node --test --test-name-pattern=\"AC-536\" tests/system/perf.test.js",
       "canary": false,
-      "status": "fail",
-      "last_commit": "a2db977",
-      "last_run_at": "2026-11-04T00:05:08+09:00",
-      "evidence": "work/runs/202611032304/logs/system-test/IT-027-202611040003.log",
+      "status": "pass",
+      "last_commit": "41ab407",
+      "last_run_at": "2026-11-04T00:12:20+09:00",
+      "evidence": "work/runs/202611032304/logs/system-test/IT-027-202611040010.log",
       "history": [
         {
           "at": "2026-10-27T23:44:54+09:00",
