@@ -46,7 +46,11 @@ test('FR-078 AC-471: getImagePrompt({mask:true}) は内容の部分だけを伏�
   const plain = app.getImagePrompt();
   const masked = app.getImagePrompt({ mask: true });
   assert.deepEqual(app.getImagePrompt({ mask: false }), plain);
-  for (const s of plain.sections.filter((x) => x.key !== 'content')) assert.equal(sec(masked, s.key).body, s.body, s.key);
+  // AC-650: 「文字」の節の列挙の文言は内容と同じく伏せ字になる（画風の記述の行は同じ）
+  for (const s of plain.sections.filter((x) => x.key !== 'content' && x.key !== 'typography')) assert.equal(sec(masked, s.key).body, s.body, s.key);
+  const ty = sec(masked, 'typography').body;
+  assert.ok(sec(plain, 'typography').body.includes(SECRET) && !ty.includes(SECRET) && ty.includes('●●●'));
+  assert.ok(ty.startsWith(sec(plain, 'typography').body.split('\n')[0]));
   const body = sec(masked, 'content').body;
   for (const x of [SECRET, '山田様', 'taro@example.com']) { assert.ok(sec(plain, 'content').body.includes(x)); assert.ok(!body.includes(x), x); }
   assert.ok(body.includes('●●●'), 'AC-359 と同じ伏せ字');
