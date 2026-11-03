@@ -142,6 +142,14 @@ export function buildPdf(scenes, { title = '', arrange = null, parts = null, loo
     pages[page].push(s);
     y -= lines.length * lh + 4;
   };
+  // FR-036 AC-659: 登壇者名は右上（先頭ページの最上段・右端そろえ）。空なら何も出さない
+  if (header?.speaker) {
+    const sp = header.speaker; const fs = FS_P;
+    const sw = Math.min(width, [...sp].reduce((a, ch) => a + (ch.codePointAt(0) >= 0x2e80 ? fs : fs * 0.55), 0));
+    need(LH_P + 4);
+    pages[page].push(`/Span <</ActualText <FEFF${utf16Hex(sp)}>>> BDC\nBT ${look ? inkOf(null, 0) : ''}/F1 ${fs} Tf ${A4.w - A4.margin - sw} ${y - fs} Td\n<${utf16Hex(sp, true)}> Tj\nET\nEMC\n`);
+    y -= LH_P + 4;
+  }
   if (title) block(title, 12, 18, 0, look ? 'title' : null);
   for (const l of header?.lines ?? []) block(l, FS_P, LH_P, 0); // FR-095 AC-560: 日付・議題（日付が空・議題が 0 件なら行がない）
   if (arrange) {
@@ -287,6 +295,12 @@ function drawHeader(g, hdr, ink, w) {
   if (!hdr.height) return;
   g.textBaseline = 'alphabetic'; g.fillStyle = ink;
   for (const r of hdr.rows) { g.font = `${r.bold ? '700 ' : ''}${r.size}px ${LEGACY_FONT_FAMILY}`; g.fillText(r.text, hdr.margin, r.y, Math.max(40, w - hdr.margin * 2)); }
+  if (hdr.speaker) { // FR-036 AC-659: 登壇者名は図の右上（右端そろえ）
+    const s = hdr.speaker;
+    g.font = `${s.size}px ${LEGACY_FONT_FAMILY}`; g.textAlign = 'right';
+    g.fillText(s.text, s.right, s.y, Math.max(40, s.maxWidth));
+    g.textAlign = 'left';
+  }
   g.translate?.(0, hdr.height);
 }
 async function renderPngBody(scenes, canvasFactory, { title = '', arrange = null, parts = null, imageFactory = null, look = null, emotion = null, header = null } = {}) {
