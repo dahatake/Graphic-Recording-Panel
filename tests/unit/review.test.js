@@ -60,6 +60,36 @@ test('FR-092 AC-545: 図・ポップアップに文字「要確認」＋枠つ�
   assert.ok(app.renderOutline().includes('確認済み'));
 });
 
+// FR-092 AC-649: 保存の画面の警告「未確認 k 件」。k は AC-547 と同じ数・機密を除く保存は除いた後の件数・0 件は出さない・保存は妨げず内容は AC-547 のとおり
+test('FR-092 AC-649: getSaveWarnings に「未確認 k 件」と確認できる場所（テキスト一覧）。0 件は出ず、機密を除くと除いた後の件数、保存は妨げない', async () => {
+  const { app, env } = await feed(['予算は100万円です', '2026年11月1日に実施', '普通に進めます']);
+  const k = app.getReviewSummary().unconfirmed.length;
+  assert.equal(k, 2);
+  let ws = app.getSaveWarnings();
+  assert.equal(ws.length, 1);
+  assert.ok(ws[0].includes(`未確認 ${k} 件`) && ws[0].includes('テキスト一覧'), '文字で示す');
+  // 5 形式のどれの保存でも警告のまま保存できる（保存物は AC-547: k は警告と同じ）
+  for (const c of ['save.markdown', 'save.html', 'save.svg', 'save.png', 'save.pdf']) {
+    const before = env.downloads.length;
+    await app.commands[c]();
+    assert.equal(env.downloads.length, before + 1, `${c} は警告があっても保存できる`);
+  }
+  await app.commands['save.html']();
+  assert.ok(String(env.downloads.at(-1).data).includes(`未確認 ${k} 件`));
+  // 機密の要点を除く保存では、除いた後の件数
+  const conf = app.getReviewSummary().unconfirmed[0];
+  app.selectPoint(conf); app.commands['point.confidential']();
+  assert.ok(app.getSaveWarnings()[0].includes('未確認 2 件'), '「除く」でなければ除かない');
+  app.setExcludeConfidential(true);
+  assert.ok(app.getSaveWarnings()[0].includes('未確認 1 件'));
+  await app.commands['save.html']();
+  assert.ok(String(env.downloads.at(-1).data).includes('未確認 1 件'), '保存物の k と同じ');
+  // 全部確認すると出さない
+  app.setExcludeConfidential(false);
+  for (const id of app.getReviewSummary().unconfirmed) app.confirmPoint(id);
+  assert.deepEqual(app.getSaveWarnings(), []);
+});
+
 // FR-092 AC-546（補足: 確認の状況・理由 provisional）
 test('FR-092 AC-546/548: getReviewSummary の件数、再配置後に加わった要点は暫定、AI は LLM 有効時の AI 関係線だけ', async () => {
   const { app, env } = await feed(['予算は100万円です', '普通に進めます']);
