@@ -174,17 +174,16 @@ test('NFR-SEC-005 AC-457: 保存の要求を送る前にキーの入力欄を空
   assert.equal(field(app, 'azureSpeech.save').disabled, false);
 });
 
-test('NFR-SEC-005 AC-457: ui.js のキーの欄は password・new-password で、<form> に入れず、保存・pagehide・pageshow で値を空にする', () => {
+test('NFR-SEC-005 AC-457: キーの欄は接続キー画面だけにあり（password・new-password・<form> なし）、設定画面の下部には Azure Speech のキー・接続先の欄を置かず、pagehide・pageshow で入力中の値を空にする', () => {
   const ui = fs.readFileSync(path.join(ROOT, 'web', 'src', 'ui.js'), 'utf8');
+  const keys = fs.readFileSync(path.join(ROOT, 'web', 'src', 'apikeys-ui.js'), 'utf8');
   const block = ui.slice(ui.indexOf('function buildAzureSpeech'), ui.indexOf('function syncAzureSpeech'));
-  assert.match(block, /azKeyEl\.type = 'password'/);
-  assert.match(block, /\['autocomplete', 'new-password'\]/);
-  assert.ok(!/createElement\('form'\)/.test(block), '<form> に入れない');
-  assert.match(block, /const save = \(\) => \{ const p = app\.saveAzureSpeech\(\); if \(azKeyEl\) azKeyEl\.value = '';/, '保存の操作の直後に（応答を待たずに）DOM の値を空にする');
+  assert.match(keys, /inp\.type = f\.input\.type; inp\.autocomplete = f\.input\.autocomplete/);
+  assert.ok(!/createElement\('form'\)/.test(keys), '<form> に入れない');
+  assert.ok(!/password|azureSpeech\.(endpoint|save|delete|test)/.test(block), '設定画面の下部にキー・接続先の欄と保存・削除・接続テストを置かない');
   assert.match(ui, /addEventListener\?\.\('pagehide', clearAzureKey\)/);
   assert.match(ui, /addEventListener\?\.\('pageshow', clearAzureKey\)/);
 });
-
 // FR-082 AC-451
 test('FR-082 AC-451: users-guide の Azure Speech の文書は目次から辿れ、キー・エンドポイントの例はプレースホルダだけ', () => {
   const guide = fs.readFileSync(path.join(ROOT, 'users-guide', '09-azure-speech.md'), 'utf8');
