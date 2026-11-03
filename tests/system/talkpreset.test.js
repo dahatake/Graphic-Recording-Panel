@@ -28,8 +28,8 @@ const snap = (app) => {
   return JSON.stringify([s.utterances.map((u) => u.text), s.scenes, s.selectedSceneId, s.session, s.input.draft, app.getDetailLevel(), app.getDrawStyle(), app.getRpgAudio().volume, app.getArrangeInterval().sec]);
 };
 
-// FR-030 AC-648 AC-143 AC-166 AC-167
-test('FR-030 AC-648: 操作 1 回で既定のレイアウトが「自動」になり、論点が 2〜4 に区切れる入力では区画が先頭になり、タイトル欄を含む共通配置が適用され、ほかの状態は変わらない', async () => {
+// FR-030 AC-648 AC-143 AC-166 AC-167（型は AC-143 の結果だけで選ばれる。区画は AC-143 の入力が区画の条件を満たすから選ばれるのであって、講演の規則ではない）
+test('FR-030 AC-648: 操作 1 回で既定のレイアウトが「自動」になり、型は AC-143 の結果（この入力はトピック 2 つが連続した区間なので区画）で選ばれ、タイトル欄を含む共通配置が適用され、ほかの状態は変わらない', async () => {
   const { app, env } = await newApp();
   await seed(app, env, TWO_TOPICS);
   app.setTitleInfo(TITLE);
@@ -55,7 +55,7 @@ test('FR-030 AC-648: 操作 1 回で既定のレイアウトが「自動」に�
   assert.equal(app.getSettings().layout.mode, 'auto');
   assert.equal(info(app).source, 'auto');
   assert.equal(info(app).manual, false);
-  assert.equal(info(app).head, 'zone', '論点が 2〜4 に区切れる入力では区画が先頭');
+  assert.equal(info(app).head, 'zone', 'AC-143: トピック 2 つ・各トピックが連続した区間・ビジョンの語なし → 区画（講演専用の優先ではなく AC-143 の結果）');
   assert.match(app.renderSvg(), /data-layout-head="zone"/);
   // 共通配置（AC-166・AC-167）: タイトル欄が左上、本編と重ならず、各まとまりに小見出しと外枠
   const L = app.getDiagramLayout();
@@ -101,7 +101,7 @@ test('FR-030 AC-648 異常系・境界: 図の型は AC-143 の規則の結果�
 });
 
 // FR-027 AC-139 AC-140 と AC-150 の優先順位
-test('FR-030 AC-648: 手動の型の選択（FR-027）は操作の前後とも優先され、手動を解除すると自動選択の結果（区画）になる', async () => {
+test('FR-030 AC-648: 手動の型の選択（FR-027）は操作の前後とも優先され、手動を解除すると自動選択の結果（AC-143 でこの入力は区画）になる', async () => {
   const { app, env } = await newApp();
   await seed(app, env, TWO_TOPICS);
   // 操作の前の手動
