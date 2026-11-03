@@ -77,9 +77,17 @@ test('FR-036 AC-560 AC-659 AC-166: 登壇者名は PNG・PDF・SVG の右上の�
   assert.ok(!descOfSvg(svg).includes(INFO.speaker), 'svg: <desc> に名前を含めない');
   assert.ok(!app.getFigureDescription().text.includes(INFO.speaker), '説明（getFigureDescription）に名前を含めない');
   // 異常系: 文字としてだけ出る（<script> などを入れても要素にならない）
-  app.setTitleInfo({ speaker: '<script>alert(1)</script><img src=x onerror=alert(2)>' });
+  // 出力 HTML には、名前と無関係なスライド動作用の <script> が入り得る。よって全体ではなく、固有マーカーで挟んだ名前の部分だけを判定する
+  app.setTitleInfo({ speaker: 'SPK_BEGIN<script>alert(1)</script><img src=x onerror=alert(2)>SPK_END' });
   const out2 = await saveAll(app, env);
-  for (const fmt of ['svg', 'html']) assert.ok(!/<script\b|<img\b[^>]*onerror/i.test(out2[fmt]), `${fmt}: 名前は文字としてだけ出る`);
+  for (const fmt of ['svg', 'html']) {
+    const s = out2[fmt];
+    const i = s.indexOf('SPK_BEGIN'), j = s.indexOf('SPK_END');
+    assert.ok(i >= 0 && j > i, `${fmt}: 名前が文字として載る`);
+    const region = s.slice(i, j + 'SPK_END'.length);
+    assert.ok(!/</.test(region), `${fmt}: 名前の部分に生の < が無い（要素として解釈されない）: ${region}`);
+    assert.ok(/&lt;|&#0*60;|&#x0*3c;/i.test(region), `${fmt}: 名前の < はエスケープ済みの形で載る: ${region}`);
+  }
 });
 
 test('FR-036 AC-659 AC-560 異常系: 登壇者名が空のときは匿名の汎用アイコンだけで、5 形式のどこにも名前も「登壇者」の項も載らない', async () => {
