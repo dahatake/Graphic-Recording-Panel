@@ -142,7 +142,7 @@
     "AC-311": "sha256:282ba030d75fd483",
     "AC-312": "sha256:6c5c4c5217a9bb9b",
     "AC-334": "sha256:b9d97452a5ca917d",
-    "AC-358": "sha256:e6fe71b5c29f33ae",
+    "AC-358": "sha256:e4b784017508e3df",
     "AC-359": "sha256:c3677f2c813e0e85",
     "AC-360": "sha256:53839b89932f7c68",
     "AC-366": "sha256:4c4ba8a297894acc",
@@ -255,7 +255,7 @@
     "AC-543": "sha256:7fe6f80b98295f5c",
     "AC-546": "sha256:1130436affef75e9",
     "AC-572": "sha256:33df74955658a7bc",
-    "AC-560": "sha256:ded5157cc1b42aa1",
+    "AC-560": "sha256:7a3af85761c3db7e",
     "AC-569": "sha256:04134336b0865378",
     "AC-592": "sha256:edf7cef7e7116967",
     "AC-599": "sha256:a4d0cd264eb1f3e9",
@@ -4782,11 +4782,11 @@
       "ac_ids": [
         "AC-358"
       ],
-      "title": "送信内容は要点・候補一覧だけ",
+      "title": "送信内容は要点・一覧だけ（手入力の登壇者名・画像生成プロンプトも含まない）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=AC-358 tests/system/llm-consent-persist.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "7382013",
       "last_run_at": "2026-11-04T00:19:00+09:00",
       "evidence": "work/runs/adhoc-202611040017/logs/system-test/E2E-176-202611040018.log",
@@ -4796,6 +4796,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-11-04T00:37:40+09:00",
+          "by": "test-designer",
+          "change": "title: '送信内容は要点・候補一覧だけ' -> '送信内容は要点・一覧だけ（手入力の登壇者名・画像生成プロンプトも含まない）'",
+          "reason": "AC-358 の新本文（手入力の登壇者名も送らない。AC-659）に合わせ、同じテストに登壇者名が中継の要求・画像生成プロンプトに含まれない観察を追加"
         }
       ]
     },
@@ -8397,16 +8403,17 @@
     {
       "id": "E2E-272",
       "requirement_ids": [
-        "FR-095"
+        "FR-095",
+        "FR-036"
       ],
       "ac_ids": [
         "AC-560"
       ],
-      "title": "全出力（PNG・PDF・SVG・MD・HTML）の表題・日付・議題、日付未入力、保存・復元・初期化",
+      "title": "全出力（PNG・PDF・SVG・MD・HTML）の表題・日付・議題・登壇者の項（入力があるときだけ。右上・冒頭・説明には載らない・機密除外でも残る・外部通信0）は、保存・復元・初期化",
       "layer": "e2e",
-      "command": "node --test --test-name-pattern=\"FR-095|FR-096\" tests/system/meeting-context.test.js",
+      "command": "node --test --test-name-pattern=\"FR-095|FR-096|FR-036\" tests/system/meeting-context.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "7382013",
       "last_run_at": "2026-11-04T00:19:00+09:00",
       "evidence": "work/runs/adhoc-202611040017/logs/system-test/E2E-272-202611040018.log",
@@ -8434,6 +8441,12 @@
           "by": "test-designer",
           "change": "ac_ids: ['AC-560', 'AC-561', 'AC-562'] -> ['AC-560']; requirement_ids: ['FR-095', 'FR-096'] -> ['FR-095']",
           "reason": "AC-561・562 は integration 層のため System Test の対象外。AC は戻し、FR-096 の補助観察を同じファイルで実行するため command のみ拡張"
+        },
+        {
+          "at": "2026-11-04T00:37:39+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test --test-name-pattern=\"FR-095|FR-096\" tests/system/meeting-context.test.js' -> 'node --test --test-name-pattern=\"FR-095|FR-096|FR-036\" tests/system/meeting-context.test.js'; title: '全出力（PNG・PDF・SVG・MD・HTML）の表題・日付・議題、日付未入力、保存・復元・初期化' -> '全出力（PNG・PDF・SVG・MD・HTML）の表題・日付・議題・登壇者の項（入力があるときだけ。右上・冒頭・説明には載らない・機密除外でも残る・外部通信0）は、保存・復元・初期化'; requirement_ids: ['FR-095'] -> ['FR-095', 'FR-036']",
+          "reason": "AC-560 の新本文（登壇者は入力があるときだけ「登壇者」の項。AC-659・Q-041 A）に合わせ、FR-036 の観察（右上・空は匿名アイコンのみ・説明に載らない・除く保存でも残り警告・外部通信 0）を同じファイルに追加し command のパターンを拡張"
         }
       ]
     },

@@ -38,3 +38,14 @@ FR-098（議題タイマー。part 3 が決める API）は、議題の登録・
 - AC-557: 保存・復元・テキスト一覧・色だけに頼らない・生成 AI への送信に含まれない（`fetch` 等の呼び出しの本文に議事項目・会議の文脈が無い）。
 - AC-558: タイトル欄と同じ場所（`getTitleBar()` 等、既存のタイトル欄の部品）に目的・対象読者・議題の入力欄。未入力は図に出ない。
 - AC-578: 目的・対象読者・議題名は `<script>`・`<img onerror>` を含めても文字としてだけ出力される。
+
+## 登壇者名（FR-036・Q-041 A 2026-11-04。AC-166・AC-659・AC-559・AC-560・AC-358・AC-606 の観察点）
+System Test（台帳）に入れるのは system の AC の AC-560（全出力の「登壇者」の項。E2E-272）と AC-358（送信に含まれない。E2E-176）。AC-166・AC-169・AC-529・AC-559・AC-562・AC-606・AC-659 は integration / unit のため台帳に入れず、同じテストファイル（`meeting-context.test.js`・`llm-consent-persist.test.js`）の観察点として、下の契約を実装役の単体・結合テストも確かめる。AC-652 は廃止（ケースなし）。
+- 入力・取得: 登壇者名はタイトル情報の 1 項目 `speaker`（任意・文字列）。`app.setTitleInfo({ speaker })`・`app.getTitleInfo()` → `{ series, theme, date, venue, speaker }`（既定 `speaker:''`。渡した項目だけ置き換える既存の流儀。利用者の手入力だけで決まり、音声・取込ファイル・話者名（AC-117）・要点から推測・補完しない）。画面の入力欄は既存のタイトル欄の部品（`getTitleBar()` の項目 `id:'speaker'`、`kind:'title'`）で、右上に置く。
+- 図の右上: `renderSvgForSave()` の SVG に、入力があるとき `<text data-role="speaker">名前</text>`（図の幅の右半分に置く。`x` が viewBox 幅の半分より大きい）。入力がない（空）とき `data-role="speaker"` の要素は無く、匿名の汎用アイコン `data-role="anon-icon"` だけがある。PNG は描画した文字（`canvasFactory.log.texts`）、PDF は取り出した文字に名前が含まれる（空のときは含まれない）。
+- Markdown: 最初の `##` の前の冒頭に「登壇者」の項（例 `登壇者: 名前`）。HTML: 表題の近くに「登壇者」のラベルと名前。空のときは両方とも「登壇者」の語も名前も出ない。文字はエスケープされ、`<script>` などを含めても文字としてだけ出る（AC-578 と同じ）。
+- 画像の説明（AC-561・AC-562）には載らない: SVG の `<desc>`・`getFigureDescription().text`・PNG の Description・PDF の Subject には名前を含めない。
+- 保存・復元・初期化（AC-559・AC-659 d）: `grp.session`・`file.save` / `loadSessionFile` に `titleInfo.speaker` が含まれ、再読込・読込の後に復元され、`data.reset`（確認 `confirm`）で `''` に戻る。
+- 生成 AI・画像プロンプト（AC-358・AC-659 e）: `/api/llm/extract` ほかの中継への要求の本文（`relay` の `calls` の `body` 全体）に名前を含めない。`app.getImagePrompt({ mask: true|false }).text` に名前を含めない（伏せ字の対象外）。名前の入力・表示・保存の間、`fetch`・`XMLHttpRequest`・`WebSocket`・`EventSource`・`sendBeacon` の呼び出しは 0 件。
+- 機密の要点を除く保存（AC-606・AC-659 f）: `setExcludeConfidential(true)` でも名前は 5 形式の出力にそのまま残り、`getSaveWarnings()`（文字の配列）に「登壇者名」を含む警告が 1 つ以上ある（自由入力は機密の判定の対象外。名前を入力しているとき）。
+- 話者名を含まない出力（AC-529）: 取込んだ話者名（AC-117）は Markdown に載らないが、手入力の登壇者名は載る（別のもの）。

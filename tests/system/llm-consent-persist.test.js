@@ -175,9 +175,13 @@ test('NFR-PRIV-003 AC-358: 送信は要点の文字・シーン番号・描画�
   const { app, env, relay } = await appWith();
   await enable(app);
   assert.equal(app.setDrawStyle('rpg').ok, true);
+  const SPEAKER = '登壇者SPK山田太郎'; // 利用者が手入力した登壇者名は送らない（AC-659 e）
+  app.setTitleInfo({ speaker: SPEAKER });
   await seedThreeScenes(app, env);
   await app.flushLlm();
   const calls = relay.extractCalls(); assert.ok(calls.length >= 3);
+  for (const c of relay.calls) assert.ok(!JSON.stringify(c).includes('山田太郎'), '登壇者名が中継への要求に含まれた');
+  for (const mask of [true, false]) assert.ok(!app.getImagePrompt({ mask }).text.includes('山田太郎'), `画像生成プロンプト（mask=${mask}）に登壇者名を含めない`);
   const body = calls.at(-1).body;
   assert.equal(body.scene, 3, 'シーン番号（1 始まり）');
   assert.equal(body.drawStyle, 'rpg', '描画スタイル名');
