@@ -267,7 +267,8 @@
     "AC-645": "sha256:b00912cefe684c62",
     "AC-646": "sha256:008d3f959a6ee470",
     "AC-341": "sha256:18c82ba246abe2dd",
-    "AC-454": "sha256:6761f82854320b79"
+    "AC-454": "sha256:6761f82854320b79",
+    "AC-648": "sha256:e6f1890403bb3d11"
   },
   "cases": [
     {
@@ -8634,6 +8635,37 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "AC-646 のケースを追加"
+        }
+      ]
+    },
+    {
+      "id": "E2E-284",
+      "requirement_ids": [
+        "FR-030"
+      ],
+      "ac_ids": [
+        "AC-648"
+      ],
+      "title": "講演向けの初期値にする（自動・区画先頭・共通配置・手動優先・保存・外部0件）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=AC-648 tests/system/talkpreset.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-11-03T23:14:34+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "AC-648 初回"
+        },
+        {
+          "at": "2026-11-03T23:14:34+09:00",
+          "by": "test-designer",
+          "change": "同じ要求・同じ層の既存ケースと別に追加",
+          "reason": "AC-648 は新規の操作で専用ファイル。既存ケースと別ファイル"
         }
       ]
     }
