@@ -15,6 +15,13 @@ const sec = (pr, key) => pr.sections.find((s) => s.key === key);
 const labelOf = (app, id) => app.getDrawStyles().find((s) => s.id === id).label;
 const typeLabel = (app, id) => app.getCommandBar().items.find((i) => i.command === `layoutType.${id}`).label;
 const tick = () => new Promise((r) => setImmediate(r));
+// 文字の部分（AC-650）から、入力のまま入る列挙の文言（見出し・引用符の中）を除く。残りが表示言語で作られる固定文（制約文・画風の記述）
+const withoutEnumerated = (app, body) => {
+  let s = body.replace(/「[^」]*」|"[^"]*"/g, ' ');
+  const heads = [...app.getState().scenes.map((x) => x.heading), ...app.getTopics().map((t) => t.title)].filter(Boolean).sort((a, b) => b.length - a.length);
+  for (const h of heads) s = s.split(h).join(' ');
+  return s;
+};
 const keepOf = (app) => { const s = app.getState(); return JSON.stringify([s.utterances.map((u) => u.text), s.scenes, s.selectedSceneId, s.session, s.input.draft]); };
 
 function makeClipboard(mode = 'ok') {
@@ -209,7 +216,14 @@ test('FR-078 AC-421: 文章は表示言語（日本語・英語）で作られ�
     assert.ok(s.heading.trim() && !CJK.test(s.heading), `英語の見出し "${s.heading}"`);
     assert.notEqual(s.heading, sec(ja, s.key).heading);
   }
-  for (const k of ['purpose', 'palette', 'typography', 'illustration', 'mood', 'composition']) assert.ok(!CJK.test(sec(en, k).body), `${k} の本文が英語: ${sec(en, k).body}`);
+  // 固定文は表示言語で出る。「文字」の節の列挙の文言（AC-650）は入力のまま（日本語の入力なら英語表示でも CJK が入る）ので、列挙を除いて見る
+  for (const k of ['purpose', 'palette', 'typography', 'illustration', 'mood', 'composition']) {
+    const body = k === 'typography' ? withoutEnumerated(app, sec(en, k).body) : sec(en, k).body;
+    assert.ok(!CJK.test(body), `${k} の本文が英語: ${body}`);
+  }
+  assert.notEqual(withoutEnumerated(app, sec(ja, 'typography').body), withoutEnumerated(app, sec(en, 'typography').body), '文字の節の固定文（制約文）は表示言語で出る');
+  const enHeads = app.getState().scenes.map((x) => x.heading).filter(Boolean);
+  assert.ok(enHeads.some((h) => sec(en, 'typography').body.includes(h)), '列挙の文言は入力した見出しのまま（AC-650）');
   for (const s of app.getState().scenes) for (const p of s.points) assert.ok(sec(en, 'content').body.includes(p.text), '内容は入力した文字のまま');
   app.setLang('ja');
   assert.equal(app.getImagePrompt().text, ja.text);
@@ -240,7 +254,16 @@ test('FR-078 AC-421 異常系: 画風の記述を持たない（後から登録�
   assert.equal(app.setDrawStyle('test-nodesc').ok, true);
   assert.equal(app.getDrawStyleDescription('test-nodesc'), null);
   const pr = app.getImagePrompt();
-  const bodies = Object.keys(STYLE_KEYS).map((k) => sec(pr, k).body.trim());
+  // 「文字」の節には列挙・3 制約の文（AC-650）も入るので、それらを除いて画風の記述の有無を見る（制約文は AC-650 の語で見分ける）
+  const CONSTRAINT = /以外の文字|一度ずつ|ロゴ|透かし/;
+  const styleOnly = (k) => {
+    let b = sec(pr, k).body;
+    if (k === 'typography') {
+      b = withoutEnumerated(app, b).split(/[。\n]/).filter((x) => !CONSTRAINT.test(x)).join(' ');
+    }
+    return b.split('試験の画風').join(' 試験の画風 ').replace(/[\s、。・:：;；,，.\-–—]+/g, ' ').trim();
+  };
+  const bodies = Object.keys(STYLE_KEYS).map((k) => styleOnly(k));
   assert.ok(bodies.every((b) => b === '' || b === '試験の画風'), `名前だけ: ${JSON.stringify(bodies)}`);
   assert.ok(bodies.includes('試験の画風'), '名前が入る');
   const other = app.getDrawStyleDescription('handwritten');
