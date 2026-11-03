@@ -269,7 +269,13 @@
     "AC-341": "sha256:18c82ba246abe2dd",
     "AC-454": "sha256:6761f82854320b79",
     "AC-647": "sha256:794d69ee0acbdaac",
-    "AC-648": "sha256:995226e57b6c9dc6"
+    "AC-648": "sha256:995226e57b6c9dc6",
+    "AC-653": "sha256:fa2232dcf5f42a65",
+    "AC-654": "sha256:f4ba646949d4ecc0",
+    "AC-655": "sha256:0cba0a938f3233d9",
+    "AC-656": "sha256:0c4807fe362ca881",
+    "AC-657": "sha256:293c903d90385cbf",
+    "AC-658": "sha256:a7a919fc80691cdd"
   },
   "cases": [
     {
@@ -8764,6 +8770,42 @@
           "by": "test-designer",
           "change": "同じ要求・同じ層の既存ケースと別に追加",
           "reason": "AC-648 は新規の操作で専用ファイル。既存ケースと別ファイル（run 202611032304）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-286",
+      "requirement_ids": [
+        "FR-113"
+      ],
+      "ac_ids": [
+        "AC-653",
+        "AC-654",
+        "AC-655",
+        "AC-656",
+        "AC-657",
+        "AC-658"
+      ],
+      "title": "起動のたびの検査（server/build.py）: 構文エラーで起動しない・build: OK 後に引数を渡して起動・node なしは省略して続行・/sw.js の VERSION に資産の内容ハッシュ（no-store）・生成物を残さない・start.cmd 経由でも同じ",
+      "layer": "e2e",
+      "command": "node --test tests/system/build-check.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-11-04T00:30:16+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "FR-113 の承認済み AC から作成"
+        },
+        {
+          "at": "2026-11-04T00:30:44+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "FR-113 の AC-653〜658 は検証レベル=integration のため System Test の対象外（CHK-10）。tests/system/build-check.test.js は implementer の結合テストの雛形として保持。system に変更する場合は rd-author が検証レベルを変更し、この case を not_run に戻す"
         }
       ]
     }
