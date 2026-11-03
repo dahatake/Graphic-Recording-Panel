@@ -41,6 +41,9 @@ if (-not (Test-Path (Join-Path $web "index.html") -PathType Leaf)) {
 Write-Host "Open the URL (http://127.0.0.1:<port>/) printed by the server below in your browser. Pass --port N to fix the port."
 Write-Host "Press Ctrl+C in this window to stop the server."
 $relay = Join-Path $PSScriptRoot "server/relay.py"
+# FR-113: 起動のたびに検査（ビルド）する。失敗したら中継サーバーを起動せず、その終了コードで終わる。
+& $python.Source @pythonArgs (Join-Path $PSScriptRoot "server/build.py")
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 & $python.Source @pythonArgs $relay --web $web @args
 exit $LASTEXITCODE
 
