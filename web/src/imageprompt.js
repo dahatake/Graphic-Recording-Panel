@@ -221,7 +221,7 @@ export function imagePromptModule(ctx) {
     const content = buildContent(visible, api.getTopics?.() ?? [], t, MAX_CONTENT_CHARS, tf);
     const tl = buildTextLabels(visible, api.getTopics?.() ?? [], api.getDetailLevel?.() ?? 'detail', tf);
     const q = lang() === 'en' ? (x) => `"${x}"` : (x) => `「${x}」`;
-    const textLines = [styles.typography, `${t('prompt.textLead')} ${tl.labels.map(q).join(lang() === 'en' ? ', ' : '')}`, t('prompt.textRules')];
+    const textLines = [styles.typography, `${t('prompt.textLead')} ${tl.labels.map(q).join(lang() === 'en' ? ', ' : '')} ${t('prompt.textRules')}`];
     if (tl.clipped) textLines.push(t('prompt.textTruncated').replace('{n}', String(MAX_TEXT_LABEL_CHARS)));
     if (tl.omitted) textLines.push(t('prompt.textOmitted').replace('{n}', String(MAX_TEXT_LABELS)));
     const bodies = { purpose: t('prompt.purpose'), ...styles, typography: textLines.join('\n'), composition: comp.body, content: content.body };

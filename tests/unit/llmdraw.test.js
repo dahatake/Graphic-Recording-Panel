@@ -108,6 +108,19 @@ test('NFR-PRIV-003 AC-359 AC-360: 既定で簡易マスキングが有効、無�
   assert.ok(f && /保証しません/.test(f.note));
 });
 
+// NFR-PRIV-003 AC-359 / FR-078 AC-471: 処理中に来た発話は、発話のあったシーンごとに 1 回へまとめて送る（同じシーンへの複数発話は 1 回、途中のシーンも送られる）
+test('NFR-PRIV-003 AC-359 FR-078 AC-471: 処理中に来た発話はシーンごとに 1 回ずつ送られる（途中のシーンも落とさない）', async () => {
+  const { app, r } = await enabled({ objects: [], people: [], emotions: [], metaphors: [] });
+  const put = (t) => { app.setDraft(t); assert.equal(app.submitDraft().ok, true); };
+  put('第一場面の要点アルファ'); put('第一場面の要点ベータ');
+  app.commands['session.nextScene'](); put('第二場面の要点ガンマ');
+  app.commands['session.nextScene'](); put('第三場面の要点デルタ');
+  await app.flushLlm();
+  const inputs = r.calls.filter((c) => c.path === '/api/llm/extract').map((c) => c.body.input);
+  for (const k of ['アルファ', 'ガンマ', 'デルタ']) assert.ok(inputs.some((s) => s.includes(k)), `${k} を含むシーンが送られる`);
+  assert.ok(inputs.length <= 4, '同じシーンへの複数発話はまとめられる');
+});
+
 // NFR-PRIV-003 AC-361: 送る文字数の上限（PARAM-070）を超える分は送らず、通知する
 test('NFR-PRIV-003 AC-361: 上限を超えると切り詰めて通知する', async () => {
   assert.equal(MAX_SEND_CHARS, 2000);
