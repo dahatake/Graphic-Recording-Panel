@@ -107,13 +107,19 @@ test('FR-081 AC-441: 記録中に方式を変えると前の方式は停止し�
   const stops0 = env.speech.stopCalls;
   assert.equal(app.setSpeechMethod('azure').ok, true); await flush();
   assert.ok(env.speech.stopCalls > stops0, 'それまでの方式（ブラウザ標準）は停止する');
-  assert.equal(azure.startCalls.length, 0, '未同意なので Azure Speech は開始しない（音声の送信 0 件）');
+  // Azure Speech への切替後は同意の初期状態（同意済み）なので、チェックが入った状態で表示され、外さない限り開始される（2026-11-03）
+  assert.equal(app.getConsentUi().checked, true, 'Azure Speech へ切り替えたときはチェックが入った状態');
+  assert.ok(app.getConsentUi().notice.includes(DUMMY_HOST), '送信先のホスト名の説明つき');
+  assert.equal(azure.startCalls.length, 1, '同意済みなので Azure Speech で開始する');
   assert.equal(app.getState().session, 'recording', '記録中のまま');
+  assert.deepEqual(texts(app), before); assert.equal(app.renderSvg(), svg, '図は失われない');
+  // 利用者がチェックを外すと未同意になり、停止して同意待ち（送信 0 件）
+  app.setSpeechConsent(false); await flush();
+  assert.equal(azure.active, false, '外すと停止する');
   assert.equal(app.getSpeechStatus().state, 'consent', '同意待ち');
   assert.match(app.getState().message?.text ?? '', /同意/);
-  assert.deepEqual(texts(app), before); assert.equal(app.renderSvg(), svg, '図は失われない');
   app.setSpeechConsent(true); await flush();
-  assert.equal(azure.startCalls.length, 1, '同意すると Azure Speech で開始');
+  assert.equal(azure.startCalls.length, 2, '同意すると Azure Speech で再び開始');
   // ブラウザ標準へ戻す
   const starts = env.speech.startCalls.length;
   assert.equal(app.setSpeechMethod('browser').ok, true); await flush();
@@ -131,17 +137,19 @@ test('FR-081 AC-441 異常系: 方式の切替（選択・キーの保存・キ�
     app.commands['session.start'](); app.setSpeechConsent(true); await flush();
     assert.equal(env.speech.startCalls.length, 1);
     app.setSpeechMethod('azure'); await flush();
-    assert.equal(app.getSpeechConsent(), false, '選択による切替で未同意');
-    assert.equal(azure.startCalls.length, 0, '改めて同意するまで開始しない');
+    assert.equal(app.getSpeechConsent(), true, '選択による切替で切替後の方式の初期状態（Azure Speech は同意済み）');
+    assert.equal(app.getConsentUi().checked, true, 'チェックが入った状態で表示される');
+    assert.equal(azure.startCalls.length, 1, '外さない限り開始される');
     assert.equal(app.getConsentUi().visible, true);
     assert.match(app.getConsentUi().notice, new RegExp(DUMMY_HOST.replace(/\./g, '\\.')), '切替後の送信先のホスト名が示される');
-    // (2) Azure Speech で同意済み → エンドポイントのホストが変わる
-    app.setSpeechConsent(true); await flush();
-    assert.equal(azure.startCalls.length, 1);
+    // (2) Azure Speech でチェックを外した → 同じエンドポイントのままキーだけ保存しても外した状態が保たれ、ホストが変わると初期状態（同意済み）に戻る
+    app.setSpeechConsent(false); await flush();
+    assert.equal(azure.active, false);
+    await saveKeyViaSettings(app, { key: dummySpeechKey() });
+    assert.equal(app.getSpeechConsent(), false, '同じホストのままキーだけの保存・変更では同意の状態（外した場合）が保たれる');
+    assert.equal(azure.startCalls.length, 1, '外したままなので開始しない');
     await saveKeyViaSettings(app, { endpoint: `https://${DUMMY_HOST2}` });
-    assert.equal(app.getSpeechConsent(), false, 'ホストの変更で未同意');
-    assert.equal(azure.active, false, '変更前の同意で送り続けない');
-    assert.equal(azure.startCalls.length, 1, '改めて同意するまで開始しない');
+    assert.equal(app.getSpeechConsent(), true, 'ホストの変更で初期状態（同意済み）に戻る');
     assert.match(app.getConsentUi().notice, new RegExp(DUMMY_HOST2.replace(/\./g, '\\.')), '新しいホスト名が示される');
     assert.equal(app.getState().session, 'recording');
     // (3) キーの削除でブラウザ標準へ戻る（同意済みでも未同意に戻り、外部送信の可能性があるので開始しない）
@@ -160,8 +168,8 @@ test('FR-081 AC-441 異常系: 方式の切替（選択・キーの保存・キ�
     app.commands['session.start'](); app.setSpeechConsent(true); await flush();
     await saveKeyViaSettings(app, { key: dummySpeechKey() });
     assert.equal(app.getSpeechMethod(), 'azure');
-    assert.equal(app.getSpeechConsent(), false, 'キーの保存による切替で未同意');
-    assert.equal(azure.startCalls.length, 0);
+    assert.equal(app.getSpeechConsent(), true, 'キーの保存による切替で Azure Speech の初期状態（同意済み）');
+    assert.equal(azure.startCalls.length, 1, '外さない限り開始される');
     assert.ok(env.speech.stopCalls >= 1, 'ブラウザ標準は停止');
   }
 });
@@ -182,40 +190,46 @@ test('FR-081 AC-442: Azure Speech では、デバイス内処理が使えても 
   assert.equal(app.getConsentUi().visible, false);
 });
 
-test('FR-081 AC-442: 未同意の間は開始されず同意待ちと同意すれば始まる旨を示し、同意後に上流の確定結果が発話として 1 件追加され PARAM-001＋PARAM-104 秒以内に図に反映される', async () => {
+test('FR-081 AC-442: 初期状態は同意済みで [記録開始] で開始され、上流の確定結果が発話として 1 件追加され PARAM-001＋PARAM-104 秒以内に図に反映される。チェックを外すと未同意で開始されず送信 0 件・同意待ちと同意すれば始まる旨を示す', async () => {
   const { app, env, azure } = await bootAzure({ configured: true });
   app.setSpeechMethod('azure');
+  assert.equal(app.getSpeechConsent(), true, '設定済みで方式が Azure Speech の直後は同意済み');
+  assert.equal(app.getConsentUi().checked, true, 'チェックが入っている');
   await cmd(app, 'session.start');
   assert.equal(app.getState().session, 'recording');
-  assert.equal(azure.startCalls.length, 0, '未同意では送信 0 件');
-  assert.equal(app.getSpeechStatus().state, 'consent');
-  assert.equal(app.getSpeechStatus().reason, 'consent');
-  assert.match(app.getState().message?.text ?? '', /同意/, '同意すれば始まる旨');
-  azure.emit('未同意の間に届いた結果'); await flush();
-  assert.equal(app.getState().utterances.length, 0, '未同意の間の結果は発話にならない');
-  app.setSpeechConsent(true); await flush();
-  assert.equal(azure.startCalls.length, 1);
+  assert.equal(azure.startCalls.length, 1, '同意済みなので [記録開始] で音声認識が開始される');
   assert.equal(azure.startCalls[0].lang, 'ja-JP');
   azure.emit('予算の見直しが必要です'); await flush();
   assert.deepEqual(texts(app), ['予算の見直しが必要です'], '確定結果が発話として 1 件');
   env.scheduler.advance((PARAM.UPPER_SEC + PARAM.RENDER_SEC) * 1000); // ライブの上限 PARAM-001＋PARAM-104（AC-053）
   assert.ok(app.renderSvg().includes('予算の見直しが必要です'), 'PARAM-001＋PARAM-104 秒以内に図へ反映');
+  // 異常系: 利用者がチェックを外すと未同意（開始しない・送信 0 件・同意待ち）
+  const n = azure.startCalls.length;
+  app.setSpeechConsent(false); await flush();
+  assert.equal(azure.active, false, '外すと停止する');
+  assert.equal(app.getSpeechStatus().state, 'consent');
+  assert.equal(app.getSpeechStatus().reason, 'consent');
+  assert.match(app.getState().message?.text ?? '', /同意/, '同意すれば始まる旨');
+  azure.emit('未同意の間に届いた結果'); await flush();
+  assert.deepEqual(texts(app), ['予算の見直しが必要です'], '未同意の間の結果は発話にならない');
+  assert.equal(azure.startCalls.length, n, '未同意の間は開始しない');
+  app.setSpeechConsent(true); await flush();
+  assert.equal(azure.startCalls.length, n + 1, '同意すれば始まる');
 });
 
-test('FR-081 AC-442 異常系: 同意は保存されず、再読込後は未同意に戻り開始されない。同意を外すと停止する', async () => {
+test('FR-081 AC-442 異常系: 同意は保存されず、再読込後は初期状態（同意済み）に戻る。外した状態で再読込しても同意済みに戻り、同意を外すと停止する', async () => {
   const ctx = await bootAzure({ configured: true });
   await startAzureRecording(ctx.app);
   assert.equal(ctx.azure.startCalls.length, 1);
   ctx.app.setSpeechConsent(false); await flush();
   assert.equal(ctx.azure.active, false, '同意を外すと停止');
   assert.equal(ctx.app.getState().session, 'recording');
-  ctx.app.setSpeechConsent(true); await flush();
   const re = await reloadAzure(ctx);
   assert.equal(re.app.getSpeechMethod(), 'azure');
-  assert.equal(re.app.getSpeechConsent(), false, '再読込後は未同意');
-  assert.equal(re.app.getConsentUi().checked, false);
+  assert.equal(re.app.getSpeechConsent(), true, '外した状態は保存されず、再読込後は初期状態（同意済み）');
+  assert.equal(re.app.getConsentUi().checked, true);
   await cmd(re.app, 'session.resume');
-  assert.equal(re.azure.startCalls.length, 0, '復元後の再開も未同意なら開始しない');
+  assert.equal(re.azure.startCalls.length, 1, '復元後の再開は同意済みなので開始する');
 });
 
 // FR-081 AC-443（integration。アプリ側: 要求は同一オリジンの中継サーバーだけ・送信 0 件の条件）
@@ -364,8 +378,11 @@ test('FR-081 AC-445: 状態表示は方式を区別し、Azure Speech では 使
   app.setSpeechMethod('azure'); await flush();
   const waiting = app.getSpeechStatus();
   assert.equal(waiting.method, 'azure');
-  assert.equal(waiting.state, 'consent');
-  assert.match(waiting.text, /同意待ち/);
+  assert.equal(waiting.state, 'available', '同意の初期状態は同意済みなので、切替直後から使えます');
+  app.setSpeechConsent(false); await flush();
+  const wait2 = app.getSpeechStatus();
+  assert.equal(wait2.state, 'consent');
+  assert.match(wait2.text, /同意待ち/);
   app.setSpeechConsent(true); await flush();
   const ok = app.getSpeechStatus();
   assert.equal(ok.state, 'available');
@@ -494,11 +511,13 @@ test('FR-081 AC-458 (d): 一時停止・停止・復元からの再開は AC-394
   const re = await reloadAzure(ctx);
   assert.equal(re.app.getState().session, 'paused', '復元は一時停止');
   await cmd(re.app, 'session.resume');
-  assert.equal(re.azure.startCalls.length, 0, '復元直後は未同意なので開始しない');
-  assert.equal(re.app.getSpeechStatus().state, 'consent');
+  assert.equal(re.azure.startCalls.length, 1, '復元直後も初期状態（同意済み）なので再開で開始する（同意は保存されない）');
+  assert.equal(re.app.getSpeechConsent(), true);
+  re.app.setSpeechConsent(false); await flush();
+  assert.equal(re.app.getSpeechStatus().state, 'consent', '外すと同意待ち');
   assert.match(re.app.getState().message?.text ?? '', /同意/, '同意すれば始まる旨');
   re.app.setSpeechConsent(true); await flush();
-  assert.equal(re.azure.startCalls.length, 1, '同意で開始');
+  assert.equal(re.azure.startCalls.length, 2, '同意で開始');
   assert.ok(texts(re.app).includes('復元の確認'));
 });
 

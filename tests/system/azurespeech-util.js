@@ -79,6 +79,8 @@ export async function reloadAzure(ctx) {
 export async function startAzureRecording(app, { consent = true } = {}) {
   const r = app.setSpeechMethod('azure');
   if (!r || r.ok !== true) throw new Error(`方式を Azure Speech にできない: ${JSON.stringify(r)}`);
+  // 同意の初期状態は同意済み（AC-442。2026-11-03 の変更）。未同意にするときは、開始の前にチェックを外す。
+  if (!consent) { app.setSpeechConsent(false); await flush(); }
   app.commands['session.start'](); await flush();
   if (consent) { app.setSpeechConsent(true); await flush(); }
 }

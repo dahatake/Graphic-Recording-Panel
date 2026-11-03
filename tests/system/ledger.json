@@ -38,8 +38,8 @@
     "AC-065": "sha256:47f67d016cc7606d",
     "AC-040": "sha256:437274386a937d4e",
     "AC-066": "sha256:3341bd825cd90b6f",
-    "AC-067": "sha256:089f891a18d05819",
-    "AC-068": "sha256:86d2d54c756b3829",
+    "AC-067": "sha256:5e8f507f102e5e24",
+    "AC-068": "sha256:bd164c440658c571",
     "AC-069": "sha256:19b8c156e9013826",
     "AC-034": "sha256:183ff7e3663d4046",
     "AC-071": "sha256:7c97c04498000c85",
@@ -150,7 +150,7 @@
     "AC-384": "sha256:71d95fbfd9f2938c",
     "AC-385": "sha256:0f3c2bcf35c410ed",
     "AC-386": "sha256:663ca6776a5bf1b0",
-    "AC-387": "sha256:8f0fcf639887893c",
+    "AC-387": "sha256:e365b16200cee087",
     "AC-394": "sha256:9f3ce70f1239c043",
     "AC-388": "sha256:4763edb855b78154",
     "AC-389": "sha256:d76adcb523bd6173",
@@ -196,8 +196,8 @@
     "AC-436": "sha256:1d5cad323ac8017b",
     "AC-439": "sha256:afa998f8bed55a68",
     "AC-440": "sha256:cb8e709859fa53d9",
-    "AC-441": "sha256:9d435a3157bc5dcb",
-    "AC-442": "sha256:2ceb6631191a27f4",
+    "AC-441": "sha256:b47310ec6124c8fe",
+    "AC-442": "sha256:a658a05d92e2d965",
     "AC-443": "sha256:84c669163bb31405",
     "AC-444": "sha256:f7a142b56de4daa7",
     "AC-445": "sha256:87a81fd881bb1431",
@@ -267,7 +267,8 @@
     "AC-645": "sha256:b00912cefe684c62",
     "AC-646": "sha256:008d3f959a6ee470",
     "AC-341": "sha256:18c82ba246abe2dd",
-    "AC-454": "sha256:6761f82854320b79"
+    "AC-454": "sha256:6761f82854320b79",
+    "AC-647": "sha256:7ea0d6dfa4ccaff0"
   },
   "cases": [
     {
@@ -6711,11 +6712,11 @@
       "ac_ids": [
         "AC-441"
       ],
-      "title": "方式の選択（初期値ブラウザ標準・未設定では選べず理由）、保存・復元・初期化・セッションファイル、キー保存で自動切替・削除で戻り、記録中の切替と同意の非引継ぎ（異常系含む）",
+      "title": "方式の選択（初期値ブラウザ標準・未設定では選べず理由）、保存・復元・初期化・セッションファイル、キー保存で自動切替・削除で戻り、記録中の切替と同意の初期状態への戻り（Azure Speech は同意済み・ブラウザ標準は未同意。キーだけの保存では保たれホスト変更で初期状態）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-441\" tests/system/azurespeech.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "1624a4b",
       "last_run_at": "2026-11-02T20:05:43+09:00",
       "evidence": "work/runs/202611021950/logs/system-test/E2E-228-202611022003.log",
@@ -6725,6 +6726,18 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610200407 part 2/2）"
+        },
+        {
+          "at": "2026-11-03T22:59:02+09:00",
+          "by": "test-designer",
+          "change": "title: '方式の選択（初期値ブラウザ標準・未設定では選べず理由）、保存・復元・初期化・セッションファイル、キー保存で自動切替・削除で戻り、記録中の切替と同意の非引継ぎ（異常系含む）' -> '方式の選択（初期値ブラウザ標準・未設定では選べず理由）、保存・復元・初期化・セッションファイル、キー保存で自動切替・削除で戻り、記録中の切替と同意の初期状態への戻り（Azure Speech は同意済み・ブラウザ標準は未同意。キーだけの保存では保たれホスト変更で初期状態）'",
+          "reason": "AC-441: 切替後の同意は方式の初期状態（Azure Speech は同意済み）に変更（2026-11-03）"
+        },
+        {
+          "at": "2026-11-03T22:59:03+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "テストを新仕様に更新"
         }
       ]
     },
@@ -6736,11 +6749,11 @@
       "ac_ids": [
         "AC-442"
       ],
-      "title": "Azure Speech では記録開始の直近に同意とホスト名の説明。未同意は送信 0 件で同意待ち、同意後に確定結果が発話になり PARAM-001＋PARAM-104 秒以内に図へ。同意は保存しない",
+      "title": "Azure Speech では記録開始の直近に同意（初期状態は同意済み）とホスト名の説明。同意済みで開始され確定結果が発話になり PARAM-001＋PARAM-104 秒以内に図へ。外すと未同意で送信 0 件・同意待ち。同意は保存せず再読込で同意済みに戻る",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-442\" tests/system/azurespeech.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "1624a4b",
       "last_run_at": "2026-11-02T20:05:43+09:00",
       "evidence": "work/runs/202611021950/logs/system-test/E2E-230-202611022003.log",
@@ -6756,6 +6769,18 @@
           "by": "test-designer",
           "change": "title: 'Azure Speech では記録開始の直近に同意とホスト名の説明。未同意は送信 0 件で同意待ち、同意後に確定結果が発話になり PARAM-001 秒以内に図へ。同意は保存しない' -> 'Azure Speech では記録開始の直近に同意とホスト名の説明。未同意は送信 0 件で同意待ち、同意後に確定結果が発話になり PARAM-001＋PARAM-104 秒以内に図へ。同意は保存しない'",
           "reason": "A-805: AC-442 の上限をライブ（PARAM-001＋PARAM-104）に整合"
+        },
+        {
+          "at": "2026-11-03T22:59:02+09:00",
+          "by": "test-designer",
+          "change": "title: 'Azure Speech では記録開始の直近に同意とホスト名の説明。未同意は送信 0 件で同意待ち、同意後に確定結果が発話になり PARAM-001＋PARAM-104 秒以内に図へ。同意は保存しない' -> 'Azure Speech では記録開始の直近に同意（初期状態は同意済み）とホスト名の説明。同意済みで開始され確定結果が発話になり PARAM-001＋PARAM-104 秒以内に図へ。外すと未同意で送信 0 件・同意待ち。同意は保存せず再読込で同意済みに戻る'",
+          "reason": "AC-442: 同意の初期状態が同意済みに変更（2026-11-03）"
+        },
+        {
+          "at": "2026-11-03T22:59:03+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "テストを新仕様に更新"
         }
       ]
     },
@@ -8634,6 +8659,37 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "AC-646 のケースを追加"
+        }
+      ]
+    },
+    {
+      "id": "E2E-283",
+      "requirement_ids": [
+        "FR-072"
+      ],
+      "ac_ids": [
+        "AC-647"
+      ],
+      "title": "記録グループの押下の強調は有効なときだけ（準備中は全部なし・記録中は開始/再開・一時停止は一時停止・停止で全部戻る・複製も同じ）",
+      "layer": "e2e",
+      "command": "node --test tests/system/record-pressed.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-11-03T22:58:42+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-11-03T22:58:42+09:00",
+          "by": "test-designer",
+          "change": "同じ要求・同じ層の既存ケースと別に追加",
+          "reason": "AC-647 は実ブラウザ（aria-pressed と見た目）で測る必要があり、startbar.test.js（app 直結）と別ファイル"
         }
       ]
     }
