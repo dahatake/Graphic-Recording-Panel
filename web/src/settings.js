@@ -7,7 +7,7 @@ import * as P from './persist.js';
 import { createDrawStyleRegistry, DEFAULT_STYLE_ID } from './drawstyles.js';
 import { createLayoutTypeRegistry, validTypeList, LAYOUT_TYPE_IDS, LAYOUT_TYPE_META, DEFAULT_LAYOUT_TYPE, fitTitle } from './layouttypes.js';
 import { TYPE_SCALE } from './infodesign.js';
-import { KEY_ICON } from './commandbar.js';
+import { KEY_ICON, ICONS } from './commandbar.js';
 import { READING_MODES, resolveReadingOrder } from './readingorder.js';
 
 export const SETTINGS_KEY = 'grp.settings';
@@ -37,6 +37,7 @@ export function settingsModule(ctx) {
       'settings.categories': '分類', 'settings.category.general': '全般', 'settings.category.general.description': 'レイアウト型・描画スタイル・音・再配置の周期を設定します', 'settings.category.apiKeys': '接続キー', 'settings.category.apiKeys.description': 'Foundry・Azure Speech のキーと GitHub Copilot の認証を登録します', 'settings.category.invalid': '選べない分類です',
       'settings.changed': '設定を変更しました', 'settings.invalid': '設定の値が正しくないため変更しませんでした', 'drawStyle.changed': '描画スタイル', 'drawStyle.invalid': '選べない描画スタイルです',
       'cmd.settings.open': '設定を開く', 'cmd.settings.close': '設定を閉じる', 'label.settings.open': '設定', 'tooltip.settings.open': '既定のレイアウトと描画スタイルを選ぶ設定画面を開きます',
+      'cmd.settings.talkPreset': '講演向けの初期値にする', 'settings.talkPreset': '講演向けの初期値にする',
       'settings.readingOrder': '読み順の型', 'settings.readingOrder.current': '現在の図の読み順の型', 'settings.readingOrder.reason': '選ばれた理由',
       'readingOrder.auto': '自動', 'readingOrder.z': 'Z 型', 'readingOrder.f': 'F 型', 'readingOrder.compare': '左右比較', 'readingOrder.flow': 'フロー',
       'readingOrder.reason.compare': '対立・比較の言い回し', 'readingOrder.reason.flow': '手順の言い回し', 'readingOrder.reason.enumeration': '列挙の言い回し', 'readingOrder.reason.default': '当てはまる言い回しがないため既定',
@@ -53,6 +54,7 @@ export function settingsModule(ctx) {
       'settings.categories': 'Categories', 'settings.category.general': 'General', 'settings.category.general.description': 'Set the layout types, draw style, sound and rearrange interval', 'settings.category.apiKeys': 'API Keys', 'settings.category.apiKeys.description': 'Register the Foundry and Azure Speech keys and GitHub Copilot sign-in', 'settings.category.invalid': 'That category cannot be selected',
       'settings.changed': 'Settings changed', 'settings.invalid': 'The settings were not changed because a value is invalid', 'drawStyle.changed': 'Draw style', 'drawStyle.invalid': 'That draw style cannot be selected',
       'cmd.settings.open': 'Open settings', 'cmd.settings.close': 'Close settings', 'label.settings.open': 'Settings', 'tooltip.settings.open': 'Open the settings for the default layout and draw style',
+      'cmd.settings.talkPreset': 'Apply the talk preset', 'settings.talkPreset': 'Apply the talk preset',
       'settings.readingOrder': 'Reading order', 'settings.readingOrder.current': 'Reading order of the current diagram', 'settings.readingOrder.reason': 'Reason',
       'readingOrder.auto': 'Auto', 'readingOrder.z': 'Z pattern', 'readingOrder.f': 'F pattern', 'readingOrder.compare': 'Left-right compare', 'readingOrder.flow': 'Flow',
       'readingOrder.reason.compare': 'comparison wording', 'readingOrder.reason.flow': 'step-by-step wording', 'readingOrder.reason.enumeration': 'listing wording', 'readingOrder.reason.default': 'no matching wording, so the default',
@@ -260,6 +262,8 @@ export function settingsModule(ctx) {
   };
   api.getSettingsDialog = () => (open ? {
     open: true, role: 'dialog', modal: true, label: t('settings.title'), focused: true, categories: categories(), selectedCategory: category, readingOrder: api.getReadingOrder(),
+    // FR-030 AC-648: 操作（講演向けの初期値にする）。リボンの同名コマンドと同じ
+    actions: [{ command: 'settings.talkPreset', label: t('settings.talkPreset'), icon: ICONS['settings.talkPreset'] ?? '', accessibleName: t('settings.talkPreset') }],
     fields: FIELD_IDS.map((id) => ({ id, label: t(`settings.${id}`), value: id === 'layout.mode' ? settings.layout.mode : id === 'layout.types' ? [...settings.layout.types] : settings.drawStyle,
       // FR-077 AC-418: 既定の描画スタイルの選択肢は、上部の一覧と同じ登録簿（同じ ID・名前・並び）から作る
       ...(id === 'drawStyle' ? { options: styles.list(lang()).map((s) => ({ value: s.id, label: s.label })) } : {}) })),
@@ -272,6 +276,9 @@ export function settingsModule(ctx) {
     closeLabel: t('settings.close'),
   });
   api.getSettingsView = () => ({ fields: FIELD_IDS.map((id) => ({ id, visible: true })), scrollsHorizontally: false }); // 狭い画面では縦に並べ、項目を欠かさない
+  // FR-030 AC-648: 講演向けの初期値にする（既定のレイアウトを「自動」にするだけ。型の選択は FR-028 の規則、手動の型（FR-027）・描画スタイル・内容・記録は変えない）
+  ctx.registerCommand('settings.talkPreset', () => api.setSettings({ layout: { mode: 'auto' } }));
+  ctx.registerKey({ key: '|', ctrl: true, alt: true, shift: true, command: 'settings.talkPreset' }); // NFR-A11Y-001
   ctx.registerCommand('settings.open', () => { if (!open) { open = true; category = 'general'; notify(); } });
   ctx.registerCommand('settings.close', () => { if (open) { open = false; category = 'general'; notify(); } });
   ctx.registerKey({ key: 'F11', alt: true, shift: true, command: 'settings.open' });

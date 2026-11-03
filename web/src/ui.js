@@ -551,6 +551,13 @@ export function mountUI(app, doc = document) {
         const bc = doc.createElement('p'); bc.id = 'settings-budget-current'; bc.className = 'settings-status';
         form.append(bc);
       }
+      // FR-030 AC-648: 講演向けの初期値にする（1 回の操作。既定のレイアウトを「自動」にする）
+      for (const a of d.actions ?? []) {
+        const ab = doc.createElement('button'); ab.type = 'button'; ab.className = 'btn'; ab.dataset.command = a.command; ab.setAttribute('aria-label', a.accessibleName);
+        ab.textContent = a.label;
+        ab.addEventListener('click', () => app.commands[a.command]());
+        form.append(ab);
+      }
       const close =  doc.createElement('button'); close.type = 'button'; close.className = 'btn btn-primary'; close.textContent = o.closeLabel; close.dataset.action = 'settings-close';
       close.addEventListener('click', () => app.commands['settings.close']());
       // FR-084: 左（狭い画面では上）の分類。「接続キー」はアイコンと説明の文字つき。選ぶと接続キー画面（中央のモーダル）が開く
