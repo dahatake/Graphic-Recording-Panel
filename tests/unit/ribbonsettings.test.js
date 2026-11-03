@@ -34,7 +34,7 @@ test('FR-030 AC-520 / NFR-UX-011 AC-459: 9 グループで接続キーのグル�
   const groups = app.getCommandBar().groups;
   assert.deepEqual(groups.map((g) => g.id), ['import', 'session', 'view', 'layoutType', 'settings', 'presentation', 'export', 'data', 'environment']);
   assert.ok(groups.every((g) => g.commands.length <= 12));
-  assert.deepEqual(groups.find((g) => g.id === 'settings').commands, ['settings.open', 'settings.layoutMode', 'sound.toggleMute', 'sound.setVolume', 'arrange.setInterval']);
+  assert.deepEqual(groups.find((g) => g.id === 'settings').commands, ['settings.open', 'settings.layoutMode', 'sound.toggleMute', 'sound.setVolume', 'arrange.setInterval', 'settings.talkPreset']);
   assert.ok(!app.getCommandBar().items.some((i) => /^apiKeys\./.test(i.command)));
   const icons = app.getCommandBar().items.map((i) => i.icon);
   assert.equal(new Set(icons).size, icons.length, 'アイコンの重複なし');
@@ -55,4 +55,19 @@ test('FR-084 AC-482: ［設定］の分類に「接続キー」があり、選�
   assert.ok(app.getApiKeysDialog());
   app.commands['settings.close']();
   assert.equal(app.getApiKeysDialog(), null); assert.equal(app.getSettingsDialog(), null);
+});
+
+// FR-030 AC-648
+test('FR-030 AC-648: 講演向けの初期値にする操作は既定のレイアウトを自動にするだけで、描画スタイルは変えず、［設定］とリボンの両方にある', async () => {
+  const app = await mk();
+  app.setSettings({ drawStyle: 'simple' });
+  assert.equal(app.getSettings().layout.mode, 'fixed');
+  app.commands['settings.open']();
+  assert.ok(app.getSettingsDialog().actions.some((a) => a.command === 'settings.talkPreset'));
+  assert.ok(item(app, 'settings.talkPreset'));
+  assert.ok(app.commands['settings.talkPreset']() !== false);
+  assert.equal(app.getSettings().layout.mode, 'auto');
+  assert.equal(app.getSettings().drawStyle, 'simple');
+  assert.equal(app.operateBarItem('settings.talkPreset').ok, true); // 冪等
+  assert.equal(app.getSettings().layout.mode, 'auto');
 });

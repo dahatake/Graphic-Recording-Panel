@@ -16,7 +16,7 @@ test('NFR-UX-011 AC-463: 再編後もボタンの集合が過不足なく同じ�
   const cmds = app.getCommandBar().items.map((i) => i.command);
   assert.deepEqual([...cmds].sort(), names.filter((n) => typeof app.commands[n] === 'function').sort());
   // 再編時の 38 個に、FR-077 の画風の一覧（drawStyle.pick。表示の末尾）・FR-078 のプロンプトのコピー（prompt.copy。図の書き出しの末尾）・FR-084 の接続キー（apiKeys.open。取り込みの次）を足した 41 個から、2026-10-25 に接続キーを［設定］へ統合（-1）し、FR-030 の設定項目（決め方・ミュート・音量・周期。+4）を足  した 44 個に、FR-091 のワークショップ型（layoutType.workshop）を足した 45 個
-    assert.equal(cmds.length, 45);
+    assert.equal(cmds.length, 46); // FR-030 AC-648: 講演向けの初期値（settings.talkPreset）を足した 46 個
   const groupOf = (c) => app.getCommandBar().items.find((i) => i.command === c)?.group;
   assert.equal(groupOf('drawStyle.pick'), 'view');
   assert.equal(groupOf('prompt.copy'), 'export');
