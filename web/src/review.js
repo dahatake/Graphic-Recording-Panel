@@ -115,6 +115,14 @@ export function reviewModule(ctx) {
     const ai = aiIds(); const pts = allPoints();
     return { confirmed: pts.filter((p) => p.confirmedAt).length, total: pts.length, unconfirmed: pts.filter((p) => reviewOf(p, ai).needsReview).map((p) => p.id) };
   };
+  // FR-092 AC-649: 保存の画面の警告。「要確認」の印が付いたままの要点が 1 件以上あるとき「未確認 k 件」と確認できる場所（テキスト一覧）を文字で示す。
+  // k は AC-547 と同じ数（機密の要点を除く保存では除いた後の件数）。警告は保存を妨げない。0 件のときは出さない。外部通信なし（getSaveWarnings の流儀。AC-638）
+  api.getSaveWarnings = () => {
+    const ai = aiIds(); const skip = api.getExcludeConfidential?.() === true;
+    const k = allPoints().filter((p) => !(skip && p.confidential === true) && reviewOf(p, ai).needsReview).length;
+    if (!k) return [];
+    return [state.lang === 'en' ? `${k} unconfirmed (marked "${t('review.mark')}"). You can check them in the ${t('panel.outline')}. Saving is still possible.` : `未確認 ${k} 件（「${t('review.mark')}」の印が付いたままの要点）。${t('panel.outline')}で確認できます。このまま保存もできます。`];
+  };
   // 図の要素（まとめた要点 AC-429 を含む）の印。refIds のどれかが未確認の「要確認」なら印を付ける
   api.getReviewMark = (refIds) => {
     const ai = aiIds(); const reasons = new Set();

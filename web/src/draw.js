@@ -172,9 +172,11 @@ export function drawModule(ctx) {
     return withoutOverlapping(strokes, exportBoxes ?? confidentialBoxes());
   };
   api.getDrawExportStrokes = () => (inExport() ? exportStrokes() : strokes).map((s) => ({ id: s.id, color: hexOf(s.color), colorId: s.color, width: s.width, halo: haloFor(hexOf(s.color)), points: s.points.map((p) => ({ x: p.x, y: p.y })) }));
+  const baseSaveWarnings = api.getSaveWarnings; // FR-092 AC-649（未確認 k 件）の警告は review.js が持つ。手描きの警告をその後ろに足す
   api.getSaveWarnings = () => {
-    if (!api.getExcludeConfidential?.() || !strokes.length || !confidentialIds().length) return [];
-    return withoutOverlapping(strokes, confidentialBoxes()).length ? [w().warning] : [];
+    const base = baseSaveWarnings?.() ?? [];
+    if (!api.getExcludeConfidential?.() || !strokes.length || !confidentialIds().length) return base;
+    return withoutOverlapping(strokes, confidentialBoxes()).length ? [...base, w().warning] : base;
   };
   let paperMemo = { svg: null, paper: '#ffffff' };
   const paperMemoOf = (svg) => { if (paperMemo.svg !== svg) paperMemo = { svg, paper: paperOf(svg) }; return paperMemo.paper; };
