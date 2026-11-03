@@ -28,4 +28,6 @@ fi
 
 echo "Open the URL (http://127.0.0.1:<port>/) printed by the server below in your browser. Pass --port N to fix the port."
 echo "Press Ctrl+C in this window to stop the server."
+# FR-113: run the check (build) on every start; do not start the server if it fails.
+"$python" "$here/server/build.py" || exit $?
 exec "$python" "$here/server/relay.py" --web "$here/web" "$@"

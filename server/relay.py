@@ -10,6 +10,7 @@
   relay_copilot（GitHub Copilot SDK を介したモデルの呼び出し。FR-087。SDK は任意の依存で、なくても起動する）。
 """
 import argparse
+import hashlib
 import importlib
 import json
 import os
@@ -193,10 +194,51 @@ class RelayHandler(SimpleHTTPRequestHandler):
     def _is_api(self):
         return self.path.startswith(LLM_PREFIX) or self.path.startswith(SPEECH_PREFIX)
 
+    # FR-113: /sw.js は要求のたびに、web/ の資産（sw.js 以外）の内容ハッシュを VERSION の末尾に付けて返す。
+    # コードを更新したあとに、旧い画面が Service Worker のキャッシュから出続けないようにする。
+    def _assets_hash(self):
+        root = os.path.abspath(self.directory)
+        h = hashlib.sha256()
+        for base, dirs, files in os.walk(root):
+            dirs[:] = sorted(d for d in dirs if d != "__pycache__")
+            for name in sorted(files):
+                full = os.path.join(base, name)
+                rel = os.path.relpath(full, root).replace(os.sep, "/")
+                if rel == "sw.js":
+                    continue
+                try:
+                    with open(full, "rb") as f:
+                        data = f.read()
+                except OSError:
+                    continue
+                h.update(rel.encode("utf-8") + b"\0" + hashlib.sha256(data).digest())
+        return h.hexdigest()[:10]
+
+    def _serve_sw(self):
+        try:
+            with open(os.path.join(self.directory, "sw.js"), "rb") as f:
+                text = f.read().decode("utf-8")
+        except (OSError, UnicodeDecodeError):
+            return self._send_json(404, sec.error_body("not_found", "見つかりません。"))
+        tag = "-" + self._assets_hash()
+        body = re.sub(r"(const VERSION = ')([^']*)(')", lambda m: m.group(1) + m.group(2) + tag + m.group(3), text, count=1).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/javascript; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(body)
+
+    def _is_sw(self):
+        return self.path.split("?", 1)[0] == "/sw.js"
+
     def do_GET(self):
         is_llm = self._is_api()
         if not self._guard(is_llm):
             return
+        if self._is_sw():
+            return self._serve_sw()
         if self.path.startswith(SPEECH_PREFIX):
             return self._speech()
         if is_llm:
@@ -227,6 +269,8 @@ class RelayHandler(SimpleHTTPRequestHandler):
             return
         if is_llm:
             return self._send_json(404, sec.error_body("not_found", "見つかりません。"))
+        if self._is_sw():
+            return self._serve_sw()
         SimpleHTTPRequestHandler.do_HEAD(self)
 
     def do_POST(self):
