@@ -10,7 +10,8 @@ function icon(doc, command) {
   t.innerHTML = `<svg viewBox="0 0 20 20" class="icon" aria-hidden="true" focusable="false"><path d="${ICONS[command] ?? ICONS['session.start']}"></path></svg>`;
   return t.content.firstChild;
 }
-const PRESSED = { 'lang.ja': (s) => s.lang === 'ja', 'lang.en': (s) => s.lang === 'en', 'view.2d': (s) => s.viewMode === '2d', 'view.3d': (s) => s.viewMode === '3d', 'view.timeline': (s) => s.displayMode !== 'arrange', 'view.arrange': (s) => s.displayMode === 'arrange' };
+// FR-072 AC-647: 記録グループの押下の表示は、その操作が実際に有効なときだけ（準備中・停止は全部 false）。終了・次シーン・入力は状態を持たない
+const PRESSED = { 'session.start': (s) => s.session === 'recording', 'session.resume': (s) => s.session === 'recording', 'session.pause': (s) => s.session === 'paused', 'lang.ja': (s) => s.lang === 'ja', 'lang.en': (s) => s.lang === 'en', 'view.2d': (s) => s.viewMode === '2d', 'view.3d': (s) => s.viewMode === '3d', 'view.timeline': (s) => s.displayMode !== 'arrange', 'view.arrange': (s) => s.displayMode === 'arrange' };
 
 export function mountUI(app, doc = document) {
   const $ = (sel, root = doc) => root.querySelector(sel);
@@ -878,6 +879,15 @@ export function mountUI(app, doc = document) {
 
   // 変更が続いても再構築は 1 フレームに 1 回（NFR-PERF-002/003）
   const renderSoon = coalesceFrame(render, doc.defaultView?.requestAnimationFrame?.bind(doc.defaultView), doc.defaultView?.cancelAnimationFrame?.bind(doc.defaultView));
+  // FR-072 AC-647: 記録グループの押下の表示は、状態の変更と同時に更新する（描画を待たない。支援技術・見た目が状態とずれない）
+  const syncRecordPressed = () => {
+    const s = app.getUiState?.() ?? app.getState();
+    for (const b of toolbar.querySelectorAll('[data-command^="session."]')) {
+      const f = PRESSED[b.dataset.command];
+      if (f && b.getAttribute('aria-pressed') !== String(f(s))) b.setAttribute('aria-pressed', String(f(s)));
+    }
+  };
+  app.subscribe(syncRecordPressed);
   app.subscribe(renderSoon);
   render();
   return { render, renderSoon, measureWorkArea };
