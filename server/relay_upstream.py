@@ -77,6 +77,13 @@ def secrets_of(settings):
     return [x for x in s if x]
 
 
+def responses_path(endpoint_path):
+    """上流の Responses API のパスを返す。Foundry のプロジェクト URL（/api/projects/…）は同ホストの /openai/v1/responses へ送る。"""
+    if (endpoint_path or "").lower().startswith("/api/projects/"):
+        return "/openai/v1/responses"
+    return (endpoint_path or "").rstrip("/") + "/responses"
+
+
 def post_responses(settings, body_bytes):
     """<endpoint>/responses へ POST し、(status, 応答本文 bytes) を返す。打ち切り・失敗は UpstreamError。"""
     headers = auth_headers(settings)
@@ -88,7 +95,7 @@ def post_responses(settings, body_bytes):
     loopback_ok = settings.allow_loopback and host in ("127.0.0.1", "localhost", "::1")
     if not loopback_ok and not resolves_to_public(host, port):
         raise UpstreamError(502, "upstream_blocked", "上流のアドレスが許可されていません。")
-    path = parts.path.rstrip("/") + "/responses"
+    path = responses_path(parts.path)
     limit = max_bytes()
     total = timeout_sec()
     deadline = time.time() + total

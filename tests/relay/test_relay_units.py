@@ -193,3 +193,14 @@ def test_default_limits(monkeypatch):
     monkeypatch.delenv("RELAY_TIMEOUT_SEC", raising=False)
     monkeypatch.delenv("RELAY_MAX_BYTES", raising=False)
     assert cfg.timeout_sec() == 30 and cfg.max_bytes() == 262144
+
+
+# FR-066 AC-343
+def test_responses_path_foundry_project_url():
+    import relay_upstream as up
+    assert up.responses_path('/api/projects/Y') == '/openai/v1/responses'
+    assert up.responses_path('/API/Projects/Y/') == '/openai/v1/responses'
+    assert up.responses_path('/openai/v1') == '/openai/v1/responses'
+    assert up.responses_path('/openai/v1/') == '/openai/v1/responses'
+    assert up.responses_path('/foo') == '/foo/responses'
+    assert up.responses_path('') == '/responses'
