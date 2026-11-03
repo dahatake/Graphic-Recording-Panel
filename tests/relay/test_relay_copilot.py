@@ -132,7 +132,7 @@ class FoundryMock(object):
 
         self.server = HTTPServer(("127.0.0.1", 0), H)
         self.port = self.server.server_address[1]
-        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        threading.Thread(target=self.server.serve_forever, args=(0.01,), daemon=True).start()
 
     def stop(self):
         self.server.shutdown()
@@ -143,7 +143,7 @@ class Srv(object):
     def __init__(self):
         self.server = relay.make_server(0, WEB)
         self.port = self.server.server_address[1]
-        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        threading.Thread(target=self.server.serve_forever, args=(0.01,), daemon=True).start()
 
     def call(self, method, path, body=None):
         c = http.client.HTTPConnection("127.0.0.1", self.port, timeout=20)

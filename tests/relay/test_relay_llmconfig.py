@@ -37,7 +37,7 @@ class Srv(object):
         self.server = relay.make_server(0, os.path.join(os.path.dirname(__file__), "..", "..", "web"))
         self.stopped = False
         self.port = self.server.server_address[1]
-        self.t = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.t = threading.Thread(target=self.server.serve_forever, args=(0.01,), daemon=True)
         self.t.start()
 
     def call(self, method, path, body=None, origin="same", host="same"):
@@ -278,7 +278,7 @@ class Upstream(object):
 
         self.httpd = HTTPServer(("127.0.0.1", 0), H)
         self.port = self.httpd.server_address[1]
-        threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
+        threading.Thread(target=self.httpd.serve_forever, args=(0.01,), daemon=True).start()
 
     def stop(self):
         self.httpd.shutdown()

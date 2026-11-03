@@ -70,7 +70,7 @@ class Srv(object):
     def __init__(self):
         self.server = relay.make_server(0, WEB)
         self.port = self.server.server_address[1]
-        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        threading.Thread(target=self.server.serve_forever, args=(0.01,), daemon=True).start()
 
     def call(self, method, path, body=None, origin=True, host=None, headers=None):
         c = http.client.HTTPConnection("127.0.0.1", self.port, timeout=30)
@@ -446,7 +446,7 @@ def test_nfr_sec006_ac515_relay_log_has_no_token(env, tmp_path):
         sys.path.insert(0, %r)
         import relay
         s = relay.make_server(0, %r); port = s.server_address[1]
-        threading.Thread(target=s.serve_forever, daemon=True).start()
+        threading.Thread(target=s.serve_forever, args=(0.01,), daemon=True).start()
         h = {"Host": "127.0.0.1:%%d" %% port, "Origin": "http://127.0.0.1:%%d" %% port, "Content-Type": "application/json"}
         for m, p, b in (("POST", "/api/llm/copilot", {"authMethod": "token", "token": %r}), ("POST", "/api/llm/copilot", {"authMethod": "token", "token": %r + "\\u0000"}), ("GET", "/api/llm/status", None)):
             c = http.client.HTTPConnection("127.0.0.1", port); c.request(m, p, body=None if b is None else json.dumps(b), headers=h); r = c.getresponse(); print(r.read().decode()); c.close()
