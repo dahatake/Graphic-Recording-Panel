@@ -1559,7 +1559,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-034\" tests/system/speech.test.js",
       "canary": false,
-      "status": "not_run",
+      "status": "blocked",
       "last_commit": null,
       "last_run_at": null,
       "evidence": null,
@@ -1593,6 +1593,12 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "AC-034/043/394 と NFR-PRIV-001 の新仕様（再読込後の同意の初期状態は方式別）に合わせ、ブラウザ標準の前提を明記しコメント・題名を更新。Azure Speech の期待値は AC-442 の既定を同意済みに修正"
+        },
+        {
+          "at": "2026-11-03T23:04:12+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration（System Test の対象外）。新仕様に合わせたテストは参考として残し、実装役の単体・結合テストで担保"
         }
       ]
     },
@@ -5320,7 +5326,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-394\" tests/system/startbar.test.js",
       "canary": false,
-      "status": "not_run",
+      "status": "blocked",
       "last_commit": null,
       "last_run_at": null,
       "evidence": null,
@@ -5342,6 +5348,12 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "AC-034/043/394 と NFR-PRIV-001 の新仕様（再読込後の同意の初期状態は方式別）に合わせ、ブラウザ標準の前提を明記しコメント・題名を更新。Azure Speech の期待値は AC-442 の既定を同意済みに修正"
+        },
+        {
+          "at": "2026-11-03T23:04:12+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration（System Test の対象外）。新仕様に合わせたテストは参考として残し、実装役の単体・結合テストで担保"
         }
       ]
     },
