@@ -11,7 +11,7 @@ import { matchKey } from './keymap.js';
 import { withoutConfidential } from './visibility.js';
 
 export const MAX_CONTENT_CHARS = 2000; // PARAM-082
-export const MAX_TEXT_LABEL_CHARS = 20; // PARAM-171（画像に入れる文言 1 つの最大文字数。日本語の文字数で、英語は半角で 2 倍）
+export const MAX_TEXT_LABEL_CHARS = 20; // PARAM-171（画像に入れる文言 1 つの最大文字数。全角を 1・半角を 0.5 と数える。引用符は数えない。A-820）
 export const MAX_TEXT_LABELS = 12; // PARAM-172（画像に入れる文言の最大件数）
 export const SECTION_KEYS = ['purpose', 'palette', 'typography', 'illustration', 'mood', 'composition', 'content'];
 // 画風の記述の軸（description.{lang}.{color,drawing,font,mood}）→ 文章の節
