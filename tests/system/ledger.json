@@ -186,7 +186,7 @@
     "AC-399": "sha256:281370b2a80ba6d5",
     "AC-401": "sha256:f3d1b6140cfea751",
     "AC-402": "sha256:3ae6afa4032fee90",
-    "AC-459": "sha256:63d95caf0a3214e9",
+    "AC-459": "sha256:befff20a41ff7515",
     "AC-460": "sha256:e5633f20b76bcbf4",
     "AC-461": "sha256:e739eb391b8b4c84",
     "AC-462": "sha256:788240e79830f31d",
@@ -6375,7 +6375,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-459\" tests/system/cmdgroups.test.js",
       "canary": true,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "3071224",
       "last_run_at": "2026-11-03T23:44:30+09:00",
       "evidence": "work/runs/202611032304/logs/system-test/E2E-225-202611032344.log",
@@ -6397,6 +6397,12 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "NFR-UX-011 変更（9 グループ・接続キーなし・PARAM-092=12）に合わせテスト更新"
+        },
+        {
+          "at": "2026-11-03T23:51:50+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC-459 変更に合わせテスト更新（講演向けの初期値）"
         }
       ]
     },
