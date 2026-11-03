@@ -551,48 +551,6 @@ export function mountUI(app, doc = document) {
         const bc = doc.createElement('p'); bc.id = 'settings-budget-current'; bc.className = 'settings-status';
         form.append(bc);
       }
-      // FR-068: LLM 連携の切替・状態・認証情報の有無（入力欄なし）・接続テスト。状態は色だけでなく文字とアイコンで示す
-      // FR-068 AC-514: LLMのプロバイダーの選択（radiogroup。矢印キーで選べるネイティブのラジオボタン）
-      const pf = d.fields.find((f) => f.id === 'llm.provider');
-      if (pf) {
-        const grp = doc.createElement('div'); grp.setAttribute('role', 'radiogroup'); grp.setAttribute('aria-label', pf.label); grp.className = 'settings-radios';
-        for (const op of pf.options) {
-          const lab = doc.createElement('label'); lab.className = 'settings-check';
-          const rb = doc.createElement('input'); rb.type = 'radio'; rb.name = 'settings-llm-provider'; rb.value = op.value;
-          rb.addEventListener('change', () => { if (rb.checked) void app.setLlmProvider(op.value); });
-          lab.append(rb, ` ${op.label}`); grp.append(lab);
-        }
-        row('llm.provider', pf.label, grp);
-      }
-      const llmSw = doc.createElement('input'); llmSw.type = 'checkbox'; llmSw.setAttribute('role', 'switch');
-      llmSw.addEventListener('click', (e) => { e.preventDefault(); void app.toggleLlm(); });
-      row('llm.enabled', d.fields.find((f) => f.id === 'llm.enabled').label, llmSw);
-      const llmSt = doc.createElement('p'); llmSt.id = 'settings-llm-status'; llmSt.setAttribute('role', 'status'); llmSt.className = 'settings-status';
-      // FR-087 AC-506: GitHub Copilot を使えない原因に対する次の行動（導入の手順の案内・接続キー画面を開く）
-      const llmActs = doc.createElement('div'); llmActs.id = 'settings-llm-actions'; llmActs.className = 'settings-actions';
-      const llmCred = doc.createElement('p'); llmCred.id = 'settings-llm-credential'; llmCred.className = 'settings-status';
-      const llmTest = doc.createElement('button'); llmTest.type = 'button'; llmTest.className = 'btn';
-      llmTest.addEventListener('click', () => { void app.testLlmConnection(); });
-      const llmTestRes = doc.createElement('p'); llmTestRes.id = 'settings-llm-test-result'; llmTestRes.setAttribute('role', 'status'); llmTestRes.className = 'settings-status';
-      row('llm.test', d.fields.find((f) => f.id === 'llm.test').label, llmTest);
-      form.append(llmSt, llmActs, llmCred, llmTestRes);
-      // AC-474: 簡易マスキングの有効・無効と登録語（入力欄で追加し、一覧で個別に削除）。LLM 連携の有効・無効にかかわらず操作でき、端末のブラウザ内にだけ保存される
-      const mkf = d.fields.find((f) => f.id === 'llm.mask'); const mwf = d.fields.find((f) => f.id === 'llm.maskWords');
-      if (mkf && mwf) {
-        const msw = doc.createElement('input'); msw.type = 'checkbox'; msw.setAttribute('role', 'switch');
-        msw.addEventListener('click', (e) => { e.preventDefault(); app.setLlmMasking(!app.getLlmMasking()); });
-        row('llm.mask', mkf.label, msw);
-        const mnote = doc.createElement('p'); mnote.className = 'settings-status settings-note'; mnote.id = 'settings-llm-mask-note'; mnote.textContent = mkf.note; form.append(mnote);
-        const mwi = doc.createElement('input'); mwi.type = 'text'; mwi.autocomplete = 'off';
-        const mwb = doc.createElement('button'); mwb.type = 'button'; mwb.className = 'btn'; mwb.textContent = mwf.addLabel; mwb.dataset.action = 'mask-word-add';
-        const addWord = () => { if (app.addLlmMaskWord(mwi.value).ok) mwi.value = ''; };
-        mwb.addEventListener('click', addWord);
-        mwi.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addWord(); } });
-        const mwBox = doc.createElement('div'); mwBox.className = 'settings-inline'; mwBox.append(mwi, mwb);
-        row('llm.maskWords', mwf.label, mwBox); mwi.id = 'settings-llm.maskWords-input';
-        const mwl = doc.createElement('ul'); mwl.id = 'settings-llm-mask-words'; mwl.className = 'settings-list'; form.append(mwl);
-      }
-      buildAzureSpeech(form, d);
       const close =  doc.createElement('button'); close.type = 'button'; close.className = 'btn btn-primary'; close.textContent = o.closeLabel; close.dataset.action = 'settings-close';
       close.addEventListener('click', () => app.commands['settings.close']());
       // FR-084: 左（狭い画面では上）の分類。「接続キー」はアイコンと説明の文字つき。選ぶと接続キー画面（中央のモーダル）が開く
@@ -632,52 +590,6 @@ export function mountUI(app, doc = document) {
     setEl.querySelector('#settings-rpg\\.volume').value = String(au.volume);
     { const cs = setEl.querySelector('[data-cinematic-field="level"]'); if (cs && app.getCinematic) cs.value = app.getCinematic().level; }
     for (const cb of setEl.querySelectorAll('input[type=checkbox]:not([role=switch])')) cb.checked = vals['layout.types'].includes(cb.value);
-    { // FR-068
-      const f = Object.fromEntries(d.fields.map((x) => [x.id, x]));
-      const sw = setEl.querySelector('#settings-llm\\.enabled'); sw.checked = !!f['llm.enabled'].value;
-      setEl.querySelector('#settings-llm-status').textContent = `${f['llm.enabled'].status.icon} ${f['llm.enabled'].label}: ${f['llm.enabled'].status.text}`;
-      if (f['llm.provider']) for (const rb of setEl.querySelectorAll('input[name="settings-llm-provider"]')) rb.checked = rb.value === f['llm.provider'].value;
-      const acts = setEl.querySelector('#settings-llm-actions');
-      const actKey = JSON.stringify(f['llm.enabled'].status.actions ?? []);
-      if (acts && acts.dataset.key !== actKey) {
-        acts.dataset.key = actKey; acts.textContent = '';
-        for (const a of f['llm.enabled'].status.actions ?? []) {
-          if (a.id === 'installGuide') { // 導入の手順の案内（外部へは接続しない: NFR-OFFLINE-001）
-            const p = doc.createElement('p'); p.className = 'settings-status settings-note'; p.dataset.action = a.id;
-            const s = doc.createElement('strong'); s.textContent = `${a.label}: `;
-            p.append(s, a.text);
-            acts.append(p);
-          } else {
-            const b = doc.createElement('button'); b.type = 'button'; b.className = 'btn'; b.textContent = a.label; b.dataset.action = a.id;
-            b.addEventListener('click', () => app.runSettingsAction(a.id));
-            acts.append(b);
-          }
-        }
-      }
-      setEl.querySelector('#settings-llm-credential').textContent = `${f['llm.credential'].status.icon} ${f['llm.credential'].label}: ${f['llm.credential'].status.text}`;
-      const tb = setEl.querySelector('#settings-llm\\.test'); tb.textContent = f['llm.test'].label;
-      const tr = f['llm.test'].status; setEl.querySelector('#settings-llm-test-result').textContent = tr.text ? `${tr.icon} ${tr.text}` : '';
-    }
-    syncAzureSpeech(d);
-    { // AC-474: 簡易マスキングの表示と登録語の一覧
-      const mkf = d.fields.find((f) => f.id === 'llm.mask'); const mwf = d.fields.find((f) => f.id === 'llm.maskWords');
-      const msw = setEl.querySelector('#settings-llm\\.mask'); const mwl = setEl.querySelector('#settings-llm-mask-words');
-      if (mkf && mwf && msw && mwl) {
-        msw.checked = !!mkf.value;
-        const key = JSON.stringify([mwf.words, (app.getUiState?.() ?? app.getState()).lang]);
-        if (mwl.dataset.key !== key) {
-          mwl.dataset.key = key; mwl.textContent = '';
-          if (!mwf.words.length) { const li = doc.createElement('li'); li.textContent = mwf.emptyText; mwl.append(li); }
-          for (const w of mwf.words) {
-            const li = doc.createElement('li'); li.dataset.word = w;
-            const sp = doc.createElement('span'); sp.textContent = w;
-            const rm = doc.createElement('button'); rm.type = 'button'; rm.className = 'btn'; rm.textContent = mwf.removeLabel; rm.setAttribute('aria-label', `${mwf.removeLabel}: ${w}`);
-            rm.addEventListener('click', () => app.removeLlmMaskWord(w));
-            li.append(sp, rm); mwl.append(li);
-          }
-        }
-      }
-    }
     const wasHidden = setEl.hidden; setEl.hidden = false;
     if (wasHidden) setEl.querySelector('select')?.focus();
     { // FR-089 AC-524: 予算の表示
@@ -717,48 +629,10 @@ export function mountUI(app, doc = document) {
   }
   app.on('change', syncSettings);
 
-  // FR-082・NFR-SEC-005: Azure Speech の設定（方式・接続先・書き込み専用のキー・状態・保存・削除・接続テスト）。
-  // キーの欄は <form> に入れず、ユーザー名の欄と組にしない（ブラウザのパスワードの保存・自動補完の対象外: AC-457）。
-  // 保存の操作では、送る前に DOM の値を空にする。戻る・再読込（bfcache）でも値が復元されないよう pagehide / pageshow でも空にする。
+  // FR-082・NFR-SEC-005: 保存していないキーの入力は、ページを離れる・戻るときに空にする（キーの欄は接続キー画面）
   const clearAzureKey = () => { app.setAzureSpeechKeyInput?.(''); };
   globalThis.addEventListener?.('pagehide', clearAzureKey);
   globalThis.addEventListener?.('pageshow', clearAzureKey);
-  function buildAzureSpeech(form, d) {
-    const fx = Object.fromEntries(d.fields.map((x) => [x.id, x]));
-    if (!fx['azureSpeech.key']) return;
-    const box = doc.createElement('fieldset'); box.className = 'settings-group'; box.id = 'settings-azure-speech';
-    const legend = doc.createElement('legend'); legend.textContent = app.t('azs.section'); box.append(legend);
-    const row = (id, control, labelText) => {
-      const w = doc.createElement('div'); w.className = 'settings-row'; w.dataset.field = id;
-      const l = doc.createElement('label'); l.textContent = labelText; l.htmlFor = `settings-${id}`; control.id = `settings-${id}`;
-      w.append(l, control); box.append(w); return w;
-    };
-    // 認識方式（ラジオボタン）。選べないときは理由を文字で示す
-    const m = fx['speech.method'];
-    const group = doc.createElement('fieldset'); group.className = 'settings-radios'; group.id = 'settings-speech.method';
-    const gl = doc.createElement('legend'); gl.textContent = m.label; group.append(gl);
-    for (const o of m.options) {
-      const lab = doc.createElement('label'); lab.className = 'settings-check';
-      const r = doc.createElement('input'); r.type = 'radio'; r.name = 'speech-method'; r.value = o.id; r.dataset.method = o.id;
-      r.addEventListener('change', () => { if (r.checked) app.setSpeechMethod(o.id); });
-      const span = doc.createElement('span'); span.textContent = ` ${o.label}`;
-      lab.append(r, span); group.append(lab);
-    }
-    const why = doc.createElement('p'); why.id = 'settings-speech-method-reason'; why.className = 'settings-status settings-note';
-    group.append(why); box.append(group);
-    form.append(box);
-  }
-  function syncAzureSpeech(d) {
-    const fx = Object.fromEntries(d.fields.map((x) => [x.id, x]));
-    if (!fx['azureSpeech.key'] || !setEl.querySelector('#settings-azure-speech')) return;
-    const m = fx['speech.method'];
-    for (const r of setEl.querySelectorAll('input[name="speech-method"]')) {
-      const o = m.options.find((x) => x.id === r.value);
-      r.checked = m.value === r.value; r.disabled = !o?.enabled;
-    }
-    const reason = m.options.find((x) => !x.enabled)?.reason ?? '';
-    const whyEl = setEl.querySelector('#settings-speech-method-reason'); whyEl.textContent = reason; whyEl.hidden = !reason;
-  }
   // FR-077: 画風の一覧（role=listbox。ボタンの下に出す）。状態（開閉・候補・現在値）は app が持ち、ここは描くだけ。
   // キー（↑↓ Home End Enter Space Esc）は document の keydown → app.handleKey が扱う。項目のクリックは pickDrawStyle。
   let dsEl = null; let dsWasOpen = false;
@@ -843,7 +717,7 @@ export function mountUI(app, doc = document) {
       el.addEventListener('click', () => { void app.answerLlmConsent(a.id === 'accept'); });
       row.append(el);
     }
-    box.append(h, p1, list(c.kinds), p2, ...(c.model ? [pm] : []), p3, list(c.notSent), p4, row); consentEl.append(box); doc.body.append(consentEl);
+    box.append(h, p1, list(c.kinds), p2, ...(c.model ? [pm] : []), p3, list(c.notSent), p4, row); consentEl.append(box); (doc.querySelector('#apikeys-dialog')?.open ? doc.querySelector('#apikeys-dialog') : doc.body).append(consentEl); // 接続キー画面（モーダル）が開いているときは、その中に出す
     row.querySelector('[data-action="decline"]')?.focus();
   }
   app.on('change', syncConsent);
