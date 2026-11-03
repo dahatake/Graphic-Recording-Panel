@@ -59,8 +59,9 @@ test('FR-012 AC-043: 復元したセッションは一時停止で、再開操�
   assert.equal(app2.getState().utterances.length, n + 1);
 });
 
-// FR-012 AC-043 異常系（外部送信の同意が必要な環境）
-test('FR-012 AC-043 異常系: 同意が必要な環境では、復元後の再開時に改めて同意するまで音声認識は開始されない', async () => {
+// FR-012 AC-043 異常系（外部送信の同意が必要な環境。方式がブラウザ標準のとき: 再読込後の同意の初期状態は未同意。
+// 方式が Azure Speech のときは同意済み（AC-442）で、azurespeech.test.js の AC-442・AC-458 (d) が検証する）
+test('FR-012 AC-043 異常系: 方式がブラウザ標準で同意が必要な環境では、復元後の再開時に改めて同意するまで音声認識は開始されない', async () => {
   const remote = { processLocally: false, availability: { 'ja-JP': 'remote', 'en-US': 'remote' } };
   const { app, env, createApp } = await newApp({ speech: new FakeSpeech(remote) });
   app.commands['session.start']();
