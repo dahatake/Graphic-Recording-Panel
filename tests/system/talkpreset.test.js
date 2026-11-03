@@ -85,9 +85,9 @@ test('FR-030 AC-648 異常系・境界: 図の型は AC-143 の規則の結果�
   await seed(ctx.app, ctx.env, VISION);
   ctx.app.commands[CMD]();
   assert.equal(info(ctx.app).head, 'metaphor');
-  // 順序の語 → タイムライン
+  // 順序の語 → タイムライン（AC-143: 区画の条件を満たさない形。2 シーンが語「現状」「整理」を共有して同じトピック 1 つ＝区画数が下限 PARAM-016 未満）
   ctx = await newApp();
-  await seed(ctx.app, ctx.env, [['まず 現状 整理 確認'], ['次に 対策 検討 共有']]);
+  await seed(ctx.app, ctx.env, [['まず 現状 整理 確認'], ['次に 現状 整理 共有']]);
   ctx.app.commands[CMD]();
   assert.equal(info(ctx.app).head, 'timeline');
   assert.ok(!['talk', 'lecture', 'speech'].includes(info(ctx.app).head), '講演専用の型は新設されない');
