@@ -42,7 +42,8 @@ test('NFR-UX-011 AC-459: グループは 取り込み→記録→表示→レイ
       // FR-030・AC-648: 講演向けの初期値（settings.talkPreset）が設定グループにちょうど 1 つ（契約 CONTRACT-RIBBON-SETTINGS.md）
       assert.equal(g.commands.filter((c) => c === 'settings.talkPreset').length, 1, '講演向けの初期値が 1 つ');
       const talk = bar(app).items.find((i) => i.command === 'settings.talkPreset');
-      assert.equal(talk.kind, 'button');
+      // 契約 L15: kind の省略は button
+      assert.equal(talk.kind ?? 'button', 'button');
       assert.equal(talk.group, 'settings');
       assert.ok([talk.accessibleName, talk.tooltip?.text, talk.description].some((s) => String(s ?? '').includes('講演向けの初期値にする')), '講演向けの初期値にする');
       const fields = g.commands.filter((c) => c !== 'settings.open' && c !== 'settings.talkPreset').map((c) => bar(app).items.find((i) => i.command === c).settingsField).sort();
