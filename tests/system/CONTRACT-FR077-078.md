@@ -86,3 +86,6 @@
 
 ### 送信・保存しない（AC-424）
 - 文章は `options.storage`（`grp.*`）・`file.save` の `data`・LLM 連携の中継（`options.relay`）への要求に含めない。コピーの操作は `fetch`/`XMLHttpRequest`/`WebSocket`/`EventSource`/`sendBeacon`・`options.relay` を呼ばない。LLM 連携の有効・無効で文章は変わらない。
+
+## 文字の部分の列挙と伏せ字（AC-420・AC-471・AC-650。2026-11-03 監査）
+- `getImagePrompt({ mask }).sections` の `typography` の本文に、図に出るトピック・シーンの見出しが話順に列挙される（AC-650）。`mask:true` のときは、列挙の文言にも内容（`content`）と同じ伏せ字を適用する。列挙・内容以外の部分は `mask` に関わらず同じ。テストは列挙の形式（引用符・区切り）に依存せず、見出しの文字列が本文に含まれるかだけを見る。

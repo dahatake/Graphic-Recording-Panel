@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from '../../web/src/app.js';
-import { buildContent, MAX_CONTENT_CHARS, SECTION_KEYS, STRINGS } from '../../web/src/imageprompt.js';
+import { buildContent, buildTextLabels, clipLabel, MAX_TEXT_LABEL_CHARS, MAX_TEXT_LABELS, MAX_CONTENT_CHARS, SECTION_KEYS, STRINGS } from '../../web/src/imageprompt.js';
 import { BUILTIN_STYLES, validateStyle } from '../../web/src/drawstyles.js';
 
 const mem = () => {
@@ -138,4 +138,44 @@ test('FR-078 AC-424: コピーの前後でブラウザ内の保存に文章が�
   await copyVia(app);
   const purpose = sec(app.getImagePrompt(), 'purpose').body;
   for (const [, v] of storage.dump()) assert.ok(!v.includes(purpose));
+});
+
+// FR-078 AC-651: 文言の切り詰め（PARAM-171 = 20 文字・英語は半角で 2 倍）と件数（PARAM-172 = 12 件）。判定は伏せ字の後
+test('FR-078 AC-651: buildTextLabels は 20 文字で切り詰め・12 件で省略し、伏せ字の後で判定し、決定的', () => {
+  assert.equal(MAX_TEXT_LABEL_CHARS, 20); assert.equal(MAX_TEXT_LABELS, 12); // PARAM-171・172
+  assert.deepEqual(clipLabel('あ'.repeat(20)), { text: 'あ'.repeat(20), clipped: false });
+  assert.deepEqual(clipLabel('あ'.repeat(21)), { text: 'あ'.repeat(20), clipped: true });
+  assert.equal(clipLabel('a'.repeat(40)).clipped, false); assert.equal(clipLabel('a'.repeat(41)).text.length, 40);
+  const scenes = Array.from({ length: 14 }, (_, i) => ({ id: `s${i}`, heading: i === 0 ? 'い'.repeat(25) : `見出し${i}`, points: [] }));
+  const r = buildTextLabels(scenes, [], 'detail');
+  assert.equal(r.labels.length, 12); assert.equal(r.omitted, true); assert.equal(r.clipped, true); assert.equal(r.labels[0], 'い'.repeat(20));
+  assert.deepEqual(buildTextLabels(scenes, [], 'detail'), r);
+  // 伏せ字の後の文字で判定（伏せ字で 20 文字以内になれば切り詰めない）
+  const m = buildTextLabels([{ id: 'a', heading: '山田太郎さんと' + 'あ'.repeat(30), points: [] }], [], 'detail', () => '【伏】');
+  assert.deepEqual(m, { labels: ['【伏】'], clipped: false, omitted: false });
+  const few = buildTextLabels(scenes.slice(1, 3), [], 'detail');
+  assert.equal(few.clipped, false); assert.equal(few.omitted, false);
+});
+
+// FR-078 AC-650: 「文字」の節に、詳細度で図に出る見出しの引用符列挙と 3 制約。伏せ字・英語・外部リクエスト 0
+test('FR-078 AC-650: 文字の節にトピック・シーン見出しを話順に列挙し 3 つの制約が続く（詳細度・伏せ字・英語）', async () => {
+  const { app } = await seeded();
+  let fetched = 0; const orig = globalThis.fetch; globalThis.fetch = () => { fetched++; return Promise.reject(new Error('no')); };
+  try {
+    const topics = app.getTopics?.() ?? [];
+    const body = () => sec(app.getImagePrompt(), 'typography').body;
+    app.setDetailLevel('detail');
+    const b = body();
+    const order = [...b.matchAll(/「([^」]*)」/g)].map((x) => x[1]);
+    const heads = app.getTopics().flatMap((tp) => [tp.title]).concat(['予算を見直す', '来月に公開する']);
+    for (const h of heads) assert.ok(order.includes(h), h);
+    for (const c of ['列挙した文言以外の文字を画像に入れない', '一度ずつ描く', '余計なロゴ・透かしを入れない']) assert.ok(b.includes(c), c);
+    assert.ok(b.indexOf('」') < b.indexOf('列挙した文言以外'));
+    if (topics.length) { app.setDetailLevel('major'); const mj = [...body().matchAll(/「([^」]*)」/g)].map((x) => x[1]); assert.deepEqual(mj, topics.map((x) => x.title)); app.setDetailLevel('detail'); }
+    assert.equal(body(), b); // 決定的
+    app.setLang('en');
+    const en = body();
+    assert.ok(/"[^"]+"/.test(en) && en.includes('Do not put any text other than the listed wording') && en.includes('only once') && en.includes('logos or watermarks'));
+    assert.equal(fetched, 0);
+  } finally { globalThis.fetch = orig; }
 });

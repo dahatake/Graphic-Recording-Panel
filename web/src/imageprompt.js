@@ -11,6 +11,8 @@ import { matchKey } from './keymap.js';
 import { withoutConfidential } from './visibility.js';
 
 export const MAX_CONTENT_CHARS = 2000; // PARAM-082
+export const MAX_TEXT_LABEL_CHARS = 20; // PARAM-171（画像に入れる文言 1 つの最大文字数。全角を 1・半角を 0.5 と数える。引用符は数えない。A-820）
+export const MAX_TEXT_LABELS = 12; // PARAM-172（画像に入れる文言の最大件数）
 export const SECTION_KEYS = ['purpose', 'palette', 'typography', 'illustration', 'mood', 'composition', 'content'];
 // 画風の記述の軸（description.{lang}.{color,drawing,font,mood}）→ 文章の節
 const AXIS_OF = { palette: 'color', typography: 'font', illustration: 'drawing', mood: 'mood' };
@@ -45,6 +47,10 @@ export const STRINGS = {
     'prompt.head.mood': '雰囲気', 'prompt.head.composition': '構成', 'prompt.head.content': '内容',
     'prompt.purpose': 'この会議・講義の議論を、1 枚の画像で全体が分かるグラフィックレコーディング（議論を絵と文字で描き起こした図解）にしてください。「内容」の見出しと要点は言い換えずに、読める文字で図の中に入れてください。',
     'prompt.compositionLead': '次の配置で紙面を組み立てる。',
+    'prompt.textLead': '画像に入れる文言（話の順）:',
+    'prompt.textRules': '列挙した文言以外の文字を画像に入れない。文言は一度ずつ描く。余計なロゴ・透かしを入れない。',
+    'prompt.textTruncated': '※ 長い文言は先頭から {n} 文字までに切り詰めて列挙しています。',
+    'prompt.textOmitted': '※ 文言は {n} 件までを列挙し、残りは列挙していません。',
     'prompt.topic': 'トピック', 'prompt.scene': 'シーン',
     'prompt.truncatedNote': '※ 内容が長いため、シーンの区切りで切り詰め、残りのシーンは入れていません。',
     'prompt.copied': '画像生成 AI 向けのプロンプトをクリップボードにコピーしました',
@@ -74,6 +80,10 @@ export const STRINGS = {
     'prompt.head.mood': 'Mood', 'prompt.head.composition': 'Composition', 'prompt.head.content': 'Content',
     'prompt.purpose': 'Turn the discussion from this meeting or lecture into a single graphic recording image (a visual summary that captures the talk with drawings and words) that shows the whole picture at a glance. Put the headings and points under "Content" into the image as readable text, without rewording them.',
     'prompt.compositionLead': 'Lay out the page as follows.',
+    'prompt.textLead': 'Text to put in the image (in talk order):',
+    'prompt.textRules': 'Do not put any text other than the listed wording in the image. Draw each wording only once. Do not add extra logos or watermarks.',
+    'prompt.textTruncated': 'Note: Long wording is cut to its first {n} characters in the list.',
+    'prompt.textOmitted': 'Note: Only the first {n} wordings are listed; the rest are not listed.',
     'prompt.topic': 'Topic', 'prompt.scene': 'Scene',
     'prompt.truncatedNote': 'Note: The content was too long, so it was cut at a scene boundary and the remaining scenes are not included.',
     'prompt.copied': 'Copied the prompt for image-generation AI to the clipboard',
@@ -100,6 +110,36 @@ export const STRINGS = {
 };
 
 const len = (s) => [...s].length;
+
+// 画像に入れる文言の幅（AC-651・PARAM-171）: 半角（ASCII・半角カナ）は 1、それ以外は 2。1 文言の上限は文字数 × 2。
+const wide = (ch) => { const c = ch.codePointAt(0); return c > 0x7f && !(c >= 0xff61 && c <= 0xff9f) ? 2 : 1; };
+export function clipLabel(s, maxChars = MAX_TEXT_LABEL_CHARS) {
+  const limit = maxChars * 2;
+  let w = 0; let out = '';
+  for (const ch of s) { w += wide(ch); if (w > limit) return { text: out, clipped: true }; out += ch; }
+  return { text: out, clipped: false };
+}
+
+// 画像に入れる文言（AC-650・651）: 現在の詳細度で図に出るトピックの題名とシーンの見出しを話順に。大項目 = トピックだけ、中項目・詳細 = シーンの見出しも。
+// tf（伏せ字）は切り詰めの前に適用する。トピックがなければ、どの詳細度でもシーンの見出しを出す。
+export function buildTextLabels(scenes, topics, level, tf = (s) => s, maxLabels = MAX_TEXT_LABELS, maxChars = MAX_TEXT_LABEL_CHARS) {
+  const topicOf = new Map();
+  for (const tp of topics ?? []) for (const id of tp.sceneIds ?? []) topicOf.set(id, tp);
+  const hasTopics = (topics ?? []).length > 0;
+  const raw = [];
+  let prev = null;
+  for (const s of scenes) {
+    const tp = topicOf.get(s.id) ?? null;
+    if (tp && tp !== prev) raw.push(tf(tp.title));
+    prev = tp;
+    if (level !== 'major' || !hasTopics) raw.push(tf(s.heading));
+  }
+  const all = raw.map((x) => String(x ?? '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const shown = all.slice(0, maxLabels);
+  let clipped = false;
+  const labels = shown.map((x) => { const r = clipLabel(x, maxChars); if (r.clipped) clipped = true; return r.text; });
+  return { labels, clipped, omitted: all.length > shown.length };
+}
 
 // 内容（トピック → シーンの見出し → 要点）。シーンの区切りで PARAM-082 以内に切り詰める（途中のシーンの一部だけは入れない）。
 // tf: トピックの題名・見出し・要点の文字に適用する変換（伏せ字。AC-472: 切り詰めの前に適用し、文字数は変換後で数える）。
@@ -176,8 +216,15 @@ export function imagePromptModule(ctx) {
     if (!state.scenes.length) return null;
     const styles = styleBodies();
     const comp = composition();
-    const content = buildContent(withoutConfidential(state.scenes, state.lang).map((s) => ({ ...s })), api.getTopics?.() ?? [], t, MAX_CONTENT_CHARS, mask ? maskFn() : undefined); // FR-104 AC-606: 機密の要点は含めない
-    const bodies = { purpose: t('prompt.purpose'), ...styles, composition: comp.body, content: content.body };
+    const visible = withoutConfidential(state.scenes, state.lang).map((s) => ({ ...s })); // FR-104 AC-606: 機密の要点は含めない
+    const tf = mask ? maskFn() : undefined;
+    const content = buildContent(visible, api.getTopics?.() ?? [], t, MAX_CONTENT_CHARS, tf);
+    const tl = buildTextLabels(visible, api.getTopics?.() ?? [], api.getDetailLevel?.() ?? 'detail', tf);
+    const q = lang() === 'en' ? (x) => `"${x}"` : (x) => `「${x}」`;
+    const textLines = [styles.typography, `${t('prompt.textLead')} ${tl.labels.map(q).join(lang() === 'en' ? ', ' : '')} ${t('prompt.textRules')}`];
+    if (tl.clipped) textLines.push(t('prompt.textTruncated').replace('{n}', String(MAX_TEXT_LABEL_CHARS)));
+    if (tl.omitted) textLines.push(t('prompt.textOmitted').replace('{n}', String(MAX_TEXT_LABELS)));
+    const bodies = { purpose: t('prompt.purpose'), ...styles, typography: textLines.join('\n'), composition: comp.body, content: content.body };
     const sections = SECTION_KEYS.map((key) => {
       const s = { key, heading: t(`prompt.head.${key}`), body: bodies[key] };
       if (key === 'composition') s.typeIds = comp.typeIds;

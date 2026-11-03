@@ -552,6 +552,13 @@ export function mountUI(app, doc = document) {
         const bc = doc.createElement('p'); bc.id = 'settings-budget-current'; bc.className = 'settings-status';
         form.append(bc);
       }
+      // FR-030 AC-648: 講演向けの初期値にする（1 回の操作。既定のレイアウトを「自動」にする）
+      for (const a of d.actions ?? []) {
+        const ab = doc.createElement('button'); ab.type = 'button'; ab.className = 'btn'; ab.dataset.command = a.command; ab.setAttribute('aria-label', a.accessibleName);
+        ab.textContent = a.label;
+        ab.addEventListener('click', () => app.commands[a.command]());
+        form.append(ab);
+      }
       const close =  doc.createElement('button'); close.type = 'button'; close.className = 'btn btn-primary'; close.textContent = o.closeLabel; close.dataset.action = 'settings-close';
       close.addEventListener('click', () => app.commands['settings.close']());
       // FR-084: 左（狭い画面では上）の分類。「接続キー」はアイコンと説明の文字つき。選ぶと接続キー画面（中央のモーダル）が開く
@@ -584,6 +591,7 @@ export function mountUI(app, doc = document) {
       if (vf) {
         const vs = setEl.querySelector('[data-visibility-field="level"]'); if (vs && vs.value !== vf.value) vs.value = vf.value;
         const ve = setEl.querySelector('[data-visibility-field="exclude"]'); if (ve) ve.checked = vf.exclude;
+        const swe = setEl.querySelector('[data-id="save.warnings"]'); if (swe) { const wt = (app.getSaveWarnings?.() ?? []).join(' '); if (swe.textContent !== wt) swe.textContent = wt; } // FR-092 AC-649: 未確認 k 件の警告も最新に
       }
     }
     const au = app.getRpgAudio();

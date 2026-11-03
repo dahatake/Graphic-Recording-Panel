@@ -39,7 +39,14 @@ test('NFR-UX-011 AC-459: グループは 取り込み→記録→表示→レイ
       assert.ok(g.commands.length > 1, '型アイコンがある');
     } else if (g.id === 'settings') {
       assert.ok(g.commands.includes('settings.open'));
-      const fields = g.commands.filter((c) => c !== 'settings.open').map((c) => bar(app).items.find((i) => i.command === c).settingsField).sort();
+      // FR-030・AC-648: 講演向けの初期値（settings.talkPreset）が設定グループにちょうど 1 つ（契約 CONTRACT-RIBBON-SETTINGS.md）
+      assert.equal(g.commands.filter((c) => c === 'settings.talkPreset').length, 1, '講演向けの初期値が 1 つ');
+      const talk = bar(app).items.find((i) => i.command === 'settings.talkPreset');
+      // 契約 L15: kind の省略は button
+      assert.equal(talk.kind ?? 'button', 'button');
+      assert.equal(talk.group, 'settings');
+      assert.ok([talk.accessibleName, talk.tooltip?.text, talk.description].some((s) => String(s ?? '').includes('講演向けの初期値にする')), '講演向けの初期値にする');
+      const fields = g.commands.filter((c) => c !== 'settings.open' && c !== 'settings.talkPreset').map((c) => bar(app).items.find((i) => i.command === c).settingsField).sort();
       assert.deepEqual(fields, [...SETTINGS_FIELDS].sort(), '決め方・ミュート・音量・周期が 1 つずつ');
     } else sameSet(g.commands, MEMBERS[g.id]);
   }

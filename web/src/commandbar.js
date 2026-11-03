@@ -11,7 +11,7 @@ export const GROUPS = [
   ['toolbar.view', ['view.2d', 'view.3d', 'view.timeline', 'view.arrange', 'detail.next', 'drawStyle.pick'], 'view'],
   ['toolbar.layoutType', [...LAYOUT_TYPE_IDS.map((id) => `layoutType.${id}`), 'layoutType.clear'], 'layoutType'],
   // FR-030 AC-519・FR-084: ［設定］を開く＋［設定］パネルの項目（決め方・音のミュート・音量・再配置の周期）。型のチェックはレイアウト型、描画スタイルは表示に 1 つだけ（settings.js・ribbonsettings.js）
-  ['toolbar.settings', ['settings.open', 'settings.layoutMode', 'sound.toggleMute', 'sound.setVolume', 'arrange.setInterval'], 'settings'],
+  ['toolbar.settings', ['settings.open', 'settings.layoutMode', 'sound.toggleMute', 'sound.setVolume', 'arrange.setInterval', 'settings.talkPreset'], 'settings'],
   ['toolbar.presentation', ['presentation.start', 'presentation.pause', 'presentation.resume', 'presentation.stop', 'presentation.prev', 'presentation.next'], 'presentation'],
   // FR-078: 画像生成 AI 向けのプロンプトのコピーは、図の書き出し（PNG・SVG・PDF）の後ろ
   ['toolbar.export', ['save.png', 'save.svg', 'save.pdf', 'prompt.copy'], 'export'],
@@ -34,7 +34,7 @@ const LABELS = {
   'data.reset': ['データ初期化', 'Reset data'], 'file.save': ['ファイル保存', 'Save file'], 'file.load': ['ファイル読込', 'Load file'],
   // FR-030 AC-519: ［設定］パネルの項目（ribbonsettings.js）。ラベルは ja 全角 6・en 半角 12 以内
   'settings.layoutMode': ['決め方', 'Mode'], 'sound.toggleMute': ['ミュート', 'Mute'], 'sound.setVolume': ['音量', 'Volume'], 'arrange.setInterval': ['周期', 'Interval'],
-  // FR-027: レイアウト型のアイコンの名称ラベル（label.layoutType.clear・label.settings.open は settings.js が文言を足す）
+    'settings.talkPreset': ['講演向け', 'Talk preset'], // FR-030 AC-648  // FR-027: レイアウト型のアイコンの名称ラベル（label.layoutType.clear・label.settings.open は settings.js が文言を足す）
   ...Object.fromEntries(LAYOUT_TYPE_IDS.map((id) => [`layoutType.${id}`, [LAYOUT_TYPE_META[id].ja.label, LAYOUT_TYPE_META[id].en.label]])),
 };
 export const labelKey = (command) => `label.${command}`;
@@ -82,6 +82,7 @@ export const ICONS = {
   'layout.tile': 'M3 3h14v14H3zM3 7h14M3 13h14M10 7v10', 'layout.focus': P.focus, 'layout.maximize': P.maximize,
   'data.reset': P.trash, 'file.save': P.fileSave, 'file.load': P.fileLoad,
   'settings.layoutMode': 'M3 4h14M3 10h14M3 16h14M7 2v4M13 8v4M9 14v4', 'sound.toggleMute': 'M3 8h3l4-3v10l-4-3H3zM13 8l4 4M17 8l-4 4', 'sound.setVolume': 'M3 8h3l4-3v10l-4-3H3zM13 7.500a3.500 3.500 0 0 1 0 5M15 5a7 7 0 0 1 0 10', 'arrange.setInterval': 'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14ZM10 6v4l3 2',
+  'settings.talkPreset': 'M3 3h14v10H3zM10 13v4M6 17h8M7 8l2 2 4-4', // FR-030 AC-648（演壇の画面＋チェック）
   // FR-078: プロンプトのコピー（2 枚重ねの紙。ラベル・ツールチップの文言は imageprompt.js）
   'prompt.copy': 'M7 3h9v11H7zM4 6v11h9',
   'layoutType.clear': `M8 8l4 4M12 8l-4 4`, 'settings.open': 'M10 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM10 2v2M10 16v2M2 10h2M16 10h2M4.500 4.500l1.500 1.500M14 14l1.500 1.500M4.500 15.500L6 14M14 6l1.500-1.500',
@@ -126,6 +127,7 @@ const TIP = {
   'sound.toggleMute': ['RPG風の音（BGM・効果音）のミュートを切り替えます', 'Toggle the mute of the RPG-style sound (BGM and effects)'],
   'sound.setVolume': ['RPG風の音の音量（0〜100）を設定します', 'Set the RPG-style sound volume (0 to 100)'],
   'arrange.setInterval': ['図を再配置する周期（0〜300 秒。0 は会話の区切り）を設定します', 'Set how often the diagram is rearranged (0 to 300 s; 0 = at conversation breaks)'],
+  'settings.talkPreset': ['講演向けの初期値にする。既定のレイアウトを自動にし、図の型は自動選択の規則で選びます', 'Apply the talk preset: set the default layout to auto so the type follows the automatic rule'],
   ...Object.fromEntries(LAYOUT_TYPE_IDS.map((id) => [`layoutType.${id}`, [LAYOUT_TYPE_META[id].ja.tip, LAYOUT_TYPE_META[id].en.tip]])),
 };
 export const tooltipId = (command) => `tooltip-${command.replace(/[^a-zA-Z0-9]+/g, '-')}`;
