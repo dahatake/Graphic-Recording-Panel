@@ -29,10 +29,10 @@ export function meetingModule(ctx) {
   const { state, api } = ctx;
   ctx.i18n.addStrings({
     ja: { 'msg.agendaEmpty': '議題の名前が空です', 'msg.agendaMinutes': '持ち時間は 1 以上の整数（分）で入力してください', 'msg.agendaSet': '議題を登録しました', 'msg.meetingInvalid': '会議の目的・対象読者は文字で入力してください',
-      'meeting.series': 'シリーズ名', 'meeting.theme': '演題', 'meeting.date': '日付', 'meeting.venue': '会場', 'meeting.purpose': '目的', 'meeting.audience': '対象読者',
+      'meeting.series': 'シリーズ名', 'meeting.theme': '演題', 'meeting.date': '日付', 'meeting.venue': '会場', 'meeting.speaker': '登壇者名', 'meeting.purpose': '目的', 'meeting.audience': '対象読者',
       'meeting.agenda': '議題（1 行に 1 項目。「名前 | 分」）', 'meeting.group': '会議の文脈' },
     en: { 'msg.agendaEmpty': 'An agenda item name is empty', 'msg.agendaMinutes': 'Enter the time as an integer of 1 or more (minutes)', 'msg.agendaSet': 'The agenda was saved', 'msg.meetingInvalid': 'Enter the purpose and audience as text',
-      'meeting.series': 'Series', 'meeting.theme': 'Title', 'meeting.date': 'Date', 'meeting.venue': 'Venue', 'meeting.purpose': 'Purpose', 'meeting.audience': 'Audience',
+      'meeting.series': 'Series', 'meeting.theme': 'Title', 'meeting.date': 'Date', 'meeting.venue': 'Venue', 'meeting.speaker': 'Speaker name', 'meeting.purpose': 'Purpose', 'meeting.audience': 'Audience',
       'meeting.agenda': 'Agenda (one item per line: "name | minutes")', 'meeting.group': 'Meeting context' },
   });
   // NFR-A11Y-001 AC-036: 議題を開く操作（キーだけで実行できる。状態は aria-live のメッセージで知らせる）
@@ -89,7 +89,7 @@ export function meetingModule(ctx) {
   // FR-095 AC-558: 画面の入力欄（設定画面のタイトル欄と同じ場所）。議題は 1 行に 1 項目（「名前 | 分」）
   api.getMeetingFormSpec = () => ({
     group: ctx.t('meeting.group'),
-    fields: ['series', 'theme', 'date', 'venue'].map((id) => ({ id, label: ctx.t(`meeting.${id}`), kind: 'title' }))
+    fields: ['series', 'theme', 'date', 'venue', 'speaker'].map((id) => ({ id, label: ctx.t(`meeting.${id}`), kind: 'title' }))
       .concat(['purpose', 'audience'].map((id) => ({ id, label: ctx.t(`meeting.${id}`), kind: 'context' })), [{ id: 'agenda', label: ctx.t('meeting.agenda'), kind: 'agenda' }]),
   });
   api.getMeetingFormValues = () => ({ ...api.getTitleInfo(), purpose: state.meeting.purpose, audience: state.meeting.audience, agenda: agendaToText(state.meeting.agenda) });
@@ -106,7 +106,7 @@ export function meetingModule(ctx) {
   // FR-095 AC-560: 出力（PNG・PDF・SVG・Markdown・HTML）が載せる会議の文脈。表題は演題（未入力は従来の表題）、日付は入力のまま（出力日を補わない）
   api.getMeetingOutput = () => {
     const ti = api.getTitleInfo?.() ?? {};
-    return { title: String(ti.theme ?? '').trim() || ctx.t('app.title'), date: ti.date ?? '', series: ti.series ?? '', venue: ti.venue ?? '', agenda: state.meeting.agenda.map((a) => a.name), purpose: state.meeting.purpose, audience: state.meeting.audience, ...(api.getVisibilityLines?.() ?? {}), ...(api.getConflictLines?.() ?? {}), ...(api.getVoteLines?.() ?? {}) }; // FR-104: 公開範囲（と除外の件数）の行。FR-099 AC-588: 対立の組・異論の状況の行
+    return { title: String(ti.theme ?? '').trim() || ctx.t('app.title'), date: ti.date ?? '', series: ti.series ?? '', venue: ti.venue ?? '', speaker: ti.speaker ?? '', agenda: state.meeting.agenda.map((a) => a.name), purpose: state.meeting.purpose, audience: state.meeting.audience, ...(api.getVisibilityLines?.() ?? {}), ...(api.getConflictLines?.() ?? {}), ...(api.getVoteLines?.() ?? {}) }; // FR-104: 公開範囲（と除外の件数）の行。FR-099 AC-588: 対立の組・異論の状況の行
   };
   // FR-096 AC-561〜563: 図の説明。画面の詳細度（FR-026）に従い、その詳細度で出ない要点は含めない（生成 AI・外部通信なし）
   api.getFigureDescription = () => {
@@ -142,7 +142,7 @@ export function meetingModule(ctx) {
         const fd = api.getFigureDescription();
         const mo = api.getMeetingOutput();
         // 表題・日付・議題などの入力があるときだけ、見出しの帯を足す（入力がなければ従来の図のまま、<title>・<desc> だけを付ける）
-        const any = ['series', 'date', 'venue'].some((k) => String(mo[k]).trim()) || mo.agenda.length > 0 || String(api.getTitleInfo?.()?.theme ?? '').trim() || !!mo.conflictLine || !!mo.objectionLine;
+        const any = ['series', 'date', 'venue', 'speaker'].some((k) => String(mo[k]).trim()) || mo.agenda.length > 0 || String(api.getTitleInfo?.()?.theme ?? '').trim() || !!mo.conflictLine || !!mo.objectionLine;
         return decorateSvg(svg, { title: fd.title, desc: fd.text, header: any ? headerModel(mo, state.lang) : null });
       };
     }

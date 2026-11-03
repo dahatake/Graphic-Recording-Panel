@@ -120,8 +120,11 @@ export function reviewModule(ctx) {
   api.getSaveWarnings = () => {
     const ai = aiIds(); const skip = api.getExcludeConfidential?.() === true;
     const k = allPoints().filter((p) => !(skip && p.confidential === true) && reviewOf(p, ai).needsReview).length;
-    if (!k) return [];
-    return [state.lang === 'en' ? `${k} unconfirmed (marked "${t('review.mark')}"). You can check them in the ${t('panel.outline')}. Saving is still possible.` : `未確認 ${k} 件（「${t('review.mark')}」の印が付いたままの要点）。${t('panel.outline')}で確認できます。このまま保存もできます。`];
+    const out = [];
+    if (k) out.push(state.lang === 'en' ? `${k} unconfirmed (marked "${t('review.mark')}"). You can check them in the ${t('panel.outline')}. Saving is still possible.` : `未確認 ${k} 件（「${t('review.mark')}」の印が付いたままの要点）。${t('panel.outline')}で確認できます。このまま保存もできます。`);
+    // FR-036 AC-659 f: 登壇者名は利用者が自由に入力した文字で、機密の要点を除く保存でもそのまま残る（機密の判定の対象外）
+    if (String(api.getTitleInfo?.()?.speaker ?? '').trim()) out.push(state.lang === 'en' ? 'The speaker name you entered is included in the saved output as typed (it is not subject to the exclusion of confidential points).' : '入力した登壇者名は、そのまま保存物に含まれます（機密の要点を除く保存でも対象外で、残ります）。');
+    return out;
   };
   // 図の要素（まとめた要点 AC-429 を含む）の印。refIds のどれかが未確認の「要確認」なら印を付ける
   api.getReviewMark = (refIds) => {

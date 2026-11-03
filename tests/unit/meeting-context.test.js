@@ -158,7 +158,7 @@ test('FR-096 AC-561 AC-562 AC-563 AC-578: 保存した SVG・PNG・PDF に同じ
 test('FR-095 AC-559: タイトル情報だけでも保存・復元され、初期化で消える（AC-166）', async () => {
   const { app, env, createApp } = await newApp();
   await seedThreeScenes(app, env);
-  app.setTitleInfo({ series: 'S', theme: 'T', date: '2026-11-03', venue: 'V' });
+  app.setTitleInfo({ series: 'S', theme: 'T', date: '2026-11-03', venue: 'V', speaker: '山田' }); // FR-036 AC-659: 登壇者名も同じ範囲で復元される
   const app2 = await createApp(env.options);
-  assert.deepEqual(app2.getTitleInfo(), { series: 'S', theme: 'T', date: '2026-11-03', venue: 'V' });
+  assert.deepEqual(app2.getTitleInfo(), { series: 'S', theme: 'T', date: '2026-11-03', venue: 'V', speaker: '山田' });
 });
