@@ -183,9 +183,10 @@ test('FR-112 AC-638: 機密の要点と重なる線は SVG・Markdown から除�
   line(app, { x: box.x + 2, y: box.y + 2 }, { x: box.x + box.width - 2, y: box.y + box.height - 2 });
   line(app, { x: 5, y: 5 }, { x: 30, y: 8 });
   const [over, free] = app.getStrokes();
-  assert.deepEqual(app.getSaveWarnings(), [], '「除く」でなければ警告なし');
+  const strokeWarnings = () => app.getSaveWarnings().filter((x) => !x.startsWith('未確認')); // 「未確認 k 件」の警告（FR-092 AC-649）は別の判定
+  assert.deepEqual(strokeWarnings(), [], '「除く」でなければ警告なし');
   app.setExcludeConfidential(true);
-  assert.equal(app.getSaveWarnings().length, 1);
+  assert.equal(strokeWarnings().length, 1);
   await app.commands['save.svg']();
   const svg = String(env.downloads.at(-1).data);
   assert.ok(!svg.includes(`data-stroke-id="${over.id}"`) && svg.includes(`data-stroke-id="${free.id}"`));
@@ -197,7 +198,7 @@ test('FR-112 AC-638: 機密の要点と重なる線は SVG・Markdown から除�
   assert.ok(!html.includes(`data-stroke-id="${over.id}"`) && html.includes(`data-stroke-id="${free.id}"`));
   // 重なる線だけがあるときは、残る線がないので警告は出ない
   app.eraseStroke(free.id);
-  assert.deepEqual(app.getSaveWarnings(), []);
+  assert.deepEqual(strokeWarnings(), []);
   assert.equal(app.getStrokes().length, 1, 'アプリ内の線は除かれていない');
 });
 

@@ -590,6 +590,7 @@ export function mountUI(app, doc = document) {
       if (vf) {
         const vs = setEl.querySelector('[data-visibility-field="level"]'); if (vs && vs.value !== vf.value) vs.value = vf.value;
         const ve = setEl.querySelector('[data-visibility-field="exclude"]'); if (ve) ve.checked = vf.exclude;
+        const swe = setEl.querySelector('[data-id="save.warnings"]'); if (swe) { const wt = (app.getSaveWarnings?.() ?? []).join(' '); if (swe.textContent !== wt) swe.textContent = wt; } // FR-092 AC-649: 未確認 k 件の警告も最新に
       }
     }
     const au = app.getRpgAudio();
