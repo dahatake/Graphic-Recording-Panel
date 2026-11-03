@@ -29,7 +29,7 @@ const snapshot = (page) => page.evaluate((cmds) => {
   for (const c of cmds) {
     out[c] = [...document.querySelectorAll(`[data-command="${c}"]`)].map((el) => {
       const cs = getComputedStyle(el);
-      return { pressed: el.getAttribute('aria-pressed'), look: [cs.backgroundColor, cs.boxShadow, cs.borderTopColor, cs.outlineStyle, cs.fontWeight, cs.color].join('|') };
+      return { pressed: el.getAttribute('aria-pressed'), cls: [...el.classList], look: [cs.backgroundColor, cs.boxShadow, cs.borderTopColor, cs.outlineStyle, cs.fontWeight, cs.color].join('|') };
     });
   }
   return out;
@@ -43,6 +43,8 @@ function assertNoneOn(snap, label) {
   for (const c of GROUP) {
     assert.ok(snap[c].length > 0, `${label}: ${c} のボタンが存在しない`);
     assert.ok(!anyOn(snap, c), `${label}: ${c} が押されている表示になっている ${JSON.stringify(snap[c])}`);
+    // AC-647: aria-pressed が真でないことに加え、押下用のスタイルクラスが付かない。
+    for (const b of snap[c]) assert.ok(!b.cls.some((k) => /press|active|selected|(^|[-_])on$/i.test(k)), `${label}: ${c} に押下用のスタイルクラスが付いている ${JSON.stringify(b.cls)}`);
   }
 }
 
