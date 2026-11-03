@@ -221,6 +221,7 @@ test('FR-081 AC-442 異常系: 同意は保存されず、再読込後は初期�
   const ctx = await bootAzure({ configured: true });
   await startAzureRecording(ctx.app);
   assert.equal(ctx.azure.startCalls.length, 1);
+  ctx.azure.emit('復元の確認'); await flush(); // 発話が 1 件ないと再読込後は準備中になり resume は何もしない
   ctx.app.setSpeechConsent(false); await flush();
   assert.equal(ctx.azure.active, false, '同意を外すと停止');
   assert.equal(ctx.app.getState().session, 'recording');
@@ -401,7 +402,7 @@ test('FR-081 AC-445: 状態表示は方式を区別し、Azure Speech では 使
     b.app.setLang('en'); await flush();
     assert.notEqual(b.app.getSpeechStatus().text, s.text, '表示言語に従う');
   }
-  assert.equal(new Set([waiting.text, ok.text, ...Object.values(fails)]).size, 6, '状態の文は互いに異なる');
+  assert.equal(new Set([wait2.text, ok.text, ...Object.values(fails)]).size, 6, '状態の文は互いに異なる');
 });
 
 // FR-081 AC-446（integration。アプリ側: 音声を保存しない・非表示でも続く）
