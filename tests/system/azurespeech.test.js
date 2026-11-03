@@ -124,7 +124,7 @@ test('FR-081 AC-441: 記録中に方式を変えると前の方式は停止し�
   assert.deepEqual(texts(app), before);
 });
 
-test('FR-081 AC-441 異常系: 方式の切替（選択・キーの保存・キーの削除）とエンドポイントのホストの変更で、同意は引き継がれず未同意に戻る', async () => {
+test('FR-081 AC-441 異常系: 方式の切替（選択・キーの保存・キーの削除）とエンドポイントのホストの変更で、同意は引き継がれず切替後の初期状態に戻る（Azure Speech は同意済み・ブラウザ標準は未同意）', async () => {
   // (1) ブラウザ標準（外部送信の可能性）で同意済み → 選択で Azure Speech
   {
     const { app, env, azure } = await bootAzure({ configured: true, speech: REMOTE });
@@ -176,7 +176,7 @@ test('FR-081 AC-442: Azure Speech では、デバイス内処理が使えても 
   assert.equal(c.region, 'top');
   assert.match(c.label, /Azure Speech/); assert.match(c.label, /同意/);
   assert.ok(c.notice.includes(DUMMY_HOST), '送信先のホスト名を表示');
-  assert.equal(c.checked, false, '既定は未同意');
+  assert.equal(c.checked, true, '同意のチェックの初期状態は同意済み（2026-11-03）');
   // 方式がブラウザ標準（デバイス内）に戻ると、この同意は出ない（ブラウザ標準の挙動は変えない）
   app.setSpeechMethod('browser'); await flush();
   assert.equal(app.getConsentUi().visible, false);
