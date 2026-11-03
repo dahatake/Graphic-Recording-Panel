@@ -8207,9 +8207,9 @@
       "command": "node --test --test-name-pattern=\"AC-536\" tests/system/perf.test.js",
       "canary": false,
       "status": "fail",
-      "last_commit": "1292025",
-      "last_run_at": "2026-11-03T23:25:14+09:00",
-      "evidence": "work/runs/202611032250/logs/system-test/IT-027-202611032323.log",
+      "last_commit": "33c3b9f",
+      "last_run_at": "2026-11-03T23:36:11+09:00",
+      "evidence": "work/runs/202611032250/logs/system-test/IT-027-202611032334.log",
       "history": [
         {
           "at": "2026-10-27T23:44:54+09:00",
