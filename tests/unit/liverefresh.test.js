@@ -401,6 +401,34 @@ test('FR-014 AC-521: 待ちの間の［次のシーン］の区切りを保ち�
   }
 });
 
+// FR-014 AC-521 FR-098 AC-571（A-874）: 更新間隔の待ちの間に議題を切り替えても、その時点では描き足さず、
+// 待ちの発話は切替の前のシーンに属したまま次の更新の時点に描き足され、切替の後の発話は新しいシーンに入る。切替の境は前のシーンに記録される
+test('FR-014 AC-521 FR-098 AC-571 A-874: 待ちの間の議題の切替は、その場で取り込まず、次の更新の時点に区切りの前・後のシーンに分けて描き足す', async () => {
+  const { app, env } = await live();
+  assert.equal(app.setLiveInterval(LIVE_MIN_SEC).ok, true);
+  assert.equal(app.setMeetingContext({ agenda: [{ name: '予算' }, { name: '計画' }] }).ok, true);
+  startRec(app);
+  assert.equal(app.commands['timer.start']().ok, true);
+  say(env, '予算の見直しを話す'); adv(env, 500);
+  say(env, '来月の予算を決める'); adv(env, 500);
+  const before = JSON.stringify(app.getState().scenes);
+  const n0 = app.getState().scenes.length;
+  assert.equal(app.commands['timer.next']().ok, true);
+  assert.equal(JSON.stringify(app.getState().scenes), before, '切替の時点では図が変わらない（その場で取り込まない）');
+  say(env, '担当者を割り当てる'); adv(env, 500);
+  assert.equal(JSON.stringify(app.getState().scenes), before, '次の更新の時点までは加わらない');
+  adv(env, LIVE_MIN_SEC * SEC);
+  const sc = app.getState().scenes;
+  assert.equal(sc.length, n0 + 2, '切替の前と後で別のシーン');
+  const texts = (s) => s.points.map((p) => p.text).join('|');
+  const pre = sc[sc.length - 2]; const post = sc[sc.length - 1];
+  assert.match(texts(pre), /予算の見直し/); assert.match(texts(pre), /来月の予算/); assert.doesNotMatch(texts(pre), /担当者/);
+  assert.match(texts(post), /担当者/);
+  assert.equal(pre.status, 'confirmed');
+  assert.equal(app.getSceneAgenda(pre.id), '予算'); assert.equal(app.getSceneAgenda(post.id), '計画');
+  assert.ok(app.getAgendaBreaks().has(pre.id), '切替の境は前のシーンに記録される');
+});
+
 // FR-022 AC-671（契約 CONTRACT-LIVE-SHOW の観察点）: getVttImportMode・setVttImportMode・getVttReplay と vttReplay.* のコマンド
 test('FR-022 AC-671: 取込の方法は bulk|replay と速さで読み書きでき、不正は ok:false で変えず、再生取込の進み具合とコマンドがある', async () => {
   const { app, env } = await live();

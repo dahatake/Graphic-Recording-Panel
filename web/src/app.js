@@ -112,6 +112,7 @@ export async function createApp(options = {}) {
   };
   let seq = 0;
   let breakScene = false;
+  const pendingBreaks = new Map(); // A-874: 待ちの発話 id → 区切りの前のシーンが決まったときに呼ぶ関数（ctx.breakScene の onScene）
   let layout = L.parseLayout(storage.getItem(L.STORAGE_KEY));
   let theme = P.readJson(storage, P.THEME_KEY);
   if (!P.THEMES.includes(theme)) theme = null; // null = OS の設定に従う
@@ -234,12 +235,23 @@ export async function createApp(options = {}) {
     // 新しく加わった要点への付与（FR-091 の進行の段階など）。要点の追加（発話）のたびに、加わった要点ごとに呼ぶ
     pointHooks: [],
     // 進行中のシーンを確定し、次の発話から新しいシーンにする（session.nextScene と同じ結果。FR-098 AC-571。記録の状態は問わない）
-    breakScene() {
-      ctx.flushHeld(); // FR-014 AC-521: 区切りの前に届いていた発話は、区切りの前のシーンに入れる
+    // FR-014 AC-521（A-874）: 更新間隔の待ち（held）の発話があるときは、その場では図に取り込まず、区切りを最後の待ちの発話に保持する
+    //   （breakAfter）。待ちの発話は次の更新の時点に区切りの前のシーンとして描き足され、区切りの後の発話は新しいシーンに入る。
+    //   区切りの前のシーンの id は取り込みの時点で決まるので、onScene(sceneId) をそのときに呼ぶ（待ちがなければすぐに呼ぶ）。
+    //   戻り値は、すぐに決まったときはそのシーンの id、待ちのときは null。
+    breakScene(onScene) {
+      if (ctx.heldCount() > 0) {
+        const u = state.utterances[state.utterances.length - 1];
+        change(() => { u.breakAfter = true; });
+        if (typeof onScene === 'function') (pendingBreaks.get(u.id) ?? pendingBreaks.set(u.id, []).get(u.id)).push(onScene);
+        return null;
+      }
       const cur = state.scenes[state.scenes.length - 1];
       breakScene = true;
-      if (cur && cur.status === 'in_progress') { change(() => { cur.status = 'confirmed'; }); return cur.id; }
-      return cur?.id ?? null;
+      if (cur && cur.status === 'in_progress') change(() => { cur.status = 'confirmed'; });
+      const id = cur?.id ?? null;
+      if (typeof onScene === 'function') onScene(id);
+      return id;
     },
     // 発話の追加（記録中のみ）。opts.at: 受付時刻の指定、opts.ats: 発話ごとの受付時刻（件数が同じときのみ。FR-022）、opts.anyState: 記録中以外でも追加（ファイル取込のみ。FR-039）、opts.noGapSplit: 無音間隔で分割しない（ファイル取込: FR-003 AC-044）。
     addUtterance(text, opts) { return ctx.addUtterances([text], opts) > 0; },
@@ -312,6 +324,8 @@ export async function createApp(options = {}) {
         const cur = s.scenes[s.scenes.length - 1];
         if (cur && cur.status === 'in_progress') cur.status = 'confirmed';
         breakScene = true;
+        const cbs = pendingBreaks.get(u.id); pendingBreaks.delete(u.id);
+        for (const cb of cbs ?? []) cb(cur?.id ?? null); // A-874: 待ちの間の区切り（議題の切替など）の前のシーンが決まった
       }
     }
     return out;

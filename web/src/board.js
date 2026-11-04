@@ -121,7 +121,7 @@ function emphOf(shown, words, size) {
     const i = shown.indexOf(w);
     if (i < 0 || used.some(([a, b]) => i < b && a < i + w.length)) continue;
     used.push([i, i + w.length]);
-    out.push({ word: w, dx: Math.round(textW(shown.slice(0, i), size) * 10) / 10, w: Math.round(textW(w, size) * 10) / 10 });
+    out.push({ word: w, i, n: w.length, dx: Math.round(textW(shown.slice(0, i), size) * 10) / 10, w: Math.round(textW(w, size) * 10) / 10 });
     if (out.length >= 2) break;
   }
   return out;
@@ -129,7 +129,7 @@ function emphOf(shown, words, size) {
 
 // ---- 配置（DOM に依存しない純粋関数） ----
 const W = 1280; const M = 24; const GAP = 16; const COL = (W - M * 2 - GAP * 2) / 3; // 400
-const HEAD = 36; const PAD = 12; const FS = 14; const ROW = 26; const EMPTY_BODY = 28; const BAND = 76;
+const HEAD = 36; const PAD = 12; const FS = 14; const ROW = 26; const EMPTY_BODY = ROW; const BAND = 76;
 // 区画の並び（行ごと。[id, 列, 幅の列数]）。重なりのない格子で、行の高さはその行の区画の中身の高さの最大
 const GRID = [
   [['purpose', 0, 1], ['members', 1, 1], ['vision', 2, 1]],
@@ -137,8 +137,10 @@ const GRID = [
   [['themes', 0, 2], ['open', 2, 1]],
   [['actions', 0, 2], ['memo', 2, 1]],
 ];
-// FR-079 AC-669: 区画の容量の刻み（行 3 つ分）。容量は中身の高さだけで決まる（決定的・冪等。AC-434・AC-432 (c)）。空の区画は EMPTY_BODY のまま
-export const SLACK = ROW * 3;
+// FR-079 AC-669: 区画の容量の刻み（半行）。容量は中身の高さだけで決まる（決定的・冪等。AC-434・AC-432 (c)）。
+// 並びの中で最も中身の高い区画の最後の要素の下の空きは刻み未満（PARAM-186 = 1 行以下）。要点が 0 件の区画は見出しと 1 行（ROW）分の空き
+export const LINE = ROW; // PARAM-186 の「1 行」（区画のラベルの 1 行の高さ）
+export const SLACK = ROW / 2;
 export const capacity = (h) => (h <= EMPTY_BODY ? EMPTY_BODY : Math.ceil(h / SLACK) * SLACK);
 const chunk = (arr, n) => { const out = []; for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; };
 const label = (e, maxPx) => { const shown = fit(e.label, maxPx, FS); return { text: shown, full: e.label, emph: emphOf(shown, e.emphasis, FS) }; };
@@ -232,12 +234,17 @@ export function boardLayout(input, opts = {}) {
       assigned.push({ pointId: p.id, sceneId: s.id, section: a.section, rule: a.rule });
     });
   }
-  // 議論の流れ: トピックごとの話順のステップ（1 ステップの行が PARAM-088 を超えたら続きのステップに分ける）
-  const steps = []; const stepNo = new Map();
+  // 議論の流れ: 話順のステップ。トピック（FR-025）かシーン（FR-003）が前の要点と変わる位置で次の番号のステップに区切り、
+  // 1 ステップの行が PARAM-088 を超えたら同じ番号の続きのステップに分ける（AC-666。異なるトピック・シーンを 1 つの吹き出しにまとめない）
+  const steps = []; let stepN = 0;
   for (const e of by.flow) {
-    if (!stepNo.has(e.topic)) stepNo.set(e.topic, stepNo.size + 1);
-    let st = steps.findLast((x) => x.key === e.topic);
-    if (!st || st.lines.length >= GROUP_MAX) { const k = steps.filter((x) => x.key === e.topic).length; st = { key: e.topic, uid: `${e.topic}#${k}`, n: stepNo.get(e.topic), cont: !!st, lines: [], sceneIds: [] }; steps.push(st); }
+    let st = steps[steps.length - 1];
+    const same = st && st.key === e.topic && st.sceneId === e.sceneId;
+    if (!same) stepN++;
+    if (!same || st.lines.length >= GROUP_MAX) {
+      const k = same ? st.k + 1 : 0;
+      st = { key: e.topic, sceneId: e.sceneId, k, uid: `${e.topic}#${e.sceneId}#${k}`, n: stepN, cont: same, lines: [], sceneIds: [] }; steps.push(st);
+    }
     st.lines.push(e); if (!st.sceneIds.includes(e.sceneId)) st.sceneIds.push(e.sceneId);
   }
   const unitsOf = (id) => (id === 'flow' ? steps : by[id]);
@@ -273,7 +280,7 @@ export function boardLayout(input, opts = {}) {
   const H = top - GAP + M;
   let k = 0;
   for (const s of sections) for (const el of s.elements) { el.id ??= `${s.id}-${k++}`; el.section = s.id; } // id は要点・ステップから決める（取込の前後で同じ要素は同じ id。CONTRACT-BOARD）
-  const model = { lang, band, sections, assigned, text: tx, canvas: { w: W, h: H } };
+  const model = { lang, band, sections, assigned, text: tx, canvas: { w: W, h: H }, line: LINE };
   return {
     canvas: { w: W, h: H }, title: { x: M, y: M, w: W - M * 2, h: 0, visible: false }, body: { x: M, y: band ? M + BAND + GAP : M, w: W - M * 2, h: H - M * 2 },
     units: [], arrows: [], orderMark: 'number', centered: false, titleLines: [], board: model,
@@ -343,9 +350,29 @@ function labelSvg(l, x, y, C, attrs = '') {
   const em = (l.emph ?? []).map((e) => (C.marker
     ? `<rect data-board-part="emphasis" data-emph="marker" x="${r1(x + e.dx)}" y="${r1(y - FS + 1)}" width="${r1(e.w)}" height="${FS + 4}" rx="2" fill="${C.marker}"/>`
     : `<path data-board-part="emphasis" data-emph="underline" d="M${r1(x + e.dx)} ${r1(y + 4)}h${r1(e.w)}" stroke="${C.under}" stroke-width="3" stroke-linecap="round"/>`)).join('');
-  // 強調語の位置は文字幅の見積もりで決めるので、強調のある文字は見積もりの幅に合わせて描く（マーカー・下線が語に重なる）
-  const fitAttr = l.emph?.length ? ` textLength="${r1(textW(l.text, FS))}" lengthAdjust="spacing"` : '';
-  return `${em}<text x="${r1(x)}" y="${r1(y)}" font-size="${FS}" fill="${C.ink}"${fitAttr}${attrs}>${escapeHtml(l.text)}</text>`;
+  return `${em}<text x="${r1(x)}" y="${r1(y)}" font-size="${FS}" fill="${C.ink}"${attrs}>${emphSpans(l, x)}</text>`;
+}
+// FR-114 AC-667 (h)・PARAM-187: 強調のある文字は、強調語とその前後を別々の tspan に分け、各 tspan の始まりを
+// マーカー・下線と同じ x に置き、幅（textLength）を強調の幅と同じにする。強調語は字形ごと幅に合わせる（spacingAndGlyphs）ので、
+// 表示に使われた書体の字幅が見積もりと違っても、強調語の最初の文字の左端・最後の文字の右端が強調の左端・右端に一致する
+// （前の文字の幅の誤差が後ろへ積み重ならない）。強調のない文字は 1 つの文字のまま描く。
+export function emphSpans(l, x) {
+  const text = String(l.text ?? '');
+  const emph = [...(l.emph ?? [])].filter((e) => Number.isInteger(e.i) && e.n > 0).sort((a, b) => a.i - b.i);
+  if (!emph.length) return escapeHtml(text);
+  const segs = []; let pos = 0;
+  for (const e of emph) {
+    if (e.i < pos) continue;
+    if (e.i > pos) segs.push({ s: text.slice(pos, e.i), dx: Math.round(textW(text.slice(0, pos), FS) * 10) / 10, w: Math.round(textW(text.slice(pos, e.i), FS) * 10) / 10 });
+    segs.push({ s: text.slice(e.i, e.i + e.n), dx: e.dx, w: e.w, emph: true });
+    pos = e.i + e.n;
+  }
+  if (pos < text.length) {
+    // 最後の強調語より後ろの文字は、後ろに位置を合わせる強調がないので、全角の文字だけなら書体の字幅のまま描く（見積もりの全角幅は上限で、枠を越えない）
+    const rest = text.slice(pos);
+    segs.push({ s: rest, dx: Math.round(textW(text.slice(0, pos), FS) * 10) / 10, w: Math.round(textW(rest, FS) * 10) / 10, natural: [...rest].every((ch) => ch.codePointAt(0) >= 0x2e80) });
+  }
+  return segs.map((g) => `<tspan x="${r1(x + g.dx)}"${g.natural ? '' : ` textLength="${r1(g.w)}" lengthAdjust="${g.emph ? 'spacingAndGlyphs' : 'spacing'}"`}${g.emph ? ' data-emph-word=""' : ''}>${escapeHtml(g.s)}</tspan>`).join('');
 }
 const arrowSvg = (el, C) => (el.dir === 'down'
   ? `<g data-board-part="arrow"><path d="M${el.x + 6} ${el.y}v${el.h - 6}M${el.x + 14} ${el.y}v${el.h - 6}M${el.x + 2} ${el.y + el.h - 8}l8 8 8-8" fill="none" stroke="${C.line}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></g>`
