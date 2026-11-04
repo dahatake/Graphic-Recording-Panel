@@ -78,3 +78,20 @@ test('NFR-UX-012 AC-466 FR-075 AC-406: 既存の 4 つの図（SVG）と PNG・P
     for (const f of fonts) assert.deepEqual(familiesOfFont(f), LEGACY_FONT_NAMES, `${id}: Canvas「${f}」`);
   }
 });
+
+// NFR-UX-012 AC-466 / FR-076 AC-408 AC-670: 画風プリセットの PNG・PDF は、見出しの帯・部品の帯の文字も含めて Canvas の書体がその風の系統の並び
+test('NFR-UX-012 AC-466 FR-076 AC-408 AC-670: 画風プリセットの PNG・PDF の Canvas の書体（表題の帯を含む）はその風の書体の系統の並び', async () => {
+  const canvas = makeRecordingCanvas();
+  const { app, env } = await newApp({ options: { canvasFactory: canvas } });
+  await seedThreeScenes(app, env);
+  toDetail(app);
+  for (const id of ['yellowBlack', 'warmCards', 'blueHeadings', 'business']) {
+    assert.equal(app.setDrawStyle(id).ok, true, id);
+    const want = FONT_STACKS[app.getDrawStyleSpec(id).font].map((f) => f.name);
+    const n = canvas.log.fonts.length;
+    await app.commands['save.png'](); await app.commands['save.pdf']();
+    const fonts = canvas.log.fonts.slice(n);
+    assert.ok(fonts.length >= 1, `${id}: Canvas に文字の書体の指定`);
+    for (const f of fonts) assert.deepEqual(familiesOfFont(f), want, `${id}: Canvas「${f}」`);
+  }
+});
