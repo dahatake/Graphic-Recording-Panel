@@ -34,15 +34,20 @@ export const RELATION_PHRASES = {
   opposition: ['一方', 'それに対して', '対して', '反対に', 'しかし', '賛成', '反対', 'メリット', 'デメリット', 'トレードオフ', '比べ', 'vs', 'however', 'on the other hand'],
   'next-step': ['まず', '次に', 'その後', 'そのあと', '最後に', 'ステップ', '次は', 'first', 'then', 'next', 'finally'],
 };
+const PHRASE_TEST = new Map(); // 語ごとの正規表現（要点の数だけ作り直さない。NFR-PERF-003 AC-536）
 export function phraseEvidence(text, kind) {
   const s = String(text ?? '').toLowerCase();
   for (const w of RELATION_PHRASES[kind] ?? []) {
     const lw = w.toLowerCase();
     if (/^[\x20-\x7e]+$/.test(lw)) {
-      const esc = lw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      // 「next month」のような時間の語が続く next は手順の言い回しではない（AC-237 の例が関係にならないように）
-      const tail = lw === 'next' ? '(?!\\s+(?:month|week|year|day|time|quarter|monday|tuesday|wednesday|thursday|friday|saturday|sunday))' : '';
-      if (new RegExp(`(?<![a-z0-9])${esc}(?![a-z0-9])${tail}`).test(s)) return w;
+      let re = PHRASE_TEST.get(lw);
+      if (!re) {
+        const esc = lw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // 「next month」のような時間の語が続く next は手順の言い回しではない（AC-237 の例が関係にならないように）
+        const tail = lw === 'next' ? '(?!\\s+(?:month|week|year|day|time|quarter|monday|tuesday|wednesday|thursday|friday|saturday|sunday))' : '';
+        re = new RegExp(`(?<![a-z0-9])${esc}(?![a-z0-9])${tail}`); PHRASE_TEST.set(lw, re);
+      }
+      if (re.test(s)) return w;
     } else if (s.includes(lw)) return w;
   }
   return null;

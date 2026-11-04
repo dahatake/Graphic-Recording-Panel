@@ -19,11 +19,18 @@ const NAMES = {
 };
 
 const isAscii = (w) => /^[\x20-\x7e]+$/.test(w);
+// 英語の語の正規表現は語ごとに 1 回だけ作る（要点の数×語の数だけ作り直さない。NFR-PERF-003 AC-536）
+const PHRASE_RE = new Map();
+const phraseRe = (w) => {
+  let re = PHRASE_RE.get(w);
+  if (!re) { re = new RegExp(`(?<![a-z0-9])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![a-z0-9])`); PHRASE_RE.set(w, re); }
+  return re;
+};
 // 日本語は部分一致、英語の語は語境界つき。大文字小文字を区別しない（PARAM-133）
 function indexOfPhrase(text, word) {
   const s = String(text ?? '').toLowerCase(); const w = word.toLowerCase();
   if (!isAscii(w)) return s.indexOf(w);
-  const m = new RegExp(`(?<![a-z0-9])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![a-z0-9])`).exec(s);
+  const m = phraseRe(w).exec(s);
   return m ? m.index : -1;
 }
 export const hasConflictPhrase = (text) => RELATION_PHRASES.opposition.some((w) => indexOfPhrase(text, w) >= 0);
@@ -49,7 +56,7 @@ export function sideNames(texts, lang = 'ja') {
 export function detectConflictCandidates(scene, utterances = [], lang = 'ja') {
   const pts = scene?.points ?? [];
   if (pts.length < 2) return [];
-  const uttText = new Map((utterances ?? []).map((u) => [u.id, u.text]));
+  const uttText = utterances instanceof Map ? utterances : new Map((utterances ?? []).map((u) => [u.id, u.text])); // Map を渡せば、シーンごとに全発話の表を作り直さない（NFR-PERF-003 AC-536）
   const perUtt = new Map();
   for (const p of pts) if (p.uid) perUtt.set(p.uid, (perUtt.get(p.uid) ?? 0) + 1);
   // 発話の言い回し: 要点の文。その発話から要点が 1 つだけのときは、発話全体の文も見る
@@ -153,8 +160,9 @@ export function conflictModule(ctx) {
     if (v != null && memo.ver === v && memo.lang === lang()) return memo.value;
     const taken = new Set(confirmedOf().flatMap((g) => g.sides.flatMap((s) => s.pointIds)));
     const value = [];
+    const uttText = new Map(state.utterances.map((u) => [u.id, u.text]));
     for (const s of state.scenes) {
-      for (const c of detectConflictCandidates(s, state.utterances, lang())) {
+      for (const c of detectConflictCandidates(s, uttText, lang())) {
         if (dismissed.has(c.key)) continue;
         if (c.sides.some((sd) => sd.pointIds.some((id) => taken.has(id)))) continue;
         value.push(c);

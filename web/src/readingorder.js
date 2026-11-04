@@ -19,16 +19,30 @@ export function enumerationEvidence(text) {
   return null;
 }
 
+// NFR-PERF-003 AC-536: 判定は文字列だけで決まる純粋関数なので、文字列ごとに結果を覚える（選択など別の変更の再描画のたびに、
+// 数千件の要点を正規表現で判定し直さない）。件数が上限を超えたら捨てて作り直す。
+const EVIDENCE_MEMO_MAX = 20000;
+const evidenceMemo = new Map();
+function evidencesOf(text) {
+  let e = evidenceMemo.get(text);
+  if (!e) {
+    if (evidenceMemo.size >= EVIDENCE_MEMO_MAX) evidenceMemo.clear();
+    e = { opposition: phraseEvidence(text, 'opposition'), nextStep: phraseEvidence(text, 'next-step'), enumeration: enumerationEvidence(text) };
+    evidenceMemo.set(text, e);
+  }
+  return e;
+}
+
 // scenes: [{ points:[{ text }] }]（話順）。返り値: { type, reason:'compare'|'flow'|'enumeration'|'default', phrase }
 export function detectReadingOrder(scenes) {
   const texts = [];
   for (const sc of scenes ?? []) for (const p of sc.points ?? []) texts.push(String(p.text ?? ''));
-  const first = (fn) => { for (const t of texts) { const w = fn(t); if (w) return w; } return null; };
-  let w = first((t) => phraseEvidence(t, 'opposition'));
+  const first = (key) => { for (const t of texts) { const w = evidencesOf(t)[key]; if (w) return w; } return null; };
+  let w = first('opposition');
   if (w) return { type: 'compare', reason: 'compare', phrase: w };
-  w = first((t) => phraseEvidence(t, 'next-step'));
+  w = first('nextStep');
   if (w) return { type: 'flow', reason: 'flow', phrase: w };
-  w = first(enumerationEvidence);
+  w = first('enumeration');
   if (w) return { type: 'f', reason: 'enumeration', phrase: w };
   return { type: DEFAULT_READING_TYPE, reason: 'default', phrase: null };
 }

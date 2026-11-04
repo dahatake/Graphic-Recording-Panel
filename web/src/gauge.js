@@ -256,14 +256,17 @@ export function gaugeModule(ctx) {
     en: { 'gauge.heading': 'Metrics (numeric points)', 'gauge.tip': 'Metric values' },
   });
   const lang = () => state.lang;
-  // 同じ要点（文字・言語が同じ）は同じ結果を使い回す（NFR-PERF-003: 5000 件でも描画のたびに判定し直さない）
-  const memo = new WeakMap();
+  // 同じ要点（文字・言語が同じ）は同じ結果を使い回す（NFR-PERF-003: 5000 件でも描画のたびに判定し直さない）。
+  // 判定は文字と言語だけで決まるので、点のオブジェクトではなく文字で覚える（データの版数ごとに点の写しが作り直されても、結果を使い回せる）
+  const GAUGE_MEMO_MAX = 20000;
+  const memo = new Map();
   const detect = (p) => {
     const L = lang();
-    const m = memo.get(p);
-    if (m && m.text === p.text && m.lang === L) return m.g;
+    const k = `${L}\u0000${p.text}`;
+    if (memo.has(k)) return memo.get(k);
     const g = detectGauge(p.text, L);
-    memo.set(p, { text: p.text, lang: L, g });
+    if (memo.size >= GAUGE_MEMO_MAX) memo.clear();
+    memo.set(k, g);
     return g;
   };
   const decorate = (g, p) => {

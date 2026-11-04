@@ -66,10 +66,17 @@ const KIND_RULES = [
   ['idea', /案|しよう|してみ|かも|どう|how about|what if|maybe/i],
 ];
 // FR-091 AC-577: 語のパターンに当てはまる種類（当てはまらなければ null）。進行の段階の既定はここが null のときだけ使う。
+// 判定は文字列だけで決まるので、文字列ごとに結果を覚える（NFR-PERF-003 AC-536: 選択・再配置などの再描画のたびに数千件を判定し直さない）。上限を超えたら捨てる
+const RULE_MEMO = new Map();
+const RULE_MEMO_MAX = 20000;
 export function classifyPointRule(text) {
   const s = String(text ?? '');
-  for (const [k, re] of KIND_RULES) if (re.test(s)) return k;
-  return null;
+  if (RULE_MEMO.has(s)) return RULE_MEMO.get(s);
+  let r = null;
+  for (const [k, re] of KIND_RULES) if (re.test(s)) { r = k; break; }
+  if (RULE_MEMO.size >= RULE_MEMO_MAX) RULE_MEMO.clear();
+  RULE_MEMO.set(s, r);
+  return r;
 }
 // 引数は要点の文字列か、要点（{text, kind?}）。語のパターンが先で、当てはまらない要点だけ、追加した時点の段階で決めた kind（FR-091）を使う。
 export function classifyPoint(x) {
