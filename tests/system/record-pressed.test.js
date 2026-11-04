@@ -55,6 +55,20 @@ test('FR-072 AC-647: 準備中（起動直後）は記録グループのどの�
     assert.equal(await sessionOf(page), 'preparing');
     const base = await snapshot(page);
     assertNoneOn(base, '準備中');
+    // AC-647（視覚）: 起動直後の [記録開始]・[再開] の computed style（背景色・枠色・影）は、未押下の他ボタン（[一時停止]・[終了]）と同一。
+    // ホバー色を避けるためマウスをボタン外に置く。押下用の塗りつぶし・下線（影）を持たない。
+    await page.mouse.move(1, 1);
+    const style = () => page.evaluate(() => {
+      const pick = (c) => [...document.querySelectorAll(`[data-command="${c}"]`)].map((el) => { const cs = getComputedStyle(el); return { bg: cs.backgroundColor, border: cs.borderTopColor, shadow: cs.boxShadow }; });
+      return Object.fromEntries(['session.start', 'session.resume', 'session.pause', 'session.stop'].map((c) => [c, pick(c)]));
+    });
+    const st = await style();
+    const ref = st['session.pause'][0];
+    assert.deepEqual(st['session.stop'][0], ref, '前提: 未押下の [一時停止]・[終了] は同じ見た目');
+    for (const c of ['session.start', 'session.resume']) {
+      assert.ok(st[c].length > 0, `${c} のボタンが存在しない`);
+      for (const s of st[c]) assert.deepEqual(s, ref, `準備中の ${c} の computed style が未押下の他ボタンと異なる（塗りつぶし・押下下線なし） ${JSON.stringify(s)} vs ${JSON.stringify(ref)}`);
+    }
 
     await startRecording(page);
     await page.waitForFunction(() => globalThis.__app.getState().session === 'recording');

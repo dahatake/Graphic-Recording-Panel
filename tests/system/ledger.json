@@ -268,7 +268,7 @@
     "AC-646": "sha256:008d3f959a6ee470",
     "AC-341": "sha256:18c82ba246abe2dd",
     "AC-454": "sha256:6761f82854320b79",
-    "AC-647": "sha256:4df3897117b35f90",
+    "AC-647": "sha256:39958d93305cfa7f",
     "AC-648": "sha256:995226e57b6c9dc6",
     "AC-653": "sha256:fa2232dcf5f42a65",
     "AC-654": "sha256:f4ba646949d4ecc0",
@@ -8952,7 +8952,7 @@
       "layer": "e2e",
       "command": "node --test tests/system/record-pressed.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "935804d",
       "last_run_at": "2026-11-04T11:41:53+09:00",
       "evidence": "work/runs/202611040923/logs/system-test/E2E-283-202611041140.log",
@@ -8980,6 +8980,12 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "2026-11-04 の依頼で AC・契約が変わったため、実装前の再検証待ち（test-designer）"
+        },
+        {
+          "at": "2026-11-04T12:20:07+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC-647 強化に合わせテスト更新（computed style 比較）。実装前"
         }
       ]
     },
