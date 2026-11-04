@@ -225,3 +225,13 @@ test('FR-114 AC-668 (d) AC-680: Markdown の保存はテキスト一覧と同じ
   app.setHideNames(false); app.setLayoutTypes(['timeline']);
   assert.ok(!(await md()).includes('山田太郎'));
 });
+// AC-680: ラベルは ja「名前を隠す」/ en "Hide names"、説明は「名前を表示しない」（PARAM-011 以内）
+test('FR-114 AC-680: ［設定］の項目ラベルとツールチップ', async () => {
+  const { app } = await newApp();
+  const l = app.getBoardNamesLabels();
+  assert.equal(l.hide, '名前を隠す');
+  assert.equal(l.hideTip, '名前を表示しない');
+  assert.ok([...l.hide].length <= 20);
+  app.setLang?.('en');
+  if (app.setLang) assert.equal(app.getBoardNamesLabels().hide, 'Hide names');
+});

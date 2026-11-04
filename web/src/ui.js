@@ -559,7 +559,7 @@ export function mountUI(app, doc = document) {
       // FR-051 AC-228: RPG風の音（端末ごとに保存。ミュート・音量）
       // AC-680: 名前を表示しない（端末ごとに保存。既定はオフ）
       if (app.getHideNames) {
-        const hn = doc.createElement('input'); hn.type = 'checkbox'; hn.setAttribute('role', 'switch'); hn.dataset.namesField = 'hide';
+        const hn = doc.createElement('input'); hn.type = 'checkbox'; hn.setAttribute('role', 'switch'); hn.dataset.namesField = 'hide'; hn.title = app.getBoardNamesLabels().hideTip ?? ''; // AC-680: ツールチップ「名前を表示しない」
         hn.addEventListener('change', () => app.setHideNames(hn.checked));
         row('board.hideNames', app.getBoardNamesLabels().hide, hn);
       }
