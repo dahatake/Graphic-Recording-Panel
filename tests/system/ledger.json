@@ -6096,8 +6096,8 @@
       "command": "node --test --test-name-pattern=\"AC-408\" tests/system/stylepreset.test.js",
       "canary": true,
       "status": "pass",
-      "last_commit": "df1b5e0",
-      "last_run_at": "2026-11-05T06:16:29+09:00",
+      "last_commit": "e70a7a5",
+      "last_run_at": "2026-11-05T06:16:45+09:00",
       "evidence": "work/runs/202611050444/logs/system-test/E2E-210-202611050616.log",
       "history": [
         {
@@ -6470,10 +6470,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-407\" tests/system/stylepreset.test.js",
       "canary": false,
-      "status": "blocked",
-      "last_commit": null,
-      "last_run_at": null,
-      "evidence": null,
+      "status": "pass",
+      "last_commit": "e70a7a5",
+      "last_run_at": "2026-11-05T06:16:45+09:00",
+      "evidence": "work/runs/202611050444/logs/system-test/E2E-219-202611050616.log",
       "history": [
         {
           "at": "2026-10-20T05:24:08+09:00",
@@ -7795,10 +7795,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-466\" tests/system/jpfont.test.js",
       "canary": false,
-      "status": "blocked",
-      "last_commit": null,
-      "last_run_at": null,
-      "evidence": null,
+      "status": "pass",
+      "last_commit": "e70a7a5",
+      "last_run_at": "2026-11-05T06:16:45+09:00",
+      "evidence": "work/runs/202611050444/logs/system-test/E2E-242-202611050616.log",
       "history": [
         {
           "at": "2026-10-20T13:58:26+09:00",
@@ -8425,8 +8425,8 @@
       "command": "node --test --test-name-pattern=\"AC-521\" tests/system/live.test.js",
       "canary": true,
       "status": "pass",
-      "last_commit": "df1b5e0",
-      "last_run_at": "2026-11-05T06:16:29+09:00",
+      "last_commit": "e70a7a5",
+      "last_run_at": "2026-11-05T06:16:45+09:00",
       "evidence": "work/runs/202611050444/logs/system-test/E2E-259-202611050616.log",
       "history": [
         {
@@ -9399,8 +9399,8 @@
       "command": "node --test --test-name-pattern=\"AC-667|AC-680\" tests/system/board.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "df1b5e0",
-      "last_run_at": "2026-11-05T06:16:29+09:00",
+      "last_commit": "e70a7a5",
+      "last_run_at": "2026-11-05T06:16:45+09:00",
       "evidence": "work/runs/202611050444/logs/system-test/E2E-289-202611050616.log",
       "history": [
         {
