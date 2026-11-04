@@ -122,7 +122,8 @@ export function liveRefreshModule(ctx) {
     const p = parseLiveSec(value);
     if (!p.ok) { say(`live.interval.invalid.${p.reason}`); return { ok: false, reason: p.reason }; }
     draft = null;
-    if (p.sec !== sec) { sec = p.sec; writeJson(ctx.storage, LIVE_INTERVAL_KEY, { intervalSec: sec }); if (timer != null) arm(); } // 変更した時点から数え直す
+    if (p.sec !== sec) { sec = p.sec; writeJson(ctx.storage, LIVE_INTERVAL_KEY, { intervalSec: sec }); }
+    if (timer != null) arm(); // 設定した時点から数え直す（同じ値を設定し直したときも。次の更新の時点は設定の T 秒後。AC-521）
     say('live.interval.changed');
     return { ok: true };
   };
