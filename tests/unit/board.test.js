@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp, keyFor } from '../system/helpers.js';
-import { assignSection, actionFields, boardLayout, boardSvg, boardColors, partKindsOf, normalizeSection, SECTIONS, SECTION_IDS, PART_KINDS, LABEL_MAX, GROUP_MAX } from '../../web/src/board.js';
+import { assignSection, actionFields, boardLayout, boardSvg, boardColors, partKindsOf, normalizeSection, SECTIONS, SECTION_IDS, PART_KINDS, LABEL_MAX, GROUP_MAX, MOVE_MS, createBoardMotion } from '../../web/src/board.js';
 import { parseSections } from '../../web/src/llmdraw.js';
 import { selectLayoutTypes } from '../../web/src/autolayout.js';
 import { createDrawStyleRegistry } from '../../web/src/drawstyles.js';
@@ -269,4 +269,20 @@ test('FR-114 AC-665: LLM の応答の区画の指定で振り分け、不正な�
   app.disableLlm();
   assert.equal(app.getLlmState().enabled, false);
   assert.equal(app.getBoardModel().assigned[0].section, 'flow');
+});
+
+// FR-114 AC-667 (f)・FR-079 AC-669: 描き足しで位置が変わる要素は MOVE_MS（PARAM-181 の 600ms 以内）で途中を経由して移り、動きを減らす設定では直ちに移る
+test('FR-114 AC-667: 位置が変わる要素は 600ms 以内に途中の位置を経由して移り、動きを減らす設定では移動なし', () => {
+  assert.ok(MOVE_MS <= 600);
+  const board = (y) => ({ sections: [{ id: 'memo', frame: { x: 0, y, w: 100, h: 50 }, elements: [{ id: 'p:a', x: 10, y: y + 10, w: 20, h: 20 }] }] });
+  for (const reduced of [false, true]) {
+    const mo = createBoardMotion();
+    mo.apply(board(0), 0, reduced);
+    const mid = board(100); const moving = mo.apply(mid, 1000, reduced);
+    const half = board(100); mo.apply(half, 1000 + MOVE_MS / 2, reduced);
+    const end = board(100); mo.apply(end, 1000 + 600, reduced);
+    if (reduced) { assert.equal(moving, false); assert.equal(mid.sections[0].elements[0].y, 110); }
+    else { assert.equal(moving, true); assert.equal(mid.sections[0].elements[0].y, 10); const y = half.sections[0].elements[0].y; assert.ok(y > 10 && y < 110, String(y)); }
+    assert.equal(end.sections[0].elements[0].y, 110); assert.equal(end.sections[0].elements[0].dy, 0);
+  }
 });
