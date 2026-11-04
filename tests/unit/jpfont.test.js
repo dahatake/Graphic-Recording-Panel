@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { newApp, seedThreeScenes, toDetail } from '../system/helpers.js';
 import { makeRecordingCanvas, familiesOfFont } from '../system/jpfont-util.js';
 import {
-  JP_FONT, LATIN_ONLY_FONTS, isLatinOnlyFont, jpFontOrder, fontFamilyValue, LEGACY_FONT_NAMES, LEGACY_FONT_FAMILY, FONT_STACKS, fontFamilyOf,
+  JP_FONT, HANDWRITING_JP_FONTS, LATIN_ONLY_FONTS, isLatinOnlyFont, jpFontOrder, fontFamilyValue, LEGACY_FONT_NAMES, LEGACY_FONT_FAMILY, FONT_STACKS, fontFamilyOf,
 } from '../../web/src/stylepresets.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -28,11 +28,20 @@ test('NFR-UX-012 AC-466: jpFontOrder は欧文専用の書体（PARAM-093）→ 
   assert.equal(fontFamilyValue(['Segoe UI', 'sans-serif']), "'Segoe UI', sans-serif");
 });
 
-// NFR-UX-012 AC-466 / FR-075 AC-407 / FR-076 AC-670: 書体の系統の並び（Yomogi・Zen Kurenaido・Kaisei Decol は Yu Gothic UI の後の、
-// 日本語の字形を持ち得る書体の先頭。Q-046 の回答まで Yu Gothic UI より前には置かない）
-test('NFR-UX-012 AC-466 FR-075 AC-407 FR-076 AC-670: 書体の系統の並びは欧文専用の書体の次に Yu Gothic UI、その次に 3 つの手書き風の書体', () => {
+// NFR-UX-012 AC-466 の例外: jpFontOrder の第 3 引数（PARAM-185）は欧文専用の書体の直後・Yu Gothic UI の直前にこの順で移す（足さない）
+test('NFR-UX-012 AC-466 FR-076 AC-670: jpFontOrder の beforeJp は欧文専用の書体の次・Yu Gothic UI の前に並べ、並びにない名前は足さない', () => {
+  assert.equal(HANDWRITING_JP_FONTS.join(','), 'Yomogi,Zen Kurenaido,Kaisei Decol');
+  assert.deepEqual(jpFontOrder(['Klee One', 'Zen Kurenaido', 'Segoe Print', 'Yomogi', 'sans-serif'], undefined, HANDWRITING_JP_FONTS),
+    ['Segoe Print', 'Yomogi', 'Zen Kurenaido', JP_FONT, 'Klee One', 'sans-serif']);
+  // 空の PARAM-185 は従来の並び（NFR-UX-012）
+  assert.deepEqual(jpFontOrder(['Yomogi', 'Ink Free'], undefined, []), ['Ink Free', JP_FONT, 'Yomogi']);
+});
+
+// NFR-UX-012 AC-466 / FR-075 AC-407 / FR-076 AC-670: 書体の系統の並び（手書き風の系統は欧文専用の書体 → Yomogi・Zen Kurenaido・Kaisei Decol
+// → Yu Gothic UI → 残り。Q-046 の回答 B 2026-11-05。ほかの系統は Yu Gothic UI より前に日本語の字形を持ち得る書体を置かない）
+test('NFR-UX-012 AC-466 FR-075 AC-407 FR-076 AC-670: 手書き風の系統は欧文専用の書体の次に 3 つの手書き風の書体、その次に Yu Gothic UI', () => {
   const n = (k) => FONT_STACKS[k].map((f) => f.name);
-  assert.deepEqual(n('handwriting'), ['Segoe Print', 'Ink Free', 'Arial Rounded MT Bold', JP_FONT, 'Yomogi', 'Zen Kurenaido', 'Kaisei Decol', 'Klee One', 'Klee',
+  assert.deepEqual(n('handwriting'), ['Segoe Print', 'Ink Free', 'Arial Rounded MT Bold', 'Yomogi', 'Zen Kurenaido', 'Kaisei Decol', JP_FONT, 'Klee One', 'Klee',
     'Zen Maru Gothic', 'M PLUS Rounded 1c', 'Kosugi Maru', 'Hiragino Maru Gothic ProN', 'sans-serif']);
   assert.deepEqual(n('roundGothic'), ['Arial Rounded MT Bold', JP_FONT, 'Zen Maru Gothic', 'M PLUS Rounded 1c', 'Kosugi Maru', 'Hiragino Maru Gothic ProN', 'sans-serif']);
   assert.deepEqual(n('gothic'), [JP_FONT, 'BIZ UDPGothic', 'Hiragino Sans', 'Meiryo', 'Noto Sans JP', 'sans-serif']);
@@ -67,5 +76,22 @@ test('NFR-UX-012 AC-466 FR-075 AC-406: 既存の 4 つの図（SVG）と PNG・P
     const fonts = canvas.log.fonts.slice(n);
     assert.ok(fonts.length >= 1, `${id}: Canvas に文字の書体の指定`);
     for (const f of fonts) assert.deepEqual(familiesOfFont(f), LEGACY_FONT_NAMES, `${id}: Canvas「${f}」`);
+  }
+});
+
+// NFR-UX-012 AC-466 / FR-076 AC-408 AC-670: 画風プリセットの PNG・PDF は、見出しの帯・部品の帯の文字も含めて Canvas の書体がその風の系統の並び
+test('NFR-UX-012 AC-466 FR-076 AC-408 AC-670: 画風プリセットの PNG・PDF の Canvas の書体（表題の帯を含む）はその風の書体の系統の並び', async () => {
+  const canvas = makeRecordingCanvas();
+  const { app, env } = await newApp({ options: { canvasFactory: canvas } });
+  await seedThreeScenes(app, env);
+  toDetail(app);
+  for (const id of ['yellowBlack', 'warmCards', 'blueHeadings', 'business']) {
+    assert.equal(app.setDrawStyle(id).ok, true, id);
+    const want = FONT_STACKS[app.getDrawStyleSpec(id).font].map((f) => f.name);
+    const n = canvas.log.fonts.length;
+    await app.commands['save.png'](); await app.commands['save.pdf']();
+    const fonts = canvas.log.fonts.slice(n);
+    assert.ok(fonts.length >= 1, `${id}: Canvas に文字の書体の指定`);
+    for (const f of fonts) assert.deepEqual(familiesOfFont(f), want, `${id}: Canvas「${f}」`);
   }
 });
