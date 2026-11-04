@@ -265,6 +265,12 @@ export function mountUI(app, doc = document) {
       let mk = b.querySelector('.sel-mark');
       if (!mk) { mk = doc.createElement('span'); mk.className = 'sel-mark'; mk.setAttribute('aria-hidden', 'true'); b.append(mk); }
       setText(mk, it.selectedMark ? '✓' : '');
+      // FR-115 AC-672: オン・オフの状態を文字でも示す（色・押下の見た目だけに頼らない）
+      if (it.stateText != null) {
+        let stx = b.querySelector('.btn-state');
+        if (!stx) { stx = doc.createElement('span'); stx.className = 'btn-state'; b.append(stx); }
+        setText(stx, it.stateText);
+      }
     }
     } // if (!viewOnly)
     syncStyleButtons();
@@ -564,6 +570,15 @@ export function mountUI(app, doc = document) {
         cs.addEventListener('change', () => app.setCinematicLevel(cs.value));
         row('cinematic.level', app.t('cinematic.level'), cs);
       }
+      // FR-115 AC-672: ライブ描画ショー（オン・オフ。端末ごとに保存。コマンドバーの項目と同じ状態）
+      if (app.getLiveShow) {
+        const sc = doc.createElement('input'); sc.type = 'checkbox'; sc.setAttribute('role', 'switch'); sc.dataset.showField = 'enabled';
+        sc.setAttribute('aria-describedby', 'settings-show-hint');
+        sc.addEventListener('change', () => app.setLiveShow(sc.checked));
+        row('show.enabled', app.t('show.title'), sc);
+        const sh = doc.createElement('p'); sh.id = 'settings-show-hint'; sh.className = 'settings-status'; sh.textContent = app.t('show.hint');
+        form.append(sh);
+      }
       // FR-080 AC-436・AC-440: 再配置の周期（0〜300 の整数・秒。0 は自動＝会話の区切り）。判定・保存・メッセージは app が行う
       const af = d.fields.find((f) => f.id === 'arrange.interval');
       if (af) {
@@ -660,6 +675,7 @@ export function mountUI(app, doc = document) {
     setEl.querySelector('#settings-rpg\\.mute').checked = au.muted;
     setEl.querySelector('#settings-rpg\\.volume').value = String(au.volume);
     { const cs = setEl.querySelector('[data-cinematic-field="level"]'); if (cs && app.getCinematic) cs.value = app.getCinematic().level; }
+    { const sc = setEl.querySelector('[data-show-field="enabled"]'); if (sc && app.getLiveShow && sc.checked !== app.getLiveShow().on) sc.checked = app.getLiveShow().on; } // FR-115
     for (const cb of setEl.querySelectorAll('input[type=checkbox]:not([role=switch])')) cb.checked = vals['layout.types'].includes(cb.value);
     const wasHidden = setEl.hidden; setEl.hidden = false;
     if (wasHidden) setEl.querySelector('select')?.focus();

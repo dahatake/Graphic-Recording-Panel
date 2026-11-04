@@ -37,7 +37,8 @@ test('FR-030 AC-520 / NFR-UX-011 AC-459: 10 グループ（画風は表示の直
   assert.ok(groups.every((g) => g.commands.length <= 15));
   assert.equal(groups.find((g) => g.id === 'drawStyle').commands.length, app.getDrawStyles().length);
   assert.equal(app.getDrawStyles().length, 15);
-  assert.deepEqual(groups.find((g) => g.id === 'settings').commands, ['settings.open', 'settings.layoutMode', 'sound.toggleMute', 'sound.setVolume', 'arrange.setInterval', 'settings.talkPreset']);
+  // FR-115 AC-672: ライブ描画ショーの切り替え（show.toggle）を設定グループの末尾に足した
+  assert.deepEqual(groups.find((g) => g.id === 'settings').commands, ['settings.open', 'settings.layoutMode', 'sound.toggleMute', 'sound.setVolume', 'arrange.setInterval', 'settings.talkPreset', 'show.toggle']);
   assert.ok(!app.getCommandBar().items.some((i) => /^apiKeys\./.test(i.command)));
   const icons = app.getCommandBar().items.map((i) => i.icon);
   assert.equal(new Set(icons).size, icons.length, 'アイコンの重複なし');

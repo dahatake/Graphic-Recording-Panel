@@ -525,7 +525,9 @@ export function boardModule(ctx) {
   const tick = () => { ticking = false; if (active() && motion.moving()) ctx.emit('change', api); };
   const shownLayout = () => {
     const L = api.getDiagramLayout();
-    if (motion.apply(L.board, now(), ctx.env?.reducedMotion === true) && !ticking) { ticking = true; sched.setTimeout(tick, 40); }
+    // FR-115 決定 C-01: ライブ描画ショーが ON のときは、ショーの描線・運ぶ演出がこの出現・移動の演出を置き換える（ここでは直ちに最終の位置）
+    const instant = ctx.env?.reducedMotion === true || api.isLiveShowDriving?.() === true;
+    if (motion.apply(L.board, now(), instant) && !ticking) { ticking = true; sched.setTimeout(tick, 40); }
     return L;
   };
   const baseRender = api.renderBaseSvg;

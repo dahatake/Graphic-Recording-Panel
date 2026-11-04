@@ -13,7 +13,7 @@ export const GROUPS = [
   ['toolbar.drawStyle', [], 'drawStyle'],
   ['toolbar.layoutType', [...LAYOUT_TYPE_IDS.map((id) => `layoutType.${id}`), 'layoutType.clear'], 'layoutType'],
   // FR-030 AC-519・FR-084: ［設定］を開く＋［設定］パネルの項目（決め方・音のミュート・音量・再配置の周期）。型のチェックはレイアウト型、描画スタイルは表示に 1 つだけ（settings.js・ribbonsettings.js）
-  ['toolbar.settings', ['settings.open', 'settings.layoutMode', 'sound.toggleMute', 'sound.setVolume', 'arrange.setInterval', 'settings.talkPreset'], 'settings'],
+  ['toolbar.settings', ['settings.open', 'settings.layoutMode', 'sound.toggleMute', 'sound.setVolume', 'arrange.setInterval', 'settings.talkPreset', 'show.toggle'], 'settings'], // FR-115 AC-672: ライブ描画ショー（liveshow.js）
   ['toolbar.presentation', ['presentation.start', 'presentation.pause', 'presentation.resume', 'presentation.stop', 'presentation.prev', 'presentation.next'], 'presentation'],
   // FR-078: 画像生成 AI 向けのプロンプトのコピーは、図の書き出し（PNG・SVG・PDF）の後ろ
   ['toolbar.export', ['save.png', 'save.svg', 'save.pdf', 'prompt.copy'], 'export'],
@@ -85,6 +85,7 @@ export const ICONS = {
   'data.reset': P.trash, 'file.save': P.fileSave, 'file.load': P.fileLoad,
   'settings.layoutMode': 'M3 4h14M3 10h14M3 16h14M7 2v4M13 8v4M9 14v4', 'sound.toggleMute': 'M3 8h3l4-3v10l-4-3H3zM13 8l4 4M17 8l-4 4', 'sound.setVolume': 'M3 8h3l4-3v10l-4-3H3zM13 7.500a3.500 3.500 0 0 1 0 5M15 5a7 7 0 0 1 0 10', 'arrange.setInterval': 'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14ZM10 6v4l3 2',
   'settings.talkPreset': 'M3 3h14v10H3zM10 13v4M6 17h8M7 8l2 2 4-4', // FR-030 AC-648（演壇の画面＋チェック）
+  'show.toggle': 'M4 16l1.5-4.5L13 4l3 3-7.5 7.5zM11.5 5.5l3 3M15 13l.8 1.7 1.7.8-1.7.8-.8 1.7-.8-1.7-1.7-.8 1.7-.8z', // FR-115（ペン先ときらめき）
   // FR-078: プロンプトのコピー（2 枚重ねの紙。ラベル・ツールチップの文言は imageprompt.js）
   'prompt.copy': 'M7 3h9v11H7zM4 6v11h9',
   'layoutType.clear': `M8 8l4 4M12 8l-4 4`, 'settings.open': 'M10 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM10 2v2M10 16v2M2 10h2M16 10h2M4.500 4.500l1.500 1.500M14 14l1.500 1.500M4.500 15.500L6 14M14 6l1.500-1.500',
