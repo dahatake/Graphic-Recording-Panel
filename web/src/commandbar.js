@@ -126,7 +126,7 @@ const TIP = {
   'file.save': ['議論の途中のデータを 1 つのセッションファイルとして端末に保存します', 'Save the discussion in progress as one session file on this device'],
   'file.load': ['保存したセッションファイルを読み込んで議論の途中を復元します', 'Load a saved session file to restore the discussion in progress'],
   'settings.layoutMode': ['レイアウト型の決め方（自動・固定）を切り替えます', 'Switch how the layout type is decided (auto or fixed)'],
-  'sound.toggleMute': ['RPG風の音（BGM・効果音）のミュートを切り替えます', 'Toggle the mute of the RPG-style sound (BGM and effects)'],
+  'sound.toggleMute': ['音（RPG風・映画的な演出・ライブ描画ショーの BGM と効果音）のミュートを切り替えます', 'Toggle the mute of all sound (RPG style, cinematic effects, and live drawing show BGM and effects)'],
   'sound.setVolume': ['RPG風の音の音量（0〜100）を設定します', 'Set the RPG-style sound volume (0 to 100)'],
   'arrange.setInterval': ['図を再配置する周期（0〜300 秒。0 は会話の区切り）を設定します', 'Set how often the diagram is rearranged (0 to 300 s; 0 = at conversation breaks)'],
   'settings.talkPreset': ['講演向けの初期値にする。既定のレイアウトを自動にし、図の型は自動選択の規則で選びます', 'Apply the talk preset: set the default layout to auto so the type follows the automatic rule'],

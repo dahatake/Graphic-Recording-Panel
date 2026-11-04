@@ -563,6 +563,22 @@ export function mountUI(app, doc = document) {
       const vol = doc.createElement('input'); vol.type = 'range'; vol.min = '0'; vol.max = '100'; vol.step = '1';
       vol.addEventListener('input', () => app.setRpgVolume(Number(vol.value)));
       row('rpg.volume', app.t('rpg.audio.volume'), vol);
+      // FR-116 AC-679: ライブ描画ショーの演出の音（BGM・効果音の別々の音量、BGM の ON/OFF・曲。端末ごとに保存。ミュートは上の共通の設定）
+      if (app.getShowAudio) {
+        const bv = doc.createElement('input'); bv.type = 'range'; bv.min = '0'; bv.max = '100'; bv.step = '1'; bv.dataset.showAudioField = 'bgmVolume';
+        bv.addEventListener('input', () => app.setShowBgmVolume(Number(bv.value)));
+        row('showAudio.bgmVolume', app.t('show.audio.bgmVolume'), bv);
+        const sv = doc.createElement('input'); sv.type = 'range'; sv.min = '0'; sv.max = '100'; sv.step = '1'; sv.dataset.showAudioField = 'seVolume';
+        sv.addEventListener('input', () => app.setShowSeVolume(Number(sv.value)));
+        row('showAudio.seVolume', app.t('show.audio.seVolume'), sv);
+        const bo = doc.createElement('input'); bo.type = 'checkbox'; bo.setAttribute('role', 'switch'); bo.dataset.showAudioField = 'bgmOn';
+        bo.addEventListener('change', () => app.setShowBgmOn(bo.checked));
+        row('showAudio.bgmOn', app.t('show.audio.bgmOn'), bo);
+        const so = doc.createElement('select'); so.dataset.showAudioField = 'song';
+        for (const s of app.getShowAudioSongs()) { const op = doc.createElement('option'); op.value = s.value; op.textContent = s.label; so.append(op); }
+        so.addEventListener('change', () => app.setShowBgmSong(so.value));
+        row('showAudio.song', app.t('show.audio.song'), so);
+      }
       // FR-111 AC-632: 演出の強さ（なし・控えめ・標準。端末ごとに保存。キーでも切り替えられる）
       if (app.getCinematicOptions) {
         const cs = doc.createElement('select'); cs.dataset.cinematicField = 'level';
@@ -674,6 +690,14 @@ export function mountUI(app, doc = document) {
     const au = app.getRpgAudio();
     setEl.querySelector('#settings-rpg\\.mute').checked = au.muted;
     setEl.querySelector('#settings-rpg\\.volume').value = String(au.volume);
+    if (app.getShowAudio) { // FR-116 AC-679: 保存値に合わせる（操作中の欄は触らない）
+      const sa = app.getShowAudio();
+      for (const el of setEl.querySelectorAll('[data-show-audio-field]')) {
+        if (doc.activeElement === el) continue;
+        const f = el.dataset.showAudioField;
+        if (f === 'bgmOn') el.checked = sa.bgmOn; else { const v = String(sa[f]); if (el.value !== v) el.value = v; }
+      }
+    }
     { const cs = setEl.querySelector('[data-cinematic-field="level"]'); if (cs && app.getCinematic) cs.value = app.getCinematic().level; }
     { const sc = setEl.querySelector('[data-show-field="enabled"]'); if (sc && app.getLiveShow && sc.checked !== app.getLiveShow().on) sc.checked = app.getLiveShow().on; } // FR-115
     for (const cb of setEl.querySelectorAll('input[type=checkbox]:not([role=switch])')) cb.checked = vals['layout.types'].includes(cb.value);
@@ -822,6 +846,8 @@ export function mountUI(app, doc = document) {
   // 地図にフォーカスがあるときだけ RPG のキーが効く（図・仮想パッドに入ると真、それ以外へ移ると偽）
   doc.addEventListener('focusin', (e) => { app.setRpgFocus?.(!!e.target.closest?.('#diagram, #rpg-ui')); });
   doc.addEventListener('pointerdown', (e) => { app.setRpgFocus?.(!!e.target.closest?.('#diagram, #rpg-ui')); });
+  // FR-116 AC-676: 利用者の最初の操作（クリック・タップ・キー入力）を演出の音へ伝える（それまでは AudioContext を作らない）
+  for (const ev of ['pointerdown', 'keydown']) doc.addEventListener(ev, () => app.noteUserGesture?.(), true);
 
   // FR-101・FR-102: 図・テキスト一覧・地図の要素のホバー／フォーカスでのプレビューと、クリック・Enter・タップでの固定のポップアップ。
   // 状態は app が持ち、ここは DOM の出来事を渡して描くだけ。入力欄・ドラッグ・スクロール中はプレビューを出さない（AC-594）。
