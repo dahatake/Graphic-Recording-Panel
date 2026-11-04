@@ -220,11 +220,12 @@ test('FR-076 AC-670: 黄黒手書き風は区画の枠を雲形で描く項目�
 });
 
 // FR-076 AC-670 / NFR-UX-012 AC-466 / FR-075 AC-407: 書体の名前と並び、同梱しない
-test('FR-076 AC-670 AC-407: Yomogi・Zen Kurenaido・Kaisei Decol は Yu Gothic UI の直後に並び、書体のファイルを同梱しない', () => {
+test('FR-076 AC-670 AC-407: Yomogi・Zen Kurenaido・Kaisei Decol は欧文専用の書体の直後・Yu Gothic UI の直前に並び、書体のファイルを同梱しない', () => {
   const names = FONT_STACKS.handwriting.map((f) => f.name);
   const yu = names.indexOf(JP_FONT);
-  assert.deepEqual(names.slice(yu + 1, yu + 4), ['Yomogi', 'Zen Kurenaido', 'Kaisei Decol']);
-  assert.ok(names.slice(0, yu).every((n) => ['Segoe Print', 'Ink Free', 'Arial Rounded MT Bold'].includes(n)), 'Yu Gothic UI より前は欧文専用の書体だけ');
+  assert.deepEqual(names.slice(yu - 3, yu), ['Yomogi', 'Zen Kurenaido', 'Kaisei Decol'], 'Q-046 の回答 B（PARAM-185）');
+  assert.ok(names.slice(0, yu - 3).every((n) => ['Segoe Print', 'Ink Free', 'Arial Rounded MT Bold'].includes(n)), 'その前は欧文専用の書体だけ');
+  assert.ok(names.slice(yu + 1).every((n) => !['Yomogi', 'Zen Kurenaido', 'Kaisei Decol'].includes(n)), '3 書体は 1 回だけ');
   assert.equal(names.at(-1), 'sans-serif', '端末にないときは並びの次の書体（最後は総称の書体）');
   const web = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'web');
   const walk = (d) => readdirSync(d).flatMap((n) => { const p = join(d, n); return statSync(p).isDirectory() ? walk(p) : [p]; });
