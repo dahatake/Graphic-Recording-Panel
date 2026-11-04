@@ -660,6 +660,79 @@ test('FR-078 AC-471 異常系: 伏せ字の対象がない内容では、伏せ�
   for (const s of app.getState().scenes) for (const p of s.points) assert.ok(clipboard.writes[0].includes(p.text));
 });
 
+// FR-078 AC-420 AC-471 × AC-668 (e)・AC-680（最終監査 202611050444 C-02・C-03）: 会議ボード型の参加者名簿と .vtt の話者タグの名前は、
+// 名前を表示する設定（AC-680）・簡易マスキングの設定・注意の伏せ字の選択のどれによらず、画像生成プロンプトに入らない
+// （テキスト一覧の「参加メンバー」の行・「（発言: 名前）」の添え書きとして入らず、要点・見出しの文字に現れる名前は AC-359 と同じ伏せ字に常に置き換わる）。
+const NM_ROSTER = ['名簿IMG青木', '名簿IMG石井'];
+const NM_TAG = '話者IMG上田';
+const NM_ALL = [...NM_ROSTER, NM_TAG];
+const NM_POINTS = [{ t: NM_ROSTER[0], suf: '戊' }, { t: NM_TAG, suf: '己' }];
+async function seedNames(app, env) {
+  assert.equal(app.setLayoutTypes(['board']).ok, true, '会議ボード型');
+  assert.notEqual(app.setTitleInfo({ participants: NM_ROSTER.join('\n') })?.ok, false, '参加者名簿を入力できる');
+  app.commands['session.start']();
+  const vtt = ['WEBVTT', '', '00:00:01.000 --> 00:00:03.000', `<v ${NM_TAG}>受付の流れを振り返る</v>`, ''].join('\n');
+  assert.equal((await app.importTextFile({ name: 'names.vtt', type: 'text/vtt', size: Buffer.byteLength(vtt), text: vtt })).ok, true, '.vtt を取り込める');
+  env.tick(3);
+  NM_POINTS.forEach((x, i) => { app.setDraft(wrapT(x)); assert.equal(app.submitDraft().ok, true); env.tick(1); if (i === 0) app.commands['session.nextScene'](); });
+}
+// 簡易マスキングを無効にした LLM 連携の送信で、名前の位置に使われる伏せ字を観察する（AC-359・AC-358。中継はモック）
+async function llmNamePlaceholders() {
+  const calls = [];
+  const relay = async (req) => {
+    calls.push(req);
+    if (String(req.path).startsWith('/api/llm/status')) return { status: 200, body: { configured: { endpoint: true, deployment: true, credential: true }, endpointHost: 'example.invalid' } };
+    if (req.path === '/api/llm/extract') return { status: 200, body: { objects: [], people: [], emotions: [], metaphors: [] } };
+    return { status: 404, body: {} };
+  };
+  const { app, env } = await newApp({ options: { relay } });
+  assert.equal((await app.requestLlmEnable()).ok, true);
+  await app.answerLlmConsent(true);
+  app.setLlmMasking(false);
+  await seedNames(app, env);
+  await app.flushLlm();
+  const sent = calls.filter((c) => c.path === '/api/llm/extract').map((c) => String(c.body?.input ?? '')).join('\n');
+  const ph = {};
+  for (const x of NM_POINTS) {
+    const m = sent.match(new RegExp(`「([^」]*)」について${x.suf}`));
+    assert.ok(m, `前提: 「${x.t}」を含む要点が LLM へ送られる`);
+    assert.ok(m[1].length > 0 && !m[1].includes(x.t), `前提: 名前は簡易マスキングが無効でも AC-359 の伏せ字になる（${m[1]}）`);
+    ph[x.t] = m[1];
+  }
+  return ph;
+}
+
+test('FR-078 AC-420 AC-471: 会議ボード型の参加者名簿・話者タグの名前は、名前を表示する設定・簡易マスキングの設定・伏せ字の選択によらず画像生成プロンプトに入らず、要点・見出しの中の名前は AC-359 と同じ伏せ字に置き換わる（異常系: 伏せ字を適用しないを選んでも）', async () => {
+  const ph = await llmNamePlaceholders();
+  const { app, env, clipboard } = await appWith();
+  await seedNames(app, env);
+  app.setDetailLevel('detail'); // 内容に要点まで、文字の部分の列挙に見出しまで入れる（AC-089・AC-650）
+  assert.equal(app.getHideNames(), false, '前提: 既定は名前を表示する');
+  const svg = app.renderSvg();
+  for (const n of NM_ALL) assert.ok(svg.includes(n), `前提: 「${n}」は会議ボード型の図に載る（入らないのは表示しないからではない）`);
+  let k = 0;
+  for (const hide of [false, true]) {
+    assert.equal(app.setHideNames(hide).ok, true);
+    for (const masking of [true, false]) {
+      app.setLlmMasking(masking);
+      for (const mask of [true, false]) {
+        const r = await copyVia(app, { mask });
+        assert.equal(r.ok, true); assert.equal(r.masked, mask);
+        const T = clipboard.writes[k++];
+        const where = `名前を表示しない=${hide}・簡易マスキング=${masking}・伏せ字の選択=${mask}`;
+        assert.equal(T, app.getImagePrompt({ mask }).text, `${where}: クリップボードは getImagePrompt と同じ`);
+        for (const n of NM_ALL) assert.ok(!T.includes(n), `${where}: 名前「${n}」が画像生成プロンプトに入った`);
+        assert.ok(!/IMG/.test(T), `${where}: 名前の一部が画像生成プロンプトに入った`);
+        assert.ok(!T.includes('（発言:') && !T.includes('(発言:'), `${where}: 「（発言: 名前）」の添え書きは入らない`);
+        assert.ok(!/参加メンバー\s*[:：]/.test(T), `${where}: テキスト一覧の「参加メンバー: 名前、…」の行は入らない`);
+        for (const x of NM_POINTS) assert.ok(T.includes(`「${ph[x.t]}」について${x.suf}`), `${where}: 要点の中の「${x.t}」は AC-359 と同じ伏せ字「${ph[x.t]}」になる`);
+        const typo = sec(app.getImagePrompt({ mask }), 'typography').body;
+        for (const n of NM_ALL) assert.ok(!typo.includes(n), `${where}: 文字の部分の列挙に名前「${n}」が入らない`);
+      }
+    }
+  }
+});
+
 // FR-078 AC-473（AC-474 の外部へのリクエスト 0 件も確かめる）
 test('FR-078 AC-473: 注意で「キャンセル」を選ぶと、注意が閉じ、クリップボードは書き換えられず、メッセージは出ず、フォーカスは開く前の位置に戻り、入力中の内容・選択中のオブジェクトは失われない', async () => {
   const { app, env, clipboard } = await appWith();

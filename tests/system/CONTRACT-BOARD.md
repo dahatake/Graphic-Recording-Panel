@@ -40,6 +40,7 @@
 - 座標は SVG の座標と同じ単位。`elements` はその区画の中に置かれた要素（リストの行・吹き出し・人物・表・矢印・絵記号・番号バッジなど）の**現在の表示位置**の外枠。
 - `id` は図全体で一意で、同じ要素なら取込の前後で同じ（要点から作る要素は要点 id から決める）。
 - 表と行のような親子は、子に `parent: <親の id>` を付ける（親子の包含は AC-430 (c) の重なりに含めない）。それ以外の 2 つの要素の外枠は重ならない。
+- 区画の高さ（AC-669。2026-11-05 最終監査 202611050444 C-01）: 同じ横の並び（`frame.y` が同じ区画）の `frame.h` は揃う。空きを PARAM-186 行以下とする規定は、各横並びで最も中身の高い区画にだけ当てる（その区画の最後の要素の下端から枠の内側の下端までが PARAM-186 行分以下。見出し・枠の内側の余白を除く）。並びのほかの区画（要点 0 件の区画を含む）は並びの高さに合わせて広がってよい。並びのすべての区画で要点が 0 件のときは、見出しと PARAM-186 行分の空きだけの高さ。
 
 ## 時間（アニメーション。AC-669・AC-667 (f)）
 - 要素の現在の表示位置は `options.now()` の時刻で決まる。位置が変わる要素は、移動の開始時刻から {PARAM-181}=600 ミリ秒以内に新しい位置へ着き、その間の時刻では途中の位置（古い位置と新しい位置の間）を返す。タイマーを使う実装は `options.scheduler.setTimeout` を使う（テストは `now` と `scheduler.advance` を同じ量だけ進める）。
@@ -67,10 +68,12 @@
 - 参加者名簿の入力: `app.setTitleInfo({ participants })`。`participants` は 1 行に 1 名の文字列（`\n` 区切り。配列も可）。既存の `theme`・`speaker` などの項目と同じ呼び出しで、渡さなかった項目は変えない。戻り値は `{ ok }`。`app.getTitleInfo().participants` は入力した文字列を返す。
 - 名前の文字は `<text data-board-name="participant">`（参加メンバーの区画の名前。`members` の区画の中に、人物（`data-board-part="person"`）と組で、並びの順に文書の順で置く）と `<text data-board-name="speaker">`（議論の流れのステップの人物の名前）で描く。
 - PNG（`canvasFactory` の `fillText`）・SVG・PDF（`/ActualText`）の保存にも、画面の図に載る名前を同じく含める（CONTRACT.md の書き出しの規則に名前の文字を加える）。テキスト一覧（`renderOutline()`）には AC-668 (d) の「参加メンバー: 名前、…」の行と「（発言: 名前）」を載せる。
-- 名前は LLM への送信（`options.relay` に渡す要求の全体）と `getImagePrompt()` の文字に含めない。
+- Markdown の保存（`save.markdown`。AC-529。2026-11-05 最終監査 202611050444 C-02）は名前の掲載がテキスト一覧と一致する: 名前を表示する間（`getHideNames() === false`）は、テキスト一覧と同じ「参加メンバー: 名前、…」の行と「（発言: 名前）」の添え書きが載る（行の頭の Markdown の記号を除いた文字が一覧の行と同じ）。オンのときと会議ボード型以外の型では載らない。
+- 名前は LLM への送信（`options.relay` に渡す要求の全体）と `getImagePrompt()` の文字に含めない。`getImagePrompt({ mask })` は `mask` の値・名前を表示する設定（`getHideNames()`）・簡易マスキングの設定（`getLlmMasking()`）のどれによらず、「参加メンバー」の行・「（発言: 名前）」の添え書きを入れない（FR-078・AC-420）。
+- 要点・見出しの文字の中に現れる参加者名簿と話者タグの名前は、簡易マスキングの設定（`setLlmMasking(false)` でも）と注意の伏せ字の選択（`mask:false` でも）によらず、LLM へ送る前（`/api/llm/extract` の `body.input`）と `getImagePrompt()`（内容と文字の部分の列挙）で、常に AC-359 と同じ伏せ字に置き換える（要点ごと除くのではない。AC-358・AC-359・AC-471・AC-668 (e)。最終監査 202611050444 C-03）。
 
 ## 名前を表示しない（AC-680。2026-11-05 追加）
 - `app.getHideNames()` → 真偽値（既定 `false`＝名前を表示する）。`app.setHideNames(on)` → `{ ok }`。`on` が真偽値でないときは `{ ok:false }` で、直前の値を保つ。
 - ［設定］の項目 `board.hideNames`（`getSettingsDialog().fields` の `{ id:'board.hideNames', value:<真偽値>, label }`。ラベルは PARAM-011 以内で表示言語に従う）。コマンド `settings.hideNames` は［設定］を開いてこの項目にフォーカスし（`getSettingsDialog().focusedField === 'board.hideNames'`）、`handleKey({ key: ' ' })` で切り替わる。
 - 値は端末ごとの設定（`options.storage`）に保存され、再生成（再読込）後も保たれ、`data.reset`・`loadSessionFile` では変わらず、セッションファイルに含めない（`hideNames` などの項目名も出さない）。
-- オンのとき、`data-board-name` の文字を図・テキスト一覧・PNG・SVG・PDF のどれにも出さない（人物の絵記号は残す）。名簿の入力と話者タグの名前の保持は消さない。
+- オンのとき、`data-board-name` の文字を図・テキスト一覧・PNG・SVG・PDF・Markdown のどれにも出さない（人物の絵記号は残す）。名簿の入力と話者タグの名前の保持は消さない。切り替えの値によらず、LLM への送信と `getImagePrompt()` に名前は入らない（上の「人物の名前」）。
