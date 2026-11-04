@@ -130,6 +130,9 @@ test('FR-001 AC-067 NFR-PRIV-001 AC-034: remote は同意の操作なしで proc
   assert.equal('processLocally' in sp.startCalls[0], false);
   assert.equal(app.getSpeechStatus().state, 'consent');
   assert.equal(app.getSpeechStatus().reason, null);
+  // FR-001 AC-069: 文言は「使えます（外部送信の可能性）」で、「要同意」「同意待ち」を出さない
+  assert.equal(app.getSpeechStatus().text, '使えます（外部送信の可能性）');
+  assert.ok(!/要同意|同意待ち/.test(app.getSpeechStatus().text));
   assert.equal(app.setSpeechConsent, undefined);
   assert.ok(!/consent/i.test(storage.dump()));
 });
