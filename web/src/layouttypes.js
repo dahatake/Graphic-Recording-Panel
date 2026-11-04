@@ -1,8 +1,8 @@
 // FR-027 レイアウト型の登録構造（共通部品「レイアウト型レジストリ」）。DOM に依存しない。
-// 5 つの型（タイムライン・吹き出し・発散・区画・比喩テンプレート）を登録し、型ごとの配置（layout）を差し替えられる。
+// 7 つの型（タイムライン・吹き出し・発散・区画・比喩テンプレート・ワークショップホワイトボード・会議ボード）を登録し、型ごとの配置（layout）を差し替えられる。
 // 型ごとの実装（FR-031〜035 など）は registry.register(id, { layout }) で足す。未実装の型は暫定でタイムラインの配置にフォールバックする。
 
-export const LAYOUT_TYPE_IDS = ['timeline', 'bubble', 'diverge', 'zone', 'metaphor', 'workshop'];
+export const LAYOUT_TYPE_IDS = ['timeline', 'bubble', 'diverge', 'zone', 'metaphor', 'workshop', 'board'];
 export const DEFAULT_LAYOUT_TYPE = 'timeline';
 
 // 名称ラベル（ja は全角換算 6 以内・en は半角 12 以内。型ごとに異なる）・ツールチップ・コマンド検索用の名称。
@@ -37,6 +37,12 @@ export const LAYOUT_TYPE_META = {
     icon: 'M3 3h14v10H3zM6 16l2-3M14 16l-2-3M6 6h3v3H6zM11 6h3M11 9h3',
     ja: { label: 'ボード', tip: '手描き風のホワイトボードに、番号付きの場面と未解決の問いを並べるワークショップ型で図を描きます', cmd: 'ワークショップホワイトボード型にする' },
     en: { label: 'Workshop', tip: 'Draw the diagram as a hand-drawn workshop whiteboard with numbered stages and open questions', cmd: 'Use the workshop whiteboard layout' },
+  },
+  // FR-114: 会議ボード（タイトル帯と 9 つの区画の骨格に、要点を区画ごとの部品で描き足す）。自動選択（FR-028）では選ばれない
+  board: {
+    icon: 'M2 2h16v4H2zM2 8h7v4H2zM11 8h7v10h-7zM2 14h7v4H2z',
+    ja: { label: '会議ボード', tip: 'タイトル帯と、目的・決定事項・未決事項・次アクションなどの区画に、会議の要点を振り分けて描く会議ボード型で図を描きます', cmd: '会議ボード型にする' },
+    en: { label: 'Meeting', tip: 'Draw the diagram as a meeting board: a title band and sections such as purpose, decisions, open issues and next actions', cmd: 'Use the meeting board layout' },
   },
 };
 

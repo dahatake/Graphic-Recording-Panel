@@ -62,10 +62,10 @@ test('FR-029 AC-147: 手書き調は揺らぎがあり同じ入力から同じ�
   assert.match(env.downloads.at(-1).data, /data-draw-style="anime"/);
 });
 
-// FR-027 AC-139〜141: レジストリ（未実装の型はタイムライン相当）
-test('FR-027 AC-139: 6 つの型が登録され、未実装の型はタイムライン相当の配置にフォールバックし、型の実装を足せる', () => {
+// FR-027 AC-139〜141: レジストリ（未実装の型はタイムライン相当）。FR-114 の追加後は 7 つの型
+test('FR-027 AC-139: 7 つの型（FR-114 の追加後）が登録され、未実装の型はタイムライン相当の配置にフォールバックし、型の実装を足せる', () => {
   const reg = createLayoutTypeRegistry();
-  assert.deepEqual(reg.ids(), ['timeline', 'bubble', 'diverge', 'zone', 'metaphor', 'workshop']);
+  assert.deepEqual(reg.ids(), ['timeline', 'bubble', 'diverge', 'zone', 'metaphor', 'workshop', 'board']);
   for (const id of LAYOUT_TYPE_IDS) { assert.equal(reg.isImplemented(id), false); assert.equal(reg.layoutFor(id), timelineLayout); }
   const impl = () => ({ marker: 1 });
   assert.deepEqual(reg.register('zone', { layout: impl }), { ok: true });
