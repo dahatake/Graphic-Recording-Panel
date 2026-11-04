@@ -22,16 +22,18 @@ export const TRADITIONAL = {
   gothic: ['BIZ UDPGothic', 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', 'Noto Sans JP', 'sans-serif'],
 };
 
-// FR-076 AC-670: 手書き風の系統の並びに Yomogi・Zen Kurenaido・Kaisei Decol を、NFR-UX-012（AC-466）の位置
-// （Yu Gothic UI の後の、日本語の字形を持ち得る書体の先頭）にこの順で含める。従来の並びにあった同名の書体はそこへ移す（重複させない）。
-// TRADITIONAL（記録）は変えず、期待の並びの側で足す。
-export const JP_HEAD = { handwriting: ['Yomogi', 'Zen Kurenaido', 'Kaisei Decol'] };
+// PARAM-185（Q-046 の回答 B 2026-11-05）: 手書き風の系統で Yu Gothic UI より前に置く手書き風の日本語の書体（この順）
+export const PARAM_185 = ['Yomogi', 'Zen Kurenaido', 'Kaisei Decol'];
+// FR-076 AC-670・AC-466 の例外・AC-407・AC-408: 手書き風の系統の並びでは、PARAM-185 の書体を
+// 欧文専用の書体の直後・Yu Gothic UI の直前にこの順で置く。従来の並びにあった同名の書体はそこへ移す（重複させない）。
+// PARAM-185 以外の日本語の字形を持ち得る書体は Yu Gothic UI より前に置かない。TRADITIONAL（記録）は変えず、期待の並びの側で足す。
+export const JP_HEAD = { handwriting: PARAM_185 };
 
-// NFR-UX-012 の並び: 従来の並びにあった欧文専用の書体（従来の順）→ Yu Gothic UI → 従来の並びの残り（従来の順）
-// head: Yu Gothic UI の直後に置く日本語の字形を持ち得る書体（AC-670）
+// NFR-UX-012 の並び: 従来の並びにあった欧文専用の書体（従来の順）→ [head] → Yu Gothic UI → 従来の並びの残り（従来の順）
+// head: 欧文専用の書体の直後・Yu Gothic UI の直前に置く日本語の字形を持ち得る書体（手書き風の系統の PARAM-185。AC-466 の例外）
 export function expectedStack(traditional, head = []) {
   const t = traditional.filter((n) => n !== YU && !head.includes(n));
-  return [...t.filter(isLatinOnly), YU, ...head, ...t.filter((n) => !isLatinOnly(n))];
+  return [...t.filter(isLatinOnly), ...head, YU, ...t.filter((n) => !isLatinOnly(n))];
 }
 // 書体の系統（handwriting・roundGothic・gothic）の期待の並び（AC-466・AC-407・AC-670）
 export const expectedFamilyStack = (family) => expectedStack(TRADITIONAL[family], JP_HEAD[family] || []);
@@ -40,11 +42,15 @@ export const allowedFamilyNames = (family) => [YU, ...TRADITIONAL[family], ...(J
 
 const norm = (n) => String(n).trim();
 // 規則の確認（AC-465・AC-466）: Yu Gothic UI があり、それより前は欧文専用の書体だけ
-export function assertJpOrder(list, where) {
+// head（手書き風の系統の PARAM-185。AC-466 の例外）を渡したときは、Yu Gothic UI の直前に head がこの順で連続して並び、
+// その前は欧文専用の書体だけであることを求める（head 以外の日本語の字形を持ち得る書体は Yu Gothic UI より前に置かない）。
+export function assertJpOrder(list, where, head = []) {
   const names = list.map(norm);
   const i = names.indexOf(YU);
   assert.ok(i >= 0, `${where}: 書体の指定に Yu Gothic UI がある: ${names.join(', ')}`);
-  for (const n of names.slice(0, i)) assert.ok(isLatinOnly(n), `${where}: Yu Gothic UI より前は欧文専用の書体（PARAM-093）だけ。「${n}」は日本語の字形を持ち得る: ${names.join(', ')}`);
+  const h = head.length;
+  if (h) assert.deepEqual(names.slice(Math.max(0, i - h), i), head, `${where}: Yu Gothic UI の直前に ${head.join('→')}（PARAM-185。欧文専用の書体の直後）: ${names.join(', ')}`);
+  for (const n of names.slice(0, i - h)) assert.ok(isLatinOnly(n), `${where}: Yu Gothic UI より前は欧文専用の書体（PARAM-093）${h ? 'と PARAM-185 ' : ''}だけ。「${n}」は日本語の字形を持ち得る: ${names.join(', ')}`);
   assert.equal(names.filter((n) => n === YU).length, 1, `${where}: Yu Gothic UI は 1 回`);
   return i;
 }

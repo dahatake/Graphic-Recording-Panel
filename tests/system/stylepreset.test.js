@@ -11,26 +11,30 @@ import {
   rgb, lum, contrast, isYellow, isBlack, isGray, isBlackOrGray, isWhite, isNeutral,
   parseSvg, box, overlapArea, descendants, median, fontList, svgTextSet, presetIds, seededApp, usePreset, pointsOf, stateTexts,
 } from './stylepreset-util.js';
-import { YU, TRADITIONAL, expectedStack, expectedFamilyStack, assertJpOrder } from './jpfont-util.js';
+import { YU, TRADITIONAL, JP_HEAD, PARAM_185, expectedStack, expectedFamilyStack, assertJpOrder } from './jpfont-util.js';
 
 const YB = '黄黒手書き風';
 // 感情語を含むトピックの吹き出し（data-balloon-kind="emotion"。AC-467 で詳しく確かめる。Q-026 A の data-emotional="true" も同じ扱い）と通常の吹き出し
 const isEmotionBalloon = (b) => b.attrs['data-balloon-kind'] === 'emotion' || b.attrs['data-emotional'] === 'true';
 const emotionBalloons = (doc) => doc.role('balloon').filter(isEmotionBalloon);
 const normalBalloons = (doc) => doc.role('balloon').filter((b) => !isEmotionBalloon(b));
-// 書体の系統の並び（AC-407・AC-408）: Yu Gothic UI の前（欧文専用の書体）と後（日本語の字形を持ち得る書体）のそれぞれで系統の順を保つ（AC-466）
+// 書体の系統の並び（AC-407・AC-408）: 欧文専用の書体・（手書き風の系統の）PARAM-185・Yu Gothic UI の後（日本語の字形を持ち得る書体）の
+// それぞれの中で系統の順を保つ（AC-466。手書き風の系統は PARAM-185 を欧文専用の書体の直後・Yu Gothic UI の直前に置く例外。Q-046 B）
 function assertKindOrder(stack, family, where) {
-  const i = assertJpOrder(stack.map((f) => f.name), where);
-  const latin = stack.slice(0, i).map((f) => `${f.kind} `).join('');
+  const head = JP_HEAD[family] || [];
+  const i = assertJpOrder(stack.map((f) => f.name), where, head);
+  const latin = stack.slice(0, i - head.length).map((f) => `${f.kind} `).join('');
+  const mid = stack.slice(i - head.length, i).map((f) => `${f.kind} `).join('');
   const jp = stack.slice(i + 1).map((f) => f.kind).join(' ');
   if (family === 'handwriting') {
     assert.match(latin, /^(handwriting )*(roundGothic )*$/, `${where}: 欧文専用の書体の中で手書き風→丸ゴシック: ${latin}`);
-    assert.match(jp, /^(handwriting )+(roundGothic )+generic$/, `${where}: 手書き風（Yomogi・Zen Kurenaido・Kaisei Decol が先頭。AC-670）→丸ゴシック→標準: ${jp}`);
+    assert.match(mid, /^(handwriting ){3}$/, `${where}: PARAM-185（Yomogi・Zen Kurenaido・Kaisei Decol）は手書き風の書体: ${mid}`);
+    assert.match(jp, /^(handwriting )*(roundGothic )+generic$/, `${where}: Yu Gothic UI の後は手書き風→丸ゴシック→標準: ${jp}`);
   } else if (family === 'roundGothic') {
     assert.match(latin, /^(roundGothic )*$/, `${where}: 欧文専用の書体は丸ゴシック: ${latin}`);
     assert.match(jp, /^(roundGothic )+generic$/, `${where}: 丸ゴシック→標準: ${jp}`);
   }
-  assert.deepEqual(stack.map((f) => f.name), expectedFamilyStack(family), `${where}: 従来の並びの欧文専用の書体→Yu Gothic UI→残り（NFR-UX-012）`);
+  assert.deepEqual(stack.map((f) => f.name), expectedFamilyStack(family), `${where}: 従来の並びの欧文専用の書体→（手書き風は PARAM-185）→Yu Gothic UI→残り（NFR-UX-012・AC-466 の例外）`);
 }
 const GOLDEN = path.join(ROOT, 'tests', 'system', 'golden', 'fr075-legacy');
 const nl = (s) => String(s).replace(/\r\n/g, '\n');
@@ -145,13 +149,18 @@ test('FR-076 AC-408: 黄黒手書き風の見出しは黒い帯に白抜き、�
   }
 });
 
-test('FR-076 AC-408: 黄黒手書き風の文字は太めで、書体の指定は手書き風→丸ゴシック→端末の標準の書体の順の並び（日本語の字形は Yu Gothic UI を先に）', async () => {
+test('FR-076 AC-408: 黄黒手書き風の文字は太めで、書体の指定は手書き風の系統の並び（欧文専用の書体→PARAM-185 の手書き風の日本語の書体→Yu Gothic UI→残り）', async () => {
   const { app, ids } = await seededApp();
   const { doc } = usePreset(app, ids, YB);
   for (const t of doc.texts()) assert.ok(weightOf(t) >= 600, `文字「${t.text}」は太め: ${t.attrs['font-weight']}`);
   const stack = app.getFontStacks().handwriting;
   assertKindOrder(stack, 'handwriting', '黄黒手書き風の書体の並び');
-  assert.ok(stack.findIndex((f) => f.name === YU) < stack.findIndex((f) => f.kind === 'handwriting' && !['Segoe Print', 'Ink Free'].includes(f.name)), '日本語の字形は Yu Gothic UI が手書き風の日本語の書体より先');
+  // Q-046 B（AC-408・AC-466 の例外）: 手書き風の日本語の書体（PARAM-185）が Yu Gothic UI より先で、欧文専用の書体の直後
+  const names = stack.map((f) => f.name);
+  const iYu = names.indexOf(YU);
+  assert.deepEqual(names.slice(iYu - 3, iYu), PARAM_185, '手書き風の日本語の書体（Yomogi→Zen Kurenaido→Kaisei Decol）が Yu Gothic UI の直前');
+  for (const n of PARAM_185) assert.ok(names.indexOf(n) < iYu, `${n} は Yu Gothic UI より先`);
+  assert.ok(names.slice(0, iYu - 3).every((n) => ['Segoe Print', 'Ink Free', 'Arial Rounded MT Bold', 'Segoe UI', 'Segoe UI Variable'].includes(n)), `PARAM-185 の前は欧文専用の書体だけ: ${names.join(', ')}`);
   assert.equal(doc.root.attrs['data-font-kind'], 'handwriting');
   assert.deepEqual(fontList(doc.root.attrs['font-family']), stack.map((f) => f.name), '図の書体の指定はその並び');
 });
