@@ -2,8 +2,8 @@
 // 期待値は受入基準だけから決める。実装がなければ失敗するのが正常（not_run → 実装後に pass）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FakeStorage, CJK } from './helpers.js';
-import { P, T, arrangeApp, say, toDetail } from './rearrange-util.js';
+import { FakeStorage, CJK, PARAM } from './helpers.js';
+import { P, T, arrangeApp, say, toDetail, elements, startLive, LIVE_SEC } from './rearrange-util.js';
 
 const weight = (s) => [...s].reduce((n, ch) => n + (CJK.test(ch) ? 1 : 0.5), 0);
 const field = (app) => app.getSettingsDialog()?.fields.find((f) => f.id === 'arrange.interval');
@@ -46,9 +46,16 @@ test('FR-080 AC-436: 周期を変更した時点から新しい周期で数え�
   const { app, env, scheduler } = await arrangeApp();
   toDetail(app);
   app.commands['session.start']();
+  // FR-014 AC-521・FR-080 AC-435（依頼 2026-11-05）: ライブの要素は受付の後の最初の更新間隔の時点に加わる。
+  // 更新の時点（記録の開始から 8 秒・16 秒）が、変更前の周期の時点（10 秒）より前・変更後の周期の時点（12 秒・17 秒）の
+  // 間に来るように、更新間隔を 8 秒（PARAM-098〜099 の範囲内）にする。10 秒の時点では要素が図にあるので、変更前の周期で
+  // 数える誤りは「10 秒の時点で再配置される」として検出できる。
+  assert.equal(app.setLiveInterval(8).ok, true, '更新間隔 8 秒を受け付ける');
   scheduler.advanceTo(7000);
   assert.equal(app.setArrangeInterval(5).ok, true);
   say(env, T.plain1);
+  scheduler.advanceTo(8000);
+  assert.ok(elements(app).some((x) => x.kind === 'point'), '更新の時点（8 秒）で要素が図に加わっている');
   scheduler.advanceTo(10_000); // 変更前の周期の時点（起動から 10 秒）
   assert.equal(count(app), 0, '変更前の周期の時点では再配置されない');
   scheduler.advanceTo(11_999);
@@ -66,7 +73,7 @@ test('FR-080 AC-436: 周期を変更した時点から新しい周期で数え�
 test('FR-080 AC-436 異常系: 範囲外・整数でない・空の値は受け付けられず、理由が示され、直前の値と数え方が保たれる', async () => {
   const { app, env, scheduler } = await arrangeApp();
   toDetail(app);
-  app.commands['session.start']();
+  startLive(app); // 更新間隔 5 秒（PARAM-098）: ライブの要素は 5 秒の時点で図に加わり、再配置の時点（10 秒）と重ならない（AC-521）
   app.commands['settings.open']();
   scheduler.advanceTo(3000);
   say(env, T.plain1);
@@ -81,6 +88,8 @@ test('FR-080 AC-436 異常系: 範囲外・整数でない・空の値は受け�
     const msg = app.getState().message?.text ?? '';
     assert.ok(msg.trim(), `値 ${String(v)} の理由が示される`);
   }
+  scheduler.advanceTo(LIVE_SEC * 1000);
+  assert.equal(count(app), 0, '更新の時点では再配置されない');
   scheduler.advanceTo(10_000); // 数え直されていない（起動から 10 秒の時点で再配置）
   assert.equal(count(app), 1, '受け付けなかった入力で周期の数え方は変わらない');
 });
@@ -219,7 +228,9 @@ test('FR-080 AC-440: 設定の変更の結果は読み上げ対象のメッセ�
   assert.ok(msg && msg.text.includes(app.getArrangeInterval().text), '変更の結果（新しい周期）がメッセージに出る');
   assert.equal(app.getCommandBar().status.role, 'status');
   scheduler.advanceTo(1000); say(env, T.plain1);
-  scheduler.advanceTo(2000);
+  // ライブの要素は受付の後の最初の更新間隔の時点（既定 PARAM-100＝10 秒）に加わる（AC-521）。その後・周期の時点（15 秒）の前に控える
+  scheduler.advanceTo(PARAM.LIVE_DEFAULT_SEC * 1000 + 500);
+  assert.equal(count(app), 0, '周期の時点の前');
   const before = JSON.stringify(app.getState().message); const c0 = count(app);
   scheduler.advanceTo(15_000);
   assert.equal(count(app), c0 + 1, '周期の時点で再配置された');

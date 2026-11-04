@@ -1,9 +1,12 @@
 // NFR-BG-001 AC-063 AC-064 AC-065（System Test。契約: tests/system/CONTRACT.md「バックグラウンド動作の継続」）
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { newApp, FakeVisibility, toDetail } from './helpers.js';
+import { newApp, FakeVisibility, toDetail, PARAM } from './helpers.js';
 
 const BG_MS = 2 * 1000; // PARAM-008
+// FR-014 AC-521・FR-080 AC-435（依頼 2026-11-05）: ライブの確定結果は、受付の後の最初の更新間隔の時点に図へまとめて加わる
+// （受付から設定した更新間隔以内。既定 PARAM-100＝10 秒）。疑似時計を更新間隔ぶん進めて、その時点を越えてから確かめる。
+const LIVE_MS = PARAM.LIVE_DEFAULT_SEC * 1000;
 const startRec = (app) => { app.commands['session.start'](); app.startSpeech(); };
 async function boot(over = {}) {
   const vis = new FakeVisibility();
@@ -22,6 +25,10 @@ test('NFR-BG-001 AC-063: 記録中に非表示になっても確定結果が発�
   env.tick(5);
   env.speech.emit('非表示中の発言その一');
   env.speech.emit('非表示中の発言その二');
+  // 発話としての記録は受付の時点（非表示の間も）
+  assert.deepEqual(app.getState().utterances.map((u) => u.text), ['最初の発言です', '非表示中の発言その一', '非表示中の発言その二']);
+  // 非表示のまま、受付の後の最初の更新間隔の時点を越える（非表示の間もシーンと要点に反映され続ける）
+  env.scheduler.advance(LIVE_MS);
   const st = app.getState();
   assert.equal(st.session, 'recording');
   assert.deepEqual(st.utterances.map((u) => u.text), ['最初の発言です', '非表示中の発言その一', '非表示中の発言その二']);
@@ -57,6 +64,7 @@ test('NFR-BG-001 AC-063 異常系: 一時停止中は非表示の間に届いた
   app.commands['session.pause']();
   vis.set(true);
   env.speech.emit('記録されない発言');
+  env.scheduler.advance(LIVE_MS); // 更新間隔の時点を越えても加わらないこと（短い待ちだけでは無条件に通るため）
   vis.set(false);
   env.scheduler.advance(BG_MS);
   assert.deepEqual(app.getState().utterances.map((u) => u.text), ['記録される発言']);
