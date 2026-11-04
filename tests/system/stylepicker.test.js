@@ -404,7 +404,8 @@ test('FR-077 AC-419: 上部で選んだ描画スタイルが PNG・SVG・PDF の
   for (const id of presets(app)) {
     const r = await saveAll(app, env, cv, id);
     assert.equal(r.svg.mime, 'image/svg+xml');
-    assert.equal(r.svg.data, r.screen, `${id}: 保存した SVG は画面の図と同じ（紙面・配色・見出しの飾り・吹き出しを含む）`);
+    // FR-096 AC-561・562: 保存した SVG にだけ <desc>（説明文）が加わる。それ以外は画面の図と同一
+    assert.equal(r.svg.data.replace(/<desc>[\s\S]*?<\/desc>/, ''), r.screen, `${id}: 保存した SVG は画面の図と同じ（紙面・配色・見出しの飾り・吹き出しを含む。<desc> を除く）`);
     assert.match(r.svg.data, new RegExp(`data-draw-style="${id}"`));
     assert.notEqual(r.svg.data, base.svg.data, `${id}: 手書き調と異なる SVG`);
     const svgTexts = [...r.svg.data.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)].map((m) => m[1].replace(/<[^>]+>/g, '')).join('');
