@@ -346,3 +346,48 @@ test('FR-114 AC-669 FR-115 AC-673: 会議ボード型の animations はショー
     assert.deepEqual(app.getBoardModel().animations, [], '終われば空');
   }
 });
+
+// ---- FR-014 との結合（ライブの更新間隔 'live:tick'） ----
+// FR-115 AC-675（FR-014 AC-521 と結合）: ライブの 1 回の描き足しでまとめて加わった要素は 1 つの演目として読み順に描かれ、
+// 演目は次の描き足しの前に終わる（次の描き足しの時点で前の演目が残らない）。描き足しの前は演目が始まらない。
+test('FR-115 AC-675 FR-014 AC-521: 1 回のライブの描き足し（live:tick）で加わった要素は 1 つの演目になり、次の描き足しの前に終わる', async () => {
+  const T = 5;
+  const { app, env } = await detailApp();
+  const adv = (ms) => { for (let k = 0; k < ms; k += 20) { env.tick(Math.min(20, ms - k) / 1000); env.scheduler.advance(Math.min(20, ms - k)); } };
+  assert.equal(app.setLiveInterval(T).ok, true);
+  add(app, '最初の発話です'); adv(1000); app.renderSvg();
+  app.setLiveShow(true); app.renderSvg();
+  app.startSpeech();
+  const ticks = []; app.on('live:tick', (e) => ticks.push(e));
+  const pointIds = () => app.getState().scenes.flatMap((s) => s.points.map((p) => p.id));
+  const waitTick = (n0, limit) => { const t0 = env.now(); while (ticks.length === n0) { adv(20); assert.ok(env.now() - t0 <= limit, '更新が来ない'); } return env.now(); };
+  let before = new Set(pointIds());
+  const say3 = (round) => { env.speech.emit(`予算の見直しを話す${round}`, true); adv(1000); env.speech.emit(`来月の計画を決める${round}`, true); adv(1000); env.speech.emit(`担当者を割り当てる${round}`, true); };
+  say3(1);
+  assert.equal(app.getLiveShowStatus().plan, null, '描き足しの前は演目が始まらない');
+  let at = waitTick(0, T * 1000 + 100);
+  for (let round = 1; round <= 3; round++) {
+    const tick = ticks[ticks.length - 1];
+    assert.equal(tick.count, 3, `${round}: 3 件をまとめて取り込む`);
+    const p = app.getLiveShowStatus().plan;
+    assert.ok(p, `${round}: 描き足しの時点で演目が始まる`);
+    assert.equal(p.refresh, tick.refresh, `${round}: 演目はその描き足しの 1 回に対応する`);
+    const added = pointIds().filter((id) => !before.has(id));
+    assert.ok(added.length >= 3);
+    const keys = p.units.map((u) => u.key);
+    for (const id of added) assert.ok(keys.includes(`data-point-id=${id}`), `${round}: ${id} は同じ演目に入る`);
+    assert.ok(p.total <= T * 1000 * SHOW_LIMITS.budgetRatio + 1e-6, `${round}: ${p.total} <= ${T * 800}`);
+    before = new Set(pointIds());
+    // 次の描き足しまでの間に次の発話が届くが、演目は増えない。次の描き足しの前（T 秒より手前）に演目は終わっている
+    say3(round + 1);
+    adv(T * 1000 - 100 - (env.now() - at));
+    assert.equal(ticks.length, round, `${round}: まだ次の更新の前`);
+    assert.equal(app.getLiveShow().running, false, `${round}: 次の更新の前に演目が終わる`);
+    assert.equal(app.getLiveShowStatus().plan, null);
+    const s = app.getLiveShow();
+    for (const it of s.items) assert.equal(it.phase, 'done', `${round}: ${it.id} は描き終えている`);
+    assert.ok(!SHOW_RE.test(app.renderSvg()), `${round}: 演出の要素が残らない`);
+    if (round < 3) at = waitTick(round, 300);
+  }
+  assert.equal(app.getLiveShowStatus().refreshCount, ticks.length);
+});

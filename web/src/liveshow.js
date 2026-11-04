@@ -530,6 +530,9 @@ export function liveShowModule(ctx) {
 
   // 図の元の SVG（同じ描画の版数なら作り直さない）と、更新の検出（前回の SVG から加わった・動いた要素があれば計画を作る）
   let baseRv = null; let instant = null;
+  // 同じ同期の処理（1 回の描き足し・取込）を表す番号。マイクロタスクで閉じる
+  let turn = 0; let turnOpen = false;
+  const openTurn = () => { if (!turnOpen) { turnOpen = true; turn++; Promise.resolve().then(() => { turnOpen = false; }); } return turn; };
   const baseNow = () => {
     const rv = api.getRenderVersion?.();
     if (lastBase != null && rv != null && (rv === tickRV || rv === baseRv)) return lastBase;
@@ -545,7 +548,8 @@ export function liveShowModule(ctx) {
         const changed = parsed.units.some((u) => { const w = snap.get(u.key); return !w || (w.anchor && u.anchor && Math.hypot(w.anchor[0] - u.anchor[0], w.anchor[1] - u.anchor[1]) > MOVE_EPS); });
         if (changed) {
           // 同じ時点の続けての変更（一度の更新・取込で加わる複数の発話）は 1 回の演出にまとめる（まだ何も進んでいない計画を作り直す）
-          const merge = plan && plan.t0 === now() && fired === 0 ? plan.from : null;
+          // （ライブの描き足し 'live:tick' は flushHeld → 再配置 → 通知 が同期で続くので、同じ同期の処理の中の変更もまとめる。AC-675）
+          const merge = plan && fired === 0 && (plan.t0 === now() || (turnOpen && plan.turn === turn)) ? plan.from : null;
           if (plan && !merge) finish(); // 前の演出は最後の状態へ収束させてから新しい演出を始める
           const from = merge ?? snap;
           const p = planShow(from, parsed, { intervalMs: intervalMs() });
@@ -565,7 +569,8 @@ export function liveShowModule(ctx) {
               Promise.resolve().then(() => { if (state.message?.text !== text && instant?.n === n) say(); });
             }
           } else if (p.total > 0) {
-            plan = { ...p, t0: now(), from }; plan.cues = eventsOf(plan); fired = 0; lastPlan = null; arm(); // 出来事は時計（tick）で起こす
+            const t0 = merge ? plan.t0 : now(); const refresh = merge ? plan.refresh : null;
+            plan = { ...p, t0, from, turn: openTurn(), refresh }; plan.cues = eventsOf(plan); fired = 0; lastPlan = null; arm(); // 出来事は時計（tick）で起こす
           } else plan = null;
         }
       }
@@ -574,8 +579,17 @@ export function liveShowModule(ctx) {
     return S;
   }
   // 状態の変更の時点で検出する（描画を待たない。演出の始まりは更新の時点）
-  // 状態の変更の時点で検出する（描画を待たない。演出の始まりは更新の時点）
   ctx.on('change', () => { if (on && !saving && !selfEmitting) detect(true); });
+  // FR-014 との結合（AC-675・AC-521）: ライブの 1 回の描き足し（'live:tick' {count, refresh}）でまとめて加わった要素を 1 つの演目として順に描く。
+  // 演目の合計は更新間隔の PARAM-182 の割合以内（planShow の予算）なので、次の描き足しの前に終わる。次の描き足しが来たときに前の演目が
+  // 残っていれば（時計が飛んだときなど）、最後の状態へ収束させてから新しい演目を始める（detect の finish）。
+  let refreshCount = 0; let lastRefresh = null;
+  ctx.on('live:tick', (e) => {
+    refreshCount++; lastRefresh = { refresh: e?.refresh ?? refreshCount, count: e?.count ?? 0 };
+    if (!on || saving) return;
+    detect(true);
+    if (plan && turnOpen && plan.turn === turn) plan.refresh = lastRefresh.refresh;
+  });
 
   const baseRender = api.renderBaseSvg;
   api.renderBaseSvg = () => {
@@ -649,8 +663,8 @@ export function liveShowModule(ctx) {
   // 会議ボード型の出現・移動の演出（AC-669）を置き換えるか（決定 C-01）。動きを減らす設定では、どちらも動きなし
   api.isLiveShowDriving = () => on && !reduced();
   api.getLiveShowStatus = () => ({
-    on, running: isRunning(), instantCount, lastCount,
-    plan: plan ? { total: plan.total, budget: plan.budget, scale: plan.scale, fresh: plan.fresh, moved: plan.moved, units: plan.units.map((u) => ({ ...u })), carries: plan.carries.map((c) => ({ ...c })), celebrations: plan.celebrations.map((c) => ({ ...c })), elapsed: now() - plan.t0 } : null,
+    on, running: isRunning(), instantCount, lastCount, refreshCount, lastRefresh: lastRefresh ? { ...lastRefresh } : null,
+    plan: plan ? { total: plan.total, budget: plan.budget, scale: plan.scale, fresh: plan.fresh, moved: plan.moved, refresh: plan.refresh ?? null, units: plan.units.map((u) => ({ ...u })), carries: plan.carries.map((c) => ({ ...c })), celebrations: plan.celebrations.map((c) => ({ ...c })), elapsed: now() - plan.t0 } : null,
     cues: cueLog.map((c) => ({ ...c })),
   });
   // 演出の音（FR-116）: ショーの ON/OFF に合わせて音を有効にし、ON で BGM を始める（鳴るのは利用者の最初の操作の後だけ。showaudio.js が判定）

@@ -616,13 +616,15 @@ export function mountUI(app, doc = document) {
         ps.addEventListener('change', () => app.setProjectionPreset(ps.value));
         row('projection.preset', pjf.label, ps);
       }
-      // FR-014 AC-522: ライブの更新間隔（10〜15 の整数・秒）。判定・保存・メッセージは app が行う
+      // FR-014 AC-522: ライブの更新間隔（5〜60 の整数・秒）。判定・保存・メッセージは app が行う。不正な値は直前の値に戻す（理由はメッセージ）
       const lf =  d.fields.find((f) => f.id === 'live.interval');
       if (lf) {
         const ln = doc.createElement('input'); ln.type = 'number'; ln.min = String(lf.min); ln.max = String(lf.max); ln.step = String(lf.step); ln.inputMode = 'numeric';
         ln.setAttribute('aria-describedby', 'settings-live-current');
+        ln.addEventListener('focus', () => app.focusSettingsField?.('live.interval'));
+        ln.addEventListener('blur', () => app.focusSettingsField?.(null));
         ln.addEventListener('input', () => app.setSettingsFieldDraft('live.interval', ln.value));
-        ln.addEventListener('change', () => app.setLiveInterval(ln.value));
+        ln.addEventListener('change', () => { const r = app.setLiveInterval(ln.value); if (!r.ok) ln.value = String(app.getLiveInterval().sec); });
         row('live.interval', lf.label, ln);
         const lc = doc.createElement('p'); lc.id = 'settings-live-current'; lc.className = 'settings-status';
         form.append(lc);
@@ -730,6 +732,7 @@ export function mountUI(app, doc = document) {
       if (lf && ln) {
         if (ln.value !== lf.input.value && doc.activeElement !== ln) ln.value = lf.input.value;
         setEl.querySelector('#settings-live-current').textContent = `${lf.label}: ${lf.text}`;
+        if (d.focusedField === 'live.interval' && doc.activeElement !== ln) ln.focus(); // コマンドの検索から開いたとき（AC-522）
       }
     }
     { // FR-080: 再配置の周期の表示（現在の周期・入力中の文字列）と、コマンドから開いたときのフォーカス

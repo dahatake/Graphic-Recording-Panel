@@ -457,3 +457,8 @@ body { overflow-y: auto; }
 .panel.is-collapsed .panel-menu { display: none; }
 .panel-head .panel-toggle { margin-right: auto; }
 .panel-toggle[hidden] { display: none; }
+
+/* FR-022 AC-671: .vtt の取込の方法・速さと再生取込の操作（入力パネルの入力欄の下）。トークンだけで指定する */
+.import-mode { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); margin-top: var(--space-1); font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.import-mode select { min-height: 24px; font: inherit; color: var(--color-text); background: var(--color-surface); border: var(--stroke) solid var(--color-border); border-radius: var(--radius-control); padding: 0 var(--space-1); }
+.import-mode [hidden] { display: none; }

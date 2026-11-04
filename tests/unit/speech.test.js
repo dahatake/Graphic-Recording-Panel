@@ -181,7 +181,8 @@ test('NFR-PERF-001 AC-038: 100 件の後の 1 件が同期的に反映され {PA
   app.startSpeech();
   for (let i = 0; i < 100; i++) sp.emit(`発話${i}`, true);
   const t0 = performance.now();
-  sp.emit('最後の発話', true);
+  // AC-038 は「さらに 1 件を手入力で確定」（ライブの音声は AC-053 の更新間隔ごとの描き足し。FR-014 AC-521）
+  app.setDraft('最後の発話'); app.submitDraft();
   const svg = app.renderSvg();
   assert.ok(performance.now() - t0 < 3000);
   assert.ok(svg.includes('最後の発話'));

@@ -33,7 +33,7 @@ export function parseSession(raw) {
     && Array.isArray(s.relations) && (s.status === 'in_progress' || s.status === 'confirmed'));
   if (!okU || !okS) return null;
   return {
-    utterances: raw.utterances.map((u) => ({ id: u.id, text: u.text, rawText: isStr(u.rawText) ? u.rawText : u.text, receivedAt: u.receivedAt })),
+    utterances: raw.utterances.map((u) => ({ id: u.id, text: u.text, rawText: isStr(u.rawText) ? u.rawText : u.text, receivedAt: u.receivedAt, ...(u.held === true ? { held: true } : {}) })), // held: 図への取り込み待ちのライブの発話（FR-014 AC-521）
     scenes: raw.scenes.map((s) => ({
       id: s.id, heading: s.heading,
       ...(s.aiSummary === true ? { aiSummary: true, aiRaw: isStr(s.aiRaw) ? s.aiRaw : '' } : {}),
