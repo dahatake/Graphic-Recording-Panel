@@ -8,12 +8,13 @@ import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { newApp, toDetail, ROOT, FakeSpeech } from './helpers.js';
 import { parseSvg, contrast, rgb, lum } from './stylepreset-util.js';
+import { linkedClock } from './liveshow-util.js';
 
 // ---- PARAM（要求定義書 2026-11-04 の値） ----
 const PARAM = {
   P007: 4.5, // 文字の最小コントラスト比
   P158_SEC: 3, // 単発の反映の上限（手入力・ファイル取込）
-  P001_SEC: 15, P104_SEC: 2, // ライブ: AC-053 の上限 = PARAM-001 + PARAM-104
+  P001_SEC: 60, P104_SEC: 2, // ライブ: AC-053 の上限 = PARAM-001 + PARAM-104（PARAM-001 は PARAM-099 の別名で 60 秒。1c4bd9d）
   P179: 6, // 要点のある区画の数の下限
   P180: 8, // 部品の種類の数の下限
   P181_MS: 600, // 出現・移動のアニメーションの時間の上限
@@ -220,6 +221,13 @@ async function boardApp(over = {}) {
   r.advance = (ms) => { r.env.clock.t += ms; r.env.scheduler.advance(ms); };
   return r;
 }
+// ライブ描画ショーの確認用: テスト用の時計（タイマーの発火の時刻に now() を合わせる）で起動する
+async function boardShowApp(over = {}) {
+  const lc = linkedClock();
+  const r = await boardApp({ ...lc, ...over });
+  r.advance = (ms) => lc.scheduler.advance(ms);
+  return r;
+}
 const pointCount = (svg) => new Set([...svg.matchAll(/data-point-id="([^"]+)"/g)].map((m) => m[1])).size;
 const allPoints = (app) => app.getState().scenes.flatMap((s) => s.points);
 const norm = (s) => String(s ?? '').replace(/[\s。．.、,]/g, '');
@@ -350,6 +358,8 @@ test('FR-114 AC-667: 固定の文字起こし（TeamA との会議）を会議�
     // ---- 4. ライブ（音声の確定結果）: AC-053 の上限（PARAM-001＋PARAM-104 秒）以内 ----
     const lv = await boardApp({ speech: new FakeSpeech() });
     lv.app.commands['session.start']();
+    // 更新間隔を設定できる最大（PARAM-099 = PARAM-001）にして、上限の境界で測る
+    assert.equal(lv.app.setLiveInterval(PARAM.P001_SEC).ok, true, '更新間隔を PARAM-001 秒にできる');
     for (const t of LINES.slice(0, 3)) {
       const n0 = pointCount(lv.app.renderSvg()); const c1 = lv.env.clock.t;
       lv.env.speech.emit(t, true);
@@ -362,6 +372,47 @@ test('FR-114 AC-667: 固定の文字起こし（TeamA との会議）を会議�
       assert.ok(ok && lv.env.clock.t - c1 <= (PARAM.P001_SEC + PARAM.P104_SEC) * 1000, `(g) ライブ: 「${t}」が ${PARAM.P001_SEC + PARAM.P104_SEC} 秒以内に図に出る`);
       lv.advance(1600);
       checkGeometry(lv.app.getBoardModel(), `ライブ「${t}」の後`);
+    }
+
+    // ---- 5. ライブ描画ショー（FR-115）ON（1c4bd9d）: 手入力・ファイル取込は PARAM-158 秒以内（演出で待たせない）、
+    //         ライブは AC-053 の上限を描画の開始（最初の要素の描線の開始）に当てはめる（演出の完了は AC-675） ----
+    const sm = await boardShowApp();
+    assert.equal(sm.app.setLiveShow(true).ok, true, 'ショー ON');
+    sm.app.commands['session.start']();
+    for (const t of LINES.slice(0, 3)) {
+      const n0 = pointCount(sm.app.renderSvg());
+      sm.app.setDraft(t); assert.equal(sm.app.submitDraft().ok, true);
+      sm.advance(PARAM.P158_SEC * 1000);
+      assert.ok(pointCount(sm.app.renderSvg()) > n0, `(g) ショー ON・手入力: 「${t}」が ${PARAM.P158_SEC} 秒以内に図に出る`);
+      assert.equal(sm.app.getLiveShow().running, false, `(g) ショー ON・手入力: ${PARAM.P158_SEC} 秒の時点で演出の途中ではない`);
+      checkGeometry(sm.app.getBoardModel(), `ショー ON・手入力「${t}」の後`);
+    }
+    const sf = await boardShowApp();
+    assert.equal(sf.app.setLiveShow(true).ok, true);
+    assert.equal((await sf.app.importTextFile({ name: 'teama-meeting.txt', type: 'text/plain', size: Buffer.byteLength(text), text })).ok, true);
+    sf.advance(PARAM.P158_SEC * 1000);
+    assert.ok(pointCount(sf.app.renderSvg()) >= LINES.length, `(g) ショー ON・ファイル取込: ${PARAM.P158_SEC} 秒以内に全発言が図に出る`);
+    assert.equal(sf.app.getLiveShow().running, false, `(g) ショー ON・ファイル取込: ${PARAM.P158_SEC} 秒の時点で演出の途中ではない`);
+    checkGeometry(sf.app.getBoardModel(), 'ショー ON・ファイル取込の後');
+    const sl = await boardShowApp({ speech: new FakeSpeech() });
+    assert.equal(sl.app.setLiveShow(true).ok, true);
+    sl.app.commands['session.start']();
+    assert.equal(sl.app.setLiveInterval(PARAM.P001_SEC).ok, true);
+    const LIVE_LIMIT = (PARAM.P001_SEC + PARAM.P104_SEC) * 1000;
+    for (const t of LINES.slice(0, 2)) {
+      sl.advance(10);
+      const c1 = sl.env.clock.t;
+      sl.env.speech.emit(t, true);
+      let startAt = null;
+      for (let dt = 0; dt <= LIVE_LIMIT && startAt === null; dt += 100) {
+        if (dt) sl.advance(100);
+        startAt = (sl.app.getLiveShow().log ?? []).find((e) => e.type === 'stroke' && e.at >= c1)?.at ?? null;
+      }
+      assert.ok(startAt !== null && startAt - c1 <= LIVE_LIMIT, `(g) ショー ON・ライブ: 「${t}」の描画の開始（最初の描線）が ${LIVE_LIMIT / 1000} 秒以内（${startAt === null ? '未開始' : `${startAt - c1} ms`}）`);
+      sl.advance(PARAM.P001_SEC * 1000 - PARAM.P104_SEC * 1000); // 1 間隔ぶん進めて演出を終える（完了の時間は AC-675）
+      assert.equal(sl.app.getLiveShow().running, false, `(g) ショー ON・ライブ: 「${t}」の演出が終わる`);
+      assert.ok(allPoints(sl.app).some((p) => norm(p.text).includes(norm(t)) || norm(t).includes(norm(p.text))), `(g) ショー ON・ライブ: 「${t}」が要点になる`);
+      checkGeometry(sl.app.getBoardModel(), `ショー ON・ライブ「${t}」の後`);
     }
 
     // 外部へのリクエストは 0 件（LLM 連携は既定のまま無効）

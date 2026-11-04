@@ -10,6 +10,8 @@ import { FakeVisibility, PARAM, CJK, WEB, ROOT, bytesToLatin1, pdfTexts } from '
 import {
   DUMMY_HOST, DUMMY_HOST2, DUMMY_ENDPOINT, dummySpeechKey, flush, bootAzure, reloadAzure, startAzureRecording, settingsField,
 } from './azurespeech-util.js';
+import { toDetail } from './helpers.js';
+import { linkedClock, sample } from './liveshow-util.js';
 
 const LOCAL = { availability: { 'ja-JP': 'local', 'en-US': 'local' } };
 const REMOTE = { processLocally: false, availability: { 'ja-JP': 'remote', 'en-US': 'remote' } };
@@ -199,6 +201,30 @@ test('FR-081 AC-442: 起動直後（準備中）は押すまで開始・送信�
   assert.deepEqual(texts(app), ['予算の見直しが必要です'], '確定結果が発話として 1 件');
   env.scheduler.advance((PARAM.UPPER_SEC + PARAM.RENDER_SEC) * 1000); // ライブの上限 PARAM-001＋PARAM-104（AC-053）
   assert.ok(app.renderSvg().includes('予算の見直しが必要です'), 'PARAM-001＋PARAM-104 秒以内に図へ反映');
+});
+
+// FR-081 AC-442（ライブ描画ショー（FR-115）が ON のとき: ライブの上限を描画の開始（最初の要素の描線の開始）に当てはめ、演出の完了は AC-675。1c4bd9d）
+test('FR-081 AC-442: ライブ描画ショー ON のとき、上流の確定結果が発話として 1 件追加され、描画の開始（最初の要素の描線の開始）が受付から PARAM-001＋PARAM-104 秒以内で、演出の終わりにその文字列が図に揃う', async () => {
+  const lc = linkedClock();
+  const { app, azure } = await bootAzure({ configured: true, over: lc });
+  toDetail(app);
+  assert.equal(app.setLiveShow(true).ok, true, 'ライブ描画ショー ON');
+  await startAzureRecording(app);
+  assert.equal(azure.startCalls.length, 1, '何も操作しなくても開始される');
+  assert.equal(app.setLiveInterval(PARAM.LIVE_MAX_SEC).ok, true, '更新間隔を設定できる最大（PARAM-099。PARAM-001 はその別名）にして上限の境界で測る');
+  lc.scheduler.advance(10);
+  const t0 = lc.clock.t;
+  azure.emit('予算の見直しが必要です'); await flush();
+  assert.deepEqual(texts(app), ['予算の見直しが必要です'], '確定結果が発話として 1 件');
+  const LIMIT = (PARAM.UPPER_SEC + PARAM.RENDER_SEC) * 1000;
+  let startAt = null;
+  sample(lc.scheduler, LIMIT, () => {
+    if (startAt === null) startAt = (app.getLiveShow().log ?? []).find((e) => e.type === 'stroke' && e.at >= t0)?.at ?? null;
+  }, 100);
+  assert.ok(startAt !== null && startAt - t0 <= LIMIT, `描画の開始は受付から ${startAt === null ? '（未開始）' : `${startAt - t0} ms`} ≤ ${LIMIT} ms（PARAM-001＋PARAM-104）`);
+  sample(lc.scheduler, PARAM.LIVE_MAX_SEC * 1000 - PARAM.RENDER_SEC * 1000, () => {}, 100); // 更新の時点から 1 間隔ぶん進める（演出は間隔の内に終わる）
+  assert.equal(app.getLiveShow().running, false, '演出が終わっている');
+  assert.ok(app.renderSvg().includes('予算の見直しが必要です'), '演出の終わりに確定結果の文字列が図に揃う');
 });
 
 test('FR-081 AC-442 異常系: 起動・再読込後も同意状態は常に同意済みで保存されず、再読込後の再開は何も操作しなくても Azure Speech で開始する', async () => {
