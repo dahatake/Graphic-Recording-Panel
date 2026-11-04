@@ -1,14 +1,16 @@
-// FR-114 AC-667（System Test。契約: tests/system/CONTRACT-BOARD.md）
+// FR-114 AC-667 AC-680（System Test。契約: tests/system/CONTRACT-BOARD.md）
 // 期待値は要求定義書の受入基準と PARAM だけから決める。web/ の実装の値は使わない（実装がなければ失敗するのが正常）。
-// 1 ケースで (a)〜(g) と外部へのリクエスト 0 件を確かめる: node --test --test-name-pattern="AC-667" tests/system/board.test.js
+// 1 ケースで (a)〜(i) と外部へのリクエスト 0 件、AC-680（名前を表示しない）を確かめる: node --test --test-name-pattern="AC-667|AC-680" tests/system/board.test.js
+// (h) は実ブラウザ（perf-util の launch。Chromium 系）で描いた文字の範囲を getExtentOfChar で測る。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
-import { newApp, toDetail, ROOT, FakeSpeech } from './helpers.js';
+import { newApp, toDetail, ROOT, FakeSpeech, CJK, pdfTexts } from './helpers.js';
 import { parseSvg, contrast, rgb, lum } from './stylepreset-util.js';
-import { linkedClock } from './liveshow-util.js';
+import { linkedClock, weight } from './liveshow-util.js';
+import { launch } from './perf-util.js';
 
 // ---- PARAM（要求定義書 2026-11-04 の値） ----
 const PARAM = {
@@ -18,6 +20,8 @@ const PARAM = {
   P179: 6, // 要点のある区画の数の下限
   P180: 8, // 部品の種類の数の下限
   P181_MS: 600, // 出現・移動のアニメーションの時間の上限
+  P187: 0.5, // 強調（マーカー・下線）の位置のずれの上限（文字。font-size に対する比。2026-11-05）
+  P011: 6, // ラベルの文字数の上限（全角。英語は半角 12。AC-680 の「名前を表示しない」）
   P126: '決まりました／決めました／決定／確定／承認／合意／採用する／に決めた／agreed／decided',
   P129: 'お願いします／してください／対応する／やります／確認します／共有します／調整します／対応します／連絡します／までに／担当／TODO／action item',
   P127: '保留／未定／持ち帰り／次回／検討中／pending／TBD',
@@ -211,6 +215,41 @@ function spyNetwork() {
   return { calls, restore() { for (const k of names) { if (saved[k]) Object.defineProperty(globalThis, k, saved[k]); else delete globalThis[k]; } if (nav) Object.defineProperty(globalThis, 'navigator', nav); else delete globalThis.navigator; } };
 }
 
+// ---- (h) 強調の位置: 実ブラウザで SVG を描き、強調語の最初・最後の文字の実際の範囲（getExtentOfChar）と強調の外枠を画面の座標で返す ----
+// 契約（CONTRACT-BOARD.md「強調」）: data-board-part="emphasis" の要素に data-emph-word（強調語）と data-emph-start（その text の文字列の中での
+// 強調語の最初の文字の位置。0 始まり）。強調語の text は、強調の要素の祖先のまとまり（g）のどれかの子孫にある。
+async function emphasisExtents(page, svg) {
+  await page.setContent(`<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0">${svg}</body></html>`);
+  await page.evaluate(() => document.fonts.ready);
+  return page.evaluate(() => {
+    const out = [];
+    for (const e of document.querySelectorAll('[data-board-part="emphasis"]')) {
+      const word = e.getAttribute('data-emph-word'); const start = Number(e.getAttribute('data-emph-start'));
+      let t = null;
+      if (word && Number.isInteger(start) && start >= 0) {
+        for (let g = e.parentNode; g && !t && g.nodeType === 1; g = g.parentNode) {
+          t = [...g.querySelectorAll('text')].find((x) => x.textContent.substr(start, word.length) === word) || null;
+        }
+      }
+      if (!t) { out.push({ word, start, missing: true }); continue; }
+      const m = t.getScreenCTM();
+      const scr = (x, y) => ({ x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f });
+      const corners = (r) => [scr(r.x, r.y), scr(r.x + r.width, r.y), scr(r.x, r.y + r.height), scr(r.x + r.width, r.y + r.height)];
+      const c0 = corners(t.getExtentOfChar(start)); const c1 = corners(t.getExtentOfChar(start + word.length - 1));
+      const all = [...c0, ...c1];
+      const b = e.getBoundingClientRect();
+      out.push({
+        word, start,
+        left: Math.min(...c0.map((p) => p.x)), right: Math.max(...c1.map((p) => p.x)),
+        top: Math.min(...all.map((p) => p.y)), bottom: Math.max(...all.map((p) => p.y)),
+        eLeft: b.left, eRight: b.right, eTop: b.top, eBottom: b.bottom,
+        fs: parseFloat(getComputedStyle(t).fontSize) * Math.hypot(m.a, m.b),
+      });
+    }
+    return out;
+  });
+}
+
 async function boardApp(over = {}) {
   const r = await newApp(over);
   r.app.setLang('ja');
@@ -234,7 +273,7 @@ const norm = (s) => String(s ?? '').replace(/[\s。．.、,]/g, '');
 const lineOf = (text) => EXPECTED.find((e) => norm(e.text).includes(norm(text)) || norm(text).includes(norm(e.text)));
 
 // FR-114 AC-667
-test('FR-114 AC-667: 固定の文字起こし（TeamA との会議）を会議ボード型で 1 発言ずつ取り込むと、(a) 区画 6 以上 (b) 部品 8 種類以上 (c) 期待の表の区画 (d) 重なり・はみ出しなし (e) コントラスト 4.5 以上（15 の描画スタイル）(f) 600ms 以内の途中を経由する移動（動きを減らす設定ではなし）(g) 反映の時間、外部へのリクエスト 0 件', async () => {
+test('FR-114 AC-667: 固定の文字起こし（TeamA との会議）を会議ボード型で 1 発言ずつ取り込むと、(a) 区画 6 以上 (b) 部品 8 種類以上 (c) 期待の表の区画 (d) 重なり・はみ出しなし (e) コントラスト 4.5 以上（15 の描画スタイル）(f) 600ms 以内の途中を経由する移動（動きを減らす設定ではなし）(g) 反映の時間 (h) 強調の左右端のずれ 0.5 文字以下（実ブラウザ・15 の描画スタイル）(i) 議論の流れの 4 つ以上のステップ（番号バッジ・吹き出し・人物が 1 組ずつ、間ごとに矢印）、外部へのリクエスト 0 件', async () => {
   // ---- 0. 固定データの自己検証（期待の表は PARAM から作り直せる） ----
   assert.ok(LINES.length >= 15 && LINES.length <= 25, `15〜25 発言（${LINES.length}）`);
   assert.equal(EXPECTED.length, LINES.length);
@@ -292,7 +331,11 @@ test('FR-114 AC-667: 固定の文字起こし（TeamA との会議）を会議�
       }
       checkGeometry(app.getBoardModel(), where);
     };
-    LINES.forEach((t, i) => feed(t, `${i + 1} 行目`));
+    LINES.forEach((t, i) => {
+      // (i) 議論の 4 つのトピック（FR-025 の分類で別のトピックになる発言）として、流れの発言の前に［次のシーン］を入れる
+      if (EXPECTED[i].section === 'flow') app.commands['session.nextScene']();
+      feed(t, `${i + 1} 行目`);
+    });
     // あふれによる詰め直しが起きなかったときは、同じ区画（目的・背景）に要点を足して、あふれさせて確かめる（どこまでも枠が足りるなら (d) が破れる）
     for (let k = 1; moved === 0 && k <= 12; k++) feed(`目的その${k}は品質の底上げ`, `追加 ${k}`);
     assert.ok(moved >= 1, '(f) あふれによる詰め直しで位置が変わる要素が観察できる');
@@ -315,17 +358,68 @@ test('FR-114 AC-667: 固定の文字起こし（TeamA との会議）を会議�
     assert.ok(withPoints.size >= PARAM.P179, `(a) 要点のある区画が ${PARAM.P179} 個以上（${[...withPoints]}）`);
     const kinds = partKinds(svg);
     assert.ok(kinds.size >= PARAM.P180, `(b) 部品の種類が ${PARAM.P180} 種類以上（${[...kinds]}）`);
+    // (i) 議論の流れ: 4 つの流れの発言が 4 つ以上の別々のステップに分かれ、各ステップに番号バッジ・吹き出し・人物が 1 組ずつ、
+    //     隣り合うステップの間ごとに矢印（⇒）。契約: CONTRACT-BOARD.md「議論の流れのステップ」
+    {
+      const doc = parseSvg(svg);
+      const secOfNode = (n) => ancestorAttr(n, 'data-board-section');
+      const stepOf = (n) => ancestorAttr(n, 'data-board-step');
+      const flowPts = by('flow').map((e) => allPoints(app).find((p) => lineOf(p.text) === e));
+      assert.ok(flowPts.every(Boolean) && flowPts.length >= 4, '(i) 流れの 4 発言が要点になる');
+      const stepsOfPts = flowPts.map((p) => { const n = doc.all.find((x) => x.attrs['data-point-id'] === p.id && secOfNode(x) === 'flow'); return n ? stepOf(n) : null; });
+      assert.ok(stepsOfPts.every((s) => s != null), `(i) 流れの各発言はステップの中にある（${stepsOfPts}）`);
+      assert.equal(new Set(stepsOfPts).size, flowPts.length, `(i) 流れの 4 発言は別々のステップ（${stepsOfPts}）`);
+      const steps = [...new Set(doc.all.filter((n) => n.attrs['data-board-step'] != null && secOfNode(n) === 'flow').map((n) => n.attrs['data-board-step']))].map(Number).sort((a, b) => a - b);
+      assert.ok(steps.length >= 4 && steps.every(Number.isInteger), `(i) ステップが 4 つ以上（${steps}）`);
+      const badgeTexts = [];
+      for (const k of steps) {
+        const inStep = doc.all.filter((n) => n.attrs['data-board-part'] && stepOf(n) === String(k));
+        for (const part of ['badge', 'bubble', 'person']) assert.equal(inStep.filter((n) => n.attrs['data-board-part'] === part).length, 1, `(i) ステップ ${k} に ${part} が 1 つ`);
+        badgeTexts.push(inStep.find((n) => n.attrs['data-board-part'] === 'badge').text.trim());
+      }
+      assert.equal(new Set(badgeTexts).size, steps.length, `(i) 番号バッジは別々の番号（${badgeTexts}）`);
+      assert.ok(badgeTexts.every((b) => b.length > 0), '(i) 番号バッジに番号の文字がある');
+      const arrows = doc.all.filter((n) => n.attrs['data-board-part'] === 'arrow' && secOfNode(n) === 'flow');
+      for (let j = 0; j + 1 < steps.length; j++) {
+        const want = `${steps[j]},${steps[j + 1]}`;
+        assert.ok(arrows.some((a) => String(a.attrs['data-between']).replace(/\s/g, '') === want && stepOf(a) == null), `(i) ステップ ${steps[j]} と ${steps[j + 1]} の間に矢印（data-between="${want}"）`);
+      }
+    }
     assert.ok(!/<image\b|<foreignObject\b/i.test(svg) && !/(?:href|url\()\s*=?\s*["']?(?:https?:)?\/\//i.test(svg), 'SVG だけで外部参照なし');
 
     // (e) 見出し・ラベル・表の文字と直下の背景: 11 の画風と既存の 4 つ（計 15）のすべて
     const styles = app.getDrawStyles();
     assert.equal(styles.length, 15, '描画スタイルは 15（既存の 4 つ＋11 の画風）');
+    const styleSvgs = [];
     for (const s of styles) {
       assert.equal(app.setDrawStyle(s.id).ok, true, s.id);
       const { fails, n } = contrastFailures(app.renderSvg());
       assert.ok(n >= LINES.length, `${s.label}: 文字を測った（${n}）`);
       assert.deepEqual(fails, [], `(e) ${s.label}: 文字と直下の背景のコントラスト比が ${PARAM.P007} 以上`);
       checkGeometry(app.getBoardModel(), `${s.label} の図`);
+      styleSvgs.push([s.label, app.renderSvg()]);
+    }
+
+    // (h) 強調（マーカー・下線）は、強調語の描かれた文字の実際の範囲（実ブラウザで描いた後に getExtentOfChar で測る）に重なり、
+    //     左端・右端のずれがそれぞれ PARAM-187 文字（font-size の比）以下（15 の描画スタイルのすべて）
+    {
+      const browser = await launch();
+      try {
+        const page = await (await browser.newContext({ viewport: { width: 1600, height: 1200 } })).newPage();
+        let measured = 0;
+        for (const [label, s] of styleSvgs) {
+          const res = await emphasisExtents(page, s);
+          for (const r of res) {
+            assert.ok(!r.missing, `(h) ${label}: 強調に data-emph-word・data-emph-start があり、その文字が同じまとまりの text にある（${r.word}@${r.start}）`);
+            const tol = PARAM.P187 * r.fs;
+            assert.ok(Math.abs(r.eLeft - r.left) <= tol, `(h) ${label}: 「${r.word}」の強調の左端のずれ ${(r.eLeft - r.left).toFixed(1)} ≤ ${tol.toFixed(1)}`);
+            assert.ok(Math.abs(r.eRight - r.right) <= tol, `(h) ${label}: 「${r.word}」の強調の右端のずれ ${(r.eRight - r.right).toFixed(1)} ≤ ${tol.toFixed(1)}`);
+            assert.ok(r.eBottom >= r.top - tol && r.eTop <= r.bottom + tol, `(h) ${label}: 「${r.word}」の強調は文字の範囲に縦にも重なる`);
+            measured++;
+          }
+        }
+        assert.ok(measured >= 1, `(h) 強調を測った（${measured}）`);
+      } finally { await browser.close(); }
     }
 
     // ---- 2. 動きを減らす設定: 位置の変化はアニメーションなし（取込の直後から新しい位置） ----
@@ -416,6 +510,128 @@ test('FR-114 AC-667: 固定の文字起こし（TeamA との会議）を会議�
     }
 
     // 外部へのリクエストは 0 件（LLM 連携は既定のまま無効）
+    assert.deepEqual(net.calls, [], '外部へのリクエストは 0 件');
+  } finally {
+    net.restore();
+  }
+});
+
+// FR-114 AC-680（契約: CONTRACT-BOARD.md「人物の名前」「名前を表示しない」）
+test('FR-114 AC-680: ［設定］の「名前を表示しない」は既定オフ（名前を表示）で、キーボードだけでオンにすると参加者名簿と話者タグの名前が図・テキスト一覧・PNG・SVG・PDF・Markdown のどれにも出ず、オフで再び出る（Markdown はテキスト一覧と一致）。端末ごとに保存され、初期化・セッションファイルでは変わらず、外部へのリクエスト 0 件・LLM への送信に名前なし（要点の中の名前は簡易マスキングによらず伏せ字）・画像生成プロンプトに名前なし', async () => {
+  const ROSTER = ['名簿NM青木', '名簿NM石井'];
+  const TAG = '話者NM上田';
+  const NAMES = [...ROSTER, TAG];
+  const relayCalls = [];
+  const relay = async ({ method = 'GET', path: p, body }) => {
+    relayCalls.push({ method, path: p, body });
+    if (p === '/api/llm/status') return { status: 200, body: { configured: { endpoint: true, deployment: true, credential: true }, endpointHost: 'foundry.example.test' } };
+    if (p === '/api/llm/extract') return { status: 200, body: { objects: [], people: [], emotions: [], metaphors: [] } };
+    return { status: 200, body: {} };
+  };
+  const net = spyNetwork();
+  try {
+    const { app, env, createApp } = await boardApp({ options: { relay } });
+    assert.notEqual(app.setTitleInfo({ participants: ROSTER.join('\n') })?.ok, false, '参加者名簿を入力できる（1 行に 1 名）');
+    app.commands['session.start']();
+    const vtt = ['WEBVTT', '', '00:00:01.000 --> 00:00:03.000', `<v ${TAG}>まず現行の受付の流れを振り返りました</v>`, ''].join('\n');
+    assert.equal((await app.importTextFile({ name: 'names.vtt', type: 'text/vtt', size: Buffer.byteLength(vtt), text: vtt })).ok, true, '.vtt を取り込める');
+    env.tick(3); env.scheduler.advance(3000);
+    const views = async () => {
+      const nC = env.canvasFactory.log.texts.length; const nD = env.downloads.length;
+      for (const c of ['save.png', 'save.svg', 'save.pdf', 'save.markdown']) await app.commands[c]();
+      const dl = env.downloads.slice(nD);
+      assert.deepEqual(dl.map((d) => d.mime), ['image/png', 'image/svg+xml', 'application/pdf', 'text/markdown'], '4 形式で保存できる');
+      const pdf = dl[2].data instanceof Uint8Array ? pdfTexts(dl[2].data) : String(dl[2].data);
+      // Markdown（AC-529・AC-668 (d)）: テキスト一覧と一致し、名前を表示する間は同じ「参加メンバー: 名前、…」の行と「（発言: 名前）」が載る
+      return { 図: app.renderSvg(), テキスト一覧: app.renderOutline(), PNG: env.canvasFactory.log.texts.slice(nC).join('\n'), SVG: String(dl[1].data), PDF: pdf, Markdown: String(dl[3].data) };
+    };
+    const assertNames = (v, shown, where) => {
+      for (const [k, s] of Object.entries(v)) for (const n of NAMES) assert.equal(s.includes(n), shown, `${where}: ${k} に「${n}」が${shown ? '載る' : '載らない'}`);
+      // Markdown の名前の行はテキスト一覧と同じ（AC-529: 名前の掲載はテキスト一覧と一致）
+      const memberLine = (s) => s.split(/\r?\n/).map((l) => l.replace(/^[\s>*\-#]+/, '').trim()).find((l) => /^参加メンバー\s*[:：]/.test(l)) ?? null;
+      const said = (s) => [...s.matchAll(/[（(]発言\s*[:：]\s*([^）)]+)[）)]/g)].map((m) => m[1].trim());
+      assert.equal(memberLine(v.Markdown), memberLine(v.テキスト一覧), `${where}: Markdown の「参加メンバー」の行はテキスト一覧と同じ`);
+      assert.deepEqual(said(v.Markdown), said(v.テキスト一覧), `${where}: Markdown の「（発言: 名前）」はテキスト一覧と同じ`);
+      if (shown) {
+        assert.ok(memberLine(v.Markdown)?.includes(ROSTER[0]), `${where}: Markdown に「参加メンバー: 名前、…」の行が載る`);
+        assert.ok(said(v.Markdown).includes(TAG), `${where}: Markdown に「（発言: ${TAG}）」が載る`);
+      } else {
+        assert.equal(said(v.Markdown).length, 0, `${where}: Markdown に「（発言: 名前）」は載らない`);
+      }
+    };
+    // 既定はオフ（名前を表示する）
+    assert.equal(app.getHideNames(), false, '既定はオフ');
+    app.commands['settings.open']();
+    const f = app.getSettingsDialog()?.fields.find((x) => x.id === 'board.hideNames');
+    assert.ok(f, '［設定］に「名前を表示しない」がある');
+    assert.equal(f.value, false);
+    assert.ok(f.label?.trim() && weight(f.label) <= PARAM.P011, `ラベル「${f.label}」は PARAM-011 以内`);
+    app.setLang('en');
+    const fe = app.getSettingsDialog()?.fields.find((x) => x.id === 'board.hideNames');
+    assert.ok(fe.label.trim() && !CJK.test(fe.label) && weight(fe.label) <= PARAM.P011, `en: ${fe.label}`);
+    app.setLang('ja');
+    app.handleKey({ key: 'Escape' });
+    assertNames(await views(), true, 'オフ');
+    const persons = (svg) => parseSvg(svg).all.filter((n) => n.attrs['data-board-part'] === 'person' && ancestorAttr(n, 'data-board-section') === 'members').length;
+    const nPersons = persons(app.renderSvg());
+    assert.ok(nPersons >= 1, 'オフ: 参加メンバーの区画に人物');
+    // キーボードだけでオンにする（コマンドで項目にフォーカス → Space）
+    app.commands['settings.hideNames']();
+    assert.equal(app.getSettingsDialog()?.focusedField, 'board.hideNames', '選ぶだけで項目にフォーカス');
+    app.handleKey({ key: ' ' });
+    assert.equal(app.getHideNames(), true, 'Space でオン');
+    assert.equal(app.getSettingsDialog().fields.find((x) => x.id === 'board.hideNames').value, true, '状態が示される');
+    app.handleKey({ key: 'Escape' });
+    assertNames(await views(), false, 'オン');
+    assert.ok(persons(app.renderSvg()) >= 1, 'オン: 人物は汎用の人物だけで描かれる（区画の人物は残る）');
+    assert.ok(String(app.getTitleInfo().participants ?? '').includes(ROSTER[0]), 'オン: 名簿の入力は消えない');
+    // 異常系: 真偽値でない値は受け付けず、直前の値が保たれる
+    for (const bad of ['yes', 1, null, undefined, {}]) {
+      let r; try { r = app.setHideNames(bad); } catch { r = { ok: false }; }
+      assert.equal(r?.ok, false, `${JSON.stringify(bad)} は受け付けない`);
+      assert.equal(app.getHideNames(), true, '直前の値が保たれる');
+    }
+    // LLM 連携を有効にしても、送信の内容に名前は含まれない（オン・オフどちらでも）。
+    // 要点の文字に現れる名簿・話者タグの名前は、簡易マスキングの設定によらず伏せ字に置き換えて送られ、画像生成プロンプトにも名前は入らない（最終監査 202611050444 C-02・C-03）
+    assert.equal((await app.requestLlmEnable()).ok, true); await app.answerLlmConsent(true);
+    for (const hide of [true, false]) {
+      for (const masking of [true, false]) {
+        assert.equal(app.setHideNames(hide).ok, true);
+        app.setLlmMasking(masking);
+        const sfx = `${hide ? 'H' : 'S'}${masking ? 'M' : 'N'}`;
+        const before = relayCalls.length;
+        app.setDraft(`次に窓口ごとの負荷の差を見ました${sfx}`); app.submitDraft(); env.tick(1);
+        app.setDraft(`「${ROSTER[1]}」と「${TAG}」が負荷を確認${sfx}`); app.submitDraft(); env.tick(1);
+        await app.flushLlm();
+        const sent = relayCalls.slice(before).filter((c) => c.path === '/api/llm/extract').map((c) => String(c.body?.input ?? '')).join('\n');
+        const m = sent.match(new RegExp(`「([^」]*)」と「([^」]*)」が負荷を確認${sfx}`));
+        assert.ok(m && m[1].length > 0 && m[2].length > 0, `名前を表示しない=${hide}・簡易マスキング=${masking}: 名前を含む要点は、名前を伏せ字に置き換えて送られる`);
+        for (const mask of [true, false]) {
+          const t = app.getImagePrompt({ mask }).text;
+          for (const n of NAMES) assert.ok(!t.includes(n), `名前を表示しない=${hide}・簡易マスキング=${masking}: 画像生成プロンプト（mask=${mask}）に「${n}」を含めない`);
+        }
+      }
+    }
+    assert.ok(relayCalls.some((c) => c.path === '/api/llm/extract'), 'LLM への送信が行われた');
+    for (const c of relayCalls) for (const n of NAMES) assert.ok(!JSON.stringify(c).includes(n), `LLM への送信に「${n}」を含まない`);
+    // オフに戻すと再び出る（話者タグの名前の保持は切り替えで消えない）
+    assert.equal(app.getHideNames(), false);
+    env.scheduler.advance(3000);
+    assertNames(await views(), true, 'オフに戻す');
+    // 端末ごとの設定: セッションファイルに含まれず、読込・初期化で変わらず、再読込後も保たれる
+    assert.equal(app.setHideNames(true).ok, true);
+    assert.equal((await app.commands['file.save']()).ok, true);
+    const file = env.downloads.at(-1);
+    assert.ok(!/hideNames|hide_names|名前を表示しない/i.test(String(file.data)), 'セッションファイルに含まれない');
+    assert.equal(app.setHideNames(false).ok, true);
+    const lr = await app.loadSessionFile({ name: file.filename, type: 'application/json', size: String(file.data).length, text: String(file.data) });
+    if (lr?.pending) await app.dialogAction('confirm');
+    assert.equal(app.getHideNames(), false, 'セッションファイルの読込では変わらない');
+    assert.equal(app.setHideNames(true).ok, true);
+    const app2 = await createApp(env.options);
+    assert.equal(app2.getHideNames(), true, '再読込後も保たれる');
+    app.commands['data.reset'](); app.dialogAction('confirm');
+    assert.equal(app.getHideNames(), true, 'データの初期化では変わらない');
     assert.deepEqual(net.calls, [], '外部へのリクエストは 0 件');
   } finally {
     net.restore();

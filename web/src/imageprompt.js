@@ -217,7 +217,9 @@ export function imagePromptModule(ctx) {
     const styles = styleBodies();
     const comp = composition();
     const visible = withoutConfidential(state.scenes, state.lang).map((s) => ({ ...s })); // FR-104 AC-606: 機密の要点は含めない
-    const tf = mask ? maskFn() : undefined;
+    const nm = typeof api.maskPersonNames === 'function' ? api.maskPersonNames : (s) => s; // FR-078（決定 2026-11-05）: 参加者名簿・話者タグの名前は常に含めない
+    const mf = mask ? maskFn() : null;
+    const tf = mf ? (s) => mf(nm(s)) : nm;
     const content = buildContent(visible, api.getTopics?.() ?? [], t, MAX_CONTENT_CHARS, tf);
     const tl = buildTextLabels(visible, api.getTopics?.() ?? [], api.getDetailLevel?.() ?? 'detail', tf);
     const q = lang() === 'en' ? (x) => `"${x}"` : (x) => `「${x}」`;

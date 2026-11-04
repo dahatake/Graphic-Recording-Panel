@@ -143,7 +143,9 @@ export function llmDrawModule(ctx) {
   api.addLlmMaskWord = (w) => { const s = String(w ?? '').trim(); if (!s) return { ok: false, reason: 'empty' }; if (!maskWords.includes(s)) { maskWords = [...maskWords, s]; saveMask(); ctx.emit('change', api); } return { ok: true, words: [...maskWords] }; };
   api.removeLlmMaskWord = (w) => { const had = maskWords.includes(w); if (had) { maskWords = maskWords.filter((x) => x !== w); saveMask(); ctx.emit('change', api); } return { ok: had, words: [...maskWords] }; };
   // 簡易マスキングを文字に適用する（設定の有効・無効によらず、登録した語と同じ対象・伏せ字で）。FR-078 AC-471 の注意の伏せ字が使う。端末の中だけで行う
-  api.applyLlmMask = (text) => maskText(text, maskWords);
+  // AC-359・AC-668: 会議ボード型の参加者名簿と .vtt の話者タグの名前も伏せる対象（長い名前から。端末の中だけ）
+  const allMaskWords = () => [...maskWords, ...[...(api.getPersonNames?.() ?? [])].sort((a, b) => b.length - a.length)];
+  api.applyLlmMask = (text) => maskText(text, allMaskWords());
 
   // ---- 抽出結果（メモリだけ）: シーン ID → { objects, metaphors, people, emotions } ----
   const drawn = new Map();
@@ -161,7 +163,8 @@ export function llmDrawModule(ctx) {
   async function generate(sceneId, labels, n) {
     for (const label of labels) {
       if ((generated.get(sceneId) ?? []).some((g) => g.label === label)) continue;
-      const res = await api.llmCall(SVG_PATH, { key: 'generated', label, input: label, instructions: `Draw "${label}" as one simple flat icon SVG (viewBox 0 0 48 48). Use only svg, g, path, circle, ellipse, rect, line, polyline, polygon, text. No script, no external references. Reply with the <svg> only.` });
+      const sent = api.maskPersonNames ? api.maskPersonNames(label) : label; // AC-358・AC-668: 名前は常に伏せる
+      const res = await api.llmCall(SVG_PATH, { key: 'generated', label: sent, input: sent, instructions: `Draw "${sent}" as one simple flat icon SVG (viewBox 0 0 48 48). Use only svg, g, path, circle, ellipse, rect, line, polyline, polygon, text. No script, no external references. Reply with the <svg> only.` });
       if (!res?.ok || latest.get(sceneId) !== n || !svgGeneration || !active()) continue;
       const svg = norm(findSvg(res.body));
       generated.set(sceneId, [...(generated.get(sceneId) ?? []), { label, svg }]);
@@ -196,7 +199,8 @@ export function llmDrawModule(ctx) {
   function requestFor(scene) {
     const [safe] = withoutConfidential([scene], state.lang === 'en' ? 'en' : 'ja'); // 機密の要点は公開範囲に関わらず LLM へ送らない（監査 S-1）
     const raw = [safe.heading, ...safe.points.map((p) => p.text)].join('\n');
-    const masked = masking ? maskText(raw, maskWords) : raw;
+    const named = api.maskPersonNames ? api.maskPersonNames(raw) : raw; // AC-358・AC-668: 参加者名簿・話者タグの名前は簡易マスキングの設定に関わらず常に伏せる（決定 2026-11-05）
+    const masked = masking ? maskText(named, allMaskWords()) : named;
     return clampText(masked, MAX_SEND_CHARS);
   }
   async function extract(sceneId) {

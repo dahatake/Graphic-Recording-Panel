@@ -74,7 +74,7 @@ export function vttPlaybackModule(ctx, live) {
   const deliver = () => {
     const i = play.next;
     const n = ctx.addUtterances([play.texts[i]], { ats: [play.ats[i]], anyState: true, hold: true });
-    if (n) ctx.transcript?.addFinals([play.texts[i]]);
+    if (n) { ctx.transcript?.addFinals([play.texts[i]]); ctx.api.recordSpeakers?.(ctx.state.utterances.slice(-n), [play.speakers[i]]); } // AC-668: 話者タグの名前（ブラウザ内だけ）
     play.next = i + 1;
     if (play.next >= play.total) { finish('done'); return; }
     ctx.emit('change', api);
@@ -127,7 +127,7 @@ export function vttPlaybackModule(ctx, live) {
     const base = ctx.now();
     const offsets = cueOffsets(cues);
     last = null;
-    play = { texts: cues.map((c) => c.text), offsets, ats: offsets.map((d) => base + d), next: 0, total: cues.length, speed: pref.speed, state: 'playing', timer: null };
+    play = { texts: cues.map((c) => c.text), speakers: cues.map((c) => c.speaker ?? null), offsets, ats: offsets.map((d) => base + d), next: 0, total: cues.length, speed: pref.speed, state: 'playing', timer: null };
     live.begin('playback');
     deliver(); // 最初の cue は開始の時点で届く
     return { ok: true, playback: true, total: cues.length };

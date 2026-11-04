@@ -34,12 +34,17 @@ export const JP_FONT = 'Yu Gothic UI';
 export const LATIN_ONLY_FONTS = ['Segoe UI', 'Segoe UI Variable', 'Segoe Print', 'Ink Free', 'Arial Rounded MT Bold'];
 const LATIN_SET = new Set(LATIN_ONLY_FONTS.map((n) => n.toLowerCase()));
 export const isLatinOnlyFont = (name) => LATIN_SET.has(String(name).trim().toLowerCase());
+// PARAM-185: 手書き風の系統で、欧文専用の書体の直後・Yu Gothic UI の直前にこの順で置く手書き風の日本語の書体（Q-046 の回答 B 2026-11-05）。
+// 端末に入っているときだけ使われる（同梱・外部取得はしない）。空にすれば NFR-UX-012 の従来の並びに戻る。
+export const HANDWRITING_JP_FONTS = ['Yomogi', 'Zen Kurenaido', 'Kaisei Decol'];
 // 従来の並び（書体名の配列、または { name } の配列）を NFR-UX-012 の並びにする。jp は Yu Gothic UI の要素（既にあればそれを使う）。
-export function jpFontOrder(list, jp) {
+// beforeJp: 欧文専用の書体と Yu Gothic UI の間に置く書体名（AC-466 の例外。手書き風の系統の PARAM-185）。並びにあればこの順でそこへ移す。
+export function jpFontOrder(list, jp, beforeJp = []) {
   const nameOf = (x) => (typeof x === 'string' ? x : x.name);
   const yu = list.find((x) => nameOf(x) === JP_FONT) ?? jp ?? JP_FONT;
-  const rest = list.filter((x) => nameOf(x) !== JP_FONT);
-  return [...rest.filter((x) => isLatinOnlyFont(nameOf(x))), yu, ...rest.filter((x) => !isLatinOnlyFont(nameOf(x)))];
+  const pre = beforeJp.map((n) => list.find((x) => nameOf(x) === n)).filter((x) => x !== undefined);
+  const rest = list.filter((x) => nameOf(x) !== JP_FONT && !pre.includes(x));
+  return [...rest.filter((x) => isLatinOnlyFont(nameOf(x))), ...pre, yu, ...rest.filter((x) => !isLatinOnlyFont(nameOf(x)))];
 }
 const quoteFont = (name) => (/\s/.test(name) ? `'${name}'` : name);
 // 書体名の並び → CSS・SVG・Canvas の書体の指定の値（空白を含む名前は引用符で囲む）
@@ -51,15 +56,15 @@ export const LEGACY_FONT_FAMILY = fontFamilyValue(LEGACY_FONT_NAMES);
 // 書体の系統ごとの並び（端末に入っている書体の名前だけ。書体のファイルは同梱せず外部からも取得しない）。
 // 手書き風 → 丸ゴシック → 端末の標準の書体、丸ゴシック → 端末の標準の書体 の順に、ブラウザが最初に見つかったものを使う。
 // 日本語の字形は、欧文専用の書体の次の Yu Gothic UI が先に受け持つ（NFR-UX-012。系統の順は欧文専用の書体どうし・残りどうしで保つ）。
-// FR-076 AC-670: Yomogi・Zen Kurenaido・Kaisei Decol は、Yu Gothic UI の後の日本語の字形を持ち得る書体の先頭（Q-046 の回答まで
-// NFR-UX-012 の並びを守り、Yu Gothic UI より前には置かない）。端末にないときは並びの次の書体で表示される。
+// FR-076 AC-670・NFR-UX-012 AC-466 の例外（Q-046 の回答 B 2026-11-05）: 手書き風の系統では PARAM-185 の Yomogi・Zen Kurenaido・Kaisei Decol を
+// 欧文専用の書体の直後・Yu Gothic UI の直前にこの順で置く。端末にないときは並びの次の書体（Yu Gothic UI…）で表示される。
 const HAND = [['Yomogi', 'handwriting'], ['Zen Kurenaido', 'handwriting'], ['Kaisei Decol', 'handwriting'], ['Klee One', 'handwriting'], ['Klee', 'handwriting'], ['Segoe Print', 'handwriting'], ['Ink Free', 'handwriting']];
 const ROUND = [['Zen Maru Gothic', 'roundGothic'], ['M PLUS Rounded 1c', 'roundGothic'], ['Kosugi Maru', 'roundGothic'], ['Hiragino Maru Gothic ProN', 'roundGothic'], ['Arial Rounded MT Bold', 'roundGothic']];
 const GOTHIC = [['BIZ UDPGothic', 'gothic'], ['Hiragino Sans', 'gothic'], ['Yu Gothic UI', 'gothic'], ['Meiryo', 'gothic'], ['Noto Sans JP', 'gothic']];
 const GENERIC = [['sans-serif', 'generic']];
-const toStack = (list) => jpFontOrder(list.map(([name, kind]) => ({ name, kind })), { name: JP_FONT, kind: 'gothic' });
+const toStack = (list, beforeJp) => jpFontOrder(list.map(([name, kind]) => ({ name, kind })), { name: JP_FONT, kind: 'gothic' }, beforeJp);
 export const FONT_STACKS = {
-  handwriting: toStack([...HAND, ...ROUND, ...GENERIC]),
+  handwriting: toStack([...HAND, ...ROUND, ...GENERIC], HANDWRITING_JP_FONTS),
   roundGothic: toStack([...ROUND, ...GENERIC]),
   gothic: toStack([...GOTHIC, ...GENERIC]),
 };

@@ -3,7 +3,7 @@
 // 図の内容・配置・型・文字は既存の描画と同じで、見た目（配色・紙面・書体・見出しの飾り・吹き出し・線・線画人物）だけが変わる。
 // 見た目の項目を持たない既存の定義（手書き調・アニメ調・シンプル・RPG風）は、従来の描画（diagram.js）のまま（AC-406）。
 // 端末のハイコントラスト（強制カラー）が有効な間は、どの描画スタイルでも図の色を CSS のシステム色にする（AC-456）。
-import { KINDS, STATUS_MARK, classifyPoint, kindLabelOf, textWidth, outline, rng, iconGlyph, reviewMarkSvg, kindExtraSvg, limitRelations, relationStroke } from './diagram.js';
+import { KINDS, STATUS_MARK, classifyPoint, kindLabelOf, outline, rng, iconGlyph, reviewMarkSvg, kindExtraSvg, limitRelations, relationStroke } from './diagram.js';
 import { sceneEmotions } from './emotion.js';
 import { matchParts, getPartGroup } from './parts.js';
 import { isPersonPartKey } from './personvariants.js';
@@ -12,6 +12,7 @@ import {
   presetOf, fontFamilyOf, fontStacks, parseColor, luminance, contrastRatio, mix, grayOf, isYellowish, isNeutralColor,
   MIN_TEXT_CONTRAST, MIN_OUTLINE_CONTRAST,
 } from './stylepresets.js';
+import { textWidthOf, wrapTextWidth, fitTextWidth } from './glyphwidth.js';
 
 const MARGIN = 24; const HEAD_H = 44; const PT_H = 40; const PT_GAP = 22; const SCENE_GAP = 72; const ICON = 24;
 const FS = 14; const FS_HEAD = 18; const FS_LABEL = 11;
@@ -20,6 +21,11 @@ const LEGACY_INK = '#15191f';
 const r1 = (n) => Math.round(n * 10) / 10;
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const attr = (s) => esc(s).replace(/"/g, '&quot;');
+// FR-076 AC-670: 文字の幅は、描いている図の書体の系統で見積もる（共通部品「字幅の見積もり」。手書き風の系統は並びのどの書体でも収まる幅）。
+// 描画の入口（renderPresetDiagram・renderPresetTopics・renderPresetPlacement）で設定する。同期の処理の中だけで使う。
+let FONT_KIND = null;
+const fontKindOf = (look, kindLooks) => (look.pr.font === 'handwriting' || Object.values(kindLooks ?? {}).some((l) => l?.pr?.font === 'handwriting') ? 'handwriting' : look.pr.font);
+const textWidth = (s, size) => textWidthOf(s, size, FONT_KIND);
 
 // ---- 配色の役割（look）。紙面・文字・枠・帯・面（付箋・吹き出し・絵記号・強調）の色と、その上の文字の色を決める ----
 const BLACK = '#000000'; const WHITE = '#ffffff'; const DARK_LINE = '#333333'; const LIGHT_LINE = '#d0d0d0';
@@ -285,6 +291,7 @@ function headingSvg(look, id, x, y, w, status, heading, selected, boxes, glyph =
 // ---- 2D の時系列（詳細度「詳細」）の図 ----
 // scenes: アプリのシーン配列。opts: { lang, relations, selectedSceneId, highlightPointId, t, title }
 export function renderPresetDiagram(scenes, opts, look) {
+  FONT_KIND = fontKindOf(look, opts.kindLooks);
   const pr = look.pr; const t = opts.t ?? ((k) => k);
   const sel = opts.selectedSceneId ?? null; const hlId = opts.highlightPointId ?? null;
   const boxes = []; const blocked = []; const body = []; const rects = new Map(); const heads = [];
@@ -456,6 +463,7 @@ export function renderPresetDiagram(scenes, opts, look) {
 
 // ---- 2D の時系列（詳細度「大項目」「中項目」）の図 ----
 export function renderPresetTopics(topics, relations, scenes, opts, look) {
+  FONT_KIND = fontKindOf(look, opts.kindLooks);
   const pr = look.pr; const t = opts.t ?? ((k) => k);
   const level = opts.level === 'middle' ? 'middle' : 'major';
   const sel = opts.selectedSceneId ?? null; const byId = new Map(scenes.map((s) => [s.id, s]));
@@ -514,19 +522,11 @@ export function renderPresetTopics(topics, relations, scenes, opts, look) {
 }
 
 // ---- FR-031〜036 の共通配置（タイトル・まとまり・単位・矢印・比喩）を、風の配色で図の下に描く ----
-function wrapLines(text, w, fs, max) {
-  const lines = []; let cur = ''; let cw = 0;
-  for (const ch of [...String(text ?? '')]) {
-    const c = ch.codePointAt(0) >= 0x2e80 ? fs : fs * 0.56;
-    if (cw + c > w && cur) { lines.push(cur); cur = ''; cw = 0; }
-    cur += ch; cw += c;
-  }
-  if (cur) lines.push(cur);
-  if (lines.length > max) { lines.length = max; lines[max - 1] = `${lines[max - 1].slice(0, -1)}…`; }
-  return lines;
-}
+const wrapLines = (text, w, fs, max) => wrapTextWidth(text, w, fs, FONT_KIND, max);
 export function renderPresetPlacement(L, look, dy) {
   if (!L) return { svg: '', height: 0, width: 0 };
+  FONT_KIND = fontKindOf(look);
+  const fitHead = (s, r) => (r && r.w > 0 ? fitTextWidth(s, r.w, 13, FONT_KIND) : s); // 見出しはまとまりの枠の幅に収める（AC-670）
   const boxes = []; const parts = []; const T = (x, y, s, o) => textEl(x, y, s, { dy, boxes, ...o });
   const card = look.frameFill; const onCard = look.textOn(card); const sw = r1(Math.max(1, look.pr.stroke.width * 0.6));
   if (L.title?.visible && L.titleLines?.length) parts.push(`<g data-role="title">${L.titleLines.map((line, i) => T(L.title.x, L.title.y + 14 + i * 16, line, { size: 13, weight: Math.max(700, look.weight), fill: look.ink, back: look.bg })).join('')}</g>`);
@@ -553,11 +553,11 @@ export function renderPresetPlacement(L, look, dy) {
       out.push(`<g data-metaphor-element="${attr(e.type)}">${shape}</g>`);
     }
     if (m.axes) out.push(`<g data-role="axes">${T(m.axes.x.x1, m.axes.x.y1, m.axes.x.label, { size: 12, weight: Math.max(700, look.weight), fill: look.ink, back: look.bg, extra: ' data-role="axis-label" data-axis="x"' })}${T(m.axes.y.x1, m.axes.y.y1 + 14, m.axes.y.label, { size: 12, weight: Math.max(700, look.weight), fill: look.ink, back: look.bg, extra: ' data-role="axis-label" data-axis="y"' })}</g>`);
-    parts.push(`<g data-role="metaphor" data-metaphor-kind="${attr(m.kind)}">${out.join('')}${(m.sections ?? []).map((s) => `<g data-metaphor-section="${attr(s.id)}"><rect data-role="frame" x="${r1(s.frame.x)}" y="${r1(s.frame.y)}" width="${r1(s.frame.w)}" height="${r1(s.frame.h)}" rx="8" fill="none" stroke="${look.divider}" stroke-width="1"/>${T(s.headingRect.x, s.headingRect.y + 14, s.heading, { size: 13, weight: Math.max(700, look.weight), fill: look.ink, back: look.bg, extra: ' data-role="subheading"' })}</g>`).join('')}</g>`);
+    parts.push(`<g data-role="metaphor" data-metaphor-kind="${attr(m.kind)}">${out.join('')}${(m.sections ?? []).map((s) => `<g data-metaphor-section="${attr(s.id)}"><rect data-role="frame" x="${r1(s.frame.x)}" y="${r1(s.frame.y)}" width="${r1(s.frame.w)}" height="${r1(s.frame.h)}" rx="8" fill="none" stroke="${look.divider}" stroke-width="1"/>${T(s.headingRect.x, s.headingRect.y + 14, fitHead(s.heading, s.headingRect), { size: 13, weight: Math.max(700, look.weight), fill: look.ink, back: look.bg, extra: ' data-role="subheading"' })}</g>`).join('')}</g>`);
   }
   const divided = (L.dividers ?? []).length > 0;
   for (const g of L.groups ?? []) {
-    parts.push(`<g data-group-id="${attr(g.id)}" data-group-kind="${attr(g.kind)}"><rect data-role="frame" x="${g.frame.x}" y="${g.frame.y}" width="${g.frame.w}" height="${g.frame.h}" rx="8" fill="none" stroke="${divided && g.kind === 'zone' ? 'none' : look.divider}" stroke-width="1.5"/>${T(g.headingRect.x, g.headingRect.y + 14, g.heading, { size: 13, weight: Math.max(700, look.weight), fill: look.ink, back: look.bg, extra: ' data-role="subheading"' })}</g>`);
+    parts.push(`<g data-group-id="${attr(g.id)}" data-group-kind="${attr(g.kind)}"><rect data-role="frame" x="${g.frame.x}" y="${g.frame.y}" width="${g.frame.w}" height="${g.frame.h}" rx="8" fill="none" stroke="${divided && g.kind === 'zone' ? 'none' : look.divider}" stroke-width="1.5"/>${T(g.headingRect.x, g.headingRect.y + 14, fitHead(g.heading, g.headingRect), { size: 13, weight: Math.max(700, look.weight), fill: look.ink, back: look.bg, extra: ' data-role="subheading"' })}</g>`);
   }
   for (const d of L.dividers ?? []) parts.push(`<line data-role="zone-divider" x1="${d.x1}" y1="${d.y1}" x2="${d.x2}" y2="${d.y2}" stroke="${look.divider}" stroke-width="1"/>`);
   const rectOf = (id) => (id === 'center' ? L.center : (L.units ?? []).find((u) => u.id === id));

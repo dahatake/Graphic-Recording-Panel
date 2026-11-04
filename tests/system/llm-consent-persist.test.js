@@ -197,7 +197,62 @@ test('NFR-PRIV-003 AC-358: 送信は要点の文字・シーン番号・描画�
   assert.ok(!text.includes(PROBE));
 });
 
-// NFR-PRIV-003 AC-359
+// NFR-PRIV-003 AC-358（2026-11-05: 会議ボード型の参加者名簿と .vtt の話者タグの名前も送らない。AC-668 (e)。契約: CONTRACT-BOARD.md「人物の名前」）
+// 最終監査 202611050444 C-03: 要点の文字に含まれる名簿・話者タグの名前は、簡易マスキングの設定によらず、送る前に常に伏せ字に置き換える（AC-359 と同じ伏せ字）。
+// 画像生成プロンプト（FR-078）にも、伏せ字の選択によらず名前は常に入らない。
+test('NFR-PRIV-003 AC-358: 会議ボード型の参加者名簿と .vtt の話者タグの名前は、図に載っていても LLM への送信にも画像生成プロンプトにも含まれず、要点の文字に現れる名前は簡易マスキングの設定によらず伏せ字に置き換えて送られる', async () => {
+  const { app, env, relay } = await appWith();
+  await enable(app);
+  assert.equal(app.setLayoutTypes(['board']).ok, true, '会議ボード型');
+  app.setDetailLevel('detail'); // 画像生成プロンプトの内容に要点まで入れる（AC-420）
+  const ROSTER = ['名簿PRT高橋', '名簿PRT伊藤'];
+  const TAGS = ['話者SPK渡辺', '話者SPK小林'];
+  const NAMES = [...ROSTER, ...TAGS];
+  assert.notEqual(app.setTitleInfo({ participants: ROSTER.join('\n') })?.ok, false, '参加者名簿を入力できる');
+  app.commands['session.start']();
+  const vtt = ['WEBVTT', '', '00:00:01.000 --> 00:00:03.000', `<v ${TAGS[0]}>受付の流れを振り返る</v>`, '',
+    '00:00:04.000 --> 00:00:06.000', `<v ${TAGS[1]}>窓口ごとの負荷の差を見る</v>`, ''].join('\n');
+  assert.equal((await app.importTextFile({ name: 'names.vtt', type: 'text/vtt', size: Buffer.byteLength(vtt), text: vtt })).ok, true, '.vtt を取り込める');
+  env.tick(3);
+  const svg = app.renderSvg();
+  for (const n of NAMES) assert.ok(svg.includes(n), `前提: ${n} は会議ボード型の図に載る（AC-668。送らないのは表示しないからではない）`);
+  const placeholders = {};
+  for (const masking of [true, false]) {
+    app.setLlmMasking(masking);
+    assert.equal(app.getLlmMasking(), masking, `前提: 簡易マスキングは ${masking}`);
+    const sfx = masking ? 'M' : 'N';
+    const before = relay.calls.length;
+    // 要点の文字に名簿の名前と話者タグの名前が現れる（「」で囲み、伏せ字の位置を見分ける）
+    type(app, env, `費用感をざっくり話す${sfx}`, `「${ROSTER[0]}」と「${TAGS[1]}」が費用を確認${sfx}`);
+    await app.flushLlm();
+    assert.ok(relay.extractCalls().length >= 1, '送信は行われる');
+    for (const c of relay.calls.slice(before)) {
+      const s = JSON.stringify(c);
+      for (const n of NAMES) assert.ok(!s.includes(n), `マスキング ${masking}: 名前「${n}」が中継への要求に含まれた`);
+      assert.ok(!/PRT|SPK/.test(s), `マスキング ${masking}: 名前の一部が中継への要求に含まれた`);
+    }
+    // 名前を含む要点も送られ（要点ごと除くのではない）、名前の位置は伏せ字（非空）に置き換わっている
+    const sent = relay.calls.slice(before).filter((c) => c.path === '/api/llm/extract').map((c) => String(c.body?.input ?? '')).join('\n');
+    const m = sent.match(new RegExp(`「([^」]*)」と「([^」]*)」が費用を確認${sfx}`));
+    assert.ok(m, `マスキング ${masking}: 名前を含む要点が、名前を伏せ字に置き換えて送られる（送信: ${sent.slice(0, 200)}）`);
+    assert.ok(m[1].length > 0 && m[2].length > 0, `マスキング ${masking}: 伏せ字は空でない`);
+    placeholders[sfx] = [m[1], m[2]];
+    for (const mask of [true, false]) {
+      const t = app.getImagePrompt({ mask }).text;
+      for (const n of NAMES) assert.ok(!t.includes(n), `マスキング ${masking}: 画像生成プロンプト（mask=${mask}）に名前「${n}」を含めない`);
+      assert.ok(!/PRT|SPK/.test(t), `マスキング ${masking}: 画像生成プロンプト（mask=${mask}）に名前の一部を含めない`);
+      assert.ok(!t.includes('（発言:') && !t.includes('(発言:'), `マスキング ${masking}: 画像生成プロンプト（mask=${mask}）にテキスト一覧の「（発言: 名前）」の添え書きを入れない`);
+      assert.ok(t.includes(`」が費用を確認${sfx}`), `マスキング ${masking}: 画像生成プロンプト（mask=${mask}）の内容に名前を伏せた要点が入る`);
+    }
+  }
+  // 簡易マスキングの設定によらず同じ伏せ字（AC-359 と同じ伏せ字）
+  assert.deepEqual(placeholders.N, placeholders.M, '簡易マスキングを無効にしても、名前は有効のときと同じ伏せ字に置き換えて送られる');
+  // それまでの送信の全体でも 0 件
+  for (const c of relay.calls) for (const n of NAMES) assert.ok(!JSON.stringify(c).includes(n), `名前「${n}」が送られた`);
+});
+
+// NFR-PRIV-003 AC-359（2026-11-05 最終監査 202611050444 C-03: 参加者名簿と .vtt の話者タグの名前は、簡易マスキングの有効・無効によらず常に伏せ字の対象。
+// 無効のときの観察は AC-358 の名前のテスト（同じ伏せ字に置き換えて送る）で行う。このケース E2E-177 は検証レベル integration のため blocked）
 test('NFR-PRIV-003 AC-359: 簡易マスキングで登録語・敬称付き人名・メール・電話番号が伏せ字になって送られ、応答の伏せ字は図で元に戻されない', async () => {
   const { app, env, relay } = await appWith({ extract: ({ body }) => ({ objects: [{ key: 'other', label: String(body.input).slice(0, 24) }], people: [], emotions: [], metaphors: [] }) });
   await enable(app);

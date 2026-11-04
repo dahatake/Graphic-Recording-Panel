@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp, PARAM, toDetail, CJK } from './helpers.js';
 import { showApp, reload, sfield, assertOps, weight, SHOW, show, overlays, sample } from './liveshow-util.js';
+import { parseSvg } from './stylepreset-util.js';
 
 const SEC = 1000;
 const startRec = (app) => { app.commands['session.start'](); app.startSpeech(); };
@@ -65,6 +66,46 @@ test('FR-014 AC-521: 更新間隔を T 秒に設定し T 秒の間に確定結�
     assert.ok(app.renderSvg().includes(later));
     scheduler.advance(3 * T * SEC);
     assert.equal(count(app), c0 + 2, `T=${T}: 新しい発話がなかった間隔では更新しない`);
+  }
+});
+
+// FR-014 AC-521（A-874 2026-11-05: 更新間隔の途中のシーンの区切り。AC-008 の［次のシーン］と AC-571 の議題の切替 timer.next）
+const sceneOf = (app, text) => app.getState().scenes.findIndex((s) => s.points.some((p) => p.text.includes(text) || text.includes(p.text)));
+test('FR-014 AC-521: 更新間隔の途中でシーンの区切り（［次のシーン］・議題の切替）が起きても、その時点では描き足さず、区切りの前の待ちの確定結果は前のシーンに属したまま次の更新の時点に、区切りの後の確定結果は新しいシーンで、同じ 1 回の更新で描き足される', async () => {
+  const T = 10;
+  for (const brk of ['session.nextScene', 'timer.next']) {
+    const { app, env, scheduler } = await showApp();
+    if (brk === 'timer.next') assert.equal(app.setMeetingContext({ agenda: [{ name: '現状の共有', minutes: 5 }, { name: '案の比較', minutes: 15 }] }).ok, true, '議題を設定できる');
+    startRec(app);
+    if (brk === 'timer.next') assert.equal(app.commands['timer.start']().ok, true, '議題が進行中');
+    scheduler.advance(1234);
+    assert.equal(app.setLiveInterval(T).ok, true);
+    const t0 = scheduler.t; const c0 = count(app);
+    const pre = [`区切りの前の話題その一${brk}`, `区切りの前の話題その二${brk}`];
+    const post = `区切りの後の話題${brk}`;
+    scheduler.advance(500); env.speech.emit(pre[0], true);
+    scheduler.advanceTo(t0 + 2 * SEC); env.speech.emit(pre[1], true);
+    scheduler.advanceTo(t0 + 4 * SEC);
+    const r = app.commands[brk]();
+    assert.notEqual(r && r.ok, false, `${brk}: 区切りの操作を受け付ける`);
+    assert.equal(count(app), c0, `${brk}: 区切りの時点では描き足さない`);
+    for (const w of pre) assert.ok(!app.renderSvg().includes(w), `${brk}: 区切りの時点で「${w}」は図にない`);
+    assert.equal(app.renderSvg().includes(post), false);
+    scheduler.advanceTo(t0 + 6 * SEC); env.speech.emit(post, true);
+    scheduler.advanceTo(t0 + T * SEC - 1);
+    assert.equal(count(app), c0, `${brk}: 次の更新の時点より前には描き足さない`);
+    for (const w of [...pre, post])     assert.ok(!app.renderSvg().includes(w), `${brk}: 更新の時点より前に「${w}」は図にない`);
+    scheduler.advanceTo(t0 + T * SEC);
+    assert.equal(count(app), c0 + 1, `${brk}: 次の更新の時点でちょうど 1 回`);
+    scheduler.advance(PARAM.RENDER_SEC * SEC);
+    for (const w of [...pre, post]) assert.ok(app.renderSvg().includes(w), `${brk}: 「${w}」が描き足される`);
+    const sPre = pre.map((w) => sceneOf(app, w));
+    const sPost = sceneOf(app, post);
+    assert.ok(sPre.every((i) => i >= 0) && sPost >= 0, `${brk}: 各発話がシーンにある（${sPre}・${sPost}）`);
+    assert.equal(sPre[0], sPre[1], `${brk}: 区切りの前の 2 件は同じシーン`);
+    assert.ok(sPost > sPre[0], `${brk}: 区切りの後の発話は新しいシーン（区切りは保たれる。前 ${sPre[0]}・後 ${sPost}）`);
+    scheduler.advance(3 * T * SEC);
+    assert.equal(count(app), c0 + 1, `${brk}: 新しい発話がなかった間隔では更新しない`);
   }
 });
 
@@ -306,8 +347,44 @@ test('FR-022 AC-671: 再生取込では cue が受付時刻の差を速さで割
       assert.deepEqual(utt(app).map((u) => u.receivedAt - t0), REPLAY_OFF, `${s} 倍: 受付時刻は一括と同じ（取込の開始時刻＋cue の開始時刻の差）`);
       assert.deepEqual(sceneTexts(app), refScenes, `${s} 倍: シーンの分かれ方は一括と同じ`);
       const all = utt(app).map((u) => u.text).join('\n') + app.renderSvg() + app.renderTranscript();
-      for (const bad of ['山田太郎', '佐藤花子', '鈴木一郎', '-->', 'cue-']) assert.ok(!all.includes(bad), `${s} 倍: 「${bad}」を含まない`);
+      for (const bad of ['山田太郎', '佐藤花子', '鈴木一郎', '-->', 'cue-']) assert.ok(!all.includes(bad), `${s} 倍: 「${bad}」を含まない（既定の型は会議ボード型ではないので名前を載せない。AC-668）`);
     }
+    assert.deepEqual(net.calls, [], '外部へのリクエストは 0 件');
+  } finally { net.restore(); }
+});
+
+// FR-022 AC-671 × AC-668 (b)（契約: tests/system/CONTRACT-BOARD.md「人物の名前」）: 会議ボード型で再生取込すると、参加メンバーの区画に
+// .vtt の話者タグの名前が最初に現れた順（山田太郎→佐藤花子→鈴木一郎）で載り、まだ届いていない cue の話者の名前は載らない。結果は一括と同じ。
+const boardNames = (svg, kind = 'participant') => {
+  const doc = parseSvg(svg);
+  const sec = (n) => { for (let p = n; p; p = p.parent) if (p.attrs['data-board-section']) return p.attrs['data-board-section']; return null; };
+  return doc.all.filter((n) => n.attrs['data-board-name'] === kind && (kind !== 'participant' || sec(n) === 'members')).map((n) => n.text.trim());
+};
+test('FR-022 AC-671: 会議ボード型で再生取込すると、参加メンバーの区画に話者タグの名前が最初に現れた順で載り（一括と同じ）、届く前の cue の話者は載らず、外部へのリクエストは 0 件', async () => {
+  const ORDER = ['山田太郎', '佐藤花子', '鈴木一郎'];
+  const net = spyNet();
+  try {
+    const ref = await showApp();
+    assert.equal(ref.app.setLayoutTypes(['board']).ok, true, '会議ボード型');
+    ref.app.commands['session.start']();
+    assert.equal((await ref.app.importTextFile(file('replay.vtt', REPLAY_VTT))).ok, true);
+    ref.scheduler.advance((PARAM.SINGLE_SEC + PARAM.RENDER_SEC) * SEC);
+    assert.deepEqual(boardNames(ref.app.renderSvg()), ORDER, '一括: 名簿が空なので話者タグの名前を最初に現れた順に（重複なし）');
+
+    const { app, scheduler } = await showApp();
+    assert.equal(app.setLayoutTypes(['board']).ok, true);
+    app.commands['session.start']();
+    assert.equal(app.setLiveInterval(REPLAY_ITV).ok, true);
+    assert.equal(app.setVttImportMode({ mode: 'replay', speed: 1 }).ok, true);
+    const ts0 = scheduler.t;
+    assert.equal((await app.importTextFile(file('replay.vtt', REPLAY_VTT))).ok, true);
+    // 最初の更新（7 秒）の時点までに届くのは 0・4.5・4.5 秒の cue（山田・佐藤・山田）だけ
+    scheduler.advanceTo(ts0 + REPLAY_ITV * SEC);
+    scheduler.advance(PARAM.RENDER_SEC * SEC);
+    assert.deepEqual(boardNames(app.renderSvg()), ORDER.slice(0, 2), '最初の更新: 届いた cue の話者だけが最初に現れた順で載る');
+    scheduler.advance(REPLAY_OFF.at(-1) + (REPLAY_ITV + PARAM.RENDER_SEC) * SEC);
+    assert.equal(app.getVttReplay().running, false, '再生取込が終わる');
+    assert.deepEqual(boardNames(app.renderSvg()), ORDER, '終わった後: 話者タグの名前が最初に現れた順で載る（一括と同じ）');
     assert.deepEqual(net.calls, [], '外部へのリクエストは 0 件');
   } finally { net.restore(); }
 });
