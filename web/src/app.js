@@ -133,10 +133,16 @@ export async function createApp(options = {}) {
   // 見た目だけの変更（パネルの移動・大きさ・タブ・画面幅・図の拡大率と位置）は emitView で通知し、版数を変えない。
   // 描画・計算のメモ化は、この版数が同じなら前回の結果を使う。change の関数の実行中は null（途中の状態をキャッシュしない）。
   let dataVersion = 0;
+  // NFR-PERF-003 AC-536: 選択の変更だけは、図・文字列・要点の計算結果（衝突・指標・投影・トピックなど）を作り直さなくてよいので、
+  // それらのメモ化に使う dataVersion は進めず、描画のための renderVersion だけを進める（選択の印は描画し直す）
+  let renderVersion = 0;
+  // 文字列・テキスト一覧の版数。図の再配置（relayout.js。要点の並び・文字は変えない）の通知だけでは進めない
+  let textVersion = 0;
+  let selectionOnly = false;
   let mutating = 0;
   const on = (evt, fn) => { (listeners.get(evt) ?? listeners.set(evt, []).get(evt)).push(fn); return () => { listeners.set(evt, listeners.get(evt).filter((f) => f !== fn)); }; };
   const notify = (evt, payload) => { for (const fn of [...(listeners.get(evt) ?? [])]) fn(payload); };
-  const emit = (evt, payload) => { if (evt === 'change') dataVersion++; notify(evt, payload); };
+  const emit = (evt, payload, opts) => { if (evt === 'change') { renderVersion++; if (opts?.arrangeOnly !== true) textVersion++; if (!selectionOnly) dataVersion++; } notify(evt, payload); };
   const emitView = () => notify('change', app);
   const getDataVersion = () => (mutating ? null : dataVersion);
   // NFR-PERF-003 AC-538: 重い処理（自動保存の直列化・トピック分類など）の呼び出し回数（計測用。動作には使わない）
@@ -191,12 +197,15 @@ export async function createApp(options = {}) {
     if (saveTimer == null) saveTimer = saveSched.setTimeout(() => { saveTimer = null; flushSave(); }, saveDelayMs);
   }
   // 状態を変える唯一の入口: 自動保存の予約と再描画の通知。
-  function change(fn) {
+  function change(fn, opts) {
     mutating++;
-    dataVersion++; // 実行中に読まれたキャッシュを無効にする
+    const sel = opts?.selectionOnly === true;
+    if (!sel) dataVersion++; // 実行中に読まれたキャッシュを無効にする
+    renderVersion++;
     try { fn(state); } finally { mutating--; }
     scheduleSave();
-    emit('change', app);
+    selectionOnly = sel;
+    try { emit('change', app); } finally { selectionOnly = false; }
   }
   function setMessage(key) { state.message = key ? { key, text: i18n.t(key) } : null; }
   function saveLayout() { P.writeJson(storage, L.STORAGE_KEY, layout); }
@@ -281,7 +290,8 @@ export async function createApp(options = {}) {
     return scenesView.scenes;
   };
   // NFR-PERF-003 AC-538: データの版数（データを変える操作でだけ増える）。同じなら描画の再生成を省ける
-  app.getRenderVersion = () => dataVersion;
+  app.getRenderVersion = () => renderVersion;
+  app.getTextVersion = () => textVersion;
   app.getCallCounts = () => ({ ...callCounts });
   app.t = (k) => i18n.t(k);
   app.getStrings = () => i18n.getStrings();
@@ -311,7 +321,7 @@ export async function createApp(options = {}) {
   // ---- シーン・表示 ----
   app.selectScene = (id) => {
     if (!state.scenes.some((s) => s.id === id)) return false;
-    change((s) => { s.selectedSceneId = id; });
+    change((s) => { s.selectedSceneId = id; }, { selectionOnly: true });
     return true;
   };
   app.setViewMode = (mode) => {
