@@ -1,4 +1,4 @@
-// FR-075 画風プリセット（描画スタイルの定義の拡張）と FR-076 組み込みの 9 つの「〇〇風」。DOM に依存しない。
+// FR-075 画風プリセット（描画スタイルの定義の拡張）と FR-076 組み込みの 11 の「〇〇風」。DOM に依存しない。
 // 契約: tests/system/CONTRACT-STYLE-PRESET.md。定義の値は要求定義書 3.6 の表（色名）から、AC-410 の判読性を満たすように決めた。
 // 見た目の項目（すべて任意。1 つでも持てば画風プリセット）:
 //   palette { background, primary, accent:[1 件以上], text, secondary }（#rgb / #rrggbb）
@@ -152,7 +152,7 @@ export function presetOf(def) {
   };
 }
 
-// ---- 組み込みの 9 つの風（3.6 の表。名前は日本語 6 文字・英語 12 文字以内） ----
+// ---- 組み込みの 11 の風（3.6 の表。名前は日本語 6 文字・英語 12 文字以内） ----
 const legacy = (width, jitter, decor) => ({ line: { width, jitter }, fill: { mode: 'paper' }, text: { decor, icons: true } });
 const d = (color, drawing, font, mood) => ({ color, drawing, font, mood });
 export const PRESET_STYLES = [

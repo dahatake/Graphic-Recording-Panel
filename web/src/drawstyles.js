@@ -45,7 +45,7 @@ export const BUILTIN_STYLES = [
   { id: 'simple', label: { ja: 'シンプル', en: 'Simple' }, line: { width: 0.8, jitter: 0 }, fill: { mode: 'paper' }, text: { decor: 'plain', icons: false }, description: LEGACY_DESCRIPTIONS.simple },
   // RPG風（FR-047）: 拡張点（register）の定義の追加。描画は rpgmap.js が行う（既存 3 つの定義・処理は変えない）。選択肢の並びは末尾。
   { id: 'rpg', label: { ja: 'RPG風', en: 'RPG' }, line: { width: 1, jitter: 0 }, fill: { mode: 'paper' }, text: { decor: 'plain', icons: true }, description: LEGACY_DESCRIPTIONS.rpg },
-  // FR-076: 9 つの「〇〇風」（画風プリセット）。拡張点（register）の定義の追加で、既存の 4 つの定義・処理は変えない。
+  // FR-076: 11 の「〇〇風」（画風プリセット）。拡張点（register）の定義の追加で、既存の 4 つの定義・処理は変えない。
   ...PRESET_STYLES,
 ];
 
