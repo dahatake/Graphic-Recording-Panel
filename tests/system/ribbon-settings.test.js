@@ -12,7 +12,7 @@ const ids13 = (app) => app.getDrawStyles().map((s) => s.id);
 const bySetting = (app, id) => items(app).filter((i) => i.settingsField === id);
 const sfield = (app, id) => app.getSettingsDialog().fields.find((f) => f.id === id);
 const TYPES = ['timeline', 'bubble', 'diverge', 'zone', 'metaphor', 'workshop'];
-const PANEL_FIELDS = ['layout.mode', 'layout.types', 'sound.muted', 'sound.volume', 'arrange.interval']; // 描画スタイルは「画風」グループの 13 項目だけで選び、［設定］パネルには欄を置かない（AC-519・AC-459・AC-520。2026-11-04）
+const PANEL_FIELDS = ['layout.mode', 'layout.types', 'sound.muted', 'sound.volume', 'arrange.interval']; // 描画スタイルは「画風」グループの 13 項目だけで選び、リボン上の選択は画風 13 項目だけ（AC-519・AC-459）。［設定］パネルの「既定の描画スタイル」欄は別に残る（AC-149・AC-418）ので、欄の有無はここでは検証しない
 
 // FR-030 AC-519
 test('FR-030 AC-519: リボンに［設定］パネルの全項目（決め方・型の各チェック・描画スタイル・ミュート・音量・再配置の周期）があり、アイコン（アクセシブルな名前）・説明・PARAM-011 文字以内のラベルを持つ', async () => {
@@ -20,7 +20,6 @@ test('FR-030 AC-519: リボンに［設定］パネルの全項目（決め方�
   app.commands['settings.open'](); app.getSettingsDialog();
   const ids = app.getSettingsDialog().fields.map((f) => f.id);
   for (const id of PANEL_FIELDS) assert.ok(ids.includes(id), `［設定］に ${id} がある`);
-  assert.equal(ids.includes('drawStyle'), false, '［設定］に drawStyle の欄はない');
   assert.equal(items(app).some((i) => i.settingsField === 'drawStyle'), false, 'リボンに settingsField=drawStyle の項目はない');
   const drawItems = items(app).filter((i) => /^drawStyle\./.test(i.command));
   assert.deepEqual(drawItems.map((i) => i.command), app.getDrawStyles().map((s) => `drawStyle.set:${s.id}`), 'リボンの描画スタイル項目は「画風」の 13 項目だけ');
@@ -62,16 +61,16 @@ test('FR-030 AC-519: リボンで操作した値は［設定］の同じ項目�
   assert.equal(op(vol, 30).ok, true); assert.equal(sfield(app, 'sound.volume').value, 30); assert.equal(app.getRpgAudio().volume, 30);
   assert.equal(op(itv, 25).ok, true); assert.equal(sfield(app, 'arrange.interval').value, 25); assert.equal(app.getArrangeInterval().sec, 25);
   // ［設定］ → リボン
-  assert.ok(app.setSettings({ layout: { mode: 'fixed', types: ['zone', 'bubble'] } }).ok);
-  assert.equal(val(mode), 'fixed'); assert.deepEqual(drawPressed(), ['drawStyle.set:simple'], '［設定］の操作で画風の押下は変わらない');
+  assert.ok(app.setSettings({ layout: { mode: 'fixed', types: ['zone', 'bubble'] }, drawStyle: 'handwritten' }).ok);
+  assert.equal(val(mode), 'fixed'); assert.deepEqual(drawPressed(), ['drawStyle.set:handwritten'], '［設定］の既定の描画スタイルを変えると「画風」の押下も変わる（AC-149・AC-418）');
   assert.deepEqual(TYPES.filter((t) => items(app).find((i) => i.command === `layoutType.${t}`).selected), ['bubble', 'zone'], '型のチェックが反映される');
   app.setRpgMuted(false); app.setRpgVolume(70); app.setArrangeInterval(40);
   assert.equal(val(mute), false); assert.equal(val(vol), 70); assert.equal(val(itv), 40);
   // 同じ保存: 再読込で復元され、リボンにも反映される
   app.commands['settings.close']();
   const again = await createApp({ ...env.options });
-  assert.equal(again.getSettings().layout.mode, 'fixed');
-  assert.equal(sfield(again, 'drawStyle'), undefined, '［設定］に drawStyle の欄はない');
+  assert.equal(again.getSettings().drawStyle, 'handwritten');
+  assert.deepEqual(items(again).filter((i) => i.group === 'drawStyle' && i.pressed).map((i) => i.command), ['drawStyle.set:handwritten']);
   assert.equal(items(again).find((i) => i.command === vol).value, 70);
   assert.equal(items(again).find((i) => i.command === itv).value, 40);
 });
