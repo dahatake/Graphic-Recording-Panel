@@ -6470,7 +6470,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-407\" tests/system/stylepreset.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "blocked",
       "last_commit": "146a4e6",
       "last_run_at": "2026-11-05T06:18:31+09:00",
       "evidence": "work/runs/202611050444/logs/system-test/E2E-219-202611050617.log",
@@ -6498,6 +6498,12 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートで --test-name-pattern で実行できる"
+        },
+        {
+          "at": "2026-11-05T06:19:38+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-407 の検証レベルが integration に変更され System Test の対象外（CHK-10）。FR-075 に承認済みの system AC なし（AC-406 は E2E-218 で blocked）"
         }
       ]
     },
@@ -7795,7 +7801,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-466\" tests/system/jpfont.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "blocked",
       "last_commit": "146a4e6",
       "last_run_at": "2026-11-05T06:18:31+09:00",
       "evidence": "work/runs/202611050444/logs/system-test/E2E-242-202611050617.log",
@@ -7823,6 +7829,12 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートの --test-name-pattern で実行できる（タイトル更新後に元の blocked に戻す）"
+        },
+        {
+          "at": "2026-11-05T06:19:38+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-466 の検証レベルが integration に変更され System Test の対象外（CHK-10）。NFR-UX-012 の system AC-465 は E2E-241 が保証済み"
         }
       ]
     },
