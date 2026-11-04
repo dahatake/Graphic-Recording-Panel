@@ -5,8 +5,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   P, T, KIND_ORDER, arrangeApp, seededDetail, say, elements, box, posMap, pointIdOf, elementOfPoint, elementOfScene,
-  assertNoOverlap, assertAligned, before, gap, kindLabelOf, toDetail, FakeVisibility,
+  assertNoOverlap, assertAligned, before, gap, kindLabelOf, toDetail, FakeVisibility, startLive, LIVE_SEC,
 } from './rearrange-util.js';
+import { PARAM } from './helpers.js';
 
 const PERIOD = P.INTERVAL_DEFAULT_SEC * 1000;
 const count = (app) => app.getArrangeStatus().count;
@@ -19,17 +20,21 @@ const descendantPoints = (app, rootId) => {
 
 // ---- FR-080 AC-435 ----
 // 再固定（run 202611021537）: 暫定の位置の「重ならない」は、型の規定で接続のために重ねる要素（AC-155 の質問と答えの吹き出しなど）を除く（A-170）。
-// 既定の時系列にはその要素がないので、ここでは全要素の外枠の非重なりを確かめる。確定結果の受付から暫定表示までの上限は PARAM-001（15 秒）。
-// FR-080 AC-435
-test('FR-080 AC-435: 初期値の周期では、起動から 10 秒の時点ちょうどで初めて再配置され、それより前の追加は暫定の位置のまま', async () => {
+// 既定の時系列にはその要素がないので、ここでは全要素の外枠の非重なりを確かめる。ライブの要素は受付の後の最初の更新間隔の時点に表示（AC-521 優先。上限 PARAM-001＝60 秒）、手入力は即時（AC-054）。
+// FR-080 AC-435（依頼 2026-11-05: ライブでは確定結果の受付の後の最初の更新間隔の時点に表示（AC-521 優先）、単発の反映（手入力）は即時（AC-054））
+test('FR-080 AC-435: 初期値の周期では、起動から 10 秒の時点ちょうどで初めて再配置され、それより前の追加は暫定の位置のまま。ライブの要素は最初の更新間隔の時点に、手入力の要素は即時に暫定の位置に表示される', async () => {
   const { app, env, scheduler } = await arrangeApp();
   assert.equal(app.getArrangeInterval().sec, P.INTERVAL_DEFAULT_SEC);
   toDetail(app);
-  app.commands['session.start']();
+  startLive(app); // 更新間隔 5 秒（PARAM-098）: 更新の時点は 5 秒・10 秒・15 秒…、再配置の時点は 10 秒・20 秒…
+  const LIVE = LIVE_SEC * 1000;
   scheduler.advanceTo(500); say(env, T.plain1);
-  scheduler.advanceTo(1500); // 暫定表示の検査は周期（10 秒）内の短い時間で行う（PARAM-001 の 15 秒は周期より長い）
+  scheduler.advanceTo(LIVE - 1);
+  assert.ok(app.getState().utterances.some((u) => u.text === T.plain1), '確定結果は受け付けられている');
+  assert.equal(elements(app).filter((x) => x.kind === 'point').length, 0, 'ライブ: 最初の更新間隔の時点より前には要素が図に加わらない');
+  scheduler.advanceTo(LIVE);
   const e = elementOfPoint(app, pointIdOf(app, T.plain1));
-  assert.equal(e.provisional, true, '確定結果の受付から PARAM-001 秒以内に暫定の位置に表示される');
+  assert.equal(e.provisional, true, 'ライブ: 受付の後の最初の更新間隔の時点（受付から設定した更新間隔以内）に暫定の位置に表示される');
   assert.equal(count(app), 0);
   assert.equal(app.getArrangeStatus().pending, true);
   scheduler.advanceTo(PERIOD - 1);
@@ -38,10 +43,18 @@ test('FR-080 AC-435: 初期値の周期では、起動から 10 秒の時点ち�
   assert.equal(count(app), 1, '起動から 10 秒の時点で再配置される');
   assert.equal(app.getArrangeStatus().pending, false);
   assert.ok(elements(app).every((x) => x.provisional === false), '再配置後は暫定の位置の要素がない');
+  // 単発の反映（手入力）: 更新間隔を待たず即時（PARAM-158 以内。次の更新の時点 15 秒より前）に暫定の位置に表示される
+  scheduler.advanceTo(PERIOD + 500);
+  app.setDraft(T.plain2); assert.equal(app.submitDraft().ok, true);
+  scheduler.advance(PARAM.SINGLE_SEC * 1000);
+  assert.ok(scheduler.t < PERIOD + LIVE, '次の更新の時点より前に確かめる');
+  const m = elementOfPoint(app, pointIdOf(app, T.plain2));
+  assert.equal(m.provisional, true, '手入力: 即時に暫定の位置に表示される');
+  assert.equal(count(app), 1, '再配置は次の周期の時点まで行われない');
 });
 
 // FR-080 AC-435
-test('FR-080 AC-435: 新しい要点は受付から PARAM-001 秒以内に追加先のまとまりの読み順の末尾・重ならない位置に暫定表示され、前のまとまりの要素は動かず、次の周期の時点で再配置される', async () => {
+test('FR-080 AC-435: ライブの新しい要点は受付の後の最初の更新間隔の時点（受付から設定した更新間隔以内）に追加先のまとまりの読み順の末尾・重ならない位置に暫定表示され、それより前には加わらず、前のまとまりの要素は動かず、次の周期の時点で再配置される', async () => {
   const { app, env, scheduler } = await seededDetail();
   assert.equal(count(app), 1);
   const topics = app.getTopics();
@@ -54,7 +67,13 @@ test('FR-080 AC-435: 新しい要点は受付から PARAM-001 秒以内に追加
   assert.ok(prevTopicIds.length >= 2, '前のトピックの要素（シーンと要点）がある');
 
   scheduler.advanceTo(PERIOD + 1000); say(env, T.problem); // 2 シーン目（最後の受付から 20 秒以内）
-  scheduler.advanceTo(PERIOD + 2000); // 周期内の短い時間（PARAM-001 は周期より長い）
+  const LIVE = LIVE_SEC * 1000;
+  const nextUpdate = Math.ceil((PERIOD + 1000) / LIVE) * LIVE; // 受付の後の最初の更新の時点（15 秒）
+  assert.ok(nextUpdate < 2 * PERIOD, '更新の時点は次の再配置の時点より前');
+  scheduler.advanceTo(nextUpdate - 1);
+  assert.ok(!elements(app).some((x) => x.kind === 'point' && app.getState().scenes.flatMap((s) => s.points).some((p) => p.text === T.problem && x.refIds.includes(p.id))), 'ライブ: 更新の時点より前には要素が加わらない');
+  assert.deepEqual([...posMap(app)], [...pos0], '更新の時点より前は図が変わらない');
+  scheduler.advanceTo(nextUpdate);
   const id = pointIdOf(app, T.problem);
   assert.equal(app.getState().scenes.length, 2, '同じシーンに加わる');
   const e = elementOfPoint(app, id);
@@ -120,13 +139,16 @@ test('FR-080 AC-435 異常系: 画面が非表示の間に到来した再配置�
 test('FR-080 AC-435 FR-079 AC-426 AC-430: 再配置後、シーンの要点は種類の順（結論が先頭に昇格）で読み順に並び、整列・近接し、外枠が重ならず、シーンの並びは変わらない', async () => {
   const { app, env, scheduler } = await seededDetail();
   const scenes0 = app.getState().scenes.map((s) => s.id);
+  // ライブの要素は受付の後の最初の更新間隔の時点に加わる（AC-521。更新間隔 5 秒: 15 秒・20 秒…）。更新の時点が再配置の時点（20 秒）と
+  // 重ならないよう、6 件とも 15 秒の時点より前に受け付け、15 秒の時点でまとめて加わってから 20 秒の時点で再配置されるようにする。
   scheduler.advanceTo(PERIOD + 1000); say(env, T.problem);
-  scheduler.advanceTo(PERIOD + 2000); say(env, T.proposal);
-  scheduler.advanceTo(PERIOD + 3000); say(env, T.conclusion);
+  scheduler.advanceTo(PERIOD + 1500); say(env, T.proposal);
+  scheduler.advanceTo(PERIOD + 2000); say(env, T.conclusion);
   // 質問・根拠・行動（AC-426・AC-427 の 9 種類）。話順は 行動→根拠→質問 にして、種類の順への並べ替えを確かめる
-  scheduler.advanceTo(PERIOD + 4000); say(env, T.action);
-  scheduler.advanceTo(PERIOD + 5000); say(env, T.evidence);
-  scheduler.advanceTo(PERIOD + 6000); say(env, T.question);
+  scheduler.advanceTo(PERIOD + 2500); say(env, T.action);
+  scheduler.advanceTo(PERIOD + 3000); say(env, T.evidence);
+  scheduler.advanceTo(PERIOD + 3500); say(env, T.question);
+  assert.ok(PERIOD + 3500 < Math.ceil((PERIOD + 1000) / (LIVE_SEC * 1000)) * LIVE_SEC * 1000, '6 件とも同じ更新の時点の前に受け付ける');
   scheduler.advanceTo(2 * PERIOD);
   assert.deepEqual(app.getState().scenes.map((s) => s.id), scenes0, '新しいシーンはできていない');
   const sc1 = elementOfScene(app, scenes0[0]); const sc2 = elementOfScene(app, scenes0[1]);
@@ -159,10 +181,12 @@ test('FR-080 AC-435 FR-079 AC-426 AC-430: 再配置後、シーンの要点は�
 test('FR-080 AC-435 FR-079 AC-428: 1 シーンの要点が 7 を超えると再配置で下位のまとまりに分かれ、どの下位のまとまりも 7 個以下で、要点は 1 つも消えず 1 つの下位のまとまりだけに属する', async () => {
   const { app, env, scheduler } = await arrangeApp();
   toDetail(app);
-  app.commands['session.start']();
+  startLive(app); // 更新間隔 5 秒（PARAM-098）: 8 件は 5 秒の時点でまとめて図に加わり、再配置（10 秒）の時点と重ならない（AC-521）
   const texts = ['北口の受付は九時から', '南口の受付は十時から', '駐車場は地下二階', '昼食は弁当を用意', '名札は入口で配布', '休憩は十五分', '撮影は後方から', '配布資料は二部'];
   texts.forEach((t, i) => { scheduler.advanceTo(500 + i * 500); say(env, t); });
+  scheduler.advanceTo(LIVE_SEC * 1000);
   assert.equal(app.getState().scenes.length, 1, '1 シーンに 8 要点');
+  assert.equal(count(app), 0, '更新の時点では再配置されない');
   scheduler.advanceTo(PERIOD);
   assert.equal(count(app), 1);
   const scene = elementOfScene(app, app.getState().scenes[0].id);
@@ -216,7 +240,11 @@ test('FR-080 AC-439: 周期による再配置の前後で、記録中の状態�
   app.setDraft('入力中の文字列');
   assert.ok(app.setDiagramView({ zoom: 1.5, scrollX: 40, scrollY: 30 }).ok);
   scheduler.advanceTo(PERIOD + 1000); say(env, T.problem);
-  scheduler.advanceTo(PERIOD + 2000); // 周期内の短い時間（PARAM-001 は周期より長い）
+  // ライブの要素は受付の後の最初の更新間隔の時点（15 秒）に加わる（AC-521）。その後・周期の時点（20 秒）の前の状態を基準にする
+  const nextUpdate = Math.ceil((PERIOD + 1000) / (LIVE_SEC * 1000)) * LIVE_SEC * 1000;
+  scheduler.advanceTo(nextUpdate + 500);
+  assert.ok(scheduler.t < 2 * PERIOD);
+  assert.ok(app.getState().scenes.flatMap((s) => s.points).some((p) => p.text === T.problem), '更新の時点で要点が加わっている');
   const k0 = keep(app); const c0 = count(app);
   scheduler.advanceTo(2 * PERIOD);
   assert.equal(count(app), c0 + 1, '再配置が行われた');
@@ -232,23 +260,30 @@ test('FR-080 AC-439: 周期 0（会話の区切り）による再配置でも、
   const { app, env, scheduler } = await arrangeApp();
   assert.equal(app.setArrangeInterval(0).ok, true);
   toDetail(app);
-  app.commands['session.start']();
-  scheduler.advanceTo(500); say(env, T.plain1);
+  // ライブの要素は受付の後の最初の更新間隔の時点に加わる（AC-521）。更新間隔 5 秒（PARAM-098）で、要素が 5 秒の時点で加わってから
+  // 無音 3 秒の区切り（最後の受付から 3 秒）が来るように受付の時刻を置く。
+  startLive(app);
+  const L = LIVE_SEC * 1000; const SIL = P.SILENCE_SEC * 1000;
+  scheduler.advanceTo(L - 1500); say(env, T.plain1);
   app.commands['session.nextScene']();
-  scheduler.advanceTo(1000); say(env, T.plain2);
-  scheduler.advanceTo(1000 + P.SILENCE_SEC * 1000 + 1);
+  scheduler.advanceTo(L - 1000); say(env, T.plain2);
+  assert.ok(L - 1000 + SIL > L, '区切りは更新の時点の後');
+  scheduler.advanceTo(L - 1000 + SIL + 1);
   assert.ok(count(app) >= 1, '無音 3 秒の区切りで再配置される');
   const [sA, sB] = app.getState().scenes;
   app.selectScene(sA.id);
   assert.equal(app.setDetailLevel('major').ok, true);
   const topicOfB = app.getTopics().find((t) => t.sceneIds.includes(sB.id));
-  scheduler.advanceTo(5000); say(env, T.problem); // 2 シーン目（選択していないトピック）に加わる
-  scheduler.advanceTo(5500);
+  // 2 シーン目（選択していないトピック）に加わる。次の更新の時点（2L）で図に加わり、その後に無音 3 秒の区切りが来る
+  const tP = 2 * L - 1000;
+  scheduler.advanceTo(tP); say(env, T.problem);
+  scheduler.advanceTo(2 * L + 500);
+  assert.ok(app.getState().scenes.flatMap((s) => s.points).some((p) => p.text === T.problem), '更新の時点で要点が加わっている');
   const k0 = keep(app); const c0 = count(app);
   assert.equal(k0.selectedSceneId, sA.id, '大項目でもシーンの選択は保たれる');
   assert.equal(app.getState().scenes.length, 2);
   assert.ok(topicOfB);
-  scheduler.advanceTo(5000 + P.SILENCE_SEC * 1000 + 1);
+  scheduler.advanceTo(tP + SIL + 1);
   assert.equal(count(app), c0 + 1, '無音 3 秒の区切りで再配置された');
   assert.deepEqual(keep(app), k0);
   app.setDetailLevel('detail');
@@ -259,14 +294,19 @@ test('FR-080 AC-439: 周期 0（会話の区切り）による再配置でも、
 test('FR-080 AC-439: 動きを減らす設定（prefers-reduced-motion）が有効なとき、周期・会話の区切りのどちらの再配置もアニメーションなしで行われる', async () => {
   const { app, env, scheduler } = await arrangeApp({ reducedMotion: true });
   toDetail(app);
-  app.commands['session.start']();
+  startLive(app); // 更新間隔 5 秒（PARAM-098）: ライブの要素は 5 秒・15 秒の時点で加わる（AC-521）
+  const L = LIVE_SEC * 1000;
   scheduler.advanceTo(500); say(env, T.plain1);
   scheduler.advanceTo(PERIOD);
   assert.equal(count(app), 1);
   assert.deepEqual(app.getArrangeStatus().lastTransition, { animated: false, durationMs: 0 });
   assert.equal(app.setArrangeInterval(0).ok, true);
-  scheduler.advanceTo(PERIOD + 500); say(env, T.problem);
-  scheduler.advanceTo(PERIOD + 500 + P.SILENCE_SEC * 1000 + 1);
+  // 次の更新の時点（15 秒）の直前に受け付け、加わった後に無音 3 秒の区切りが来るようにする
+  const tP = PERIOD + L - 1000;
+  scheduler.advanceTo(tP); say(env, T.problem);
+  scheduler.advanceTo(PERIOD + L);
+  assert.equal(count(app), 1, '更新の時点では再配置されない（区切りの前）');
+  scheduler.advanceTo(tP + P.SILENCE_SEC * 1000 + 1);
   assert.equal(count(app), 2);
   assert.deepEqual(app.getArrangeStatus().lastTransition, { animated: false, durationMs: 0 });
 });

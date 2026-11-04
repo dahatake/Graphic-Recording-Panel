@@ -15,6 +15,8 @@ async function mk() {
   const app = await createApp({ storage: null, speechSource: sp, now: () => (t += 1000) });
   app.commands['session.start']();
   app.startSpeech();
+  // 発話の追加は、図へ即時に反映される手入力で行う（音声の確定結果は更新間隔ごとの描き足し。FR-014 AC-521）。ここでは版数だけを確かめる
+  sp.emit = (text) => { app.setDraft(text); app.submitDraft(); };
   return { app, sp };
 }
 

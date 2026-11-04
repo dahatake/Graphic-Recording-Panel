@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const WEB = path.join(ROOT, 'web');
-export const PARAM = { UPPER_SEC: 15 /* PARAM-001（ライブ更新の間隔の上限） */, SINGLE_SEC: 3 /* PARAM-158（単発の反映の上限。2026-11-02） */, LIVE_DEFAULT_SEC: 10 /* PARAM-100 */, LIVE_MIN_SEC: 10 /* PARAM-098 */, LIVE_MAX_SEC: 15 /* PARAM-099 */, BUDGET_DEFAULT_YEN: 10000 /* PARAM-101 */, RENDER_SEC: 2 /* PARAM-104 */, WARN_PCT: 80 /* PARAM-105 */, SCENE_GAP_SEC: 20, MAX_FILE_MB: 1, DWELL_SEC: 8, SAVE_DEBOUNCE_MS: 500 /* PARAM-108（NFR-PERF-003 AC-539） */ };
+export const PARAM = { UPPER_SEC: 60 /* PARAM-001（ライブ更新の間隔の上限。2026-11-05 に 15→60） */, SINGLE_SEC: 3 /* PARAM-158（単発の反映の上限。2026-11-02） */, LIVE_DEFAULT_SEC: 10 /* PARAM-100 */, LIVE_MIN_SEC: 5 /* PARAM-098（2026-11-05 に 10→5） */, LIVE_MAX_SEC: 60 /* PARAM-099（2026-11-05 に 15→60） */, BUDGET_DEFAULT_YEN: 10000 /* PARAM-101 */, RENDER_SEC: 2 /* PARAM-104 */, WARN_PCT: 80 /* PARAM-105 */, SCENE_GAP_SEC: 20, MAX_FILE_MB: 1, DWELL_SEC: 8, SAVE_DEBOUNCE_MS: 500 /* PARAM-108（NFR-PERF-003 AC-539） */ };
 export const CJK = /[\u3000-\u30ff\u3400-\u9fff\uff00-\uffef]/;
 
 export async function loadApp() {

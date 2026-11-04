@@ -10,10 +10,24 @@ class Fake {
   stop() {}
   emit(text, isFinal = true) { this.onresult?.({ text, isFinal }); }
 }
-async function mk() {
+class Sched {
+  constructor() { this.t = 0; this.q = []; this.n = 1; }
+  setTimeout(fn, ms) { const id = this.n++; this.q.push({ id, at: this.t + ms, fn }); return id; }
+  clearTimeout(id) { this.q = this.q.filter((e) => e.id !== id); }
+  advance(ms) {
+    const end = this.t + ms;
+    for (;;) {
+      const next = this.q.filter((e) => e.at <= end).sort((a, b) => a.at - b.at || a.id - b.id)[0];
+      if (!next) break;
+      this.q = this.q.filter((e) => e !== next); this.t = next.at; next.fn();
+    }
+    this.t = end;
+  }
+}
+async function mk(opts = {}) {
   let t = 1_000_000;
   const sp = new Fake();
-  const app = await createApp({ storage: null, speechSource: sp, now: () => (t += 1000) });
+  const app = await createApp({ storage: null, speechSource: sp, now: () => (t += 1000), ...opts });
   app.commands['session.start']();
   app.startSpeech();
   return { app, sp };
@@ -53,13 +67,18 @@ test('FR-014 AC-052: 暫定は区別表示され発話にならず、記録中�
   assert.equal(app.getTranscript().interim, null);
 });
 
-test('FR-014 AC-053 AC-054: 確定・手入力・取込は即座に図へ反映される', async () => {
-  const { app, sp } = await mk();
+// FR-014 AC-053 AC-521: 音声の確定結果は、確定結果の一覧へはすぐ移り、図へは次のライブ更新（初期値 10 秒）で描き足される
+test('FR-014 AC-053 AC-054: 確定は次のライブ更新で、手入力・取込は即座に図へ反映される', async () => {
+  const sched = new Sched();
+  const { app, sp } = await mk({ scheduler: sched });
   app.setDetailLevel('detail'); // FR-026: 要点を図で確かめるため「詳細」にする
   sp.emit('予算', false);
   sp.emit('予算を見直す', true);
   assert.equal(app.getTranscript().interim, null);
-  assert.ok(app.renderSvg().includes('予算を見直す'));
+  assert.ok(app.getTranscript().finals.some((f) => f.text === '予算を見直す'), '確定結果の一覧にはすぐ移る');
+  assert.ok(!app.renderSvg().includes('予算を見直す'), '次の更新の時点までは図に加わらない');
+  sched.advance(app.getLiveInterval().sec * 1000);
+  assert.ok(app.renderSvg().includes('予算を見直す'), '更新間隔の時点で図に描き足される');
   app.setDraft('手入力'); app.submitDraft();
   assert.ok(app.renderSvg().includes('手入力'));
   await app.importTextFile({ name: 'a.txt', type: 'text/plain', size: 10, text: '取込行' });

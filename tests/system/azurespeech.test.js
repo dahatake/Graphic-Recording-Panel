@@ -10,11 +10,15 @@ import { FakeVisibility, PARAM, CJK, WEB, ROOT, bytesToLatin1, pdfTexts } from '
 import {
   DUMMY_HOST, DUMMY_HOST2, DUMMY_ENDPOINT, dummySpeechKey, flush, bootAzure, reloadAzure, startAzureRecording, settingsField,
 } from './azurespeech-util.js';
+import { toDetail } from './helpers.js';
+import { linkedClock, sample } from './liveshow-util.js';
 
 const LOCAL = { availability: { 'ja-JP': 'local', 'en-US': 'local' } };
 const REMOTE = { processLocally: false, availability: { 'ja-JP': 'remote', 'en-US': 'remote' } };
 const PARAM_074_MS = 10_000; // PARAM-074 接続テストの待機上限
 const PARAM_008_MS = 2_000; // PARAM-008 音声認識の自動再開までの上限
+// FR-014 AC-521（依頼 2026-11-05）: ライブ（音声の確定結果）は受付の後の最初の更新間隔の時点に図へまとめて加わる。既定の更新間隔 PARAM-100。
+const LIVE_MS = PARAM.LIVE_DEFAULT_SEC * 1000;
 const weight = (s) => [...String(s)].reduce((n, ch) => n + (CJK.test(ch) ? 1 : 0.5), 0);
 const type = (app, env, ...texts) => { for (const t of texts) { app.setDraft(t); app.submitDraft(); env.tick(1); } };
 const texts = (app) => app.getState().utterances.map((u) => u.text);
@@ -199,6 +203,30 @@ test('FR-081 AC-442: 起動直後（準備中）は押すまで開始・送信�
   assert.ok(app.renderSvg().includes('予算の見直しが必要です'), 'PARAM-001＋PARAM-104 秒以内に図へ反映');
 });
 
+// FR-081 AC-442（ライブ描画ショー（FR-115）が ON のとき: ライブの上限を描画の開始（最初の要素の描線の開始）に当てはめ、演出の完了は AC-675。1c4bd9d）
+test('FR-081 AC-442: ライブ描画ショー ON のとき、上流の確定結果が発話として 1 件追加され、描画の開始（最初の要素の描線の開始）が受付から PARAM-001＋PARAM-104 秒以内で、演出の終わりにその文字列が図に揃う', async () => {
+  const lc = linkedClock();
+  const { app, azure } = await bootAzure({ configured: true, over: lc });
+  toDetail(app);
+  assert.equal(app.setLiveShow(true).ok, true, 'ライブ描画ショー ON');
+  await startAzureRecording(app);
+  assert.equal(azure.startCalls.length, 1, '何も操作しなくても開始される');
+  assert.equal(app.setLiveInterval(PARAM.LIVE_MAX_SEC).ok, true, '更新間隔を設定できる最大（PARAM-099。PARAM-001 はその別名）にして上限の境界で測る');
+  lc.scheduler.advance(10);
+  const t0 = lc.clock.t;
+  azure.emit('予算の見直しが必要です'); await flush();
+  assert.deepEqual(texts(app), ['予算の見直しが必要です'], '確定結果が発話として 1 件');
+  const LIMIT = (PARAM.UPPER_SEC + PARAM.RENDER_SEC) * 1000;
+  let startAt = null;
+  sample(lc.scheduler, LIMIT, () => {
+    if (startAt === null) startAt = (app.getLiveShow().log ?? []).find((e) => e.type === 'stroke' && e.at >= t0)?.at ?? null;
+  }, 100);
+  assert.ok(startAt !== null && startAt - t0 <= LIMIT, `描画の開始は受付から ${startAt === null ? '（未開始）' : `${startAt - t0} ms`} ≤ ${LIMIT} ms（PARAM-001＋PARAM-104）`);
+  sample(lc.scheduler, PARAM.LIVE_MAX_SEC * 1000 - PARAM.RENDER_SEC * 1000, () => {}, 100); // 更新の時点から 1 間隔ぶん進める（演出は間隔の内に終わる）
+  assert.equal(app.getLiveShow().running, false, '演出が終わっている');
+  assert.ok(app.renderSvg().includes('予算の見直しが必要です'), '演出の終わりに確定結果の文字列が図に揃う');
+});
+
 test('FR-081 AC-442 異常系: 起動・再読込後も同意状態は常に同意済みで保存されず、再読込後の再開は何も操作しなくても Azure Speech で開始する', async () => {
   const ctx = await bootAzure({ configured: true });
   await startAzureRecording(ctx.app);
@@ -264,9 +292,10 @@ for (const code of ['unconfigured', 'auth', 'network']) {
     await startAzureRecording(app);
     type(app, env, '予算の見直しが必要です');
     azure.emit('コストが高くて困った'); await flush();
-    env.scheduler.advance(3000);
+    env.scheduler.advance(LIVE_MS); // ライブの確定結果は受付の後の最初の更新間隔の時点に図へ加わる（AC-521）
     app.setDraft('入力中の文字');
     const svg = app.renderSvg(); const before = texts(app);
+    assert.ok(app.renderOutline().includes('コストが高くて困った'), '失敗の前に、ライブの確定結果が更新の時点で図（アウトライン）にある');
     azure.fail(code); await flush();
     const s = app.getSpeechStatus();
     assert.equal(s.method, 'azure');
@@ -382,8 +411,9 @@ test('FR-081 AC-446: Azure Speech でも音声はブラウザ内の保存・セ�
   await startAzureRecording(app);
   const MARK = 'AUDIO-BYTES-MARK-7781';
   azure.emit('音声の確認の発話', true, { audio: new Uint8Array(Buffer.from(MARK)), audioBase64: Buffer.from(MARK).toString('base64') });
-  await flush(); env.scheduler.advance(3000);
+  await flush(); env.scheduler.advance(LIVE_MS); // 受付の後の最初の更新間隔の時点を越える（AC-521）
   assert.deepEqual(texts(app), ['音声の確認の発話']);
+  assert.ok(app.renderOutline().includes('音声の確認の発話'), '更新の時点で図（アウトライン）に描き足されている（保存物の検査の前提）');
   await app.commands['file.save'](); await app.commands['save.png'](); await app.commands['save.svg'](); await app.commands['save.pdf']();
   const blobs = [JSON.stringify(env.storage.dump()), ...env.downloads.map((d) => (typeof d.data === 'string' ? d.data : bytesToLatin1(d.data))), env.canvasFactory.log.texts.join('\n')];
   for (const b of blobs) {
@@ -406,6 +436,7 @@ test('FR-081 AC-446: 画面が非表示でも記録中かつ同意済みなら A
   assert.deepEqual(texts(app), ['非表示の間の発話'], '非表示の間も取り込む');
   azure.end('upstream_end'); env.scheduler.advance(PARAM_008_MS);
   assert.equal(azure.startCalls.length, 2, '非表示の間の上流の終了でも再開する');
+  env.scheduler.advance(LIVE_MS); // 非表示のまま、受付の後の最初の更新間隔の時点を越える（AC-521）
   visibility.set(false); env.scheduler.advance(2000);
   assert.ok(app.renderSvg().includes('非表示の間の発話'));
 });
@@ -427,8 +458,9 @@ for (const reason of ['upstream_end', 'token_expired']) {
   test(`FR-081 AC-458 (a): 上流の正常な終了・トークンの期限切れ（${reason}）では停止の表示をせず、PARAM-008 秒以内に自動で再開し、発話・図・記録中は失われない`, async () => {
     const { app, env, azure } = await bootAzure({ configured: true });
     await startAzureRecording(app);
-    azure.emit('予算の見直しが必要です'); await flush(); env.scheduler.advance(3000);
+    azure.emit('予算の見直しが必要です'); await flush(); env.scheduler.advance(LIVE_MS); // 更新の時点を越える（AC-521）
     const svg = app.renderSvg(); const before = texts(app);
+    assert.ok(app.renderOutline().includes('予算の見直しが必要です'), '終了の前に、ライブの確定結果が更新の時点で図（アウトライン）にある');
     azure.end(reason); await flush();
     assert.notEqual(app.getSpeechStatus().state, 'unavailable', '停止（失敗）の表示をしない');
     env.scheduler.advance(PARAM_008_MS);
@@ -673,7 +705,8 @@ test('NFR-SEC-005 AC-452: ダミーのキーを保存し、Azure Speech での�
     assert.equal(r.ok, true);
     assert.equal(app.getSpeechMethod(), 'azure');
     app.commands['session.start'](); await flush();
-    azure.emit('予算の見直しが必要です'); azure.emit('次のリリース計画'); await flush(); env.scheduler.advance(3000);
+    azure.emit('予算の見直しが必要です'); azure.emit('次のリリース計画'); await flush(); env.scheduler.advance(LIVE_MS); // 更新の時点を越える（AC-521）
+    assert.ok(app.renderOutline().includes('次のリリース計画'), '更新の時点で図（アウトライン）に描き足されている（保存物の検査の前提）');
     assert.equal((await app.testAzureSpeech()).result, 'success');
     await app.commands['file.save'](); await app.commands['save.png'](); await app.commands['save.svg'](); await app.commands['save.pdf']();
     await flush();

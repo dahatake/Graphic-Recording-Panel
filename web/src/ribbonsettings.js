@@ -19,13 +19,13 @@ export function ribbonSettingsModule(ctx) {
   const t = ctx.t;
   ctx.i18n.addStrings({
     ja: {
-      'description.settings.layoutMode': 'レイアウトの決め方（自動・固定）', 'description.sound.toggleMute': 'RPG風の音を消す・戻す', 'description.sound.setVolume': '音量 0〜100', 'description.arrange.setInterval': '再配置の周期 0〜300 秒',
+      'description.settings.layoutMode': 'レイアウトの決め方（自動・固定）', 'description.sound.toggleMute': 'すべての音を消す・戻す', 'description.sound.setVolume': '音量 0〜100', 'description.arrange.setInterval': '再配置の周期 0〜300 秒',
       'ribbon.sound.mute.on': 'ミュート中', 'ribbon.sound.mute.off': 'ミュートなし', 'ribbon.sound.volume': '音量',
       'ribbon.invalid.mode': '決め方は「自動」か「固定」を選んでください', 'ribbon.invalid.mute': 'ミュートは入か切かを指定してください', 'ribbon.invalid.volume': '音量は 0〜100 の整数で入力してください', 'ribbon.invalid.drawStyle': '選べない描画スタイルです', 'ribbon.unknown': 'その項目はありません', 'ribbon.noChange': '変更はありません（すでにその状態か、今は実行できる状態ではありません）',
       'settings.sound.muted': '音をミュート', 'settings.sound.volume': '音量',
     },
     en: {
-      'description.settings.layoutMode': 'How the layout is decided (auto/fixed)', 'description.sound.toggleMute': 'Mute or unmute the RPG sound', 'description.sound.setVolume': 'Volume 0 to 100', 'description.arrange.setInterval': 'Rearrange interval 0-300 s',
+      'description.settings.layoutMode': 'How the layout is decided (auto/fixed)', 'description.sound.toggleMute': 'Mute or unmute all sound', 'description.sound.setVolume': 'Volume 0 to 100', 'description.arrange.setInterval': 'Rearrange interval 0-300 s',
       'ribbon.sound.mute.on': 'Muted', 'ribbon.sound.mute.off': 'Not muted', 'ribbon.sound.volume': 'Volume',
       'ribbon.invalid.mode': 'Choose Auto or Fixed for the mode', 'ribbon.invalid.mute': 'Specify mute on or off', 'ribbon.invalid.volume': 'Enter the volume as an integer from 0 to 100', 'ribbon.invalid.drawStyle': 'That draw style cannot be selected', 'ribbon.unknown': 'There is no such item', 'ribbon.noChange': 'No change (it is already in that state, or it cannot run right now)',
       'settings.sound.muted': 'Mute sound', 'settings.sound.volume': 'Volume',

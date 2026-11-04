@@ -35,7 +35,7 @@ export const KEYMAP = [
   { key: 'Escape', ...AS, command: 'highlight.clear' },
 ];
 
-const PHYSICAL = { ',': 'Comma', '.': 'Period' }; // A-608: 物理キー（KeyboardEvent.code）で判定する記号（US 配列以外でも同じキーで開く）
+const PHYSICAL = { ',': 'Comma', '.': 'Period', '[': 'BracketLeft', ']': 'BracketRight' }; // A-608: 物理キー（KeyboardEvent.code）で判定する記号（US 配列以外・Shift つきでも同じキーで開く）
 export function matchKey(keymap, ev) {
   const key = String(ev?.key ?? '').toLowerCase();
   const code = typeof ev?.code === 'string' ? ev.code : '';

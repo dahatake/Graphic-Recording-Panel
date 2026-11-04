@@ -244,6 +244,9 @@ body { overflow-y: auto; }
 .btn[data-selected-mark] { outline: 2px solid currentColor; outline-offset: -3px; }
 .btn[data-selected-mark="frame"] { outline-width: 3px; }
 .sel-mark { margin-left: 2px; font-weight: 700; }
+/* FR-115 AC-672: ライブ描画ショーのオン・オフを文字でも示す（ラベルの下の小さな状態の文字。押下の枠と併用） */
+.commandbar .btn .btn-state { font-size: var(--font-size-caption); line-height: 1; color: var(--color-text-muted); }
+.commandbar .btn[aria-pressed="true"] .btn-state { color: var(--color-brand-fg); font-weight: 700; }
 
 /* FR-077: 画風（描画スタイル）のグループ。13 項目の常時表示の通常ボタン（aria-pressed）。現在の画風は pressed の枠・下線と ✓（sel-mark）で、色だけに頼らない。一覧・開閉はない */
 .commandbar .btn-drawstyle .btn-label { white-space: nowrap; }
@@ -454,3 +457,8 @@ body { overflow-y: auto; }
 .panel.is-collapsed .panel-menu { display: none; }
 .panel-head .panel-toggle { margin-right: auto; }
 .panel-toggle[hidden] { display: none; }
+
+/* FR-022 AC-671: .vtt の取込の方法・速さと再生取込の操作（入力パネルの入力欄の下）。トークンだけで指定する */
+.import-mode { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); margin-top: var(--space-1); font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.import-mode select { min-height: 24px; font: inherit; color: var(--color-text); background: var(--color-surface); border: var(--stroke) solid var(--color-border); border-radius: var(--radius-control); padding: 0 var(--space-1); }
+.import-mode [hidden] { display: none; }

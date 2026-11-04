@@ -18,6 +18,15 @@ export function parseCueStart(line) {
 // 戻り値: 本文の配列（ファイルの順）
 export function parseVtt(text) { return parseVttCues(text).map((c) => c.text); }
 
+// FR-022 AC-113: 各 cue の受付時刻の、最初の cue からの差（ミリ秒）。読めない・戻る cue は直前の差を使う（一括取込・再生取込で共通。AC-671）
+export function cueOffsets(cues) {
+  let first = null; let prev = 0;
+  return cues.map((c) => {
+    if (c.startMs != null) { if (first == null) first = c.startMs; prev = Math.max(prev, c.startMs - first); }
+    return prev;
+  });
+}
+
 // 戻り値: 発話になる cue の { text, startMs（読めなければ null） } の配列（ファイルの順）
 export function parseVttCues(text) {
   const src = String(text ?? '').replace(/^\uFEFF/, '').replace(/\r\n|\r/g, '\n');
