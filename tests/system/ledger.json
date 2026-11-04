@@ -19,7 +19,7 @@
     "AC-026": "sha256:6984d8eb60ca0467",
     "AC-027": "sha256:939f5ba9dc8af42f",
     "AC-029": "sha256:0c3909f0e1309b2e",
-    "AC-043": "sha256:dfd6baef7e907202",
+    "AC-043": "sha256:0e54ffc9fcb81e73",
     "AC-030": "sha256:4ff8c6e5383e0179",
     "AC-031": "sha256:a06806b64cc65ff3",
     "AC-032": "sha256:70a43cf878f66a04",
@@ -36,12 +36,12 @@
     "AC-063": "sha256:52e3d2400f012178",
     "AC-064": "sha256:cea138c713e4e5e4",
     "AC-065": "sha256:47f67d016cc7606d",
-    "AC-040": "sha256:437274386a937d4e",
+    "AC-040": "sha256:08c16a4ca0d2f27f",
     "AC-066": "sha256:3341bd825cd90b6f",
-    "AC-067": "sha256:5e8f507f102e5e24",
-    "AC-068": "sha256:bd164c440658c571",
-    "AC-069": "sha256:19b8c156e9013826",
-    "AC-034": "sha256:2118023077ac44e5",
+    "AC-067": "sha256:3526938c9686fdda",
+    "AC-068": "sha256:52b77d3184c7b7af",
+    "AC-069": "sha256:ae23a4a1aa472060",
+    "AC-034": "sha256:218acb9648e39cac",
     "AC-071": "sha256:7c97c04498000c85",
     "AC-072": "sha256:3f7bd1db19b605dc",
     "AC-073": "sha256:f4613d37cff276b7",
@@ -148,20 +148,20 @@
     "AC-366": "sha256:4c4ba8a297894acc",
     "AC-367": "sha256:c517d020b9e88f71",
     "AC-384": "sha256:71d95fbfd9f2938c",
-    "AC-385": "sha256:0f3c2bcf35c410ed",
-    "AC-386": "sha256:663ca6776a5bf1b0",
-    "AC-387": "sha256:e365b16200cee087",
-    "AC-394": "sha256:9607780d56f34c57",
+    "AC-385": "sha256:3abfbdab94293148",
+    "AC-386": "sha256:1cd4e6aa8d4f3c69",
+    "AC-387": "sha256:14409b3df42ba4c5",
+    "AC-394": "sha256:55fba90fd32fdbaa",
     "AC-388": "sha256:4763edb855b78154",
     "AC-389": "sha256:d76adcb523bd6173",
     "AC-390": "sha256:bc08a577595d5281",
     "AC-391": "sha256:51f44b4089402ced",
-    "AC-392": "sha256:9e193779cbb7745d",
+    "AC-392": "sha256:030ffeb6868d41ed",
     "AC-393": "sha256:1915692914e41269",
-    "AC-414": "sha256:52312c3be799d240",
-    "AC-415": "sha256:b8ff7fafb2d4c7b7",
-    "AC-416": "sha256:ba93db768f821d6a",
-    "AC-417": "sha256:443f71b2696da456",
+    "AC-414": "sha256:965dcfb9a8ae2af0",
+    "AC-415": "sha256:3ac190dd8d27d68c",
+    "AC-416": "sha256:e0c53f35d9893ef7",
+    "AC-417": "sha256:4170a5a45c3041f3",
     "AC-418": "sha256:02f6cc4a1725a831",
     "AC-419": "sha256:b46710ca130981f0",
     "AC-420": "sha256:9c77661e64449c5e",
@@ -186,7 +186,7 @@
     "AC-399": "sha256:281370b2a80ba6d5",
     "AC-401": "sha256:f3d1b6140cfea751",
     "AC-402": "sha256:3ae6afa4032fee90",
-    "AC-459": "sha256:befff20a41ff7515",
+    "AC-459": "sha256:52ff43250e672cbe",
     "AC-460": "sha256:e5633f20b76bcbf4",
     "AC-461": "sha256:e739eb391b8b4c84",
     "AC-462": "sha256:788240e79830f31d",
@@ -196,14 +196,14 @@
     "AC-436": "sha256:1d5cad323ac8017b",
     "AC-439": "sha256:afa998f8bed55a68",
     "AC-440": "sha256:cb8e709859fa53d9",
-    "AC-441": "sha256:b47310ec6124c8fe",
-    "AC-442": "sha256:a658a05d92e2d965",
-    "AC-443": "sha256:84c669163bb31405",
+    "AC-441": "sha256:8ec6db3873a96182",
+    "AC-442": "sha256:fdcede0b656d5a08",
+    "AC-443": "sha256:ac625adb1f4c7853",
     "AC-444": "sha256:f7a142b56de4daa7",
     "AC-445": "sha256:87a81fd881bb1431",
     "AC-446": "sha256:b8af9511a78e1b79",
     "AC-447": "sha256:c92e26857181b5d2",
-    "AC-458": "sha256:f788c48da64c2dc9",
+    "AC-458": "sha256:2e76197c102fbc2f",
     "AC-448": "sha256:21b83e2f9d30bd11",
     "AC-449": "sha256:d8ef7bfa35e2be13",
     "AC-450": "sha256:dbbc9e255333122b",
@@ -268,7 +268,7 @@
     "AC-646": "sha256:008d3f959a6ee470",
     "AC-341": "sha256:18c82ba246abe2dd",
     "AC-454": "sha256:6761f82854320b79",
-    "AC-647": "sha256:794d69ee0acbdaac",
+    "AC-647": "sha256:4df3897117b35f90",
     "AC-648": "sha256:995226e57b6c9dc6",
     "AC-653": "sha256:fa2232dcf5f42a65",
     "AC-654": "sha256:f4ba646949d4ecc0",
@@ -818,7 +818,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-043\" tests/system/persist.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "31cca0e",
       "last_run_at": "2026-11-04T01:07:59+09:00",
       "evidence": "work/runs/adhoc-202611040106/logs/system-test/E2E-019-202611040106.log",
@@ -834,6 +834,12 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "AC-034/043/394 と NFR-PRIV-001 の新仕様（再読込後の同意の初期状態は方式別）に合わせ、ブラウザ標準の前提を明記しコメント・題名を更新。Azure Speech の期待値は AC-442 の既定を同意済みに修正"
+        },
+        {
+          "at": "2026-11-04T09:51:01+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "2026-11-04 の依頼で AC・契約が変わったため、実装前の再検証待ち（test-designer）"
         }
       ]
     },
@@ -2312,11 +2318,11 @@
       "ac_ids": [
         "AC-099"
       ],
-      "title": "セッションファイル: 読込後は一時停止・再開まで追加なし・同意再取得（異常系）",
+      "title": "セッションファイル: 読込後は一時停止・再開まで追加なし。外部送信の可能性がある環境でも同意の操作なしに再開で開始（異常系）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-099\" tests/system/sessionfile.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "31cca0e",
       "last_run_at": "2026-11-04T01:07:59+09:00",
       "evidence": "work/runs/adhoc-202611040106/logs/system-test/E2E-065-202611040107.log",
@@ -2332,6 +2338,18 @@
           "by": "test-designer",
           "change": "title: 'sessionfile' -> 'セッションファイル: 読込後は一時停止・再開まで追加なし・同意再取得（異常系）'",
           "reason": "タイトルの修正"
+        },
+        {
+          "at": "2026-11-04T09:50:45+09:00",
+          "by": "test-designer",
+          "change": "title: 'セッションファイル: 読込後は一時停止・再開まで追加なし・同意再取得（異常系）' -> 'セッションファイル: 読込後は一時停止・再開まで追加なし。外部送信の可能性がある環境でも同意の操作なしに再開で開始（異常系）'",
+          "reason": "AC-043・AC-394: 復元後の同意の再取得を廃止（口頭で得たものとして扱う）"
+        },
+        {
+          "at": "2026-11-04T09:51:01+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "2026-11-04 の依頼で AC・契約が変わったため、実装前の再検証待ち（test-designer）"
         }
       ]
     },
@@ -5254,11 +5272,11 @@
       "ac_ids": [
         "AC-385"
       ],
-      "title": "外部送信の可能性がある環境で同意のチェックと説明が最上部の記録開始の直近に表示され、パネルには置かれない。デバイス内処理では出ない",
+      "title": "外部送信の可能性がある環境で、外部送信と口頭同意の注意文が最上部の記録開始の直近に表示され（同意のチェック・ボタンはなく）、パネルには置かれない。デバイス内処理では出ない",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-385\" tests/system/startbar.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "31cca0e",
       "last_run_at": "2026-11-04T01:07:59+09:00",
       "evidence": "work/runs/adhoc-202611040106/logs/system-test/E2E-182-202611040106.log",
@@ -5268,6 +5286,18 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610192220）"
+        },
+        {
+          "at": "2026-11-04T09:50:19+09:00",
+          "by": "test-designer",
+          "change": "title: '外部送信の可能性がある環境で同意のチェックと説明が最上部の記録開始の直近に表示され、パネルには置かれない。デバイス内処理では出ない' -> '外部送信の可能性がある環境で、外部送信と口頭同意の注意文が最上部の記録開始の直近に表示され（同意のチェック・ボタンはなく）、パネルには置かれない。デバイス内処理では出ない'",
+          "reason": "2026-11-04 の依頼: 同意はチェック不要・注意文のみ（AC-385）に合わせて期待を変更"
+        },
+        {
+          "at": "2026-11-04T09:50:55+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "2026-11-04 の依頼で AC・契約が変わったため、実装前の再検証待ち（test-designer）"
         }
       ]
     },
@@ -5279,11 +5309,11 @@
       "ac_ids": [
         "AC-386"
       ],
-      "title": "未同意の記録開始は記録中になるが音声認識は開始されず同意待ちを示す。同意で開始、同意を外すと停止（記録中のまま）",
+      "title": "起動直後は押すまで記録も音声認識も始まらず、記録開始で（同意の操作なしに）記録中になり音声認識が開始される。同意のチェックによる開始・停止は廃止（異常系含む）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-386\" tests/system/startbar.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "31cca0e",
       "last_run_at": "2026-11-04T01:07:59+09:00",
       "evidence": "work/runs/adhoc-202611040106/logs/system-test/E2E-183-202611040106.log",
@@ -5293,6 +5323,18 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610192220）"
+        },
+        {
+          "at": "2026-11-04T09:50:39+09:00",
+          "by": "test-designer",
+          "change": "title: '未同意の記録開始は記録中になるが音声認識は開始されず同意待ちを示す。同意で開始、同意を外すと停止（記録中のまま）' -> '起動直後は押すまで記録も音声認識も始まらず、記録開始で（同意の操作なしに）記録中になり音声認識が開始される。同意のチェックによる開始・停止は廃止（異常系含む）'",
+          "reason": "2026-11-04 の依頼: AC-386 の同意のチェックによる開始・停止を廃止"
+        },
+        {
+          "at": "2026-11-04T09:50:55+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "2026-11-04 の依頼で AC・契約が変わったため、実装前の再検証待ち（test-designer）"
         }
       ]
     },
@@ -5428,11 +5470,11 @@
       "ac_ids": [
         "AC-390"
       ],
-      "title": "音声認識の開始（記録開始・同意後・再開）で非表示の認識文字列パネルが自動表示され、表示済みなら変わらない",
+      "title": "音声認識の開始（記録開始・再開。同意の操作なし）で非表示の認識文字列パネルが自動表示され、表示済みなら変わらない",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-390\" tests/system/startbar.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "31cca0e",
       "last_run_at": "2026-11-04T01:07:59+09:00",
       "evidence": "work/runs/adhoc-202611040106/logs/system-test/E2E-188-202611040106.log",
@@ -5442,6 +5484,18 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610192220）"
+        },
+        {
+          "at": "2026-11-04T09:50:39+09:00",
+          "by": "test-designer",
+          "change": "title: '音声認識の開始（記録開始・同意後・再開）で非表示の認識文字列パネルが自動表示され、表示済みなら変わらない' -> '音声認識の開始（記録開始・再開。同意の操作なし）で非表示の認識文字列パネルが自動表示され、表示済みなら変わらない'",
+          "reason": "AC-390 の開始経路から同意後の開始を除く（AC-386 の変更に追随）"
+        },
+        {
+          "at": "2026-11-04T09:50:56+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "2026-11-04 の依頼で AC・契約が変わったため、実装前の再検証待ち（test-designer）"
         }
       ]
     },
@@ -5540,11 +5594,11 @@
       "ac_ids": [
         "AC-414"
       ],
-      "title": "上部の画風を選ぶボタン（常時ラベル・ツールチップ・現在値）と 13 の描画スタイルの一覧・選択中の印（異常系含む）",
+      "title": "「画風」グループに 13 の描画スタイルが常時表示の項目（ラベル・ツールチップ）として並び、クリックで切り替わり現在の項目は aria-pressed と色以外の印で示される（異常系含む）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-414\" tests/system/stylepicker.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "31cca0e",
       "last_run_at": "2026-11-04T01:07:59+09:00",
       "evidence": "work/runs/adhoc-202611040106/logs/system-test/E2E-199-202611040106.log",
@@ -5554,6 +5608,18 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "run 202610200356 part 2/2: AC-414 の System Test を追加"
+        },
+        {
+          "at": "2026-11-04T09:50:40+09:00",
+          "by": "test-designer",
+          "change": "title: '上部の画風を選ぶボタン（常時ラベル・ツールチップ・現在値）と 13 の描画スタイルの一覧・選択中の印（異常系含む）' -> '「画風」グループに 13 の描画スタイルが常時表示の項目（ラベル・ツールチップ）として並び、クリックで切り替わり現在の項目は aria-pressed と色以外の印で示される（異常系含む）'",
+          "reason": "2026-11-04 の依頼: AC-414 のドロップダウンを常時表示のグループに変更"
+        },
+        {
+          "at": "2026-11-04T09:50:56+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "2026-11-04 の依頼で AC・契約が変わったため、実装前の再検証待ち（test-designer）"
         }
       ]
     },
@@ -5565,11 +5631,11 @@
       "ac_ids": [
         "AC-415"
       ],
-      "title": "10 シーン・要点 50 個・詳細で、上部で選んでから描き替えまで 1 秒以内、内容・配置・型・詳細度・選択・記録中・入力中・テキスト一覧が保たれる",
+      "title": "10 シーン・要点 50 個・詳細度「詳細」で、画風の項目を選んでから 1 秒以内に描き替わり内容・配置・型・詳細度などは保たれる",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-415\" tests/system/stylepicker.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "31cca0e",
       "last_run_at": "2026-11-04T01:07:59+09:00",
       "evidence": "work/runs/adhoc-202611040106/logs/system-test/E2E-200-202611040106.log",
@@ -5579,6 +5645,18 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "run 202610200356 part 2/2: AC-415 の System Test を追加"
+        },
+        {
+          "at": "2026-11-04T09:50:41+09:00",
+          "by": "test-designer",
+          "change": "title: '10 シーン・要点 50 個・詳細で、上部で選んでから描き替えまで 1 秒以内、内容・配置・型・詳細度・選択・記録中・入力中・テキスト一覧が保たれる' -> '10 シーン・要点 50 個・詳細度「詳細」で、画風の項目を選んでから 1 秒以内に描き替わり内容・配置・型・詳細度などは保たれる'",
+          "reason": "AC-415: 一覧からでなくメニューの項目で選ぶ形に変更"
+        },
+        {
+          "at": "2026-11-04T09:50:57+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "2026-11-04 の依頼で AC・契約が変わったため、実装前の再検証待ち（test-designer）"
         }
       ]
     },
@@ -5590,11 +5668,11 @@
       "ac_ids": [
         "AC-416"
       ],
-      "title": "キーボードだけでボタン移動・一覧の開閉・候補移動・決定・Esc でボタンに戻る、コマンド検索で名前から選ぶ、読み上げ（異常系含む）",
+      "title": "キーボードだけで画風の項目への移動（Tab）・決定（Enter・Space）ができ（実ブラウザを含む）、コマンドの検索から名前で選べて、結果が読み上げ対象のメッセージで示される",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-416\" tests/system/stylepicker.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "31cca0e",
       "last_run_at": "2026-11-04T01:07:59+09:00",
       "evidence": "work/runs/adhoc-202611040106/logs/system-test/E2E-201-202611040106.log",
@@ -5604,6 +5682,18 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "run 202610200356 part 2/2: AC-416 の System Test を追加"
+        },
+        {
+          "at": "2026-11-04T09:50:41+09:00",
+          "by": "test-designer",
+          "change": "title: 'キーボードだけでボタン移動・一覧の開閉・候補移動・決定・Esc でボタンに戻る、コマンド検索で名前から選ぶ、読み上げ（異常系含む）' -> 'キーボードだけで画風の項目への移動（Tab）・決定（Enter・Space）ができ（実ブラウザを含む）、コマンドの検索から名前で選べて、結果が読み上げ対象のメッセージで示される'",
+          "reason": "AC-416: 一覧の開閉・矢印操作を廃止し、常時表示の項目の Tab・Enter・Space に変更。実ブラウザのケースを追加"
+        },
+        {
+          "at": "2026-11-04T09:50:57+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "2026-11-04 の依頼で AC・契約が変わったため、実装前の再検証待ち（test-designer）"
         }
       ]
     },
@@ -5615,11 +5705,11 @@
       "ac_ids": [
         "AC-417"
       ],
-      "title": "640px 以下でボタンとラベルが省かれず全候補へ横スクロールなしで到達、1280px で 1 行・重ならない、日英の切替",
+      "title": "640px 以下でも画風の全 13 項目とラベルは省かれず横スクロールなしで到達でき、1280px で 1 行・重ならず、日英の切替で名前と説明が切り替わる",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-417\" tests/system/stylepicker.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "31cca0e",
       "last_run_at": "2026-11-04T01:07:59+09:00",
       "evidence": "work/runs/adhoc-202611040106/logs/system-test/E2E-202-202611040106.log",
@@ -5629,6 +5719,18 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "run 202610200356 part 2/2: AC-417 の System Test を追加"
+        },
+        {
+          "at": "2026-11-04T09:50:42+09:00",
+          "by": "test-designer",
+          "change": "title: '640px 以下でボタンとラベルが省かれず全候補へ横スクロールなしで到達、1280px で 1 行・重ならない、日英の切替' -> '640px 以下でも画風の全 13 項目とラベルは省かれず横スクロールなしで到達でき、1280px で 1 行・重ならず、日英の切替で名前と説明が切り替わる'",
+          "reason": "AC-417: 一覧の全候補から常時表示の全項目へ変更"
+        },
+        {
+          "at": "2026-11-04T09:50:58+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "2026-11-04 の依頼で AC・契約が変わったため、実装前の再検証待ち（test-designer）"
         }
       ]
     },
@@ -6414,11 +6516,11 @@
       "ac_ids": [
         "AC-459"
       ],
-      "title": "コマンドバーの作業順 8 グループと所属・7 個以内、描画スタイルの選択は表示の末尾・プロンプトのコピーは図の書き出しの末尾（異常系: 折返し時の順・他グループに入らない）",
+      "title": "コマンドバーの作業順 10 グループ（画風は表示の直後）と所属・13 個以内、画風は 13 項目、プロンプトのコピーは図の書き出しの末尾（異常系: 折返し）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-459\" tests/system/cmdgroups.test.js",
       "canary": true,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "31cca0e",
       "last_run_at": "2026-11-04T01:07:59+09:00",
       "evidence": "work/runs/adhoc-202611040106/logs/system-test/E2E-225-202611040106.log",
@@ -6446,6 +6548,18 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "AC-459 の変更に合わせテスト更新（講演向けの初期値）"
+        },
+        {
+          "at": "2026-11-04T09:50:42+09:00",
+          "by": "test-designer",
+          "change": "title: 'コマンドバーの作業順 8 グループと所属・7 個以内、描画スタイルの選択は表示の末尾・プロンプトのコピーは図の書き出しの末尾（異常系: 折返し時の順・他グループに入らない）' -> 'コマンドバーの作業順 10 グループ（画風は表示の直後）と所属・13 個以内、画風は 13 項目、プロンプトのコピーは図の書き出しの末尾（異常系: 折返し）'",
+          "reason": "2026-11-04 の依頼: AC-459 のグループを 10 個に変更（画風を追加・drawStyle.pick 廃止・PARAM-092=13）"
+        },
+        {
+          "at": "2026-11-04T09:50:58+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "2026-11-04 の依頼で AC・契約が変わったため、実装前の再検証待ち（test-designer）"
         }
       ]
     },
@@ -6761,11 +6875,11 @@
       "ac_ids": [
         "AC-441"
       ],
-      "title": "方式の選択（初期値ブラウザ標準・未設定では選べず理由）、保存・復元・初期化・セッションファイル、キー保存で自動切替・削除で戻り、記録中の切替と同意の初期状態への戻り（Azure Speech は同意済み・ブラウザ標準は未同意。キーだけの保存では保たれホスト変更で初期状態）",
+      "title": "方式の選択（初期値ブラウザ標準・未設定では選べず理由）、保存・復元・初期化・セッションファイル、キー保存で自動切替・削除で戻り、記録中の切替（同意の操作なしに切替先が開始される）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-441\" tests/system/azurespeech.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "31cca0e",
       "last_run_at": "2026-11-04T01:07:59+09:00",
       "evidence": "work/runs/adhoc-202611040106/logs/system-test/E2E-228-202611040106.log",
@@ -6787,6 +6901,18 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "テストを新仕様に更新"
+        },
+        {
+          "at": "2026-11-04T09:50:43+09:00",
+          "by": "test-designer",
+          "change": "title: '方式の選択（初期値ブラウザ標準・未設定では選べず理由）、保存・復元・初期化・セッションファイル、キー保存で自動切替・削除で戻り、記録中の切替と同意の初期状態への戻り（Azure Speech は同意済み・ブラウザ標準は未同意。キーだけの保存では保たれホスト変更で初期状態）' -> '方式の選択（初期値ブラウザ標準・未設定では選べず理由）、保存・復元・初期化・セッションファイル、キー保存で自動切替・削除で戻り、記録中の切替（同意の操作なしに切替先が開始される）'",
+          "reason": "AC-441: 切替後の同意の扱いを、常に同意済み（操作なし）に変更"
+        },
+        {
+          "at": "2026-11-04T09:50:59+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "2026-11-04 の依頼で AC・契約が変わったため、実装前の再検証待ち（test-designer）"
         }
       ]
     },
@@ -6798,11 +6924,11 @@
       "ac_ids": [
         "AC-442"
       ],
-      "title": "Azure Speech では記録開始の直近に同意（初期状態は同意済み）とホスト名の説明。同意済みで開始され確定結果が発話になり PARAM-001＋PARAM-104 秒以内に図へ。外すと未同意で送信 0 件・同意待ち。同意は保存せず再読込で同意済みに戻る",
+      "title": "Azure Speech では記録開始の直近に口頭同意の注意文と送信先のホスト名が出て（同意の操作なし）、起動直後は送信 0 件、記録開始で開始され確定結果が発話になり PARAM-001＋PARAM-104 秒以内に図へ反映される",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-442\" tests/system/azurespeech.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "31cca0e",
       "last_run_at": "2026-11-04T01:07:59+09:00",
       "evidence": "work/runs/adhoc-202611040106/logs/system-test/E2E-230-202611040107.log",
@@ -6836,6 +6962,18 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "AC-442 の既定は同意済み"
+        },
+        {
+          "at": "2026-11-04T09:50:43+09:00",
+          "by": "test-designer",
+          "change": "title: 'Azure Speech では記録開始の直近に同意（初期状態は同意済み）とホスト名の説明。同意済みで開始され確定結果が発話になり PARAM-001＋PARAM-104 秒以内に図へ。外すと未同意で送信 0 件・同意待ち。同意は保存せず再読込で同意済みに戻る' -> 'Azure Speech では記録開始の直近に口頭同意の注意文と送信先のホスト名が出て（同意の操作なし）、起動直後は送信 0 件、記録開始で開始され確定結果が発話になり PARAM-001＋PARAM-104 秒以内に図へ反映される'",
+          "reason": "2026-11-04 の依頼: AC-442 の同意のチェックを廃止し、注意文のみ・常に同意済みに変更"
+        },
+        {
+          "at": "2026-11-04T09:50:59+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "2026-11-04 の依頼で AC・契約が変わったため、実装前の再検証待ち（test-designer）"
         }
       ]
     },
@@ -7926,11 +8064,11 @@
       "ac_ids": [
         "AC-519"
       ],
-      "title": "リボンに［設定］パネルの全項目（アイコン・説明つき）があり、リボンと［設定］の値が常に一致する（異常系含む）",
+      "title": "リボンに［設定］パネルの項目（描画スタイルは「画風」グループの項目）があり、リボンと［設定］の値が一致する（異常系含む）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=AC-519 tests/system/ribbon-settings.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "31cca0e",
       "last_run_at": "2026-11-04T01:07:59+09:00",
       "evidence": "work/runs/adhoc-202611040106/logs/system-test/E2E-257-202611040106.log",
@@ -7946,6 +8084,18 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "6 型化でテストを拡張。実装待ち"
+        },
+        {
+          "at": "2026-11-04T09:50:44+09:00",
+          "by": "test-designer",
+          "change": "title: 'リボンに［設定］パネルの全項目（アイコン・説明つき）があり、リボンと［設定］の値が常に一致する（異常系含む）' -> 'リボンに［設定］パネルの項目（描画スタイルは「画風」グループの項目）があり、リボンと［設定］の値が一致する（異常系含む）'",
+          "reason": "AC-459・FR-077: 描画スタイルを「画風」グループの 13 項目に変更したことに追随"
+        },
+        {
+          "at": "2026-11-04T09:51:00+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "2026-11-04 の依頼で AC・契約が変わったため、実装前の再検証待ち（test-designer）"
         }
       ]
     },
@@ -7957,11 +8107,11 @@
       "ac_ids": [
         "AC-520"
       ],
-      "title": "リボンに同じ機能の項目の重複がなく、全項目が操作で動作し無反応が 0 件（異常系含む）",
+      "title": "リボンに同じ機能の項目の重複がなく（画風は 13 項目を各 1 つ。drawStyle.pick は廃止）、全項目が操作で動作し無反応が 0 件",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=AC-520 tests/system/ribbon-settings.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "31cca0e",
       "last_run_at": "2026-11-04T01:07:59+09:00",
       "evidence": "work/runs/adhoc-202611040106/logs/system-test/E2E-258-202611040106.log",
@@ -7977,6 +8127,18 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "6 型化でテストを拡張。実装待ち"
+        },
+        {
+          "at": "2026-11-04T09:50:44+09:00",
+          "by": "test-designer",
+          "change": "title: 'リボンに同じ機能の項目の重複がなく、全項目が操作で動作し無反応が 0 件（異常系含む）' -> 'リボンに同じ機能の項目の重複がなく（画風は 13 項目を各 1 つ。drawStyle.pick は廃止）、全項目が操作で動作し無反応が 0 件'",
+          "reason": "AC-459・FR-077: 描画スタイルの項目の変更に追随"
+        },
+        {
+          "at": "2026-11-04T09:51:00+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "2026-11-04 の依頼で AC・契約が変わったため、実装前の再検証待ち（test-designer）"
         }
       ]
     },
@@ -8732,11 +8894,11 @@
       "ac_ids": [
         "AC-647"
       ],
-      "title": "記録グループの押下の強調は有効なときだけ（準備中は全部なし・記録中は開始/再開・一時停止は一時停止・停止で全部戻る・複製も同じ）",
+      "title": "記録グループの押下の強調は有効なときだけ（起動直後は押すまで記録・音声認識が始まらず全部 aria-pressed=false・記録中は開始/再開・一時停止は一時停止・停止で全部戻る・複製も同じ）",
       "layer": "e2e",
       "command": "node --test tests/system/record-pressed.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "31cca0e",
       "last_run_at": "2026-11-04T01:07:59+09:00",
       "evidence": "work/runs/adhoc-202611040106/logs/system-test/E2E-283-202611040106.log",
@@ -8752,6 +8914,18 @@
           "by": "test-designer",
           "change": "同じ要求・同じ層の既存ケースと別に追加",
           "reason": "AC-647 は実ブラウザ（aria-pressed と見た目）で測る必要があり、startbar.test.js（app 直結）と別ファイル"
+        },
+        {
+          "at": "2026-11-04T09:50:46+09:00",
+          "by": "test-designer",
+          "change": "title: '記録グループの押下の強調は有効なときだけ（準備中は全部なし・記録中は開始/再開・一時停止は一時停止・停止で全部戻る・複製も同じ）' -> '記録グループの押下の強調は有効なときだけ（起動直後は押すまで記録・音声認識が始まらず全部 aria-pressed=false・記録中は開始/再開・一時停止は一時停止・停止で全部戻る・複製も同じ）'",
+          "reason": "2026-11-04 の依頼: AC-647 に起動直後に自動で開始しないことを追加（実ブラウザのケースを追加）"
+        },
+        {
+          "at": "2026-11-04T09:51:02+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "2026-11-04 の依頼で AC・契約が変わったため、実装前の再検証待ち（test-designer）"
         }
       ]
     },

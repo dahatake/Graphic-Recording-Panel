@@ -1,17 +1,20 @@
-// FR-077 AC-414〜AC-419（System Test。契約: tests/system/CONTRACT-FR077-078.md「画面上部での画風の選択」）
+// FR-077 AC-414〜AC-419（System Test。契約: tests/system/CONTRACT-2026-11-04.md「2.」（AC-414〜417。2026-11-04 に一覧から常時表示のグループへ変更）と CONTRACT-FR077-078.md（AC-418・419））
 // 期待値は受入基準だけから決める（PARAM-006=640px、PARAM-011=6 全角/半角 12、PARAM-012=1280px、PARAM-081=1 秒、PARAM-089=10 シーン、PARAM-090=50 要点）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import { newApp, seedThreeScenes, toDetail, CJK, pdfTexts } from './helpers.js';
+import { serveWeb, launch, openApp } from './perf-util.js';
 
 const OLD = ['handwritten', 'anime', 'simple', 'rpg']; // 既存の 4 つ（FR-029・FR-047）
 const NARROW = 640; // PARAM-006
 const WIDE = 1280; // PARAM-012
 const LIMIT_MS = 1000; // PARAM-081
 const weight = (s) => [...s].reduce((n, ch) => n + (CJK.test(ch) ? 1 : 0.5), 0);
-const pickItem = (app) => app.getCommandBar().items.find((i) => i.command === 'drawStyle.pick');
-const picker = (app) => app.getDrawStylePicker();
+const styleItems = (app) => app.getCommandBar().items.filter((i) => i.group === 'drawStyle');
+const setItem = (app, id) => app.getCommandBar().items.find((i) => i.command === `drawStyle.set:${id}`);
+const pickStyle = (app, id) => app.commands[`drawStyle.set:${id}`]();
+const pressedIds = (app) => styleItems(app).filter((i) => i.pressed === true).map((i) => i.command.replace('drawStyle.set:', ''));
 const ids = (app) => app.getDrawStyles().map((s) => s.id);
 const labelOf = (app, id) => app.getDrawStyles().find((s) => s.id === id).label;
 const presets = (app) => ids(app).filter((id) => !OLD.includes(id));
@@ -27,76 +30,79 @@ function seedScenes(app, env, nScenes = 10, perScene = 5) {
   }
 }
 
-// FR-077 AC-414
-test('FR-077 AC-414: コマンドバーに画風を選ぶボタンがあり、常時表示のラベル（6 文字以内）・ツールチップ・現在の画風の表示を持つ', async () => {
+// FR-077 AC-414（2026-11-04 の依頼で、画風は常時表示の「画風」グループの項目。ドロップダウン・一覧の開閉はない。契約: CONTRACT-2026-11-04.md「2.」）
+test('FR-077 AC-414: 「画風」グループに 13 の描画スタイルが、開く操作なしに最初から常時、項目として表示され、各項目に常時表示のラベル（6 文字以内）とツールチップ（短い説明）がある', async () => {
   const { app } = await newApp();
+  const grp = app.getCommandBar().groups.find((g) => g.id === 'drawStyle');
+  assert.ok(grp, '「画風」グループがある');
+  assert.equal(grp.name, '画風');
+  assert.equal(app.getCommandBar().items.some((i) => i.command === 'drawStyle.pick'), false, '旧 drawStyle.pick（ドロップダウン）は廃止');
+  assert.equal(app.commands['drawStyle.pick'], undefined);
+  assert.equal(app.getDrawStylePicker, undefined, '開閉する一覧はない');
+  assert.deepEqual(grp.commands, ids(app).map((id) => `drawStyle.set:${id}`), '登録されたすべての描画スタイルが、同じ並びで最初から項目として出ている');
+  assert.equal(grp.commands.length, 13, '既存の 4 つ＋9 つの風');
+  for (const id of OLD) assert.ok(setItem(app, id), `${id} がある`);
+  assert.equal(presets(app).length, 9);
   for (const lang of ['ja', 'en']) {
     app.setLang(lang);
-    const it = pickItem(app);
-    assert.ok(it, `${lang}: drawStyle.pick のボタンがある`);
-    assert.ok(it.label.trim(), 'ラベルは非空');
-    if (lang === 'ja') assert.ok(weight(it.label.trim()) <= 6, `ラベル「${it.label}」は全角 6 文字以内`);
-    else assert.ok([...it.label.trim()].length <= 12, `label "${it.label}" は半角 12 文字以内`);
-    assert.equal(it.labelVisible, true, 'ラベルはホバー・フォーカスなしで常に見える');
-    assert.equal(it.accessibleName, it.label);
-    assert.ok(it.tooltip?.text?.trim(), 'ツールチップの説明文がある');
-    assert.equal(it.describedBy, it.tooltip.id);
-    const tip = app.showTooltip('drawStyle.pick', 'hover');
-    assert.equal(tip.visible, true); assert.equal(tip.text, it.tooltip.text);
-    app.hideTooltip('drawStyle.pick', 'leave');
-    assert.equal(it.valueLabel, labelOf(app, app.getDrawStyle()), '上部に現在の画風の名前が出る');
+    for (const id of ids(app)) {
+      const it = setItem(app, id);
+      assert.equal(it.group, 'drawStyle');
+      assert.equal(it.label, labelOf(app, id));
+      assert.ok(it.label.trim(), `${lang} ${id}: ラベルは非空`);
+      if (lang === 'ja') assert.ok(weight(it.label.trim()) <= 6, `${id}: 「${it.label}」は全角 6 文字以内`);
+      else assert.ok([...it.label.trim()].length <= 12, `${id}: "${it.label}" は半角 12 文字以内`);
+      assert.equal(it.labelVisible, true, 'ラベルはホバー・フォーカスなしで常に見える');
+      assert.equal(it.accessibleName, it.label);
+      assert.ok(typeof it.description === 'string' && it.description.trim(), `${lang} ${id}: 短い説明がある`);
+      assert.equal(it.tooltip?.text, it.description);
+      assert.equal(it.describedBy, it.tooltip.id);
+      const tip = app.showTooltip(it.command, 'hover');
+      assert.equal(tip.visible, true); assert.equal(tip.text, it.tooltip.text);
+      app.hideTooltip(it.command, 'leave');
+    }
+    assert.equal(new Set(styleItems(app).map((i) => i.label)).size, 13, `${lang}: 名前はそれぞれ異なる`);
   }
 });
 
-test('FR-077 AC-414: 開くと既存の 4 つと 9 つの風の計 13 の描画スタイルが名前（6 文字以内）と短い説明で並び、選択中は色以外の印でも分かる', async () => {
+test('FR-077 AC-414: 項目をクリックすると描画スタイルが切り替わり、現在の項目だけ aria-pressed が真で色以外の印がある（ほかは偽）', async () => {
   const { app } = await newApp();
-  assert.equal(picker(app).open, false);
-  app.commands['drawStyle.pick']();
-  const p = picker(app);
-  assert.equal(p.open, true);
-  assert.ok(p.label.trim(), '一覧に名前がある');
-  assert.ok(['listbox', 'menu'].includes(p.role));
-  assert.deepEqual(p.options.map((o) => o.id), ids(app), '一覧は登録されたすべての描画スタイルで、並びも同じ');
-  assert.equal(p.options.length, 13, '既存の 4 つ＋9 つの風');
-  for (const id of OLD) assert.ok(p.options.some((o) => o.id === id), `${id} がある`);
-  assert.equal(presets(app).length, 9);
-  for (const o of p.options) {
-    assert.equal(o.label, labelOf(app, o.id));
-    assert.ok(o.label.trim() && weight(o.label.trim()) <= 6, `名前「${o.label}」は 6 文字以内`);
-    assert.ok(typeof o.description === 'string' && o.description.trim(), `${o.id}: 短い説明がある`);
+  assert.deepEqual(pressedIds(app), [app.getDrawStyle()], '最初から現在の描画スタイルの項目だけ押されている');
+  for (const id of ids(app)) {
+    const it = setItem(app, id);
+    assert.equal(it.pressed, id === app.getDrawStyle());
+    if (it.pressed) assert.ok(typeof it.selectedMark === 'string' && it.selectedMark.trim(), '現在の項目は色以外の印・枠で識別できる');
+    else assert.equal(it.selectedMark, null);
   }
-  assert.equal(new Set(p.options.map((o) => o.label)).size, 13, '名前はそれぞれ異なる');
-  const sel = p.options.filter((o) => o.selected);
-  assert.equal(sel.length, 1); assert.equal(sel[0].id, app.getDrawStyle());
-  assert.ok(typeof sel[0].selectedMark === 'string' && sel[0].selectedMark.trim(), '選択中は色以外の印・枠で識別できる');
-  for (const o of p.options.filter((x) => !x.selected)) assert.equal(o.selectedMark, null);
-  // 別の風を選ぶと、印は選んだものへ移る
-  const target = presets(app)[0];
-  assert.equal(app.pickDrawStyle(target).ok, true);
-  const q = picker(app);
-  assert.deepEqual(q.options.filter((o) => o.selected).map((o) => o.id), [target]);
-  assert.ok(q.options.find((o) => o.id === target).selectedMark);
-  assert.equal(pickItem(app).valueLabel, labelOf(app, target));
+  for (const target of [...presets(app), 'simple', 'handwritten']) {
+    pickStyle(app, target);
+    assert.equal(app.getDrawStyle(), target);
+    assert.match(app.renderSvg(), new RegExp(`data-draw-style="${target}"`));
+    assert.deepEqual(pressedIds(app), [target], '印は選んだ項目へ移る');
+    assert.ok(setItem(app, target).selectedMark);
+    assert.equal(styleItems(app).filter((i) => i.pressed === false && i.selectedMark === null).length, 12);
+    assert.ok(app.getState().message.text.includes(labelOf(app, target)), '選んだ結果が読み上げ対象のメッセージで示される');
+    assert.equal(app.getCommandBar().status.role, 'status');
+  }
 });
 
-test('FR-077 AC-414 異常系: 登録にない・不正な値は選べず、現在の描画スタイル・図・印は変わらない', async () => {
+test('FR-077 AC-414 異常系: 登録にない・不正な値は選べず、現在の描画スタイル・図・押下の表示は変わらない', async () => {
   const { app, env } = await newApp();
   await seedThreeScenes(app, env);
-  app.pickDrawStyle('simple');
+  pickStyle(app, 'simple');
   const svg0 = app.renderSvg();
   for (const bad of ['', 'nosuch', null, undefined, 3, ['anime'], {}]) {
-    app.commands['drawStyle.pick']();
-    let r; try { r = app.pickDrawStyle(bad); } catch { r = { ok: false }; }
+    let r; try { r = app.setDrawStyle(bad); } catch { r = { ok: false }; }
     assert.equal(r.ok, false, String(bad));
-    if (picker(app).open) app.commands['drawStyle.pick']();
   }
+  assert.equal(app.commands['drawStyle.set:nosuch'], undefined, '登録にない ID の項目・コマンドはない');
   assert.equal(app.getDrawStyle(), 'simple');
   assert.equal(app.renderSvg(), svg0);
-  assert.deepEqual(picker(app).options.filter((o) => o.selected).map((o) => o.id), ['simple']);
+  assert.deepEqual(pressedIds(app), ['simple']);
 });
 
 // FR-077 AC-415
-test('FR-077 AC-415: 10 シーン・要点 50 個・詳細度「詳細」で、一覧で選んでから図が描き替わるまで 1 秒以内（13 の描画スタイルすべて）', async () => {
+test('FR-077 AC-415: 10 シーン・要点 50 個・詳細度「詳細」で、項目を選んでから図が描き替わるまで 1 秒以内（13 の描画スタイルすべて）', async () => {
   const { app, env } = await newApp();
   seedScenes(app, env);
   toDetail(app);
@@ -106,13 +112,11 @@ test('FR-077 AC-415: 10 シーン・要点 50 個・詳細度「詳細」で、�
   app.renderSvg();
   const order = [...ids(app).filter((id) => id !== app.getDrawStyle()), app.getDrawStyle()];
   for (const id of order) {
-    app.commands['drawStyle.pick']();
-    assert.equal(picker(app).open, true);
     const t0 = performance.now();
-    const r = app.pickDrawStyle(id);
+    pickStyle(app, id);
     const svg = app.renderSvg();
     const ms = performance.now() - t0;
-    assert.equal(r.ok, true, id);
+    assert.equal(app.getDrawStyle(), id);
     assert.match(svg, new RegExp(`data-draw-style="${id}"`), `${id}: 図がその描画スタイルで描き替わる`);
     assert.ok(ms <= LIMIT_MS, `${id}: ${ms.toFixed(0)} ms ≤ ${LIMIT_MS} ms`);
   }
@@ -127,7 +131,8 @@ test('FR-077 AC-415: 描き替えの前後で、シーン・要点・配置・�
   const base = { keep: keep(app), layout: JSON.stringify(app.getDiagramLayout()), outline: app.renderOutline(), svg: app.renderSvg() };
   const svgs = new Set([base.svg]);
   for (const id of [...presets(app), ...OLD.filter((x) => x !== 'handwritten'), 'handwritten']) {
-    assert.equal(app.pickDrawStyle(id).ok, true, id);
+    pickStyle(app, id);
+    assert.equal(app.getDrawStyle(), id);
     const svg = app.renderSvg();
     assert.equal(keep(app), base.keep, `${id}: 内容・型・詳細度・選択・記録中・入力中は保たれる`);
     assert.equal(JSON.stringify(app.getDiagramLayout()), base.layout, `${id}: 配置は変わらない`);
@@ -141,49 +146,52 @@ test('FR-077 AC-415: 描き替えの前後で、シーン・要点・配置・�
 });
 
 // FR-077 AC-416
-test('FR-077 AC-416: キーボードだけで、ボタンへの移動・一覧を開く・候補の移動・決定ができ、結果が読み上げ対象のメッセージで示される', async () => {
+test('FR-077 AC-416: キーボードだけで、画風の項目への移動（Tab）・決定（Enter・Space 相当のコマンド）ができ、結果が読み上げ対象のメッセージで示される', async () => {
   const { app, env } = await newApp();
   await seedThreeScenes(app, env);
-  assert.equal(pickItem(app).tabbable, true, 'Tab でボタンへ移動できる');
-  const k = app.keymap.find((b) => b.command === 'drawStyle.pick');
-  assert.ok(k, 'drawStyle.pick にキーの割り当てがある');
-  assert.equal(app.handleKey({ key: k.key, ctrlKey: !!k.ctrl, altKey: !!k.alt, shiftKey: !!k.shift }), 'drawStyle.pick');
-  let p = picker(app);
-  assert.equal(p.open, true); assert.equal(p.focus, 'list'); assert.equal(p.activeId, app.getDrawStyle());
-  const start = p.activeId;
-  assert.ok(app.handleKey({ key: 'ArrowDown' }));
-  assert.notEqual(picker(app).activeId, start, '下で次の候補へ');
-  assert.ok(app.handleKey({ key: 'ArrowUp' }));
-  assert.equal(picker(app).activeId, start, '上で前の候補へ');
-  assert.ok(app.handleKey({ key: 'End' }));
-  const last = ids(app).at(-1);
-  assert.equal(picker(app).activeId, last, 'End で末尾');
-  assert.ok(app.handleKey({ key: 'Home' }));
-  assert.equal(picker(app).activeId, ids(app)[0], 'Home で先頭');
-  // 末尾の候補を決定する
-  app.handleKey({ key: 'End' });
-  assert.ok(app.handleKey({ key: 'Enter' }));
-  p = picker(app);
-  assert.equal(app.getDrawStyle(), last);
-  assert.equal(p.open, false); assert.equal(p.focus, 'button');
-  assert.match(app.renderSvg(), new RegExp(`data-draw-style="${last}"`));
-  assert.ok(app.getState().message.text.includes(labelOf(app, last)), '選んだ結果がメッセージで示される');
-  assert.equal(app.getCommandBar().status.role, 'status');
+  const items = styleItems(app);
+  assert.equal(items.length, 13);
+  for (const it of items) { assert.equal(it.tabbable, true, `${it.command}: Tab で移動できる`); assert.equal(it.tabIndex, 0); }
+  const order = app.getCommandBar().focusOrder;
+  const first = order.indexOf(items[0].command);
+  assert.ok(first >= 0);
+  assert.deepEqual(order.slice(first, first + 13), items.map((i) => i.command), '画風の 13 項目は Tab で連続して巡る（DOM 順）');
+  for (const id of [ids(app).at(-1), ids(app)[0], presets(app)[3]]) {
+    pickStyle(app, id); // 実 DOM の項目は <button>。Enter・Space はクリックと同じ
+    assert.equal(app.getDrawStyle(), id);
+    assert.match(app.renderSvg(), new RegExp(`data-draw-style="${id}"`));
+    assert.ok(app.getState().message.text.includes(labelOf(app, id)), '選んだ結果がメッセージで示される');
+    assert.equal(app.getCommandBar().status.role, 'status');
+    assert.deepEqual(pressedIds(app), [id]);
+  }
 });
 
-test('FR-077 AC-416 異常系: Esc で一覧を閉じるとボタンにフォーカスが戻り、描画スタイル・図は変わらない', async () => {
-  const { app, env } = await newApp();
-  await seedThreeScenes(app, env);
-  app.pickDrawStyle('anime');
-  const svg0 = app.renderSvg();
-  app.commands['drawStyle.pick']();
-  app.handleKey({ key: 'ArrowDown' }); app.handleKey({ key: 'ArrowDown' });
-  assert.notEqual(picker(app).activeId, 'anime');
-  assert.equal(app.handleKey({ key: 'Escape' }), 'drawStyle.pick.cancel');
-  const p = picker(app);
-  assert.equal(p.open, false); assert.equal(p.focus, 'button');
-  assert.equal(app.getDrawStyle(), 'anime');
-  assert.equal(app.renderSvg(), svg0);
+test('FR-077 AC-416 実ブラウザ: 画風の項目は <button> で Tab で到達でき、Enter・Space で選べて aria-pressed が移り、結果が role=status に出る', async () => {
+  const srv = await serveWeb(); const browser = await launch();
+  try {
+    const { ctx, page } = await openApp(browser, srv.url, { width: 1280, height: 1000 });
+    try {
+      const sel = (id) => `[data-command="drawStyle.set:${id}"]`;
+      const all = await page.evaluate(() => globalThis.__app.getDrawStyles().map((s) => s.id));
+      assert.equal(all.length, 13);
+      for (const id of all) {
+        assert.equal(await page.locator(sel(id)).first().evaluate((e) => e.tagName), 'BUTTON', `${id}: button`);
+        assert.ok(await page.locator(sel(id)).first().isVisible(), `${id}: 開く操作なしに最初から見える`);
+      }
+      const a = all[1]; const b = all[2];
+      await page.locator(sel(a)).first().focus();
+      await page.keyboard.press('Enter');
+      await page.waitForFunction((id) => globalThis.__app.getDrawStyle() === id, a);
+      assert.equal(await page.locator(sel(a)).first().getAttribute('aria-pressed'), 'true');
+      await page.locator(sel(b)).first().focus();
+      await page.keyboard.press('Space');
+      await page.waitForFunction((id) => globalThis.__app.getDrawStyle() === id, b);
+      assert.equal(await page.locator(sel(b)).first().getAttribute('aria-pressed'), 'true');
+      assert.equal(await page.locator(sel(a)).first().getAttribute('aria-pressed'), 'false');
+      const label = await page.evaluate((id) => globalThis.__app.getDrawStyles().find((s) => s.id === id).label, b);
+      await page.waitForFunction((l) => [...document.querySelectorAll('[role="status"]')].some((e) => e.textContent.includes(l)), label);
+    } finally { await ctx.close(); }
+  } finally { await browser.close(); await srv.close(); }
 });
 
 test('FR-077 AC-416: コマンドの検索から描画スタイルの名前で選べ（日本語・英語）、存在しない名前では選ばれない', async () => {
@@ -193,64 +201,66 @@ test('FR-077 AC-416: コマンドの検索から描画スタイルの名前で�
     app.setLang(lang);
     for (const id of [...presets(app), 'simple', 'handwritten']) {
       const label = labelOf(app, id);
-      const hit = app.searchCommands(label).find((c) => c.command === `drawStyle.select.${id}`);
-      assert.ok(hit, `${lang}: 「${label}」で drawStyle.select.${id} が見つかる`);
+      const hit = app.searchCommands(label).find((c) => c.command === `drawStyle.set:${id}`);
+      assert.ok(hit, `${lang}: 「${label}」で drawStyle.set:${id} が見つかる`);
       app.commands[hit.command]();
       assert.equal(app.getDrawStyle(), id);
       assert.match(app.renderSvg(), new RegExp(`data-draw-style="${id}"`));
       assert.ok(app.getState().message.text.includes(label));
     }
   }
-  assert.equal(app.searchCommands('存在しない画風ZZQ').filter((c) => c.command.startsWith('drawStyle.select.')).length, 0);
+  assert.equal(app.searchCommands('存在しない画風ZZQ').filter((c) => c.command.startsWith('drawStyle.')).length, 0);
   assert.equal(app.getDrawStyle(), 'handwritten');
 });
 
 // FR-077 AC-417（例外: ユーザーの明示操作によるリボンの折りたたみ中（AC-579）は除く。ここは折りたたまない状態で省かれないことを検証し、折りたたみ中は AC-579 のケースで検証する）
-test('FR-077 AC-417: 画面幅 640px 以下でも選ぶボタンとラベルは省かれず、一覧の全候補へ横スクロールなしで到達できる', async () => {
+test('FR-077 AC-417: 画面幅 640px 以下でも画風の全 13 項目とラベルは省かれず（あふれメニューへも移さない）、横スクロールなしで全項目へ到達できる', async () => {
   const { app } = await newApp();
   for (const w of [NARROW, 480, 320]) {
-    const it = app.getCommandBarLayout({ viewportWidth: w }).items.find((i) => i.command === 'drawStyle.pick');
-    assert.ok(it, `${w}px: ボタンが省かれない`);
-    assert.ok(it.labelLines >= 1, `${w}px: ラベルが省かれない`);
-    const v = app.getDrawStylePickerView({ viewportWidth: w });
-    assert.deepEqual(v.options.map((o) => o.id), ids(app), `${w}px: 全候補がある`);
-    assert.ok(v.options.every((o) => o.reachable === true), `${w}px: 全候補へ到達できる`);
-    assert.equal(v.scrollsHorizontally, false, `${w}px: 横スクロールなし`);
+    const lay = app.getCommandBarLayout({ viewportWidth: w });
+    for (const id of ids(app)) {
+      const it = lay.items.find((i) => i.command === `drawStyle.set:${id}`);
+      assert.ok(it, `${w}px: ${id} が省かれない`);
+      assert.ok(it.labelLines >= 1, `${w}px: ${id} のラベルが省かれない`);
+      assert.ok(it.rect.w > 0 && it.rect.h > 0, `${w}px: ${id} に外形がある`);
+    }
+    assert.equal(lay.overflowMenu?.commands?.some((c) => c.startsWith('drawStyle.set:')) ?? false, false, `${w}px: あふれメニューへ移さない`);
+    assert.equal(lay.scrollsHorizontally, false, `${w}px: 横スクロールなし`);
   }
 });
 
-test('FR-077 AC-417: 画面幅 1280px で、ボタンのラベルは 1 行に収まりほかのボタンと重ならない（日本語・英語）', async () => {
+test('FR-077 AC-417: 画面幅 1280px で、項目のラベルは 1 行に収まりほかのボタンと重ならない（日本語・英語）', async () => {
   const { app } = await newApp();
   for (const lang of ['ja', 'en']) {
     app.setLang(lang);
     const lay = app.getCommandBarLayout({ viewportWidth: WIDE });
-    const me = lay.items.find((i) => i.command === 'drawStyle.pick');
-    assert.ok(me, `${lang}: ボタンがある`);
-    assert.equal(me.labelLines, 1, `${lang}: 1 行`);
-    assert.ok(me.rect && me.rect.w > 0 && me.rect.h > 0, `${lang}: 外形がある`);
-    for (const o of lay.items.filter((i) => i.command !== 'drawStyle.pick')) assert.ok(!overlaps(me.rect, o.rect), `${lang}: ${o.command} と重ならない`);
+    for (const id of ids(app)) {
+      const me = lay.items.find((i) => i.command === `drawStyle.set:${id}`);
+      assert.ok(me, `${lang}: ${id} の項目がある`);
+      assert.equal(me.labelLines, 1, `${lang}: ${id} は 1 行`);
+      assert.ok(me.rect && me.rect.w > 0 && me.rect.h > 0, `${lang}: 外形がある`);
+      for (const o of lay.items.filter((i) => i.command !== me.command)) assert.ok(!overlaps(me.rect, o.rect), `${lang}: ${id} と ${o.command} は重ならない`);
+    }
   }
 });
 
-test('FR-077 AC-417: 表示言語を日本語と英語の間で切り替えると、ボタンのラベル・一覧の名前と説明が切替後の言語になる', async () => {
+test('FR-077 AC-417: 表示言語を日本語と英語の間で切り替えると、項目のラベル・名前と説明が切替後の言語になる', async () => {
   const { app } = await newApp();
-  app.commands['drawStyle.pick']();
-  const ja = { label: pickItem(app).label, opts: picker(app).options.map((o) => [o.id, o.label, o.description]) };
+  const snap = () => styleItems(app).map((i) => [i.command, i.label, i.description, i.tooltip.text]);
+  const ja = snap();
   app.setLang('en');
-  const enItem = pickItem(app);
-  assert.ok(!CJK.test(enItem.label), `英語のラベル "${enItem.label}" に日本語が残らない`);
-  assert.notEqual(enItem.label, ja.label);
-  assert.ok(!CJK.test(enItem.tooltip.text));
-  const en = picker(app).options;
-  assert.deepEqual(en.map((o) => o.id), ja.opts.map((o) => o[0]), '並びは変わらない');
+  const en = styleItems(app);
+  assert.deepEqual(en.map((o) => o.command), ja.map((o) => o[0]), '並びは変わらない');
   for (const o of en) {
-    assert.ok(o.label.trim() && !CJK.test(o.label), `${o.id}: 名前 "${o.label}" が英語`);
-    assert.ok([...o.label.trim()].length <= 12, `${o.id}: 半角 12 文字以内`);
-    assert.ok(o.description.trim() && !CJK.test(o.description), `${o.id}: 説明 "${o.description}" が英語`);
+    assert.ok(o.label.trim() && !CJK.test(o.label), `${o.command}: 名前 "${o.label}" が英語`);
+    assert.ok([...o.label.trim()].length <= 12, `${o.command}: 半角 12 文字以内`);
+    assert.ok(o.description.trim() && !CJK.test(o.description), `${o.command}: 説明 "${o.description}" が英語`);
+    assert.ok(!CJK.test(o.tooltip.text));
   }
+  assert.notDeepEqual(en.map((o) => o.label), ja.map((o) => o[1]));
+  assert.equal(app.getCommandBar().groups.find((g) => g.id === 'drawStyle').name === '画風', false, 'グループ名も英語になる');
   app.setLang('ja');
-  assert.equal(pickItem(app).label, ja.label);
-  assert.deepEqual(picker(app).options.map((o) => [o.id, o.label, o.description]), ja.opts, '日本語に戻る');
+  assert.deepEqual(snap(), ja, '日本語に戻る');
 });
 
 // FR-077 AC-418
@@ -258,15 +268,14 @@ test('FR-077 AC-418: 上部で選んだ値はセッションファイルの保�
   const { app, env } = await newApp();
   await seedThreeScenes(app, env);
   const target = presets(app)[1];
-  assert.equal(app.pickDrawStyle(target).ok, true);
+  pickStyle(app, target);
   assert.equal((await app.commands['file.save']()).ok, true);
   const data = env.downloads.at(-1).data;
   const { app: b } = await newApp();
   const r = await b.loadSessionFile({ name: 'session.json', type: 'application/json', size: Buffer.byteLength(data), text: data });
   assert.equal(r.ok, true);
   assert.equal(b.getDrawStyle(), target);
-  assert.equal(b.getDrawStylePicker().current, target);
-  assert.equal(b.getCommandBar().items.find((i) => i.command === 'drawStyle.pick').valueLabel, labelOf(b, target));
+  assert.deepEqual(b.getCommandBar().items.filter((i) => i.group === 'drawStyle' && i.pressed).map((i) => i.command), [`drawStyle.set:${target}`]);
   assert.match(b.renderSvg(), new RegExp(`data-draw-style="${target}"`));
 });
 
@@ -276,46 +285,45 @@ test('FR-077 AC-418: 再読込後と保存がない起動時は［設定］の�
   assert.equal(app.getDrawStyle(), 'handwritten');
   assert.equal(app.setSettings({ drawStyle: 'simple' }).ok, true);
   const saved = env.storage.getItem('grp.settings');
-  assert.equal(app.pickDrawStyle(presets(app)[2]).ok, true);
+  pickStyle(app, presets(app)[2]);
   assert.equal(app.getSettings().drawStyle, 'simple', '上部での選択で［設定］の既定は変わらない');
   assert.equal(env.storage.getItem('grp.settings'), saved);
   const again = await createApp(env.options);
   assert.equal(again.getDrawStyle(), 'simple', '再読込後は［設定］の既定');
-  assert.equal(again.getDrawStylePicker().current, 'simple');
+  assert.deepEqual(pressedIds(again), ['simple']);
 });
 
-test('FR-077 AC-418: ［設定］の既定の描画スタイルの選択肢は、上部の一覧と同じ描画スタイル・同じ名前・同じ並び（日本語・英語）', async () => {
+test('FR-077 AC-418: ［設定］の既定の描画スタイルの選択肢は、「画風」グループの項目と同じ描画スタイル・同じ名前・同じ並び（日本語・英語）', async () => {
   const { app } = await newApp();
   app.commands['settings.open']();
   for (const lang of ['ja', 'en']) {
     app.setLang(lang);
     const f = app.getSettingsDialog().fields.find((x) => x.id === 'drawStyle');
     assert.ok(Array.isArray(f.options), '選択肢がある');
-    assert.deepEqual(f.options.map((o) => [o.value, o.label]), picker(app).options.map((o) => [o.id, o.label]), lang);
+    assert.deepEqual(f.options.map((o) => [o.value, o.label]), styleItems(app).map((o) => [o.command.replace('drawStyle.set:', ''), o.label]), lang);
   }
 });
 
-test('FR-077 AC-418: 上部と［設定］は同じ 1 つの現在の描画スタイルを変え、後から操作した方が図と上部の表示になる', async () => {
+test('FR-077 AC-418: 「画風」グループと［設定］は同じ 1 つの現在の描画スタイルを変え、後から操作した方が図と項目の押下の表示になる', async () => {
   const { app, env } = await newApp();
   await seedThreeScenes(app, env);
   const [p1, p2] = presets(app);
-  app.pickDrawStyle(p1);
+  pickStyle(app, p1);
   assert.equal(app.setSettings({ drawStyle: 'simple' }).ok, true);
   assert.equal(app.getDrawStyle(), 'simple', '［設定］が後');
   assert.match(app.renderSvg(), /data-draw-style="simple"/);
-  assert.equal(picker(app).current, 'simple');
-  assert.equal(pickItem(app).valueLabel, labelOf(app, 'simple'));
-  app.pickDrawStyle(p2);
+  assert.deepEqual(pressedIds(app), ['simple']);
+  pickStyle(app, p2);
   assert.equal(app.getDrawStyle(), p2, '上部が後');
   assert.match(app.renderSvg(), new RegExp(`data-draw-style="${p2}"`));
-  assert.equal(pickItem(app).valueLabel, labelOf(app, p2));
+  assert.deepEqual(pressedIds(app), [p2]);
   assert.equal(app.getSettings().drawStyle, 'simple', '［設定］の既定は変わらない');
 });
 
 test('FR-077 AC-418 異常系: 読み込んだセッションファイルの描画スタイルが登録にない名前のときは［設定］の既定で表示され、議論の内容は失われない', async () => {
   const { app, env } = await newApp();
   await seedThreeScenes(app, env);
-  app.pickDrawStyle('anime');
+  pickStyle(app, 'anime');
   await app.commands['file.save']();
   const data = env.downloads.at(-1).data;
   const broken = data.split('"anime"').join('"nosuch-style-zz"');
@@ -352,7 +360,8 @@ function recordingCanvas() {
 }
 
 async function saveAll(app, env, cv, id) {
-  assert.equal(app.pickDrawStyle(id).ok, true, id);
+  pickStyle(app, id);
+  assert.equal(app.getDrawStyle(), id, id);
   const n = env.downloads.length;
   cv.ops.length = 0;
   await app.commands['save.png']();
@@ -406,8 +415,7 @@ test('FR-077 AC-419: 選択・描き替え・保存の間の外部へのリク�
     await seedThreeScenes(app, env);
     const n = relayLog.length;
     for (const id of ids(app)) {
-      app.commands['drawStyle.pick']();
-      app.pickDrawStyle(id);
+      pickStyle(app, id);
       app.renderSvg();
       await app.commands['save.png'](); await app.commands['save.svg'](); await app.commands['save.pdf']();
     }

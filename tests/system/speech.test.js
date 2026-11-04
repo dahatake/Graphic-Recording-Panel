@@ -49,20 +49,22 @@ test('FR-001 AC-040: 選択言語を en に替えると en の可否だけで判
   assert.equal(b.env.speech.startCalls.at(-1).lang, 'ja-JP');
 });
 
-test('FR-001 AC-040 異常系: デバイス内不可で API があり未同意の間は開始されない', async () => {
+test('FR-001 AC-040: デバイス内不可で API がある環境は、同意待ちで止まらず（口頭で得たものとして扱う）そのまま開始できる', async () => {
   const { app, env } = await boot(REMOTE);
+  assert.equal(env.speech.startCalls.length, 0, '準備中は押すまで開始されない');
   rec(app);
+  assert.equal(env.speech.startCalls.length, 1, '[記録開始] で同意の操作なしに開始される');
   const r = await app.startSpeech();
-  assert.equal(r.ok, false); assert.equal(r.reason, 'consent_required');
-  assert.equal(env.speech.startCalls.length, 0);
+  assert.equal(r.ok, true); assert.notEqual(r.reason, 'consent_required');
+  assert.notEqual(app.getSpeechStatus().reason, 'consent', '同意待ちの理由は生じない');
 });
 
 // FR-001 AC-066
 test('FR-001 AC-066: デバイス内処理が使える（local）ときは同意なしで processLocally を真にして開始する', async () => {
   const { app, env } = await boot({ availability: { 'ja-JP': 'local' } });
   rec(app);
-  assert.equal(app.getSpeechConsent(), false);
-  assert.equal(app.getConsentUi().visible, false, 'local では同意を求めない');
+  assert.equal(app.getSpeechConsent(), true, '同意状態は常に同意済み');
+  assert.equal(app.getConsentUi().visible, false, 'local では注意文も出ない');
   const r = await app.startSpeech();
   assert.equal(r.ok, true);
   assert.equal(env.speech.startCalls.length, 1);
@@ -101,19 +103,16 @@ test('FR-001 AC-066 異常系: 導入に失敗したら開始せず、理由（�
 });
 
 // FR-001 AC-067 / NFR-PRIV-001 AC-034
-test('FR-001 AC-067 NFR-PRIV-001 AC-034: 既定は未同意で、同意前は開始せず、同意後に開始する。processLocally は設定しない', async () => {
+test('FR-001 AC-067 NFR-PRIV-001 AC-034: 同意は常に同意済みで、同意の操作は存在せず、準備中は開始せず [記録開始] で開始する。processLocally は設定しない', async () => {
   const { app, env } = await boot(REMOTE);
-  rec(app);
-  assert.equal(app.getSpeechConsent(), false);
-  assert.equal((await app.startSpeech()).ok, false);
-  assert.equal(env.speech.startCalls.length, 0);
-  app.setSpeechConsent(true);
   assert.equal(app.getSpeechConsent(), true);
-  const r = await app.startSpeech();
-  assert.equal(r.ok, true);
+  assert.equal(app.setSpeechConsent, undefined, '同意を切り替える API はない');
+  assert.equal(app.commands['speech.consent'], undefined);
+  assert.equal(env.speech.startCalls.length, 0, '準備中は何もしなくても開始されない');
+  rec(app);
   assert.equal(env.speech.startCalls.length, 1);
   assert.equal(env.speech.startCalls[0].lang, 'ja-JP');
-  assert.equal(hasProcLocally(env.speech.startCalls[0]), false, '同意による開始で processLocally を設定しない');
+  assert.equal(hasProcLocally(env.speech.startCalls[0]), false, '外部送信可の開始で processLocally を設定しない');
 });
 
 test('FR-001 AC-067: 外部送信の可能性の説明が表示言語（ja/en）に合わせて示される', async () => {
@@ -123,58 +122,57 @@ test('FR-001 AC-067: 外部送信の可能性の説明が表示言語（ja/en）
   const ja = app.getConsentUi();
   assert.equal(ja.visible, true);
   assert.equal(ja.notice, app.t('speech.consent.notice'));
-  assert.ok(CJK.test(ja.notice) && ja.notice.includes('外部'), `ja: ${ja.notice}`);
+  assert.ok(CJK.test(ja.notice) && ja.notice.includes('外部') && ja.notice.includes('口頭'), `ja: ${ja.notice}`);
   app.setLang('en');
   const en = app.getConsentUi();
-  assert.ok(/external/i.test(en.notice) && !CJK.test(en.notice), `en: ${en.notice}`);
+  assert.ok(/external/i.test(en.notice) && /verbal/i.test(en.notice) && !CJK.test(en.notice), `en: ${en.notice}`);
   assert.notEqual(ja.notice, en.notice);
 });
 
-test('FR-001 AC-067 NFR-PRIV-001 AC-034: 同意を取り消すと認識が停止し、以後は開始できない', async () => {
+test('FR-001 AC-067 NFR-PRIV-001 AC-034: 注意文のほかに同意の操作（チェック・ボタン）はなく、取り消す操作もない（API・コマンド・キー割り当て・画面）', async () => {
   const { app, env } = await boot(REMOTE);
-  rec(app); app.setSpeechConsent(true);
-  await app.startSpeech();
-  const stops = env.speech.stopCalls;
-  app.setSpeechConsent(false);
-  assert.equal(app.getSpeechConsent(), false);
-  assert.ok(env.speech.stopCalls > stops, '取り消しで stop を呼ぶ');
-  const n = env.speech.startCalls.length;
-  const r = await app.startSpeech();
-  assert.equal(r.ok, false); assert.equal(r.reason, 'consent_required');
-  assert.equal(env.speech.startCalls.length, n);
+  rec(app);
+  const u = app.getConsentUi();
+  for (const k of ['checked', 'stateText', 'tabbable', 'label']) assert.equal(u[k], undefined, `getConsentUi().${k} はない`);
+  assert.equal(u.interactive, false);
+  assert.equal(app.setSpeechConsent, undefined);
+  assert.equal(app.commands['speech.consent'], undefined);
+  assert.deepEqual(app.keymap.filter((k) => /consent/.test(k.command)), []);
+  const html = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.doesNotMatch(html, /id="speech-consent"/);
+  assert.doesNotMatch(html, /id="speech-consent-state"/);
+  assert.equal(app.getSpeechConsent(), true);
+  assert.equal(env.speech.startCalls.length, 1);
 });
 
-test('FR-001 AC-067 異常系: 同意はそのページ利用中だけ有効で保存されず、再読込（同じ storage で再生成）後は未同意に戻り開始できない', async () => {
+test('FR-001 AC-067 異常系: 同意状態は保存されず（常に同意済みで、メモリにも持たない）、再読込（同じ storage で再生成）後も常に同意済みで、準備中は開始されず、何も操作しなくても [記録開始] で開始する', async () => {
   const { app, createApp, env } = await boot(REMOTE);
-  rec(app); app.setSpeechConsent(true);
+  rec(app);
   assert.equal(app.getSpeechConsent(), true);
-  assert.equal(env.storage.dump().some(([k, v]) => /consent/i.test(k) && /true|1/.test(v)), false, '同意は保存されない');
+  assert.equal(env.storage.dump().some(([k, v]) => /consent/i.test(k) || /consent/i.test(v)), false, '同意は保存されない');
   const sp = new FakeSpeech(REMOTE);
   const fresh = await createApp({ ...env.options, speechSource: sp });
-  assert.equal(fresh.getSpeechConsent(), false, '再読込後の既定は未同意');
-  rec(fresh);
-  const r = await fresh.startSpeech();
-  assert.equal(r.ok, false); assert.equal(r.reason, 'consent_required');
-  assert.equal(sp.startCalls.length, 0);
+  assert.equal(fresh.getSpeechConsent(), true, '再読込後も同意済み');
+  assert.equal(sp.startCalls.length, 0, '再読込後の準備中（または復元直後の一時停止）は開始されない');
+  fresh.commands[fresh.getState().session === 'paused' ? 'session.resume' : 'session.start']();
+  assert.equal(sp.startCalls.length, 1, '何も操作しなくても開始される（同意は口頭で得たもの）');
+  assert.equal(hasProcLocally(sp.startCalls[0]), false);
 });
 
-test('NFR-PRIV-001 AC-034 異常系: デバイス内処理が判定できない（availabilityFor が例外・未知の値）ときも「使えない」扱いで、同意前は開始されず、同意後に開始する', async () => {
+test('NFR-PRIV-001 AC-034 異常系: デバイス内処理が判定できない（availabilityFor が例外・未知の値）ときも「使えない」扱いで、外部送信の注意文を示し、同意の操作なしに [記録開始] で開始する', async () => {
   for (const mode of ['throw', 'unknown']) {
     const { app, env } = await boot(REMOTE);
     env.speech.availabilityFor = () => { if (mode === 'throw') throw new Error('判定不能'); return 'unknown'; };
+    assert.equal(app.getConsentUi().visible, true, `${mode}: 注意文が出る`);
     rec(app);
-    const r = await app.startSpeech();
-    assert.equal(r.ok, false, mode); assert.equal(r.reason, 'consent_required', mode);
-    assert.equal(env.speech.startCalls.length, 0, mode);
-    app.setSpeechConsent(true);
-    assert.equal((await app.startSpeech()).ok, true, mode);
+    assert.equal(env.speech.startCalls.length, 1, mode);
     assert.equal(hasProcLocally(env.speech.startCalls.at(-1)), false, mode);
   }
 });
 
 test('NFR-PRIV-001 AC-034: 同意があっても音声は保存されない（保存内容に音声・認識結果の余分な項目がない）', async () => {
   const { app, env } = await boot(REMOTE);
-  rec(app); app.setSpeechConsent(true); await app.startSpeech();
+  rec(app);
   env.speech.emit('同意後の発話です', true, { audio: 'RAW-AUDIO-MARKER-9f3a', audioBytes: [1, 2, 3] });
   assert.equal(app.getState().utterances.length, 1);
   const dump = JSON.stringify(env.storage.dump());
@@ -184,54 +182,44 @@ test('NFR-PRIV-001 AC-034: 同意があっても音声は保存されない（�
 });
 
 // FR-001 AC-068
-test('FR-001 AC-068: 同意の操作はキーボードだけで切り替えられ、状態が文字（と role/checked）で伝わる', async () => {
+test('FR-001 AC-068: 外部送信の注意文は読み上げの対象（role）で操作できる要素を持たず、色だけで示されない', async () => {
   const { app } = await boot(REMOTE);
   rec(app);
-  const b = app.keymap.find((k) => k.command === 'speech.consent');
-  assert.ok(b, 'keymap に speech.consent がある');
-  assert.equal(typeof app.commands['speech.consent'], 'function');
-  const u0 = app.getConsentUi();
-  assert.ok(['switch', 'checkbox'].includes(u0.role));
-  assert.equal(u0.tabbable, true); assert.equal(u0.colorOnly, false);
-  assert.ok(u0.label.trim()); assert.equal(u0.checked, false);
-  const hit = app.handleKey({ key: b.key, ctrlKey: !!b.ctrl, altKey: !!b.alt, shiftKey: !!b.shift });
-  assert.equal(hit, 'speech.consent');
-  const u1 = app.getConsentUi();
-  assert.equal(u1.checked, true); assert.equal(app.getSpeechConsent(), true);
-  assert.notEqual(u1.stateText, u0.stateText, '色以外（文字）で状態が変わる');
-  assert.ok(u0.stateText.trim() && u1.stateText.trim());
-  app.commands['speech.consent']();
-  assert.equal(app.getSpeechConsent(), false);
+  const u = app.getConsentUi();
+  assert.ok(['note', 'status'].includes(u.role), `role=${u.role}`);
+  assert.equal(u.interactive, false);
+  assert.equal(u.colorOnly, false);
+  assert.ok(u.notice.trim(), '文字で示される');
+  assert.equal(u.checked, undefined); assert.equal(u.tabbable, undefined);
+  assert.equal(app.commands['speech.consent'], undefined);
+  assert.deepEqual(app.keymap.filter((k) => /consent/.test(k.command)), []);
 });
 
-test('FR-001 AC-068: index.html に名前・説明・状態を持つ同意の操作要素があり、正の tabindex がない', () => {
+test('FR-001 AC-068: index.html の注意文（#speech-consent-notice）は操作できる要素を持たず、ページに同意のチェック・switch・確認ダイアログがない', () => {
   const html = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
-  const m = html.match(/<(input|button|div|span)\b[^>]*\bid="speech-consent"[^>]*>/i);
-  assert.ok(m, 'id="speech-consent" の要素');
-  const tag = m[0];
-  const native = /^<input\b/i.test(tag) && /type="checkbox"/i.test(tag);
-  const aria = /role="(switch|checkbox)"/i.test(tag) && /aria-checked=/i.test(tag) && /tabindex="0"/i.test(tag);
-  assert.ok(native || aria, 'checkbox か、aria-checked と tabindex=0 を持つ switch/checkbox');
-  assert.ok(/aria-describedby=/i.test(tag), '外部送信の説明に結び付く');
-  assert.ok(/aria-label=/i.test(tag) || /<label\b[^>]*for="speech-consent"/i.test(html), '名前');
-  assert.ok(!/tabindex="[1-9]/.test(html));
+  const m = html.match(/<[a-z]+\b[^>]*\bid="speech-consent-notice"[^>]*>/i);
+  assert.ok(m, 'id="speech-consent-notice" の要素');
+  assert.ok(/role="(note|status)"/i.test(m[0]) || /aria-live=/i.test(m[0]), '読み上げの対象');
+  assert.doesNotMatch(html, /id="speech-consent"/);
+  const box = html.match(/<div id="speech-consent-box"[\s\S]*?<\/div>/i)?.[0] ?? '';
+  assert.doesNotMatch(box, /<(input|button|select|textarea)\b|role="(switch|checkbox|button)"|tabindex/i, '注意文の領域に操作できる要素がない');
 });
 
-test('FR-001 AC-068 異常系: 同意状態は保存されず（AC-067）、再読込後は未同意に戻る。セッションの保存に同意・音声は含まれない', async () => {
+test('FR-001 AC-068 異常系: 同意状態は保存されず（AC-067。常に同意済みでメモリにも持たない）、セッションの保存に同意・音声は含まれない', async () => {
   const { app, env, createApp } = await boot(REMOTE);
-  rec(app); app.setSpeechConsent(true); await app.startSpeech();
+  rec(app);
   env.speech.emit('秘密の発話テキスト', true, { audio: 'RAW-AUDIO-MARKER-68' });
   assert.equal(app.getSpeechConsent(), true);
   const dump = env.storage.dump();
   assert.equal(dump.filter(([k]) => /consent/i.test(k)).length, 0, '同意のキーが保存されない');
   assert.ok(!dump.some(([, v]) => /consent|RAW-AUDIO-MARKER-68|audio/i.test(v)), '保存内容に同意・音声が含まれない');
   const fresh = await createApp({ ...env.options, speechSource: new FakeSpeech(REMOTE) });
-  assert.equal(fresh.getSpeechConsent(), false);
-  assert.equal(fresh.getConsentUi().checked, false);
+  assert.equal(fresh.getSpeechConsent(), true);
+  assert.equal(fresh.getConsentUi().checked, undefined);
 });
 
 // FR-001 AC-069
-test('FR-001 AC-069: 状態表示が 3 状態（デバイス内／要同意・外部送信の可能性／使えません）を区別する', async () => {
+test('FR-001 AC-069: 状態表示が 3 状態（デバイス内／要同意・外部送信の可能性／使えません）を区別する（同意待ちの理由は生じない）', async () => {
   const a = await boot({ availability: { 'ja-JP': 'local' } }); rec(a.app);
   const b = await boot(REMOTE); rec(b.app);
   const c = await boot({ supported: false }); rec(c.app);
@@ -243,22 +231,18 @@ test('FR-001 AC-069: 状態表示が 3 状態（デバイス内／要同意・�
   assert.equal(new Set([sa.text, sb.text, sc.text]).size, 3);
   assert.deepEqual([a, b, c].map((x) => x.app.getCommandBar().status.speech), ['available', 'consent', 'unavailable']);
   for (const x of [a, b, c]) assert.ok(x.app.getCommandBar().status.text.includes(x.app.getSpeechStatus().text));
-  assert.equal(sb.reason, 'consent');
-  b.app.setSpeechConsent(true);
-  assert.equal(b.app.getSpeechStatus().state, 'consent', '同意後も外部送信の可能性の表示は保つ');
-  assert.equal(b.app.getSpeechStatus().reason, null);
-  assert.equal(b.app.getSpeechStatus().startEnabled, true);
+  assert.equal(sb.reason, null, '同意は口頭で得たものとして扱うので「同意待ち」の理由は生じない');
+  assert.equal(sb.startEnabled, true);
   b.app.setLang('en');
   assert.ok(b.app.getSpeechStatus().text.trim() && !CJK.test(b.app.getSpeechStatus().text));
 });
 
-test('FR-001 AC-069: 使えない・開始できない理由（API 非対応／言語未対応／モデル未導入／同意待ち／マイク拒否）が区別して示される', async () => {
+test('FR-001 AC-069: 使えない・開始できない理由（API 非対応／言語未対応／モデル未導入／マイク拒否）が区別して示され、「同意待ち」の理由は生じない', async () => {
   const texts = new Map();
   const cases = {
     api: async () => { const r = await boot({ supported: false }); rec(r.app); return r; },
     language: async () => { const r = await boot({ availability: { 'ja-JP': 'unsupported' } }); rec(r.app); return r; },
     model: async () => { const r = await boot({ availability: { 'ja-JP': 'downloadable' }, installOk: false }); rec(r.app); await r.app.startSpeech(); return r; },
-    consent: async () => { const r = await boot(REMOTE); rec(r.app); await r.app.startSpeech(); return r; },
     mic: async () => { const r = await boot({ availability: { 'ja-JP': 'local' } }); rec(r.app); await r.app.startSpeech(); r.env.speech.fail('not-allowed'); return r; },
   };
   for (const [reason, mk] of Object.entries(cases)) {
@@ -267,11 +251,12 @@ test('FR-001 AC-069: 使えない・開始できない理由（API 非対応／�
     assert.equal(st.reason, reason);
     assert.equal(st.startEnabled, false, `${reason}: 開始は無効`);
     const msg = app.getState().message?.text ?? '';
-    assert.ok(st.text.trim());
-    if (reason !== 'consent') assert.ok(st.text.includes('使えません') && st.alternative === true, reason);
+    assert.ok(st.text.includes('使えません') && st.alternative === true, reason);
     texts.set(reason, `${st.text}|${msg}`);
   }
-  assert.equal(new Set(texts.values()).size, 5, '理由ごとに表示が異なる');
+  assert.equal(new Set(texts.values()).size, 4, '理由ごとに表示が異なる');
+  const r = await boot(REMOTE); rec(r.app); await r.app.startSpeech();
+  assert.notEqual(r.app.getSpeechStatus().reason, 'consent', '外部送信の可能性がある環境でも同意待ちにならない');
 });
 
 test('FR-001 AC-069 異常系: マイク拒否（not-allowed / service-not-allowed）では記録しても発話が増えず、理由が mic になる', async () => {
@@ -294,10 +279,9 @@ test('NFR-OFFLINE-001 AC-031: 同意による外部送信可の認識を使っ�
   Object.defineProperty(globalThis, 'navigator', { configurable: true, writable: true, value: { sendBeacon: () => { calls.push('sendBeacon'); return false; } } });
   try {
     const { app, env } = await boot(REMOTE);
-    rec(app); app.setSpeechConsent(true); await app.startSpeech();
+    rec(app); await app.startSpeech();
     env.speech.emit('外部送信可の環境での発話', true);
     env.speech.end(); env.scheduler.advance(3000);
-    app.setSpeechConsent(false);
     assert.equal(app.getState().utterances.length, 1);
   } finally {
     for (const k of names) { if (saved[k]) Object.defineProperty(globalThis, k, saved[k]); else delete globalThis[k]; }
@@ -307,35 +291,26 @@ test('NFR-OFFLINE-001 AC-031: 同意による外部送信可の認識を使っ�
 });
 
 // NFR-BG-001 AC-064
-test('NFR-BG-001 AC-064: 同意済みの外部送信可の環境でも、自動終了後 2 秒以内に再開される（processLocally は設定しない）', async () => {
+test('NFR-BG-001 AC-064: 外部送信可の環境でも、自動終了後 2 秒以内に再開される（processLocally は設定しない。同意の操作は不要）', async () => {
   const { app, env } = await boot(REMOTE);
-  rec(app); app.setSpeechConsent(true); await app.startSpeech();
+  rec(app);
   const n = env.speech.startCalls.length;
+  assert.equal(n, 1);
   env.speech.end(); env.scheduler.advance(2000);
   assert.equal(env.speech.startCalls.length, n + 1);
   assert.equal(hasProcLocally(env.speech.startCalls.at(-1)), false);
   assert.equal(env.speech.startCalls.at(-1).lang, 'ja-JP');
 });
 
-test('NFR-BG-001 AC-064 異常系: 同意が得られていない・取り消した後の自動終了では再開されない', async () => {
+test('NFR-BG-001 AC-064 異常系: 一時停止・停止した後の自動終了では再開されず、再開操作（同意の操作は不要）で再び開始される', async () => {
   const { app, env } = await boot(REMOTE);
-  rec(app); app.setSpeechConsent(true); await app.startSpeech();
-  app.setSpeechConsent(false);
-  const n = env.speech.startCalls.length;
-  env.speech.end(); env.scheduler.advance(10 * 1000);
-  assert.equal(env.speech.startCalls.length, n);
-});
-
-test('NFR-BG-001 AC-064 異常系: 同意を取り消して停止した後は、自動終了・時間経過でも再開されず、再度同意するまで再開しない', async () => {
-  const { app, env } = await boot(REMOTE);
-  rec(app); app.setSpeechConsent(true); await app.startSpeech();
-  app.setSpeechConsent(false);
+  rec(app);
+  app.commands['session.pause']();
   const n = env.speech.startCalls.length;
   env.speech.end(); env.scheduler.advance(60 * 1000);
-  assert.equal(env.speech.startCalls.length, n, '取り消し後は自動再開しない');
-  app.setSpeechConsent(true);
-  env.scheduler.advance(60 * 1000);
-  assert.equal(env.speech.startCalls.length, n, '再同意しただけでは自動再開せず、利用者の開始操作を待つ');
+  assert.equal(env.speech.startCalls.length, n, '一時停止後は自動再開しない');
+  app.commands['session.resume']();
+  assert.equal(env.speech.startCalls.length, n + 1, '再開操作で開始される');
 });
 
 test('NFR-BG-001 AC-064 異常系: 選択言語が未対応になった（言語を替えた）後の自動終了では再開されない', async () => {

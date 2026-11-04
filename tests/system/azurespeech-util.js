@@ -75,14 +75,11 @@ export async function reloadAzure(ctx) {
   return { ...ctx, app, azure };
 }
 
-// 方式を Azure Speech にして（設定済み前提）、記録を開始し、必要なら同意する
-export async function startAzureRecording(app, { consent = true } = {}) {
+// 方式を Azure Speech にして（設定済み前提）、記録を開始する（同意の操作はない。AC-442）
+export async function startAzureRecording(app) {
   const r = app.setSpeechMethod('azure');
   if (!r || r.ok !== true) throw new Error(`方式を Azure Speech にできない: ${JSON.stringify(r)}`);
-  // 同意の初期状態は同意済み（AC-442。2026-11-03 の変更）。未同意にするときは、開始の前にチェックを外す。
-  if (!consent) { app.setSpeechConsent(false); await flush(); }
   app.commands['session.start'](); await flush();
-  if (consent) { app.setSpeechConsent(true); await flush(); }
 }
 
 export const settingsField = (app, id) => (app.getSettingsDialog()?.fields ?? []).find((f) => f.id === id);

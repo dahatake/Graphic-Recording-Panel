@@ -114,9 +114,10 @@ const INIT = `
 })();
 `;
 
-export async function openApp(browser, url, viewport = { width: 1280, height: 1000 }) {
+export async function openApp(browser, url, viewport = { width: 1280, height: 1000 }, extraInit = null) {
   const ctx = await browser.newContext({ viewport });
   await ctx.addInitScript(INIT);
+  if (extraInit) await ctx.addInitScript(extraInit); // INIT の後に実行される（疑似の音声認識の開始回数の計測などに使う）
   const page = await ctx.newPage();
   await page.goto(url, { waitUntil: 'load' });
   await page.waitForFunction(() => !!globalThis.__app);

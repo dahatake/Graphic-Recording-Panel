@@ -1,18 +1,18 @@
 // NFR-UX-011 AC-459〜464（System Test。契約: CONTRACT.md「コマンドバーの作業順グループ」）
-// 期待値は受入基準だけから決める（PARAM-006=640px、PARAM-092=12 個）。
+// 期待値は受入基準だけから決める（PARAM-006=640px、PARAM-092=13 個）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp, CJK } from './helpers.js';
 
 const NARROW = 640; // PARAM-006（以下で折り返す）
 const WIDE = 1280;
-const MAX_PER_GROUP = 12; // PARAM-092
-const ORDER = ['import', 'session', 'view', 'layoutType', 'settings', 'presentation', 'export', 'data', 'environment'];
-const JA = ['取り込み', '記録', '表示', 'レイアウト型', '設定', 'プレゼンテーション', '図の書き出し', 'データ', '画面・環境'];
+const MAX_PER_GROUP = 13; // PARAM-092（画風グループの 13 項目で引き上げ。2026-11-04）
+const ORDER = ['import', 'session', 'view', 'drawStyle', 'layoutType', 'settings', 'presentation', 'export', 'data', 'environment'];
+const JA = ['取り込み', '記録', '表示', '画風', 'レイアウト型', '設定', 'プレゼンテーション', '図の書き出し', 'データ', '画面・環境'];
 const MEMBERS = {
   import: ['import.file'],
   session: ['session.start', 'session.pause', 'session.resume', 'session.stop', 'session.nextScene', 'input.focus'],
-  view: ['view.2d', 'view.3d', 'view.timeline', 'view.arrange', 'detail.next', 'drawStyle.pick'], // drawStyle.pick は末尾（FR-077）
+  view: ['view.2d', 'view.3d', 'view.timeline', 'view.arrange', 'detail.next'], // 描画スタイルは「画風」グループ（FR-077。旧 drawStyle.pick は廃止）
   presentation: ['presentation.start', 'presentation.pause', 'presentation.resume', 'presentation.stop', 'presentation.prev', 'presentation.next'],
   export: ['save.png', 'save.svg', 'save.pdf', 'prompt.copy'], // prompt.copy は末尾（FR-078）
   data: ['file.save', 'file.load', 'data.reset'],
@@ -28,12 +28,16 @@ const intersects = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b
 const byLayout = (app, w) => app.getCommandBarLayout({ viewportWidth: w });
 
 // NFR-UX-011 AC-459
-test('NFR-UX-011 AC-459: グループは 取り込み→記録→表示→レイアウト型→設定→プレゼンテーション→図の書き出し→データ→画面・環境 の 9 つで、各ボタンが定められたグループに属する', async () => {
+test('NFR-UX-011 AC-459: グループは 取り込み→記録→表示→画風→レイアウト型→設定→プレゼンテーション→図の書き出し→データ→画面・環境 の 10 個で（接続キーのグループはない）、各ボタンが定められたグループに属する', async () => {
   const { app } = await newApp();
   const groups = bar(app).groups;
   assert.deepEqual(groups.map((g) => g.id), ORDER);
+  assert.ok(!groups.some((g) => g.id === 'apiKeys'), '接続キーのグループはない（AC-482）');
   for (const g of groups) {
-    if (g.id === 'layoutType') {
+    if (g.id === 'drawStyle') {
+      assert.deepEqual(g.commands, app.getDrawStyles().map((s) => `drawStyle.set:${s.id}`), '全 13 の描画スタイルの項目（drawStyle.set:<id>）が登録順に並ぶ');
+      assert.equal(g.commands.length, 13);
+    } else if (g.id === 'layoutType') {
       assert.ok(groupOf(g).every(isLayoutType), '型アイコン・クリアだけ');
       assert.ok(g.commands.includes('layoutType.clear'));
       assert.ok(g.commands.length > 1, '型アイコンがある');
@@ -55,40 +59,40 @@ test('NFR-UX-011 AC-459: グループは 取り込み→記録→表示→レイ
   for (const g of groups) for (const c of g.commands) assert.equal(bar(app).items.find((i) => i.command === c).group, g.id, c);
 });
 
-// NFR-UX-011 AC-459（3ba5311: 描画スタイルの選択は「表示」の末尾、プロンプトのコピーは「図の書き出し」の末尾）
-test('NFR-UX-011 AC-459: 描画スタイルの選択（drawStyle.pick）は「表示」の末尾、プロンプトのコピー（prompt.copy）は「図の書き出し」の末尾にある（DOM 順・視覚順とも）', async () => {
+// NFR-UX-011 AC-459（画風は独立した「画風」グループ。プロンプトのコピーは「図の書き出し」の末尾）
+test('NFR-UX-011 AC-459: 「画風」グループは「表示」の直後・「レイアウト型」の直前にあり、プロンプトのコピー（prompt.copy）は「図の書き出し」の末尾にある（DOM 順・視覚順とも）', async () => {
   const { app } = await newApp();
   const groups = bar(app).groups;
-  const view = groups.find((g) => g.id === 'view');
   const exp = groups.find((g) => g.id === 'export');
-  assert.equal(view.commands.at(-1), 'drawStyle.pick', '表示の末尾');
+  const ds = app.getDrawStyles().map((s) => `drawStyle.set:${s.id}`);
   assert.equal(exp.commands.at(-1), 'prompt.copy', '図の書き出しの末尾');
+  assert.deepEqual(groups.map((g) => g.id).slice(2, 5), ['view', 'drawStyle', 'layoutType']);
   for (const w of [WIDE, NARROW]) {
     const lay = byLayout(app, w);
     const pos = new Map(lay.items.map((i) => [i.command, i.rect]));
-    for (const [last, others] of [['drawStyle.pick', MEMBERS.view.slice(0, -1)], ['prompt.copy', MEMBERS.export.slice(0, -1)]]) {
-      const r = pos.get(last);
-      assert.ok(r, `${w}px: ${last} が表示されている`);
-      for (const c of others) {
-        const o = pos.get(c);
-        assert.ok(o.y < r.y || (o.y === r.y && o.x < r.x), `${w}px: ${last} は ${c} より後ろに視覚上もある`);
-      }
-    }
+    const before = (a, b) => a.y < b.y || (a.y === b.y && a.x < b.x);
+    for (const c of ds) assert.ok(pos.get(c), `${w}px: ${c} が表示されている`);
+    for (const v of MEMBERS.view) for (const c of ds) assert.ok(before(pos.get(v), pos.get(c)), `${w}px: ${c} は ${v} より後ろに視覚上もある`);
+    for (const c of ds) assert.ok(before(pos.get(c), pos.get('layoutType.clear')), `${w}px: ${c} はレイアウト型より前にある`);
+    const r = pos.get('prompt.copy');
+    for (const c of MEMBERS.export.slice(0, -1)) assert.ok(before(pos.get(c), r), `${w}px: prompt.copy は ${c} より後ろにある`);
   }
 });
 
-test('NFR-UX-011 AC-459 異常系: 描画スタイルの選択・プロンプトのコピーはほかのグループ（レイアウト型・データなど）に入らず、各 1 個だけ', async () => {
+test('NFR-UX-011 AC-459 異常系: 描画スタイルの項目・プロンプトのコピーはほかのグループ（表示・レイアウト型・データなど）に入らず、各 1 個だけ。旧 drawStyle.pick はない', async () => {
   const { app } = await newApp();
   const groups = bar(app).groups;
-  for (const [c, gid] of [['drawStyle.pick', 'view'], ['prompt.copy', 'export']]) {
+  const cs = [...app.getDrawStyles().map((s) => [`drawStyle.set:${s.id}`, 'drawStyle']), ['prompt.copy', 'export']];
+  for (const [c, gid] of cs) {
     assert.deepEqual(groups.filter((g) => g.commands.includes(c)).map((g) => g.id), [gid], `${c} は ${gid} にだけ属する`);
     assert.equal(bar(app).items.filter((i) => i.command === c).length, 1, `${c} は 1 個`);
   }
-  assert.ok(groups.find((g) => g.id === 'view').commands.length <= MAX_PER_GROUP);
+  assert.equal(bar(app).items.some((i) => i.command === 'drawStyle.pick'), false, '旧 drawStyle.pick は廃止');
+  assert.ok(groups.find((g) => g.id === 'drawStyle').commands.length <= MAX_PER_GROUP);
   assert.ok(groups.find((g) => g.id === 'export').commands.length <= MAX_PER_GROUP);
 });
 
-test('NFR-UX-011 AC-459 異常系: 各グループは 12 個以内で、どのボタンも 1 つのグループにだけ属する（重複・未分類なし）', async () => {
+test('NFR-UX-011 AC-459 異常系: 各グループは PARAM-092（13）個以内で、どのボタンも 1 つのグループにだけ属する（重複・未分類なし）', async () => {
   const { app } = await newApp();
   const groups = bar(app).groups;
   for (const g of groups) assert.ok(g.commands.length >= 1 && g.commands.length <= MAX_PER_GROUP, `${g.id}: ${g.commands.length} 個`);
@@ -97,7 +101,7 @@ test('NFR-UX-011 AC-459 異常系: 各グループは 12 個以内で、どの�
   sameSet(all, bar(app).items.map((i) => i.command));
 });
 
-test('NFR-UX-011 AC-459 異常系: 折り返す幅でも（画面幅 640px 以下）グループの順序は上→下・左→右で 9 つのまま', async () => {
+test('NFR-UX-011 AC-459 異常系: 折り返す幅でも（画面幅 640px 以下）グループの順序は上→下・左→右で 10 個のまま', async () => {
   const { app } = await newApp();
   const lay = byLayout(app, NARROW);
   assert.deepEqual(lay.groups.map((g) => g.id), ORDER);

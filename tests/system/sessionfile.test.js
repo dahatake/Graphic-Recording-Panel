@@ -132,7 +132,7 @@ test('FR-019 AC-099: 読込後は一時停止で、再開するまで発話は�
   assert.equal(app.editPoint(app.getState().scenes[0].points[0].id, '読込後の手修正').ok, true);
 });
 
-test('FR-019 AC-099 異常系: 外部送信の同意が必要な環境では、再開時に同意を得るまで音声認識が開始されない', async () => {
+test('FR-019 AC-099 異常系: 外部送信の可能性がある環境でも、読込直後は音声認識が開始されず、同意の操作なしに再開操作で開始される（同意は口頭で得たもの。AC-067）', async () => {
   const speech = new FakeSpeech({ processLocally: false });
   const { app, env } = await populated({ speech, options: { speechSource: speech } });
   await app.commands['file.save']();
@@ -140,11 +140,9 @@ test('FR-019 AC-099 異常系: 外部送信の同意が必要な環境では、�
   resetAll(app);
   await app.loadSessionFile(file);
   speech.startCalls.length = 0;
+  assert.equal(speech.startCalls.length, 0, '読込直後は開始しない');
   await app.commands['session.resume']();
-  assert.equal(speech.startCalls.length, 0, '同意なしでは開始しない');
-  app.setSpeechConsent(true);
-  await app.commands['session.resume']();
-  assert.ok(speech.startCalls.length >= 1, '同意後に開始する');
+  assert.ok(speech.startCalls.length >= 1, '再開操作で開始する');
 });
 
 // FR-019 AC-100
