@@ -86,6 +86,25 @@ test('FR-077 AC-414: 項目をクリックすると描画スタイルが切り�
   }
 });
 
+test('FR-077 AC-414 実ブラウザ: 画風の各項目は通常の <button> で role=menuitem ではなく、aria-pressed を持つ（現在の 1 つだけ "true"、ほかは "false"）', async () => {
+  const srv = await serveWeb(); const browser = await launch();
+  try {
+    const { ctx, page } = await openApp(browser, srv.url, { width: 1280, height: 1000 });
+    try {
+      const all = await page.evaluate(() => globalThis.__app.getDrawStyles().map((s) => s.id));
+      assert.equal(all.length, 13);
+      const cur = await page.evaluate(() => globalThis.__app.getDrawStyle());
+      for (const id of all) {
+        const el = page.locator(`[data-command="drawStyle.set:${id}"]`).first();
+        assert.equal(await el.evaluate((e) => e.tagName), 'BUTTON', `${id}: BUTTON`);
+        assert.notEqual(await el.getAttribute('role'), 'menuitem', `${id}: role=menuitem ではない`);
+        assert.equal(await el.getAttribute('aria-pressed'), id === cur ? 'true' : 'false', `${id}: aria-pressed`);
+      }
+      assert.equal(await page.locator('[role="menuitem"][data-command^="drawStyle."]').count(), 0, 'menuitem の画風項目はない');
+    } finally { await ctx.close(); }
+  } finally { await browser.close(); await srv.close(); }
+});
+
 test('FR-077 AC-414 異常系: 登録にない・不正な値は選べず、現在の描画スタイル・図・押下の表示は変わらない', async () => {
   const { app, env } = await newApp();
   await seedThreeScenes(app, env);
@@ -176,6 +195,8 @@ test('FR-077 AC-416 実ブラウザ: 画風の項目は <button> で Tab で到�
       assert.equal(all.length, 13);
       for (const id of all) {
         assert.equal(await page.locator(sel(id)).first().evaluate((e) => e.tagName), 'BUTTON', `${id}: button`);
+        assert.notEqual(await page.locator(sel(id)).first().getAttribute('role'), 'menuitem', `${id}: role=menuitem ではない（AC-416）`);
+        assert.notEqual(await page.locator(sel(id)).first().getAttribute('aria-pressed'), null, `${id}: aria-pressed を持つ`);
         assert.ok(await page.locator(sel(id)).first().isVisible(), `${id}: 開く操作なしに最初から見える`);
       }
       const a = all[1]; const b = all[2];

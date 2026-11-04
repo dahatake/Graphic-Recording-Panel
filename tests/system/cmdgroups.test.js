@@ -52,6 +52,8 @@ test('NFR-UX-011 AC-459: グループは 取り込み→記録→表示→画風
       assert.ok([talk.accessibleName, talk.tooltip?.text, talk.description].some((s) => String(s ?? '').includes('講演向けの初期値にする')), '講演向けの初期値にする');
       const fields = g.commands.filter((c) => c !== 'settings.open' && c !== 'settings.talkPreset').map((c) => bar(app).items.find((i) => i.command === c).settingsField).sort();
       assert.deepEqual(fields, [...SETTINGS_FIELDS].sort(), '決め方・ミュート・音量・周期が 1 つずつ');
+      assert.equal(g.commands.length, 6, '［設定］を開く＋決め方・ミュート・音量・周期＋講演向けの初期値');
+      assert.equal(g.commands.filter((c) => /^(drawStyle\.|layoutType\.)/.test(c)).length, 0, 'レイアウト型のチェック・描画スタイルは設定グループに含まない');
     } else sameSet(g.commands, MEMBERS[g.id]);
   }
   // items は DOM 順＝グループを順に並べたもの、各 item が属するグループ ID を持つ
