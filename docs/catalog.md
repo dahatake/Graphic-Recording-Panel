@@ -124,6 +124,8 @@
 | FR-112 | ペン・タッチによる自由描画 | 承認済み | web/src/draw.js, web/src/draw-ui.js, web/src/export.js, web/src/presentexport.js, web/src/meetingout.js, web/src/ui.js, web/src/app.js, web/src/main.js, web/src/i18n.js, web/styles/app.css, web/sw.js | tests/unit/draw.test.js, tests/unit/ribbon-viewport.test.js, tests/system/draw.test.js | アプリ組立, i18n, デザイン基盤, キーマップ |
 | FR-113 | 起動のたびの最新コードでの検査（ビルド）と、旧い画面を出し続けない配信 | 承認済み | server/build.py, server/relay.py, start.ps1, start.sh, README.md, users-guide/01-getting-started.md | tests/relay/test_build_check.py | 中継サーバー |
 | FR-114 | 会議ボード型の描画（骨格の区画への要点の振り分けと部品の使い分け） | 承認済み | web/src/board.js, web/src/layouttypes.js, web/src/settings.js, web/src/kindstyles.js, web/src/llmdraw.js, web/src/app.js, web/sw.js | tests/unit/board.test.js, tests/unit/layoutsettings.test.js, tests/unit/commandbar-groups.test.js | アプリ組立, レイアウト型レジストリ, 描画スタイルの登録, LLM 連携の制御 |
+| FR-115 | ライブ描画ショー（描き足しを見て楽しむ演出） | 承認済み | 未実装 | 未実装 | - |
+| FR-116 | 演出の音（全画風の BGM と効果音） | 承認済み | 未実装 | 未実装 | - |
 
 ## API・イベント
 
