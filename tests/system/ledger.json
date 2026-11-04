@@ -3283,10 +3283,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-151\" tests/system/settings.test.js",
       "canary": false,
-      "status": "fail",
-      "last_commit": "e51b41c",
-      "last_run_at": "2026-11-05T03:44:38+09:00",
-      "evidence": "work/runs/202611050120/logs/system-test/E2E-092-202611050344.log",
+      "status": "pass",
+      "last_commit": "66df828",
+      "last_run_at": "2026-11-05T03:47:45+09:00",
+      "evidence": "work/runs/202611050120/logs/system-test/E2E-092-202611050347.log",
       "history": [
         {
           "at": "2026-10-16T05:16:44+09:00",
