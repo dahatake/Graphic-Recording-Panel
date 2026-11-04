@@ -53,9 +53,17 @@ test('NFR-UX-011 AC-459: グループは 取り込み→記録→表示→画風
       assert.equal(talk.kind ?? 'button', 'button');
       assert.equal(talk.group, 'settings');
       assert.ok([talk.accessibleName, talk.tooltip?.text, talk.description].some((s) => String(s ?? '').includes('講演向けの初期値にする')), '講演向けの初期値にする');
-      const fields = g.commands.filter((c) => c !== 'settings.open' && c !== 'settings.talkPreset').map((c) => bar(app).items.find((i) => i.command === c).settingsField).sort();
+      // FR-115 AC-672・AC-459（依頼 2026-11-05）: ライブ描画ショー（show.toggle）が設定グループの最後にちょうど 1 つ
+      assert.equal(g.commands.filter((c) => c === 'show.toggle').length, 1, 'ライブ描画ショーが 1 つ');
+      assert.equal(g.commands.at(-1), 'show.toggle', 'ライブ描画ショーは設定グループの最後（列挙順）');
+      assert.equal(bar(app).items.find((i) => i.command === 'show.toggle').group, 'settings');
+      // 列挙順: ［設定］を開く → FR-030 の項目 → 講演向けの初期値 → ライブ描画ショー
+      assert.equal(g.commands[0], 'settings.open', '［設定］を開くが先頭');
+      assert.equal(g.commands.at(-2), 'settings.talkPreset', '講演向けの初期値はライブ描画ショーの直前');
+      const fields = g.commands.filter((c) => !['settings.open', 'settings.talkPreset', 'show.toggle'].includes(c)).map((c) => bar(app).items.find((i) => i.command === c).settingsField).sort();
       assert.deepEqual(fields, [...SETTINGS_FIELDS].sort(), '決め方・ミュート・音量・周期が 1 つずつ');
-      assert.equal(g.commands.length, 6, '［設定］を開く＋決め方・ミュート・音量・周期＋講演向けの初期値');
+      assert.equal(g.commands.length, 7, '［設定］を開く＋決め方・ミュート・音量・周期＋講演向けの初期値＋ライブ描画ショー（7 個）');
+      assert.ok(g.commands.length <= MAX_PER_GROUP, '設定グループは PARAM-092 以内');
       assert.equal(g.commands.filter((c) => /^(drawStyle\.|layoutType\.)/.test(c)).length, 0, 'レイアウト型のチェック・描画スタイルは設定グループに含まない');
     } else sameSet(g.commands, MEMBERS[g.id]);
   }

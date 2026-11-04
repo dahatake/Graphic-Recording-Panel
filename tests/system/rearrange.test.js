@@ -5,8 +5,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   P, T, KIND_ORDER, arrangeApp, seededDetail, say, elements, box, posMap, pointIdOf, elementOfPoint, elementOfScene,
-  assertNoOverlap, assertAligned, before, gap, kindLabelOf, toDetail, FakeVisibility,
+  assertNoOverlap, assertAligned, before, gap, kindLabelOf, toDetail, FakeVisibility, startLive, LIVE_SEC,
 } from './rearrange-util.js';
+import { PARAM } from './helpers.js';
 
 const PERIOD = P.INTERVAL_DEFAULT_SEC * 1000;
 const count = (app) => app.getArrangeStatus().count;
@@ -19,17 +20,21 @@ const descendantPoints = (app, rootId) => {
 
 // ---- FR-080 AC-435 ----
 // 再固定（run 202611021537）: 暫定の位置の「重ならない」は、型の規定で接続のために重ねる要素（AC-155 の質問と答えの吹き出しなど）を除く（A-170）。
-// 既定の時系列にはその要素がないので、ここでは全要素の外枠の非重なりを確かめる。確定結果の受付から暫定表示までの上限は PARAM-001（15 秒）。
-// FR-080 AC-435
-test('FR-080 AC-435: 初期値の周期では、起動から 10 秒の時点ちょうどで初めて再配置され、それより前の追加は暫定の位置のまま', async () => {
+// 既定の時系列にはその要素がないので、ここでは全要素の外枠の非重なりを確かめる。ライブの要素は受付の後の最初の更新間隔の時点に表示（AC-521 優先。上限 PARAM-001＝60 秒）、手入力は即時（AC-054）。
+// FR-080 AC-435（依頼 2026-11-05: ライブでは確定結果の受付の後の最初の更新間隔の時点に表示（AC-521 優先）、単発の反映（手入力）は即時（AC-054））
+test('FR-080 AC-435: 初期値の周期では、起動から 10 秒の時点ちょうどで初めて再配置され、それより前の追加は暫定の位置のまま。ライブの要素は最初の更新間隔の時点に、手入力の要素は即時に暫定の位置に表示される', async () => {
   const { app, env, scheduler } = await arrangeApp();
   assert.equal(app.getArrangeInterval().sec, P.INTERVAL_DEFAULT_SEC);
   toDetail(app);
-  app.commands['session.start']();
+  startLive(app); // 更新間隔 5 秒（PARAM-098）: 更新の時点は 5 秒・10 秒・15 秒…、再配置の時点は 10 秒・20 秒…
+  const LIVE = LIVE_SEC * 1000;
   scheduler.advanceTo(500); say(env, T.plain1);
-  scheduler.advanceTo(1500); // 暫定表示の検査は周期（10 秒）内の短い時間で行う（PARAM-001 の 15 秒は周期より長い）
+  scheduler.advanceTo(LIVE - 1);
+  assert.ok(app.getState().utterances.some((u) => u.text === T.plain1), '確定結果は受け付けられている');
+  assert.equal(elements(app).filter((x) => x.kind === 'point').length, 0, 'ライブ: 最初の更新間隔の時点より前には要素が図に加わらない');
+  scheduler.advanceTo(LIVE);
   const e = elementOfPoint(app, pointIdOf(app, T.plain1));
-  assert.equal(e.provisional, true, '確定結果の受付から PARAM-001 秒以内に暫定の位置に表示される');
+  assert.equal(e.provisional, true, 'ライブ: 受付の後の最初の更新間隔の時点（受付から設定した更新間隔以内）に暫定の位置に表示される');
   assert.equal(count(app), 0);
   assert.equal(app.getArrangeStatus().pending, true);
   scheduler.advanceTo(PERIOD - 1);
@@ -38,10 +43,18 @@ test('FR-080 AC-435: 初期値の周期では、起動から 10 秒の時点ち�
   assert.equal(count(app), 1, '起動から 10 秒の時点で再配置される');
   assert.equal(app.getArrangeStatus().pending, false);
   assert.ok(elements(app).every((x) => x.provisional === false), '再配置後は暫定の位置の要素がない');
+  // 単発の反映（手入力）: 更新間隔を待たず即時（PARAM-158 以内。次の更新の時点 15 秒より前）に暫定の位置に表示される
+  scheduler.advanceTo(PERIOD + 500);
+  app.setDraft(T.plain2); assert.equal(app.submitDraft().ok, true);
+  scheduler.advance(PARAM.SINGLE_SEC * 1000);
+  assert.ok(scheduler.t < PERIOD + LIVE, '次の更新の時点より前に確かめる');
+  const m = elementOfPoint(app, pointIdOf(app, T.plain2));
+  assert.equal(m.provisional, true, '手入力: 即時に暫定の位置に表示される');
+  assert.equal(count(app), 1, '再配置は次の周期の時点まで行われない');
 });
 
 // FR-080 AC-435
-test('FR-080 AC-435: 新しい要点は受付から PARAM-001 秒以内に追加先のまとまりの読み順の末尾・重ならない位置に暫定表示され、前のまとまりの要素は動かず、次の周期の時点で再配置される', async () => {
+test('FR-080 AC-435: ライブの新しい要点は受付の後の最初の更新間隔の時点（受付から設定した更新間隔以内）に追加先のまとまりの読み順の末尾・重ならない位置に暫定表示され、それより前には加わらず、前のまとまりの要素は動かず、次の周期の時点で再配置される', async () => {
   const { app, env, scheduler } = await seededDetail();
   assert.equal(count(app), 1);
   const topics = app.getTopics();
@@ -54,7 +67,13 @@ test('FR-080 AC-435: 新しい要点は受付から PARAM-001 秒以内に追加
   assert.ok(prevTopicIds.length >= 2, '前のトピックの要素（シーンと要点）がある');
 
   scheduler.advanceTo(PERIOD + 1000); say(env, T.problem); // 2 シーン目（最後の受付から 20 秒以内）
-  scheduler.advanceTo(PERIOD + 2000); // 周期内の短い時間（PARAM-001 は周期より長い）
+  const LIVE = LIVE_SEC * 1000;
+  const nextUpdate = Math.ceil((PERIOD + 1000) / LIVE) * LIVE; // 受付の後の最初の更新の時点（15 秒）
+  assert.ok(nextUpdate < 2 * PERIOD, '更新の時点は次の再配置の時点より前');
+  scheduler.advanceTo(nextUpdate - 1);
+  assert.ok(!elements(app).some((x) => x.kind === 'point' && app.getState().scenes.flatMap((s) => s.points).some((p) => p.text === T.problem && x.refIds.includes(p.id))), 'ライブ: 更新の時点より前には要素が加わらない');
+  assert.deepEqual([...posMap(app)], [...pos0], '更新の時点より前は図が変わらない');
+  scheduler.advanceTo(nextUpdate);
   const id = pointIdOf(app, T.problem);
   assert.equal(app.getState().scenes.length, 2, '同じシーンに加わる');
   const e = elementOfPoint(app, id);

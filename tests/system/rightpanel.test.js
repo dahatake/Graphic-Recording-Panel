@@ -3,8 +3,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp, PARAM, toDetail } from './helpers.js';
+import { showApp, show, SHOW } from './liveshow-util.js';
 
-const REFLECT_MS = PARAM.UPPER_SEC * 1000; // PARAM-001（15 秒。ライブ）
+const REFLECT_MS = PARAM.UPPER_SEC * 1000; // PARAM-001（60 秒。ライブ。2026-11-05 に 15→60）
 const SINGLE_MS = PARAM.SINGLE_SEC * 1000; // PARAM-158（3 秒。手入力・ファイル取込の単発の反映）
 const MB = 1024 * 1024;       // PARAM-003
 const finals = (app) => app.getTranscript().finals.map((f) => f.text);
@@ -120,7 +121,7 @@ test('FR-014 AC-052 異常系: 記録中でないときの暫定結果は表示�
 });
 
 // FR-014 AC-053
-test('FR-014 AC-053: 確定結果で暫定表示が消えて確定一覧に移り、図が受付から 15 秒（PARAM-001）以内に画面へ反映される', async () => {
+test('FR-014 AC-053: 確定結果で暫定表示が消えて確定一覧に移り、図が受付から PARAM-001（60 秒）＋PARAM-104（2 秒）以内に画面へ反映される', async () => {
   const { app, env } = await newApp();
   startRec(app);
   env.speech.emit('予算を見直す', false);
@@ -130,11 +131,29 @@ test('FR-014 AC-053: 確定結果で暫定表示が消えて確定一覧に移�
   assert.deepEqual(finals(app), ['予算を見直す']);
   const before = app.getLiveRefresh().count;
   env.scheduler.advance(REFLECT_MS);
-  assert.ok(app.getLiveRefresh().count > before, '確定結果の受付から PARAM-001（15 秒）以内に図の更新の描画が始まる');
+  assert.ok(app.getLiveRefresh().count > before, '確定結果の受付から PARAM-001（60 秒）以内に図の更新の描画が始まる');
   env.scheduler.advance(PARAM.RENDER_SEC * 1000);
   assert.ok(app.renderSvg().includes('予算を見直す'), '描画が始まってから PARAM-104（2 秒）以内に図に反映');
   assert.ok(app.renderOutline().includes('予算を見直す'));
   assert.equal(app.getState().scenes.length >= 1, true);
+});
+
+// FR-014 AC-053（利用者が設定した更新間隔: 描画の始まりの上限はその設定値。ライブ描画ショーが ON のときの反映の完了は AC-675 の時間）
+test('FR-014 AC-053: 更新間隔を設定したとき、描画は確定結果の受付からその設定値以内に始まり、PARAM-104 以内に反映される。ライブ描画ショーが ON でも始まりの上限は同じで、反映の完了は更新間隔の PARAM-182（80%）以内', async () => {
+  for (const [sec, on] of [[PARAM.LIVE_MIN_SEC, false], [PARAM.LIVE_MIN_SEC, true], [20, true]]) {
+    const { app, env, scheduler } = await showApp();
+    if (on) assert.equal(app.setLiveShow(true).ok, true);
+    startRec(app);
+    assert.equal(app.setLiveInterval(sec).ok, true);
+    env.speech.emit(`間隔${sec}秒の確定結果`, true);
+    const before = app.getLiveRefresh().count;
+    scheduler.advance(sec * 1000);
+    assert.ok(app.getLiveRefresh().count > before, `${sec} 秒・ショー${on ? 'ON' : 'OFF'}: 受付から設定値（${sec} 秒）以内に描画が始まる`);
+    const limit = on ? Math.floor((sec * 1000 * SHOW.TOTAL_PCT) / 100) : PARAM.RENDER_SEC * 1000;
+    scheduler.advance(limit);
+    assert.ok(app.renderSvg().includes(`間隔${sec}秒の確定結果`), `${sec} 秒・ショー${on ? 'ON' : 'OFF'}: ${limit} ms 以内に図に反映`);
+    if (on) assert.equal(show(app).running, false, `${sec} 秒: 演出は更新間隔の ${SHOW.TOTAL_PCT}% 以内に終わる`);
+  }
 });
 
 test('FR-014 AC-053 異常系: 一時停止中に届いた確定結果は一覧にも図にも反映されない', async () => {

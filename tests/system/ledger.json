@@ -28,7 +28,7 @@
     "AC-049": "sha256:b530880830288c02",
     "AC-050": "sha256:9d9068d925e207dd",
     "AC-052": "sha256:bf4a4635a20763f2",
-    "AC-053": "sha256:a7253fa849bbc9a4",
+    "AC-053": "sha256:e9b7eabff7de8ff3",
     "AC-054": "sha256:25e5445606aaceb5",
     "AC-057": "sha256:ac812e004e7762a3",
     "AC-060": "sha256:906295de64a708e1",
@@ -126,7 +126,7 @@
     "AC-321": "sha256:80668bcb93808e34",
     "AC-342": "sha256:f12280f13a2d5069",
     "AC-343": "sha256:db47478222fe385e",
-    "AC-323": "sha256:b24c50fab79001c3",
+    "AC-323": "sha256:f6651f157e3258ef",
     "AC-344": "sha256:9c5f73af5607f90b",
     "AC-345": "sha256:ad4e314f2ba254d4",
     "AC-330": "sha256:a46dccb8ff7599ad",
@@ -184,20 +184,20 @@
     "AC-397": "sha256:1a58ae648ec17b33",
     "AC-398": "sha256:fbbd0b2aabd53dfa",
     "AC-399": "sha256:281370b2a80ba6d5",
-    "AC-401": "sha256:f3d1b6140cfea751",
+    "AC-401": "sha256:f60566d201cdf7fb",
     "AC-402": "sha256:3ae6afa4032fee90",
-    "AC-459": "sha256:33c7f3f835071e49",
+    "AC-459": "sha256:f1143d83276bdec3",
     "AC-460": "sha256:e5633f20b76bcbf4",
     "AC-461": "sha256:e739eb391b8b4c84",
     "AC-462": "sha256:788240e79830f31d",
     "AC-463": "sha256:fd00d0ec74e295fc",
     "AC-464": "sha256:ae269b4046bb3a27",
-    "AC-435": "sha256:019417a082e56672",
+    "AC-435": "sha256:91dec6216ba0c8eb",
     "AC-436": "sha256:1d5cad323ac8017b",
     "AC-439": "sha256:afa998f8bed55a68",
     "AC-440": "sha256:cb8e709859fa53d9",
     "AC-441": "sha256:8ec6db3873a96182",
-    "AC-442": "sha256:fdcede0b656d5a08",
+    "AC-442": "sha256:9ac9679e39107da2",
     "AC-443": "sha256:ac625adb1f4c7853",
     "AC-444": "sha256:f7a142b56de4daa7",
     "AC-445": "sha256:9d4107dfc49cf3ab",
@@ -237,8 +237,8 @@
     "AC-511": "sha256:b882f15318d530fb",
     "AC-519": "sha256:242211b1bfcffceb",
     "AC-520": "sha256:3f494c793a29f5b2",
-    "AC-521": "sha256:52662eceeb1c94bf",
-    "AC-523": "sha256:b65db9b138433e1d",
+    "AC-521": "sha256:4715faa39885ca36",
+    "AC-523": "sha256:4db44080343b9809",
     "AC-528": "sha256:d5410520957be540",
     "AC-530": "sha256:04ac763a7328a5ba",
     "AC-524": "sha256:a68adebbf25d3e76",
@@ -280,7 +280,12 @@
     "AC-663": "sha256:5d49ca9dc09bb3cd",
     "AC-661": "sha256:7a240add947338ad",
     "AC-662": "sha256:18d6be9b8d90b196",
-    "AC-667": "sha256:ec0c08349bf164e0"
+    "AC-667": "sha256:88b52df69c384a26",
+    "AC-671": "sha256:6753b23bb5cc6af6",
+    "AC-672": "sha256:08d68711c656463d",
+    "AC-673": "sha256:260a1a93a3878983",
+    "AC-676": "sha256:3ec1900e10924ead",
+    "AC-679": "sha256:7929505bd09902bb"
   },
   "cases": [
     {
@@ -1122,11 +1127,11 @@
       "ac_ids": [
         "AC-053"
       ],
-      "title": "確定結果で暫定が消え一覧に移り、ライブの上限 PARAM-001（15 秒）＋PARAM-104（2 秒）以内に図へ反映",
+      "title": "確定結果で暫定が消え一覧に移り、ライブの上限 PARAM-001（60 秒）＋PARAM-104（2 秒）以内に図。設定した更新間隔ではその値以内に始まり、ショー ON では80%以内に完了",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-053\" tests/system/rightpanel.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "a349c56",
       "last_run_at": "2026-11-05T00:37:59+09:00",
       "evidence": "work/runs/202611042246/logs/system-test/E2E-028-202611050036.log",
@@ -1160,6 +1165,12 @@
           "by": "test-designer",
           "change": "title: '確定結果で暫定が消え一覧に移り PARAM-001（15 秒）以内に図へ反映' -> '確定結果で暫定が消え一覧に移り、ライブの上限 PARAM-001（15 秒）＋PARAM-104（2 秒）以内に図へ反映'",
           "reason": "A-805: PARAM-001=ライブ／PARAM-158=単発の書き分けに題名を整合"
+        },
+        {
+          "at": "2026-11-05T01:45:16+09:00",
+          "by": "test-designer",
+          "change": "title: '確定結果で暫定が消え一覧に移り、ライブの上限 PARAM-001（15 秒）＋PARAM-104（2 秒）以内に図へ反映' -> '確定結果で暫定が消え一覧に移り、ライブの上限 PARAM-001（60 秒）＋PARAM-104（2 秒）以内に図。設定した更新間隔ではその値以内に始まり、ショー ON では80%以内に完了'",
+          "reason": "依頼 2026-11-05: PARAM-001 を 60 秒に、AC-053 に設定値の上限とショー ON の完了（AC-675）を追加"
         }
       ]
     },
@@ -6592,11 +6603,11 @@
       "ac_ids": [
         "AC-401"
       ],
-      "title": "記録中・500 件でも要点 3 秒以内表示・非表示中の発話欠落なし",
+      "title": "記録中・500 件でも単発の要点 3 秒以内・ライブの描画の開始が設定した更新間隔以内・非表示中の発話が欠落しない",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-401\" tests/system/perf.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "a349c56",
       "last_run_at": "2026-11-05T00:37:59+09:00",
       "evidence": "work/runs/202611042246/logs/system-test/E2E-197-202611050036.log",
@@ -6612,6 +6623,12 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "AC 改訂（run 202611021537）に合わせてテストを更新したため再実行"
+        },
+        {
+          "at": "2026-11-05T02:00:41+09:00",
+          "by": "test-designer",
+          "change": "title: '記録中・500 件でも要点 3 秒以内表示・非表示中の発話欠落なし' -> '記録中・500 件でも単発の要点 3 秒以内・ライブの描画の開始が設定した更新間隔以内・非表示中の発話が欠落しない'",
+          "reason": "AC-401 の文言の変更（76b39c3: ライブの描画の開始は設定した更新間隔以内、最大 PARAM-001）に合わせる。描画の開始は SVG への出現で判定"
         }
       ]
     },
@@ -6648,11 +6665,11 @@
       "ac_ids": [
         "AC-459"
       ],
-      "title": "コマンドバーの作業順 10 グループ（画風は表示の直後）と所属・15 個以内、画風は 15 項目、レイアウト型は 7 つの型アイコンとクリアの 8 個、プロンプトのコピーは図の書き出しの末尾（異常系: 折返し）",
+      "title": "コマンドバーの作業順 10 グループ・各 15 以内、画風 15 項目、レイアウト型 8、設定グループは 7 個で最後が show.toggle、プロンプトのコピーは図の書き出しの末尾（異常系: 折返し）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-459\" tests/system/cmdgroups.test.js",
       "canary": true,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "a349c56",
       "last_run_at": "2026-11-05T00:37:59+09:00",
       "evidence": "work/runs/202611042246/logs/system-test/E2E-225-202611050036.log",
@@ -6704,6 +6721,12 @@
           "by": "test-designer",
           "change": "title: 'コマンドバーの作業順 10 グループ（画風は表示の直後）と所属・13 個以内、画風は 13 項目、プロンプトのコピーは図の書き出しの末尾（異常系: 折返し）' -> 'コマンドバーの作業順 10 グループ（画風は表示の直後）と所属・15 個以内、画風は 15 項目、レイアウト型は 7 つの型アイコンとクリアの 8 個、プロンプトのコピーは図の書き出しの末尾（異常系: 折返し）'",
           "reason": "AC-459 の変更（9af7576: 画風 15 項目・PARAM-092=15・レイアウト型グループ 8 個）に合わせ、cmdgroups.test.js の上限と型アイコンの検証を更新"
+        },
+        {
+          "at": "2026-11-05T02:00:40+09:00",
+          "by": "test-designer",
+          "change": "title: 'コマンドバーの作業順 10 グループ（画風は表示の直後）と所属・15 個以内、画風は 15 項目、レイアウト型は 7 つの型アイコンとクリアの 8 個、プロンプトのコピーは図の書き出しの末尾（異常系: 折返し）' -> 'コマンドバーの作業順 10 グループ・各 15 以内、画風 15 項目、レイアウト型 8、設定グループは 7 個で最後が show.toggle、プロンプトのコピーは図の書き出しの末尾（異常系: 折返し）'",
+          "reason": "AC-459 の変更（76b39c3: 設定グループの最後に show.toggle、7 個）に合わせる"
         }
       ]
     },
@@ -6870,11 +6893,11 @@
       "ac_ids": [
         "AC-435"
       ],
-      "title": "再配置の周期: 起動から10秒ごと・暫定位置の即時表示・前の要素不動・追加なしは再配置しない・非表示中は復帰後（異常系含む）",
+      "title": "再配置の周期: 起動から10秒ごと・ライブの要素は受付の後の最初の更新間隔の時点に暫定表示（それより前は加わらない）・手入力は即時・前の要素不動・追加なしは再配置しない・非表示中は復帰後（異常系含む）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-435\" tests/system/rearrange.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "a349c56",
       "last_run_at": "2026-11-05T00:37:59+09:00",
       "evidence": "work/runs/202611042246/logs/system-test/E2E-220-202611050036.log",
@@ -6896,6 +6919,12 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "AC 改訂（run 202611021537）に合わせてテストを更新したため再実行"
+        },
+        {
+          "at": "2026-11-05T02:00:40+09:00",
+          "by": "test-designer",
+          "change": "title: '再配置の周期: 起動から10秒ごと・暫定位置の即時表示・前の要素不動・追加なしは再配置しない・非表示中は復帰後（異常系含む）' -> '再配置の周期: 起動から10秒ごと・ライブの要素は受付の後の最初の更新間隔の時点に暫定表示（それより前は加わらない）・手入力は即時・前の要素不動・追加なしは再配置しない・非表示中は復帰後（異常系含む）'",
+          "reason": "AC-435 の変更（76b39c3: ライブでは更新間隔の時点に描き足し、即時表示は単発の反映だけ）に合わせる。seededDetail は更新間隔 5 秒で更新と再配置の時点を分ける"
         }
       ]
     },
@@ -8336,11 +8365,11 @@
       "ac_ids": [
         "AC-521"
       ],
-      "title": "ライブ: 更新間隔（既定10秒・10〜15秒）ごとにまとめて描画し、発話なしの間隔は更新しない（異常系: 範囲外の間隔・一時停止）",
+      "title": "ライブ: 更新間隔（既定10秒・5〜60秒）ごとにちょうど1回まとめて描き足し、前後の時点では加えない（疑似時計・T=5/7/60。異常系: 範囲外・非整数・空・一時停止）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-521\" tests/system/live.test.js",
       "canary": true,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "a349c56",
       "last_run_at": "2026-11-05T00:37:59+09:00",
       "evidence": "work/runs/202611042246/logs/system-test/E2E-259-202611050036.log",
@@ -8350,6 +8379,18 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-11-05T01:45:16+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test --test-name-pattern=\"AC-521\" tests/system/live.test.js' -> 'node --test --test-name-pattern=\"AC-521|AC-522\" tests/system/live.test.js'; title: 'ライブ: 更新間隔（既定10秒・10〜15秒）ごとにまとめて描画し、発話なしの間隔は更新しない（異常系: 範囲外の間隔・一時停止）' -> 'ライブ: 更新間隔（既定10秒・5〜60秒）ごとにちょうど1回まとめて描き足し、前後の時点では加えない（疑似時計・T=5/7/60）。設定画面・コマンド検索・保存（異常系: 範囲外・非整数・空・一時停止）'; ac_ids: ['AC-521'] -> ['AC-521', 'AC-522']",
+          "reason": "依頼 2026-11-05: AC-521 の範囲 5〜60 秒（PARAM-098/099）と疑似時計で間隔ごとに 1 回だけ、AC-522 を追加"
+        },
+        {
+          "at": "2026-11-05T01:46:57+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test --test-name-pattern=\"AC-521|AC-522\" tests/system/live.test.js' -> 'node --test --test-name-pattern=\"AC-521\" tests/system/live.test.js'; title: 'ライブ: 更新間隔（既定10秒・5〜60秒）ごとにちょうど1回まとめて描き足し、前後の時点では加えない（疑似時計・T=5/7/60）。設定画面・コマンド検索・保存（異常系: 範囲外・非整数・空・一時停止）' -> 'ライブ: 更新間隔（既定10秒・5〜60秒）ごとにちょうど1回まとめて描き足し、前後の時点では加えない（疑似時計・T=5/7/60。異常系: 範囲外・非整数・空・一時停止）'; ac_ids: ['AC-521', 'AC-522'] -> ['AC-521']",
+          "reason": "AC-522 は検証レベル integration（CHK-10）のため ac_ids から外す。テストは live.test.js に参考として残す"
         }
       ]
     },
@@ -8359,13 +8400,14 @@
         "FR-022"
       ],
       "ac_ids": [
-        "AC-523"
+        "AC-523",
+        "AC-671"
       ],
-      "title": "バッチ描画: .vtt/.txt 取込が更新間隔を待たず1回で全体を PARAM-158（3 秒）以内に反映（異常系: 取り込めない取込は変化なし）",
+      "title": "バッチ描画と .vtt の再生取込: 一括は更新間隔を待たず PARAM-158 以内。再生取込は速さ（1/2/4/8倍）で cue が届き更新間隔ごとに描き足し、結果は一括と同じ（異常系: 不正な方法・速さ、一時停止・再開・中止、取り込めないファイル）",
       "layer": "e2e",
-      "command": "node --test --test-name-pattern=\"AC-523\" tests/system/live.test.js",
+      "command": "node --test --test-name-pattern=\"AC-523|AC-671\" tests/system/live.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "a349c56",
       "last_run_at": "2026-11-05T00:37:59+09:00",
       "evidence": "work/runs/202611042246/logs/system-test/E2E-260-202611050037.log",
@@ -8381,6 +8423,12 @@
           "by": "test-designer",
           "change": "title: 'バッチ描画: .vtt/.txt 取込が更新間隔を待たず1回で全体反映（異常系: 取り込めない取込は変化なし）' -> 'バッチ描画: .vtt/.txt 取込が更新間隔を待たず1回で全体を PARAM-158（3 秒）以内に反映（異常系: 取り込めない取込は変化なし）'",
           "reason": "A-805: AC-523 は PARAM-158（PARAM-001 ではない）"
+        },
+        {
+          "at": "2026-11-05T01:45:17+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test --test-name-pattern=\"AC-523\" tests/system/live.test.js' -> 'node --test --test-name-pattern=\"AC-523|AC-671\" tests/system/live.test.js'; title: 'バッチ描画: .vtt/.txt 取込が更新間隔を待たず1回で全体を PARAM-158（3 秒）以内に反映（異常系: 取り込めない取込は変化なし）' -> 'バッチ描画と .vtt の再生取込: 一括は更新間隔を待たず PARAM-158 以内。再生取込は速さ（1/2/4/8倍）で cue が届き更新間隔ごとに描き足し、結果は一括と同じ（異常系: 不正な方法・速さ、一時停止・再開・中止、取り込めないファイル）'; ac_ids: ['AC-523'] -> ['AC-523', 'AC-671']",
+          "reason": "依頼 2026-11-05: AC-671（.vtt の再生取込）を同じ要求・同じファイルのケースに追加"
         }
       ]
     },
@@ -9286,6 +9334,70 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        }
+      ]
+    },
+    {
+      "id": "E2E-290",
+      "requirement_ids": [
+        "FR-115"
+      ],
+      "ac_ids": [
+        "AC-672",
+        "AC-673"
+      ],
+      "title": "ライブ描画ショー: 切替（バー・設定・検索・保存）、ON/OFF の結果一致と OFF で演出なし、描線・1字ずつの書き込みの途中観測、手で運ぶ途中観測、お祝い・80%以内・縮め（異常系: reduced motion で即時＋件数の読み上げ、強制カラー、不正値）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-672|AC-673\" tests/system/liveshow.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-11-05T01:45:31+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "依頼 2026-11-05: FR-115 の受入基準からケースを作成"
+        },
+        {
+          "at": "2026-11-05T01:46:58+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test tests/system/liveshow.test.js' -> 'node --test --test-name-pattern=\"AC-672|AC-673\" tests/system/liveshow.test.js'; ac_ids: ['AC-672', 'AC-673', 'AC-674', 'AC-675'] -> ['AC-672', 'AC-673']",
+          "reason": "AC-674・AC-675 は検証レベル integration（CHK-10）のため ac_ids から外す"
+        }
+      ]
+    },
+    {
+      "id": "E2E-291",
+      "requirement_ids": [
+        "FR-116"
+      ],
+      "ac_ids": [
+        "AC-676",
+        "AC-679"
+      ],
+      "title": "演出の音: 操作前は AudioContext 0・ショー OFF/ミュートで無音・外部リクエスト0、出来事と5種の効果音の一致、BGM 3曲・ダッキング・RPG風で鳴らさない、音量の別設定と保存（異常系: 音量0・ミュートで出力0、不正値、音の使えない端末）",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-676|AC-679\" tests/system/showaudio.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-11-05T01:45:32+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "依頼 2026-11-05: FR-116 の受入基準からケースを作成（AudioContext は偽物で数える）"
+        },
+        {
+          "at": "2026-11-05T01:46:58+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test tests/system/showaudio.test.js' -> 'node --test --test-name-pattern=\"AC-676|AC-679\" tests/system/showaudio.test.js'; ac_ids: ['AC-676', 'AC-677', 'AC-678', 'AC-679'] -> ['AC-676', 'AC-679']",
+          "reason": "AC-677・AC-678 は検証レベル integration（CHK-10）のため ac_ids から外す"
         }
       ]
     }

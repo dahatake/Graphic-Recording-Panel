@@ -1,7 +1,7 @@
 // FR-079・FR-080 の System Test の共通部品（契約: tests/system/CONTRACT-ARRANGE.md）。
 // 期待値は要求定義書の受入基準だけから決める。web/ の実装は import して呼ぶだけ。
 import assert from 'node:assert/strict';
-import { FakeScheduler, FakeVisibility, newApp, toDetail } from './helpers.js';
+import { FakeScheduler, FakeVisibility, newApp, toDetail, PARAM } from './helpers.js';
 
 export const P = {
   INTERVAL_DEFAULT_SEC: 10, // PARAM-084
@@ -10,7 +10,7 @@ export const P = {
   HOLD_MAX_SEC: 30, // PARAM-087
   GROUP_MAX: 7, // PARAM-088
   ALIGN_PX: 1, // PARAM-091
-  UPPER_SEC: 15, // PARAM-001（2026-10-26 に 3 から変更）
+  UPPER_SEC: 60, // PARAM-001（2026-10-26 に 3 から変更、2026-11-05 に 15→60）
   RESUME_SEC: 2, // PARAM-008
   LABEL_MAX: 6, // PARAM-011（全角 1・半角 0.5）
 };
@@ -130,11 +130,18 @@ export const kindLabelOf = (app, pointId) => {
 };
 
 // 記録を始め、詳細度を「詳細」にして、互いに語を共有しない 2 シーン（＝2 トピック）を作り、最初の再配置（起動から 10 秒）まで進める。
+// AC-435（依頼 2026-11-05）: ライブの要素は更新間隔の時点に加わる。更新の時点と再配置の時点（10 秒）が重ならないよう、
+// 更新間隔を設定できる最小（PARAM-098＝5 秒）にして、起動から 5 秒の時点で要素が加わり、10 秒の時点で再配置されるようにする。
+export const LIVE_SEC = PARAM.LIVE_MIN_SEC;
+export function startLive(app) {
+  app.commands['session.start']();
+  assert.equal(app.setLiveInterval(LIVE_SEC).ok, true, `更新間隔 ${LIVE_SEC} 秒を受け付ける`);
+}
 export async function seededDetail(opts = {}) {
   const r = await arrangeApp(opts);
   const { app, env, scheduler } = r;
   toDetail(app);
-  app.commands['session.start']();
+  startLive(app);
   scheduler.advanceTo(500); say(env, T.plain1);
   scheduler.advanceTo(1000); say(env, T.plain2);
   app.commands['session.nextScene']();

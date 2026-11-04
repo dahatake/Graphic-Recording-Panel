@@ -101,8 +101,8 @@ test('NFR-PERF-003 AC-399: 500 件の発話の状態で、スクロール・ホ�
   });
 });
 
-// NFR-PERF-003 AC-401（NFR-PERF-001 AC-038: 要点の表示が発話から 3 秒以内）
-test('NFR-PERF-003 AC-401: 記録中・500 件でも、単発（手入力）の要点が PARAM-158（3 秒）以内、ライブの描画の開始が PARAM-001（15 秒）以内に図へ表示される（AC-038・AC-053）', async () => {
+// NFR-PERF-003 AC-401（NFR-PERF-001 AC-038: 単発の反映の要点の表示が PARAM-158 以内。AC-053: ライブの描画の開始が設定した更新間隔以内）
+test('NFR-PERF-003 AC-401: 記録中・500 件でも、単発（手入力）の要点が PARAM-158（3 秒）以内、ライブの描画の開始が設定した更新間隔（PARAM-001 の 60 秒以下）以内に図へ表示される（AC-038・AC-053）', async () => {
   await withApp(async (page) => {
     await startRecording(page);
     await emitMany(page, PERF.BIG_UTTERANCES);
@@ -113,12 +113,16 @@ test('NFR-PERF-003 AC-401: 記録中・500 件でも、単発（手入力）の�
     await page.evaluate((t) => { globalThis.__app.setDraft(t); return globalThis.__app.submitDraft(); }, single);
     await page.waitForFunction((t) => globalThis.__app.getState().scenes.some((s) => s.points.some((p) => p.text.includes(t))) || globalThis.__app.renderSvg().includes(t), single, { timeout: PERF.SINGLE_SEC * 1000 + 500 });
     assert.ok(Date.now() - t1 <= PERF.SINGLE_SEC * 1000 + 500, `単発の要点の表示に ${(Date.now() - t1)}ms（上限 ${PERF.SINGLE_SEC} 秒）`);
-    // ライブ（注入した音声入力源）: PARAM-001 以内に描画が始まる。
+    // ライブ（注入した音声入力源）: 設定した更新間隔以内に描画が始まる（AC-053。設定値は PARAM-001 以下）。
+    // 実行時間を抑えるため、設定できる最小の更新間隔（PARAM-098）に設定して、その値以内を確かめる。
+    const itvSec = await page.evaluate(() => { const i = globalThis.__app.getLiveInterval(); const r = globalThis.__app.setLiveInterval(i.min); return r.ok ? globalThis.__app.getLiveInterval().sec : i.sec; });
+    assert.ok(itvSec > 0 && itvSec <= PERF.UPPER_SEC, `設定した更新間隔 ${itvSec} 秒は PARAM-001（${PERF.UPPER_SEC} 秒）以下`);
     const text = '最後に追加する検証用の発言です';
     const t0 = Date.now();
     await emit(page, text);
-    await page.waitForFunction((t) => globalThis.__app.getState().scenes.some((s) => s.points.some((p) => p.text.includes(t))) || globalThis.__app.renderSvg().includes(t), text, { timeout: PERF.UPPER_SEC * 1000 });
-    assert.ok(Date.now() - t0 <= PERF.UPPER_SEC * 1000 + 500, `ライブの要点の表示に ${(Date.now() - t0)}ms`);
+    // 描画の開始は図（SVG）への出現で判定する（状態の要点だけでは描画とみなさない）
+    await page.waitForFunction((t) => globalThis.__app.renderSvg().includes(t), text, { timeout: itvSec * 1000 + 500 });
+    assert.ok(Date.now() - t0 <= itvSec * 1000 + 500, `ライブの描画の開始に ${(Date.now() - t0)}ms（上限 設定した更新間隔 ${itvSec} 秒）`);
   });
 });
 
