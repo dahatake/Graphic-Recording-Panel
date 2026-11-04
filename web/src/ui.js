@@ -567,17 +567,17 @@ export function mountUI(app, doc = document) {
       if (app.getShowAudio) {
         const bv = doc.createElement('input'); bv.type = 'range'; bv.min = '0'; bv.max = '100'; bv.step = '1'; bv.dataset.showAudioField = 'bgmVolume';
         bv.addEventListener('input', () => app.setShowBgmVolume(Number(bv.value)));
-        row('showAudio.bgmVolume', app.t('show.audio.bgmVolume'), bv);
+        row('showSound.bgmVolume', app.t('show.audio.bgmVolume'), bv);
         const sv = doc.createElement('input'); sv.type = 'range'; sv.min = '0'; sv.max = '100'; sv.step = '1'; sv.dataset.showAudioField = 'seVolume';
         sv.addEventListener('input', () => app.setShowSeVolume(Number(sv.value)));
-        row('showAudio.seVolume', app.t('show.audio.seVolume'), sv);
+        row('showSound.sfxVolume', app.t('show.audio.seVolume'), sv);
         const bo = doc.createElement('input'); bo.type = 'checkbox'; bo.setAttribute('role', 'switch'); bo.dataset.showAudioField = 'bgmOn';
         bo.addEventListener('change', () => app.setShowBgmOn(bo.checked));
-        row('showAudio.bgmOn', app.t('show.audio.bgmOn'), bo);
+        row('showSound.bgm', app.t('show.audio.bgmOn'), bo);
         const so = doc.createElement('select'); so.dataset.showAudioField = 'song';
         for (const s of app.getShowAudioSongs()) { const op = doc.createElement('option'); op.value = s.value; op.textContent = s.label; so.append(op); }
         so.addEventListener('change', () => app.setShowBgmSong(so.value));
-        row('showAudio.song', app.t('show.audio.song'), so);
+        row('showSound.track', app.t('show.audio.song'), so);
       }
       // FR-111 AC-632: 演出の強さ（なし・控えめ・標準。端末ごとに保存。キーでも切り替えられる）
       if (app.getCinematicOptions) {
@@ -697,6 +697,10 @@ export function mountUI(app, doc = document) {
         const f = el.dataset.showAudioField;
         if (f === 'bgmOn') el.checked = sa.bgmOn; else { const v = String(sa[f]); if (el.value !== v) el.value = v; }
       }
+      // コマンド（settings.showBgmVolume・settings.showSfxVolume）から開いたときは、その音量の欄にフォーカス
+      const ff = { 'showSound.bgmVolume': 'bgmVolume', 'showSound.sfxVolume': 'seVolume' }[d.focusedField];
+      const fe = ff ? setEl.querySelector(`[data-show-audio-field="${ff}"]`) : null;
+      if (fe && doc.activeElement !== fe) fe.focus();
     }
     { const cs = setEl.querySelector('[data-cinematic-field="level"]'); if (cs && app.getCinematic) cs.value = app.getCinematic().level; }
     { const sc = setEl.querySelector('[data-show-field="enabled"]'); if (sc && app.getLiveShow && sc.checked !== app.getLiveShow().on) sc.checked = app.getLiveShow().on; } // FR-115
@@ -847,7 +851,7 @@ export function mountUI(app, doc = document) {
   doc.addEventListener('focusin', (e) => { app.setRpgFocus?.(!!e.target.closest?.('#diagram, #rpg-ui')); });
   doc.addEventListener('pointerdown', (e) => { app.setRpgFocus?.(!!e.target.closest?.('#diagram, #rpg-ui')); });
   // FR-116 AC-676: 利用者の最初の操作（クリック・タップ・キー入力）を演出の音へ伝える（それまでは AudioContext を作らない）
-  for (const ev of ['pointerdown', 'keydown']) doc.addEventListener(ev, () => app.noteUserGesture?.(), true);
+  for (const ev of ['pointerdown', 'keydown']) doc.addEventListener(ev, () => app.notifyUserGesture?.(), true);
 
   // FR-101・FR-102: 図・テキスト一覧・地図の要素のホバー／フォーカスでのプレビューと、クリック・Enter・タップでの固定のポップアップ。
   // 状態は app が持ち、ここは DOM の出来事を渡して描くだけ。入力欄・ドラッグ・スクロール中はプレビューを出さない（AC-594）。

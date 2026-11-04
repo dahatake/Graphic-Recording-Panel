@@ -272,18 +272,77 @@ test('FR-115 AC-675: 動きを減らす設定では動きなしで件数をメ�
 });
 
 // FR-115 / FR-116 の接続点: 演出の各時点で ctx.showAudio?.cue(name, detail) を呼ぶ（未定義なら何もしない）
-test('FR-115: 演出の各時点で ctx.showAudio.cue を pen・write・whoosh・chime などの名前で呼ぶ', async () => {
-  const calls = [];
-  const audioMod = (ctx) => { ctx.showAudio = { cue: (name, detail) => calls.push([name, detail?.key]) }; };
-  const { app, env } = await detailApp({ options: { modules: [audioMod] } });
+test('FR-115 FR-116 AC-677: 演出の各時点で ctx.showAudio.cue を pen・pop・whoosh・chime・sparkle の名前で呼ぶ', async () => {
+  const { app, env } = await detailApp();
   add(app, '最初の発話です'); env.tick(1); app.renderSvg();
   app.setLiveShow(true); app.renderSvg();
   add(app, '料金プランは月額制で合意しました'); app.renderSvg();
   const t0 = env.now();
   for (let ms = 0; ms < 5000; ms += 40) { env.clock.t = t0 + ms; app.renderSvg(); }
-  const names = calls.map((c) => c[0]);
-  for (const n of ['pen', 'write', 'chime']) assert.ok(names.includes(n), n);
-  assert.ok(names.every((n) => ['pen', 'pop', 'whoosh', 'chime', 'write'].includes(n)));
+  // 鳴らす合図の記録（ctx.showAudio は FR-116 の showAudioModule が置く）。出来事と音: 描線→pen・現れた→pop・決定→chime・お祝い→sparkle（FR-116 AC-677）
+  const names = app.getLiveShowStatus().cues.map((c) => c.name);
+  for (const n of ['pen', 'pop', 'chime', 'sparkle']) assert.ok(names.includes(n), n);
+  assert.ok(names.every((n) => ['pen', 'pop', 'whoosh', 'chime', 'sparkle'].includes(n)));
+  assert.deepEqual(app.getLiveShow().log.map((e) => e.type).filter((x) => x === 'decision').length, 1, '決定の出来事');
   // 時計のたびの再描画（scheduler）で、図の元の SVG を作り直さずに演出が進む
   assert.ok(SHOW_TIMING.tickMs <= 50);
+});
+
+// ---- 契約 CONTRACT-LIVE-SHOW の観察点（getLiveShow の items・overlays・log、同じ時点の変更のまとめ、会議ボード型の animations） ----
+// FR-115 AC-673: 新しい要素は stroke（途中まで描かれる）→ write（先頭から 1 字ずつ）→ done の順で、同時に進むのは 1 つ以下。描線の間はペン先の絵
+test('FR-115 AC-673: getLiveShow の items は読み順に stroke → write → done と進み、同時に進むのは 1 つ以下で、描線の間は pen の overlay がある', async () => {
+  const { app, env } = await detailApp();
+  add(app, '最初の発話です'); env.tick(1); app.renderSvg();
+  app.setLiveShow(true);
+  add(app, '料金プランは月額制で合意しました');
+  const seen = new Map(); let penSeen = false; let partial = false;
+  for (let ms = 0; ms <= 8000; ms += 20) {
+    env.tick(0.02); env.scheduler.advance(20);
+    const s = app.getLiveShow();
+    assert.ok(s.items.filter((x) => x.phase === 'stroke' || x.phase === 'write').length <= 1);
+    for (const x of s.items) {
+      const order = ['pending', 'stroke', 'write', 'done'];
+      const was = seen.get(x.id) ?? 'pending';
+      assert.ok(order.indexOf(x.phase) >= order.indexOf(was), `${x.id}: ${was} → ${x.phase}`);
+      seen.set(x.id, x.phase);
+      if (x.phase === 'stroke' && x.stroke > 0 && x.stroke < 1) { partial = true; if (s.overlays.some((o) => o.kind === 'pen')) penSeen = true; }
+      if (x.phase === 'write') assert.ok(x.text.startsWith(x.shown));
+    }
+  }
+  assert.ok(partial && penSeen, '途中まで描かれた状態とペン先');
+  const s = app.getLiveShow();
+  assert.equal(s.running, false); assert.deepEqual(s.overlays, []);
+  assert.ok(s.items.length > 0 && s.items.every((x) => x.phase === 'done' && x.shown === x.text));
+  const types = s.log.map((e) => e.type);
+  for (const k of ['stroke', 'appear', 'decision', 'celebrate']) assert.ok(types.includes(k), k);
+  assert.equal(app.setLiveShow(false).ok, true);
+  assert.deepEqual(app.getLiveShow().overlays, [], 'OFF では overlay なし');
+});
+
+// FR-115 AC-675: 同じ時点の続けての変更（一度の更新で加わる複数の発話）は 1 回の演出にまとめ、合計が更新間隔の 80% を超えるなら縮める
+test('FR-115 AC-675: 同じ時点の続けての変更は 1 回の演出にまとめる（前の要素の演出を打ち切らない）', async () => {
+  const { app, env } = await detailApp();
+  add(app, '最初の発話です'); env.tick(1); app.renderSvg();
+  app.setLiveShow(true);
+  for (let i = 0; i < 3; i++) add(app, `同じ時点に加わる要点その${i}です`);
+  const p = app.getLiveShowStatus().plan;
+  assert.ok(p.fresh >= 3, `3 つの発話の要素が 1 つの計画に入る（${p.fresh}）`);
+  assert.ok(p.total <= app.getLiveInterval().sec * 1000 * SHOW_LIMITS.budgetRatio + 1e-6);
+});
+
+// FR-114 AC-669・FR-115 AC-673（決定 C-01）: 会議ボード型の出現のアニメーションは getBoardModel().animations で観測でき、ショーが ON のときは出ない
+test('FR-114 AC-669 FR-115 AC-673: 会議ボード型の animations はショー OFF で出現を示し、ショー ON では常に空', async () => {
+  for (const on of [false, true]) {
+    const { app, env } = await detailApp();
+    assert.equal(app.setLayoutTypes(['board']).ok, true);
+    add(app, '最初の発話です'); env.tick(1); app.getBoardModel();
+    app.setLiveShow(on);
+    add(app, '料金プランは月額制で合意しました');
+    env.tick(0.04); env.scheduler.advance(40);
+    const n = app.getBoardModel().animations.length;
+    if (on) assert.equal(n, 0, 'ON では AC-669 のアニメーションを出さない');
+    else assert.ok(n > 0 && app.getBoardModel().animations.every((a) => a.kind === 'appear' || a.kind === 'move'), 'OFF では出現・移動のアニメーション');
+    env.tick(2); env.scheduler.advance(2000);
+    assert.deepEqual(app.getBoardModel().animations, [], '終われば空');
+  }
 });

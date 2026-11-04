@@ -364,9 +364,9 @@ test('FR-116 AC-679: ［設定］に BGM の音量・効果音の音量・BGM �
   app.commands['settings.open']?.();
   const d = app.getSettingsDialog();
   const ids = d.fields.map((f) => f.id);
-  for (const id of ['showAudio.bgmVolume', 'showAudio.seVolume', 'showAudio.bgmOn', 'showAudio.song', 'sound.muted']) assert.ok(ids.includes(id), id);
-  assert.equal(d.fields.find((f) => f.id === 'showAudio.bgmVolume').value, 30);
-  assert.equal(d.fields.find((f) => f.id === 'showAudio.song').options.length, SONG_IDS.length);
+  for (const id of ['showSound.bgmVolume', 'showSound.sfxVolume', 'showSound.bgm', 'showSound.track', 'sound.muted']) assert.ok(ids.includes(id), id);
+  assert.equal(d.fields.find((f) => f.id === 'showSound.bgmVolume').value, 30);
+  assert.equal(d.fields.find((f) => f.id === 'showSound.track').options.length, SONG_IDS.length);
 });
 
 test('FR-116 AC-679: 音が使えない端末（AudioContext なし・作成で例外）でも、例外を出さずに全機能が使える', async () => {
@@ -380,4 +380,60 @@ test('FR-116 AC-679: 音が使えない端末（AudioContext なし・作成で�
     app.submitInput?.('音がなくても動く');
     assert.equal(app.setShowBgmVolume(50).ok, true);
   }
+});
+
+// ---- FR-115 と FR-116 の結合（契約 CONTRACT-LIVE-SHOW の「演出の音」） ----
+// FR-116 AC-676: ショーの ON/OFF に setEnabled が連動し、ON で BGM を始める（鳴るのは notifyUserGesture の後だけ。プログラムからの setLiveShow は操作ではない）
+test('FR-115 FR-116 AC-676: ショーの ON/OFF が演出の音の有効・無効に連動し、ON で BGM を始める（利用者の操作の後だけ）', async () => {
+  const { app, audio } = await withAudio();
+  assert.equal(app.getShowAudio().enabled, false, '既定（ショー OFF）は無効');
+  app.setLiveShow(true);
+  assert.equal(app.getShowAudio().enabled, true, 'ショー ON で有効');
+  assert.equal(audio.made.length, 0, '操作の前は AudioContext を作らない');
+  assert.equal(app.getShowAudio().bgmPlaying, false);
+  app.notifyUserGesture();
+  assert.equal(app.getShowAudio().bgmPlaying, true, '操作の後、ショー ON で BGM が鳴る');
+  app.setLiveShow(false);
+  assert.deepEqual([app.getShowAudio().enabled, app.getShowAudio().bgmPlaying], [false, false], 'ショー OFF で止まる');
+});
+
+// FR-116 AC-679: 契約の名前（sfxVolume・track・tracks・setShowBgm・setShowBgmTrack・setShowSfxVolume）と［設定］の showSound.* の項目・コマンドからのフォーカスと Enter での確定
+test('FR-116 AC-679: ［設定］の showSound.* の項目をコマンドで開いてフォーカスし、入力して Enter で確定する（不正な値は変えない）', async () => {
+  const { app } = await withAudio();
+  const a = app.getShowAudio();
+  assert.deepEqual([a.sfxVolume, a.track, a.tracks.length >= MIN_SONGS, a.tracks.every((x) => x.id && x.label)], [SE_DEFAULT, SONG_IDS[0], true, true]);
+  assert.equal(app.setShowBgmTrack(SONG_IDS[2]).ok, true); assert.equal(app.getShowAudio().track, SONG_IDS[2]);
+  assert.equal(app.setShowBgm(false).ok, true); assert.equal(app.getShowAudio().bgmOn, false);
+  assert.equal(app.setShowSfxVolume(101).ok, false);
+  assert.equal(app.searchCommands('効果音の音量')[0].command, 'settings.showSfxVolume', '検索の先頭の候補');
+  app.commands['settings.showSfxVolume']();
+  assert.equal(app.getSettingsDialog().focusedField, 'showSound.sfxVolume');
+  app.setSettingsFieldDraft('showSound.sfxVolume', '35');
+  assert.equal(app.handleKey({ key: 'Enter' }), 'settings.showSound.commit');
+  assert.equal(app.getShowAudio().sfxVolume, 35);
+  app.setSettingsFieldDraft('showSound.sfxVolume', '3.5'); app.handleKey({ key: 'Enter' });
+  assert.equal(app.getShowAudio().sfxVolume, 35, '整数でない値では変わらない');
+  assert.equal(app.setSettingsField('showSound.bgmVolume', 12).ok, true); assert.equal(app.getShowAudio().bgmVolume, 12);
+  assert.equal(app.setSettingsField('show.enabled', true).ok, true); assert.equal(app.getLiveShow().on, true);
+  app.setLang('en');
+  assert.equal(app.searchCommands('SFX volume')[0].command, 'settings.showSfxVolume');
+});
+
+// FR-116 AC-677・AC-678: 鳴らした効果音の記録（sfx）と、いまの BGM の大きさ（bgmLevel。ダッキングを含む）
+test('FR-116 AC-677 AC-678: 鳴らした効果音は sfx に種類・時刻・波形・高さ・長さで残り（write は含めない）、いまの BGM の大きさ bgmLevel を数で返す', async () => {
+  const { app, sa, env } = await withAudio();
+  app.setLiveShow(true); app.notifyUserGesture();
+  for (const n of ['pen', 'write', 'sparkle']) sa.cue(n);
+  const sfx = app.getShowAudio().sfx;
+  assert.deepEqual(sfx.map((x) => x.kind), ['pen', 'sparkle']);
+  assert.deepEqual([sfx[1].wave, sfx[1].freq, sfx[1].durMs, sfx[1].at], [SE_SPECS.sparkle.wave, SE_SPECS.sparkle.freq, SE_SPECS.sparkle.ms, env.now()]);
+  assert.equal(typeof app.getShowAudio().bgmLevel, 'number');
+});
+
+// FR-049 AC-219 と共通の利用者の操作: notifyUserGesture の後は RPG風の音も始まる
+test('FR-049 AC-219 FR-116 AC-676: notifyUserGesture は RPG風の音の最初の操作としても数える', async () => {
+  const { app } = await withAudio();
+  assert.equal(app.getRpgAudio().started, false);
+  app.notifyUserGesture();
+  assert.equal(app.getRpgAudio().started, true);
 });

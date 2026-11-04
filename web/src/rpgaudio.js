@@ -122,5 +122,7 @@ export function rpgAudioModule(ctx) {
     }
     return r;
   };
+  // 利用者の最初の操作（クリック・タップ・キー入力。app.notifyUserGesture）でも音を始める（ブラウザの自動再生の制限の後。FR-116 の契約と共通）
+  api.noteRpgUserGesture = () => { if (!started) { started = true; sync(); } };
   ctx.on?.('change', () => { if (started) sync(); });
 }

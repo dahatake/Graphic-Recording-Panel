@@ -504,6 +504,8 @@ export function createBoardMotion() {
       return moving.size > 0 || appearing.size > 0;
     },
     moving: () => moving.size > 0 || appearing.size > 0,
+    // 契約（CONTRACT-BOARD の animations。AC-673）: いま進行中の出現・移動（区画の枠と、要素の 1 行の出現は除く）
+    animations: (t) => [...[...appearing.keys()].filter((k) => !k.includes('|') && t - appearing.get(k) < MOVE_MS).map((id) => ({ id, kind: 'appear' })), ...[...moving.entries()].filter(([k, m]) => !k.startsWith('frame:') && t - m.t0 < MOVE_MS).map(([id]) => ({ id, kind: 'move' }))],
   };
 }
 
@@ -537,9 +539,11 @@ export function boardModule(ctx) {
     return boardSvg(shownLayout(), { types: info.selected, drawStyle: api.getDrawStyle?.(), style: api.getDrawStyleSpec?.(), title: ctx.t('app.title') });
   };
   // 契約（CONTRACT-BOARD）: 会議ボードの配置のモデル（区画の枠・要素の現在の表示位置の外枠・振り分け）。先頭の型が board でないときは null
+  // 状態の変更の時点で表示位置を進める（描画を待たずに、出現・移動の始まりを変更の時点にそろえる）
+  ctx.on?.('change', () => { if (active()) shownLayout(); });
   api.getBoardModel = () => {
     if (!active()) return null;
     const b = shownLayout().board;
-    return { ...b, sections: b.sections.map(({ shown, ...s }) => ({ ...s, frame: shown ?? s.frame })) };
+    return { ...b, sections: b.sections.map(({ shown, ...s }) => ({ ...s, frame: shown ?? s.frame })), animations: motion.animations(now()) };
   };
 }

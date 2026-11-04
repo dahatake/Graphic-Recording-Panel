@@ -9,7 +9,8 @@
 //   次の更新が来たら、前の演出は最後の状態へ収束させてから新しい演出を始める（前の演出を残さない）。
 // - 動きを減らす設定（prefers-reduced-motion）では動きを出さず、描き足した件数を状態メッセージ（読み上げ対象）で示す。
 //   強制カラーでは、ペン先・手・紙吹雪を出さない（文字と背景のコントラストを下げない）。
-// - 演出の音（FR-116）への接続点: 演出の各時点で ctx.showAudio?.cue(name, detail) を呼ぶ（'pen'・'pop'・'whoosh'・'chime'・'write'）。
+// - 演出の音（FR-116）への接続点: 演出の出来事（getLiveShow().log）の時点で ctx.showAudio?.cue(name, detail) を呼ぶ
+//   （描線の始まり→'pen'・現れた→'pop'・運ぶ→'whoosh'・決定→'chime'・お祝い（紙吹雪・きらめき）→'sparkle'）。ON/OFF は ctx.showAudio.setEnabled に連動し、ON で BGM を始める。
 import { readJson, writeJson } from './persist.js';
 
 export const SHOW_KEY = 'grp.liveShow';
@@ -190,6 +191,14 @@ export function parseShowSvg(svg) {
     grow(t.unit, x0, t.y - t.fs, x0 + w, t.y + t.fs * 0.25); anch(t.unit, t.x, t.y);
   }
   return { units, shapes, texts, root, byKey: new Map(units.map((u) => [u.key, u])) };
+}
+
+// SVG のキー（data-* の属性=値）から、図の要素の id（getDiagramElements・getBoardModel の id）へ
+const ID_PREFIX = { 'data-scene-id': 'scene:', 'data-point-id': 'point:', 'data-group-id': 'group:', 'data-unit-id': 'unit:', 'data-topic-id': 'topic:', 'data-board-section': 'section:', 'data-board-el': '' };
+export function elementIdOf(key) {
+  const m = /^([\w-]+)=(.*?)(#\d+)?$/.exec(String(key));
+  if (!m) return String(key);
+  return `${ID_PREFIX[m[1]] ?? `${m[1]}:`}${m[2]}${m[3] ?? ''}`;
 }
 
 const snapshotOf = (P) => new Map(P.units.map((u) => [u.key, { anchor: u.anchor, count: u.count }]));
@@ -446,7 +455,7 @@ const STRINGS = {
     'show.title': 'Live drawing show', 'show.hint': 'Shows each update as if drawn live: a pen traces outlines and writes the text, a hand carries moved items, and small confetti celebrates. The diagram and saved files do not change. Reduced motion is respected.',
     'show.state.on': 'On', 'show.state.off': 'Off',
     'label.show.toggle': 'Live show', 'tooltip.show.toggle': 'Turn the live drawing show (pen, hand and celebration effects for each update) on or off',
-    'cmd.show.toggle': 'Toggle the live drawing show (on/off)', 'description.show.toggle': 'Animate each update',
+    'cmd.show.toggle': 'Live show: toggle the live drawing show (on/off)', 'description.show.toggle': 'Animate each update',
     'msg.showState': 'Live drawing show', 'msg.showInstant': 'Live drawing show: added {n} item(s) (no motion because reduced motion is on)', 'msg.showInvalid': 'Specify on or off for the live drawing show',
   },
 };
@@ -468,16 +477,28 @@ export function liveShowModule(ctx) {
   const cueLog = [];
 
   const intervalMs = () => { const s = api.getLiveInterval?.()?.sec; return Number.isFinite(s) && s > 0 ? s * 1000 : DEFAULT_INTERVAL_MS; };
-  const cue = (name, detail) => { cueLog.push({ name, ...detail }); if (cueLog.length > 200) cueLog.splice(0, cueLog.length - 200); try { ctx.showAudio?.cue?.(name, detail); } catch { /* 音の失敗で描画を止めない */ } };
-  const cuesOf = (p) => {
+  // 演出の出来事（契約 CONTRACT-LIVE-SHOW: log の type）と効果音（FR-116 AC-677: stroke→pen・appear→pop・move→whoosh・decision→chime・celebrate→sparkle）
+  const SFX_OF = { stroke: 'pen', appear: 'pop', move: 'whoosh', decision: 'chime', celebrate: 'sparkle' };
+  const eventLog = [];
+  const fire = (type, key, detail = {}) => {
+    const at = now();
+    eventLog.push({ type, id: elementIdOf(key), at }); if (eventLog.length > 400) eventLog.splice(0, eventLog.length - 400);
+    const name = SFX_OF[type];
+    cueLog.push({ name, key, ...detail }); if (cueLog.length > 200) cueLog.splice(0, cueLog.length - 200);
+    try { ctx.showAudio?.cue?.(name, { key, ...detail }); } catch { /* 音の失敗で描画を止めない */ }
+  };
+  const eventsOf = (p) => {
     const list = [];
-    for (const c of p.carries) list.push({ at: c.start, name: 'whoosh', detail: { key: c.key } });
+    for (const c of p.carries) list.push({ at: c.start, type: 'move', key: c.key });
     for (const u of p.units) {
-      const P = parsed?.byKey.get(u.key); const stroked = P?.shapes.some((s) => s.stroke);
-      list.push({ at: u.start, name: stroked ? 'pen' : 'pop', detail: { key: u.key } });
-      if (u.write > 0) list.push({ at: u.start + u.draw, name: 'write', detail: { key: u.key, chars: Math.round(u.write / Math.max(1, u.charMs)) } });
+      const P = parsed?.byKey.get(u.key); if (!P || (!P.shapes.length && !P.texts.length)) continue; // 中身のない入れ物の g
+      if (u.draw > 0 && P.shapes.some((s) => s.stroke)) list.push({ at: u.start, type: 'stroke', key: u.key }); // 描線の始まり（ペン）
+      list.push({ at: u.start + u.draw + u.write, type: 'appear', key: u.key }); // 描き終えて現れた（ポン）
     }
-    for (const c of p.celebrations) list.push({ at: c.start, name: 'chime', detail: { key: c.key, kind: c.kind } });
+    for (const c of p.celebrations) {
+      if (c.kind === 'decision') list.push({ at: c.start, type: 'decision', key: c.key });
+      list.push({ at: c.start, type: 'celebrate', key: c.key, detail: { kind: c.kind } }); // お祝い（紙吹雪・きらめき）の時点で、きらめきの音
+    }
     return list.sort((a, b) => a.at - b.at);
   };
   const fireCues = () => {
@@ -485,27 +506,37 @@ export function liveShowModule(ctx) {
     const el = now() - plan.t0;
     while (fired < plan.cues.length && plan.cues[fired].at <= el) {
       const c = plan.cues[fired++];
-      if (el - c.at <= 500) cue(c.name, c.detail); // 時計が大きく進んだときの古い合図はまとめて鳴らさない
+      if (el - c.at <= 500) fire(c.type, c.key, c.detail); // 時計が大きく進んだときの古い合図はまとめて鳴らさない
     }
   };
+  // 次の出来事か演出の終わりまで、tickMs ごとに時計を進める（出来事の時点は ±tickMs 以内）
   const arm = () => { if (ticking || !plan) return; ticking = true; sched.setTimeout(tick, SHOW_TIMING.tickMs); };
   function tick() {
     ticking = false;
     if (!plan) return;
-    if (!surface() || reduced()) { plan = null; ctx.emit('change', api, { arrangeOnly: true }); return; }
+    if (!surface() || reduced()) { finish(); selfEmit(); return; }
     const done = now() - plan.t0 >= plan.total;
     tickRV = (api.getRenderVersion?.() ?? 0) + 1;
     fireCues();
-    ctx.emit('change', api, { arrangeOnly: true }); // 見た目だけ（文字列・テキスト一覧の版数は進めない）
-    if (!done) arm(); else plan = null;
+    if (done) finish();
+    selfEmit(); // 見た目だけ（文字列・テキスト一覧の版数は進めない）
+    if (plan) arm();
   }
+  let selfEmitting = 0;
+  const selfEmit = () => { selfEmitting++; try { ctx.emit('change', api, { arrangeOnly: true }); } finally { selfEmitting--; } };
+  // 演出の終わり: 直近の描き足しの要素は「done」で残す（getLiveShow().items）
+  let lastPlan = null;
+  const finish = () => { if (plan) { fireCues(); lastPlan = { ...plan, finished: true }; } plan = null; };
 
-  const baseRender = api.renderBaseSvg;
-  api.renderBaseSvg = () => {
-    if (!on || saving) return baseRender();
-    // 自分の時計の再描画の間は、図の元の SVG を作り直さない（同じ版数の最終の SVG を使い回す）
+  // 図の元の SVG（同じ描画の版数なら作り直さない）と、更新の検出（前回の SVG から加わった・動いた要素があれば計画を作る）
+  let baseRv = null; let instant = null;
+  const baseNow = () => {
     const rv = api.getRenderVersion?.();
-    const S = plan && lastBase != null && rv != null && rv === tickRV ? lastBase : baseRender();
+    if (lastBase != null && rv != null && (rv === tickRV || rv === baseRv)) return lastBase;
+    const S = baseRender(); baseRv = rv ?? null; return S;
+  };
+  function detect(sync = false) {
+    const S = baseNow();
     if (!surface()) { lastBase = S; parsed = null; snap = null; plan = null; return S; }
     if (S !== lastBase || !parsed) {
       lastBase = S; parsed = parseShowSvg(S);
@@ -513,21 +544,46 @@ export function liveShowModule(ctx) {
       if (snap) {
         const changed = parsed.units.some((u) => { const w = snap.get(u.key); return !w || (w.anchor && u.anchor && Math.hypot(w.anchor[0] - u.anchor[0], w.anchor[1] - u.anchor[1]) > MOVE_EPS); });
         if (changed) {
-          const p = planShow(snap, parsed, { intervalMs: intervalMs() });
+          // 同じ時点の続けての変更（一度の更新・取込で加わる複数の発話）は 1 回の演出にまとめる（まだ何も進んでいない計画を作り直す）
+          const merge = plan && plan.t0 === now() && fired === 0 ? plan.from : null;
+          if (plan && !merge) finish(); // 前の演出は最後の状態へ収束させてから新しい演出を始める
+          const from = merge ?? snap;
+          const p = planShow(from, parsed, { intervalMs: intervalMs() });
           lastCount = p.fresh;
-          if (reduced()) { // AC-675: 動きなし。描き足した件数を状態メッセージで示す
-            plan = null;
-            if (p.fresh > 0) { instantCount++; const n = p.fresh; Promise.resolve().then(() => ctx.change((s) => { s.message = { key: 'msg.showInstant', text: t('msg.showInstant').replace('{n}', String(n)) }; })); }
+          if (reduced()) {
+            // 同じ時点の続けての変更は 1 回の描き足しとして数える
+            if (instant && instant.at === now()) { instant.n += p.fresh; lastCount = instant.n; } else instant = { at: now(), n: p.fresh }; // AC-675: 動きなし。描き足した件数を状態メッセージで示す（音は現れる・移る時点で鳴らす。AC-677）
+            plan = null; lastPlan = { ...p, t0: now(), finished: true, cues: [] };
+            for (const c of p.carries) fire('move', c.key);
+            for (const u of p.units) { const P = parsed.byKey.get(u.key); if (P && (P.shapes.length || P.texts.length)) fire('appear', u.key); }
+            if (p.fresh > 0) {
+              instantCount++; const n = lastCount;
+              const say = () => ctx.change((s) => { s.message = { key: 'msg.showInstant', text: t('msg.showInstant').replace('{n}', String(n)) }; });
+              // 変更の時点で示し、同じ操作の後続の処理がメッセージを置き換えたときは、その操作の後に示し直す（描画の途中では状態を変えない）
+              const text = t('msg.showInstant').replace('{n}', String(n));
+              if (sync) say();
+              Promise.resolve().then(() => { if (state.message?.text !== text && instant?.n === n) say(); });
+            }
           } else if (p.total > 0) {
-            plan = { ...p, t0: now() }; plan.cues = cuesOf(plan); fired = 0; arm();
+            plan = { ...p, t0: now(), from }; plan.cues = eventsOf(plan); fired = 0; lastPlan = null; arm(); // 出来事は時計（tick）で起こす
           } else plan = null;
         }
       }
       snap = cur;
     }
-    if (!plan) return S;
+    return S;
+  }
+  // 状態の変更の時点で検出する（描画を待たない。演出の始まりは更新の時点）
+  // 状態の変更の時点で検出する（描画を待たない。演出の始まりは更新の時点）
+  ctx.on('change', () => { if (on && !saving && !selfEmitting) detect(true); });
+
+  const baseRender = api.renderBaseSvg;
+  api.renderBaseSvg = () => {
+    if (!on || saving) return baseRender();
+    const S = detect();
+    if (!plan || !surface()) return S;
     const el = now() - plan.t0;
-    if (el >= plan.total || reduced()) { plan = null; return S; }
+    if (el >= plan.total || reduced()) { finish(); return S; }
     fireCues();
     const w = parsed.root?.w || 1200;
     const look = showLook(api.getDrawStyleSpec?.() ?? null);
@@ -537,21 +593,83 @@ export function liveShowModule(ctx) {
   const baseSave = api.renderSvgForSave ?? null;
   api.renderSvgForSave = () => { saving++; try { return (baseSave ?? api.renderSvg)(); } finally { saving--; } };
 
+  // ---- いまの時刻の演出の状態（契約 CONTRACT-LIVE-SHOW: items・moves・overlays・log） ----
+  const textOf = (u) => u.texts.map((x) => x.segs.map((s) => s.chars.join('')).join('')).join('');
+  const charsOfUnit = (u) => u.texts.flatMap((x) => x.segs.flatMap((s) => s.chars));
+  const center = (b) => (b ? { x: r1((b[0] + b[2]) / 2), y: r1((b[1] + b[3]) / 2) } : { x: 0, y: 0 });
+  function viewOf() {
+    const pl = plan ?? lastPlan; const live = !!plan && surface() && !reduced();
+    const el = pl ? (pl.finished ? Infinity : now() - pl.t0) : Infinity;
+    const items = []; const moves = []; const overlays = [];
+    if (!pl || !parsed) return { items, moves, overlays };
+    for (const tm of pl.units) {
+      const u = parsed.byKey.get(tm.key); if (!u) continue;
+      const text = textOf(u); const chars = charsOfUnit(u);
+      if (!(tm.draw > 0) && !text) continue; // 描線も文字もない入れ物（区画の枠の g など）は並べない
+      const local = el - tm.start;
+      let phase = 'done'; let stroke = 1; let shown = text;
+      if (local < 0) { phase = 'pending'; stroke = 0; shown = ''; }
+      else if (local < tm.draw) { phase = 'stroke'; stroke = Math.max(0, Math.min(1, local / tm.draw)); shown = ''; }
+      else if (local < tm.draw + tm.write) { phase = 'write'; const n = tm.charMs > 0 ? Math.floor((local - tm.draw) / tm.charMs) : chars.length; shown = chars.slice(0, Math.max(0, n)).join(''); }
+      items.push({ id: elementIdOf(tm.key), text, phase, stroke: r3(stroke), shown });
+      if (live && (phase === 'stroke' || phase === 'write')) {
+        const pen = phase === 'stroke' ? (() => { const sh = u.shapes.find((s) => s.polys.length); const q = sh ? pointAt(sh.polys, stroke) : null; return q ? { x: r1(q[0]), y: r1(q[1]) } : center(u.box); })() : center(u.box);
+        overlays.push({ kind: 'pen', ...pen, targetId: elementIdOf(tm.key), systemColor: forced() });
+      }
+    }
+    for (const c of pl.carries) {
+      const u = parsed.byKey.get(c.key); if (!u) continue;
+      const to = { x: r1(u.anchor?.[0] ?? 0), y: r1(u.anchor?.[1] ?? 0) }; const from = { x: r1(to.x + c.dx), y: r1(to.y + c.dy) };
+      const k = (el - c.start) / c.dur;
+      let phase = 'done'; let at = to;
+      if (k < 0) { phase = 'pending'; at = from; } else if (k < 1) {
+        phase = 'carry'; const e = ease(Math.max(0, Math.min(1, (k - 0.2) / 0.65)));
+        at = { x: r1(to.x + c.dx * (1 - e)), y: r1(to.y + c.dy * (1 - e)) };
+        if (live) { const b = u.box; overlays.push({ kind: 'hand', x: r1(b ? (b[0] + b[2]) / 2 + (at.x - to.x) : at.x), y: r1(b ? b[1] + (at.y - to.y) : at.y), targetId: elementIdOf(c.key), systemColor: forced() }); }
+      }
+      moves.push({ id: elementIdOf(c.key), phase, from, to, at });
+    }
+    if (live) for (const c of pl.celebrations) {
+      const tau = (el - c.start) / c.dur; if (tau < 0 || tau >= 1) continue;
+      const u = parsed.byKey.get(c.key); const pt = center(u?.box);
+      overlays.push({ kind: 'confetti', ...pt, targetId: elementIdOf(c.key), systemColor: forced() }, { kind: 'sparkle', ...pt, targetId: elementIdOf(c.key), systemColor: forced() });
+    }
+    // 強制カラーでは演出の絵を出さない（AC-675。renderSvg にも描かない）
+    return { items, moves, overlays: forced() ? [] : overlays };
+  }
+
   const label = () => t(on ? 'show.state.on' : 'show.state.off');
-  api.getLiveShow = () => ({ on, label: t('show.title'), stateText: label(), reducedMotion: reduced(), running: !!plan && now() - plan.t0 < plan.total, surface: surface() });
+  const isRunning = () => !!plan && surface() && !reduced() && now() - plan.t0 < plan.total;
+  api.getLiveShow = () => {
+    if (on && !saving) detect();
+    if (plan && now() - plan.t0 >= plan.total) finish();
+    else fireCues();
+    return { on, label: t('show.title'), stateText: label(), reducedMotion: reduced(), running: isRunning(), surface: surface(), lastAddedCount: lastCount, ...viewOf(), log: eventLog.map((e) => ({ ...e })) };
+  };
   // 会議ボード型の出現・移動の演出（AC-669）を置き換えるか（決定 C-01）。動きを減らす設定では、どちらも動きなし
   api.isLiveShowDriving = () => on && !reduced();
   api.getLiveShowStatus = () => ({
-    on, running: !!plan && now() - plan.t0 < plan.total, instantCount, lastCount,
-    plan: plan ? { total: plan.total, budget: plan.budget, scale: plan.scale, units: plan.units.map((u) => ({ ...u })), carries: plan.carries.map((c) => ({ ...c })), celebrations: plan.celebrations.map((c) => ({ ...c })), elapsed: now() - plan.t0 } : null,
+    on, running: isRunning(), instantCount, lastCount,
+    plan: plan ? { total: plan.total, budget: plan.budget, scale: plan.scale, fresh: plan.fresh, moved: plan.moved, units: plan.units.map((u) => ({ ...u })), carries: plan.carries.map((c) => ({ ...c })), celebrations: plan.celebrations.map((c) => ({ ...c })), elapsed: now() - plan.t0 } : null,
     cues: cueLog.map((c) => ({ ...c })),
   });
+  // 演出の音（FR-116）: ショーの ON/OFF に合わせて音を有効にし、ON で BGM を始める（鳴るのは利用者の最初の操作の後だけ。showaudio.js が判定）
+  const syncAudio = () => { try { ctx.showAudio?.setEnabled?.(on); if (on) ctx.showAudio?.startBgm?.(); } catch { /* 音の失敗で描画を止めない */ } };
+  api.syncLiveShowAudio = syncAudio;
   api.setLiveShow = (next) => {
     if (typeof next !== 'boolean') { ctx.change((s) => { s.message = { key: 'msg.showInvalid', text: t('msg.showInvalid') }; }); return { ok: false, reason: 'invalid' }; }
     on = next; writeJson(ctx.storage, SHOW_KEY, { on });
-    snap = null; parsed = null; plan = null; lastBase = null; // ON にした時点の図を基準にする（それまでの要素は演出しない）
+    snap = null; parsed = null; plan = null; lastPlan = null; lastBase = null; baseRv = null; // ON にした時点の図を基準にする（それまでの要素は演出しない）
+    syncAudio();
     ctx.change((s) => { s.message = { key: 'msg.showState', text: `${t('msg.showState')}: ${label()}` }; });
     return { ok: true, on };
+  };
+  // ［設定］の項目の値の変更（契約: show.enabled・live.interval。ほかの項目は後続のモジュールが足す）
+  const baseSetField = api.setSettingsField;
+  api.setSettingsField = (id, value) => {
+    if (id === 'show.enabled') return api.setLiveShow(value);
+    if (id === 'live.interval' && typeof api.setLiveInterval === 'function') return api.setLiveInterval(value);
+    return baseSetField ? baseSetField(id, value) : { ok: false, reason: 'not_found' };
   };
   ctx.registerCommand('show.toggle', () => api.setLiveShow(!on));
   ctx.registerKey({ key: '~', ctrl: true, alt: true, shift: true, command: 'show.toggle' }); // NFR-A11Y-001: キーボードだけでも操作できる
@@ -563,7 +681,7 @@ export function liveShowModule(ctx) {
   if (baseView) api.getSettingsView = (...a) => { const v = baseView(...a); return { ...v, fields: [...v.fields, { id: 'show.enabled', visible: true }] }; };
 
   // 端末ごとの設定。セッションの保存物には含めない（データの初期化・セッションファイルでは変わらない）。初期化・復元では演出の途中だけを消す
-  const clearRun = () => { snap = null; parsed = null; plan = null; lastBase = null; };
+  const clearRun = () => { snap = null; parsed = null; plan = null; lastPlan = null; lastBase = null; baseRv = null; };
   ctx.registerPersist('liveShow', { export: () => undefined, import: clearRun, reset: clearRun });
 }
 

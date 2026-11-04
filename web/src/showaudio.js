@@ -250,7 +250,7 @@ export function createShowAudio(ctx) {
   let ducked = false; let releaseTimer = null;
   let bgm = null; // { song, bar, nextAt, timer, gain }
   const last = {}; let voices = [];
-  const log = []; const bgmLog = [];
+  const log = []; const bgmLog = []; const sfx = [];
 
   const muted = () => api.getRpgAudio?.().muted === true;
   const isRpg = () => api.getDrawStyle?.() === 'rpg';
@@ -375,6 +375,7 @@ export function createShowAudio(ctx) {
         return true;
       });
       entry.voiced = ok === true;
+      if (entry.voiced && name !== 'write') { const { wave, freq, ms } = SE_SPECS[name]; sfx.push({ kind: name, at: entry.at, wave, freq, durMs: ms }); if (sfx.length > LOG_MAX) sfx.shift(); }
       return entry.voiced;
     },
     setEnabled(on) { const next = on === true; if (next === enabled) return; enabled = next; if (enabled) bgmWanted = true; else { ducked = false; clearRelease(); } sync(); },
@@ -406,11 +407,14 @@ export function createShowAudio(ctx) {
     started = true; sync();
   }
 
+  const bgmLevel = () => { if (!bgm || !ac || !nodes) return 0; const v = guard(() => nodes.bgmBus.gain.value); return Number.isFinite(v) ? Math.round(v * 1e6) / 1e6 : 0; };
   const state = () => ({
     started, enabled, muted: muted(), audible: audible(), available: !failed,
     contexts, bgmVolume: prefs.bgmVolume, seVolume: prefs.seVolume, bgmOn: prefs.bgmOn, song: prefs.song,
     bgmPlaying: bgm != null, bgmSong: bgm?.song ?? null, rpgPriority: isRpg(), ducked,
     bgmOutput: bgmTarget(), seOutput: seTarget(), suspended: ac ? ac.state === 'suspended' : null,
+    // 契約（CONTRACT-LIVE-SHOW）の名前
+    sfxVolume: prefs.seVolume, track: prefs.song, tracks: SONG_IDS.map((id) => ({ id })), bgmLevel: bgmLevel(), sfx: sfx.map((e) => ({ ...e })),
   });
   const setters = {
     setBgmVolume(n) { if (!validVolume(n)) return { ok: false, reason: 'invalid' }; prefs.bgmVolume = n; save(); sync(); return { ok: true, bgmVolume: n }; },
@@ -429,12 +433,12 @@ export function showAudioModule(ctx) {
     ja: {
       'show.audio.bgmVolume': 'BGM の音量', 'show.audio.seVolume': '効果音の音量', 'show.audio.bgmOn': 'BGM を流す', 'show.audio.song': 'BGM の曲',
       'show.audio.song.sunny': 'ひだまり', 'show.audio.song.stroll': 'おさんぽ', 'show.audio.song.sparkle': 'きらきら',
-      'msg.showAudio.bgmOn': 'BGM: 流す', 'msg.showAudio.bgmOff': 'BGM: 止める',
+      'msg.showAudio.bgmOn': 'BGM: 流す', 'msg.showAudio.bgmOff': 'BGM: 止める', 'msg.showAudio.invalid': '音量は 0〜100 の整数で指定してください',
     },
     en: {
-      'show.audio.bgmVolume': 'BGM volume', 'show.audio.seVolume': 'Sound effects volume', 'show.audio.bgmOn': 'Play BGM', 'show.audio.song': 'BGM song',
+      'show.audio.bgmVolume': 'BGM volume', 'show.audio.seVolume': 'SFX volume', 'show.audio.bgmOn': 'Play BGM', 'show.audio.song': 'BGM song',
       'show.audio.song.sunny': 'Sunny', 'show.audio.song.stroll': 'Stroll', 'show.audio.song.sparkle': 'Sparkle',
-      'msg.showAudio.bgmOn': 'BGM: on', 'msg.showAudio.bgmOff': 'BGM: off',
+      'msg.showAudio.bgmOn': 'BGM: on', 'msg.showAudio.bgmOff': 'BGM: off', 'msg.showAudio.invalid': 'Enter a whole number from 0 to 100 for the volume',
     },
   });
   const sa = createShowAudio(ctx);
@@ -444,8 +448,10 @@ export function showAudioModule(ctx) {
   const say = (text) => ctx.change((s) => { s.message = { key: 'msg.showAudio', text }; });
   const done = (r) => { if (r.ok) ctx.change(() => {}); return r; };
 
-  api.noteUserGesture = () => { gesture(); };
-  api.getShowAudio = () => state();
+  // 利用者の操作（main.js・ui.js が pointerdown・keydown で呼ぶ）。プログラムからのコマンドの呼び出しは操作とみなさない（契約）
+  api.notifyUserGesture = () => { gesture(); api.noteRpgUserGesture?.(); };
+  api.noteUserGesture = api.notifyUserGesture;
+  api.getShowAudio = () => { const s = state(); return { ...s, tracks: SONG_IDS.map((id) => ({ id, label: songLabel(id) })) }; };
   api.getShowAudioLog = () => log.map((e) => ({ ...e }));
   api.getShowAudioBgmLog = () => bgmLog.map((e) => ({ ...e }));
   api.getShowAudioSongs = () => SONG_IDS.map((id) => ({ value: id, label: songLabel(id), bpm: SONGS[id].bpm, bars: SONGS[id].chords.length, current: id === state().song }));
@@ -453,10 +459,58 @@ export function showAudioModule(ctx) {
   api.setShowSeVolume = (n) => done(setters.setSeVolume(n));
   api.setShowBgmOn = (b) => done(setters.setBgmOn(b));
   api.setShowBgmSong = (id) => done(setters.setSong(id));
+  // 契約（CONTRACT-LIVE-SHOW）の名前
+  api.setShowSfxVolume = api.setShowSeVolume;
+  api.setShowBgm = api.setShowBgmOn;
+  api.setShowBgmTrack = api.setShowBgmSong;
+  // ライブ描画ショー（FR-115）の ON/OFF に合わせる（ショーは先に組み立て済み。以後はショー側が setEnabled を呼ぶ）
+  sa.setEnabled(api.getLiveShow?.()?.on === true);
 
-  // キー入力は利用者の操作（ブラウザでは ui.js がクリック・タップ・キーを伝える）
+  // ［設定］の項目（BGM の音量・効果音の音量・BGM の ON/OFF・曲）。描画は ui.js。音量はコマンドで開いてフォーカスし、入力して Enter で確定
+  const VOL = { 'showSound.bgmVolume': (n) => api.setShowBgmVolume(n), 'showSound.sfxVolume': (n) => api.setShowSfxVolume(n) };
+  const intOf = (v) => (typeof v === 'string' && /^\s*\d+\s*$/.test(v) ? Number(v) : v);
+  const baseDialog = api.getSettingsDialog;
+  const dialogOpen = () => Boolean(baseDialog?.());
+  let focused = null; const drafts = {};
+  api.setSettingsField = ((base) => (id, value) => {
+    if (VOL[id]) return VOL[id](intOf(value));
+    if (id === 'showSound.bgm') return api.setShowBgm(value);
+    if (id === 'showSound.track') return api.setShowBgmTrack(value);
+    return base ? base(id, value) : { ok: false, reason: 'not_found' };
+  })(api.setSettingsField);
+  const baseDraft = api.setSettingsFieldDraft;
+  api.setSettingsFieldDraft = (id, text) => {
+    if (!VOL[id]) return baseDraft ? baseDraft(id, text) : { ok: false, reason: 'not_found' };
+    drafts[id] = String(text ?? ''); ctx.emit('change', api); return { ok: true };
+  };
+  const baseFocus = api.focusSettingsField;
+  api.focusSettingsField = (id) => {
+    if (VOL[id]) { if (!dialogOpen()) return false; baseFocus?.(id); focused = id; ctx.emit('change', api); return true; }
+    focused = null; return baseFocus ? baseFocus(id) : false;
+  };
+  ctx.on?.('change', () => { if (!dialogOpen()) { focused = null; for (const k of Object.keys(drafts)) delete drafts[k]; } });
   const hk = api.handleKey;
-  if (typeof hk === 'function') api.handleKey = (ev) => { gesture(); return hk(ev); };
+  if (typeof hk === 'function') {
+    api.handleKey = (ev) => {
+      gesture(); // キー入力は利用者の操作（ブラウザでは ui.js が notifyUserGesture も呼ぶ）
+      const plain = !ev?.ctrlKey && !ev?.altKey && !ev?.shiftKey;
+      if (focused && dialogOpen() && plain && String(ev?.key) === 'Enter') {
+        const id = focused; const s = state(); const cur = id === 'showSound.bgmVolume' ? s.bgmVolume : s.seVolume;
+        const r = VOL[id](intOf(drafts[id] ?? cur)); delete drafts[id];
+        say(r.ok ? `${fieldLabel(id)}: ${id === 'showSound.bgmVolume' ? state().bgmVolume : state().seVolume}` : t('msg.showAudio.invalid'));
+        return 'settings.showSound.commit';
+      }
+      return hk(ev);
+    };
+  }
+  const fieldLabel = (id) => t(id === 'showSound.bgmVolume' ? 'show.audio.bgmVolume' : 'show.audio.seVolume');
+  // コマンドの検索で、項目のラベルと同じ名前（先頭の候補）。選ぶと［設定］を開いてその項目にフォーカス
+  for (const [cmd, id] of [['settings.showBgmVolume', 'showSound.bgmVolume'], ['settings.showSfxVolume', 'showSound.sfxVolume']]) {
+    ctx.registerCommand(cmd, () => { api.commands['settings.open']?.(); api.focusSettingsField(id); });
+  }
+  // NFR-A11Y-001: キー割り当て（Alt+Shift+[ ・ ]。記号は物理キーで判定する）
+  ctx.registerKey({ key: '[', alt: true, shift: true, command: 'settings.showBgmVolume' });
+  ctx.registerKey({ key: ']', alt: true, shift: true, command: 'settings.showSfxVolume' });
 
   // コマンドの検索（AC-679: 検索の入力・候補の選択・確定の {PARAM-164} 回以内）。値なしは「次の値へ」
   const stepVol = (v) => (v + VOLUME_STEP > 100 ? 0 : v + VOLUME_STEP);
@@ -467,18 +521,19 @@ export function showAudioModule(ctx) {
   // NFR-A11Y-001: すべての操作にキー割り当て（Alt+Shift+Home・End・PageUp・PageDown は未使用）
   for (const [key, command] of [['Home', 'showAudio.bgmToggle'], ['End', 'showAudio.nextSong'], ['PageUp', 'showAudio.bgmVolume'], ['PageDown', 'showAudio.seVolume']]) ctx.registerKey({ key, alt: true, shift: true, command });
 
-  // ［設定］の項目（BGM の音量・効果音の音量・BGM の ON/OFF・曲）。描画は ui.js
-  const baseDialog = api.getSettingsDialog;
   if (typeof baseDialog === 'function') {
     api.getSettingsDialog = (...a) => {
       const d = baseDialog(...a);
       if (!d) return d;
       const s = state();
-      return { ...d, fields: [...d.fields,
-        { id: 'showAudio.bgmVolume', label: t('show.audio.bgmVolume'), value: s.bgmVolume, min: 0, max: 100, step: 1, role: 'slider' },
-        { id: 'showAudio.seVolume', label: t('show.audio.seVolume'), value: s.seVolume, min: 0, max: 100, step: 1, role: 'slider' },
-        { id: 'showAudio.bgmOn', label: t('show.audio.bgmOn'), value: s.bgmOn, role: 'switch' },
-        { id: 'showAudio.song', label: t('show.audio.song'), value: s.song, options: api.getShowAudioSongs().map(({ value, label }) => ({ value, label })) }] };
+      const vol = (id, label, value) => ({ id, label, value, min: 0, max: 100, step: 1, role: 'slider', focusable: true, input: { type: 'number', value: drafts[id] ?? String(value), inputmode: 'numeric' } });
+      return { ...d, focusedField: focused ?? d.focusedField ?? null, fields: [...d.fields,
+        vol('showSound.bgmVolume', t('show.audio.bgmVolume'), s.bgmVolume),
+        vol('showSound.sfxVolume', t('show.audio.seVolume'), s.seVolume),
+        { id: 'showSound.bgm', label: t('show.audio.bgmOn'), value: s.bgmOn, role: 'switch' },
+        { id: 'showSound.track', label: t('show.audio.song'), value: s.song, options: api.getShowAudioSongs().map(({ value, label }) => ({ value, label })) }] };
     };
   }
+  const baseView = api.getSettingsView;
+  if (typeof baseView === 'function') api.getSettingsView = (...a) => { const v = baseView(...a); return { ...v, fields: [...v.fields, ...['showSound.bgmVolume', 'showSound.sfxVolume', 'showSound.bgm', 'showSound.track'].map((id) => ({ id, visible: true }))] }; };
 }
