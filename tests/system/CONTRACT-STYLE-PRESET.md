@@ -3,7 +3,7 @@
 この契約は、System Test（`tests/system/stylepreset.test.js`）が実装を観察するための口です。期待値は要求定義書（FR-075・FR-076・3.6 の表）だけから決めています。既存の契約（`CONTRACT.md`「レイアウト型・描画スタイル・設定画面」「RPG風の描画スタイル」「図の演出」、`CONTRACT-LLM-CONSENT.md`）は変えず、ここに書いたものを加えます。
 
 ## 選択肢と識別子
-- `app.getDrawStyles()` → 15 件の `[{id,label}]`（既存の 4 つ `handwritten`・`anime`・`simple`・`rpg` と 11 の風。AC-670 で暖色カード風・青見出し風を追加）。風の `id` は実装が決める（テストは表示名で引く）。表示言語が日本語のとき、11 の風の `label` は 3.6 の表の日本語名（`黄黒手書き風`・`黒板風`・`付箋ボード風`・`色鉛筆風`・`ミント風`・`ビジネス風`・`ミニマル風`・`ポップ風`・`クラフト紙風`・`暖色カード風`・`青見出し風`）、`app.setLang('en')` の後は英語名（`Yellow Black`・`Chalkboard`・`Sticky Notes`・`Color Pencil`・`Mint Note`・`Business`・`Minimal`・`Pop Color`・`Kraft Paper`・`Warm Cards`・`Blue Headings`）。`label` は 15 件で互いに異なる。初期の既定は `handwritten` のまま。
+- `app.getDrawStyles()` → 15 件の `[{id,label}]`（既存の 4 つ `handwritten`・`anime`・`simple`・`rpg` と 11 の風。AC-670 で暖色カード風・青見出し風を追加）。風の `id` は実装が決める（テストは表示名で引く）。表示言語が日本語のとき、11 の風の `label` は 3.6 の表の日本語名（`黄黒手書き風`・`黒板風`・`付箋ボード風`・`色鉛筆風`・`ミント風`・`ビジネス風`・`ミニマル風`・`ポップ風`・`クラフト紙風`・`暖色カード風`・`青見出し風`）、`app.setLang('en')` の後は英語名（`Yellow Black`・`Chalkboard`・`Sticky Notes`・`Color Pencil`・`Mint Note`・`Business`・`Minimal`・`Pop Color`・`Kraft Paper`・`Warm Cards`・`Blue Heading`）。`label` は 15 件で互いに異なる。初期の既定は `handwritten` のまま。
 - `app.setDrawStyle(id)`・`app.setSettings({drawStyle:id})` は 11 の風の `id` も受け付ける。
 
 ## 定義の参照
