@@ -22,6 +22,13 @@ async function withApp(fn) {
   try { return await fn(page); } finally { await ctx.close(); }
 }
 
+// リボンの開閉を利用者の操作で目的の状態にする（PARAM-155 が 0 の間は起動時に折りたたまれないので、折りたたみは起動後の操作で作る）。
+async function setRibbon(page, expanded) {
+  const toggle = page.locator('#ribbon-toggle');
+  if ((await toggle.getAttribute('aria-expanded')) !== String(expanded)) await toggle.click();
+  assert.equal(await toggle.getAttribute('aria-expanded'), String(expanded));
+}
+
 // 記録グループの全ボタン（折りたたみ中のバーの複製も含む）の、押下の表示と強調の見た目。
 const snapshot = (page) => page.evaluate((cmds) => {
   document.activeElement?.blur?.();
@@ -51,8 +58,8 @@ function assertNoneOn(snap, label) {
 // FR-072 AC-647
 test('FR-072 AC-647: 準備中（起動直後）は記録グループのどのボタンも押されていない表示で、記録中は開始、一時停止は一時停止だけが押されている表示になり、停止で全部戻る', async () => {
   await withApp(async (page) => {
-    assert.equal(await page.locator('#ribbon-toggle').getAttribute('aria-expanded'), 'false', '前提: 折りたたまれた状態（複製ボタンも対象）');
     assert.equal(await sessionOf(page), 'preparing');
+    await setRibbon(page, false); // 起動後に利用者の操作で折りたたむ（複製ボタンも対象）
     const base = await snapshot(page);
     assertNoneOn(base, '準備中');
     // AC-647（視覚）: 起動直後の [記録開始]・[再開] の computed style（背景色・枠色・影）は、未押下の他ボタン（[一時停止]・[終了]）と同一。
@@ -100,8 +107,7 @@ test('FR-072 AC-647: 準備中（起動直後）は記録グループのどの�
 // FR-072 AC-647 異常系: リボンを開いた状態（複製でない元のボタン）でも同じ。一時停止→再開で戻り、強調は押せない操作（終了・次シーン・入力）に付かない。
 test('FR-072 AC-647 異常系: リボンを開いた状態でも同じ。一時停止から再開すると [一時停止] の強調が消えて [再開]・[記録開始] が押された表示に戻り、押せない操作に強調が付かない', async () => {
   await withApp(async (page) => {
-    await page.locator('#ribbon-toggle').click();
-    assert.equal(await page.locator('#ribbon-toggle').getAttribute('aria-expanded'), 'true');
+    await setRibbon(page, true);
     assertNoneOn(await snapshot(page), '準備中（リボンを開いた状態）');
     await startRecording(page);
     await page.waitForFunction(() => globalThis.__app.getState().session === 'recording');
@@ -116,8 +122,7 @@ test('FR-072 AC-647 異常系: リボンを開いた状態でも同じ。一時�
     assert.ok(allOn(resumed, 'session.start') && allOn(resumed, 'session.resume'), '再開すると記録中の押された表示に戻る');
     for (const c of ['session.stop', 'session.nextScene', 'input.focus']) assert.ok(!anyOn(resumed, c), `${c} に押下の強調を付けない`);
     // 折りたたみ直しても、複製が元と同じ状態を示す。
-    await page.locator('#ribbon-toggle').click();
-    assert.equal(await page.locator('#ribbon-toggle').getAttribute('aria-expanded'), 'false');
+    await setRibbon(page, false);
     const collapsed = await snapshot(page);
     for (const c of PRESSABLE) assert.equal(new Set(collapsed[c].map((b) => b.pressed)).size, 1, `${c} の複製どうしで押下の状態が食い違う`);
     assert.ok(!anyOn(collapsed, 'session.pause'));

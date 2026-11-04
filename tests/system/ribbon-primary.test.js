@@ -52,11 +52,17 @@ async function assertPrimaryVisible(page, label) {
   }
 }
 
-// NFR-UX-003 AC-645（起動時の既定の折りたたみ）
-test('NFR-UX-003 AC-645: 窓 1024×768 でリボンが折りたたまれた起動直後も、開始と停止の主操作ボタンが窓の内側に見えて隠れず、開始を押せる', async () => {
+// リボンの開閉を利用者の操作（トグルのクリック）で目的の状態にする。PARAM-155 が 0 の間は起動時に折りたたまれないため、折りたたみは起動後の操作で作る。
+async function setRibbon(page, expanded) {
+  const toggle = page.locator('#ribbon-toggle');
+  if ((await toggle.getAttribute('aria-expanded')) !== String(expanded)) await toggle.click();
+  assert.equal(await toggle.getAttribute('aria-expanded'), String(expanded));
+}
+
+// NFR-UX-003 AC-645（利用者の操作での折りたたみ。起動時の既定では折りたたまれない）
+test('NFR-UX-003 AC-645: 窓 1024×768 で起動後にリボンを折りたたんだ状態で、開始と停止の主操作ボタンが窓の内側に見えて隠れず、開始を押せる', async () => {
   await withApp(async (page) => {
-    const toggle = page.locator('#ribbon-toggle');
-    assert.equal(await toggle.getAttribute('aria-expanded'), 'false', '前提: 起動時の既定でリボンが折りたたまれている（AC-641）');
+    await setRibbon(page, false);
     await assertPrimaryVisible(page, '折りたたみ（起動時の既定）');
     // 操作できる: 見えている開始ボタンを実際に押すと、セッションの状態表示が変わる。
     const start = (await page.$$('[data-command="session.start"]'));
@@ -71,11 +77,8 @@ test('NFR-UX-003 AC-645: 窓 1024×768 でリボンが折りたたまれた起�
 // NFR-UX-003 AC-645 異常系: 利用者の操作（開く→閉じる）で折りたたんだ後も同じ。記録中は停止が押せて、停止すると状態が変わる。
 test('NFR-UX-003 AC-645 異常系: 開いてから折りたたみ直した状態でも主操作ボタンが見え、記録中に折りたたんだままで停止の操作ができる', async () => {
   await withApp(async (page) => {
-    const toggle = page.locator('#ribbon-toggle');
-    await toggle.click();
-    assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
-    await toggle.click();
-    assert.equal(await toggle.getAttribute('aria-expanded'), 'false', '利用者の操作で折りたたまれた');
+    await setRibbon(page, true);
+    await setRibbon(page, false); // 利用者の操作で折りたたまれた
     await page.evaluate(() => window.scrollTo(0, 0));
     await assertPrimaryVisible(page, '折りたたみ（利用者の操作）');
     await startRecording(page);
