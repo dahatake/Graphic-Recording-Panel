@@ -24,7 +24,7 @@ h1 { font-size: var(--font-size-title); } h2 { font-size: var(--font-size-subtit
 .tooltip[hidden] { display: none; }
 .toolbar-group:empty, .toolbar-group[hidden] { display: none; }
 .commandbar .btn-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.statusbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-4); padding: var(--space-1) var(--space-4); background: var(--color-surface-2); border-bottom: var(--stroke) solid var(--color-border-subtle); font-size: var(--font-size-caption); }
+.statusbar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--space-4); padding: 2px var(--space-4); background: var(--color-surface-2); border-bottom: var(--stroke) solid var(--color-border-subtle); font-size: var(--font-size-caption); }
 .statusbar .message { margin: 0; min-height: 0; }
 .statusbar .message:empty { display: none; }
 .status-chip { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); color: var(--color-text); font-weight: var(--font-weight-semibold); }
@@ -190,8 +190,8 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 .commandbar[data-collapsed="true"] .toolbar-group:not(:has([data-command="session.start"], [data-command="session.stop"])) { display: none; }
 .commandbar[data-collapsed="true"] .toolbar-group-heading { display: none; }
 .commandbar[data-collapsed="true"] .toolbar-group > :not(:has([data-command="session.start"], [data-command="session.stop"])) { display: none; }
-.commandbar[data-collapsed="true"] .toolbar-group > .tooltip-host > :not([data-command="session.start"]):not([data-command="session.stop"]) { display: none; }
-.commandbar[data-collapsed="true"] .toolbar-group > .tooltip-host > [data-command="session.start"], .commandbar[data-collapsed="true"] .toolbar-group > .tooltip-host > [data-command="session.stop"] { visibility: visible; }
+.commandbar[data-collapsed="true"] .toolbar-group-items > .tooltip-host > :not([data-command="session.start"]):not([data-command="session.stop"]) { display: none; }
+.commandbar[data-collapsed="true"] .toolbar-group-items > .tooltip-host > [data-command="session.start"], .commandbar[data-collapsed="true"] .toolbar-group-items > .tooltip-host > [data-command="session.stop"] { visibility: visible; }
 @media (max-height: 600px) {
   .commandbar { max-height: 40vh; overflow-y: auto; overscroll-behavior: contain; position: relative; z-index: 0; }
 }
@@ -401,3 +401,56 @@ body { overflow-y: auto; }
 .outline-draw p { margin: 0 0 var(--space-1); }
 @media (prefers-reduced-motion: reduce) { .draw-dialog { animation: none; transition: none; } }
 @media (forced-colors: active) { .draw-tools select, .draw-dialog { border-color: CanvasText; } }
+
+/* ===== NFR-UX-011 AC-660（依頼 2026-11-04）: リボンは縦 1 段。幅が足りないときはグループの順に右から「ラベルつき → アイコンのみ → ドロップダウン」へ縮退する
+   （段階は ribbonfit.js が data-fit に当てる。折り返して段を増やさない）。PARAM-006（640px）以下は従来の縦積み（AC-092・AC-464）。 ===== */
+.ribbon-toggle { margin: 0 0 0 auto; }
+.commandbar .toolbar-group { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
+.commandbar .toolbar-group-heading { flex: none; }
+.toolbar-group-items { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; min-width: 0; }
+.toolbar-group-trigger { display: none; }
+@media (min-width: 641px) {
+  .commandbar { flex-direction: row; flex-wrap: nowrap; align-items: flex-start; gap: 0 2px; padding: var(--space-1) var(--space-2); }
+  .commandbar .toolbar-group { flex: none; width: auto; align-items: flex-start; }
+  .commandbar .toolbar-group + .toolbar-group { padding-left: var(--space-1); border-left: var(--stroke) solid var(--color-border-subtle); }
+  .commandbar .toolbar-group-items { flex-wrap: nowrap; }
+  /* 2 段階目: ラベルを省いた小さいアイコンのみ（名前・ツールチップは変わらない。ラベルは読み上げ用に残す） */
+  .commandbar .toolbar-group[data-fit="icons"] .toolbar-group-items { gap: 0; }
+  .commandbar .toolbar-group[data-fit="icons"] .btn { position: relative; flex-direction: row; min-width: 24px; min-height: 24px; padding: 0 var(--space-1); }
+  .commandbar .toolbar-group[data-fit="icons"] .btn .sel-mark { position: absolute; top: 0; right: 1px; font-size: 10px; line-height: 1; }
+  .commandbar .toolbar-group[data-fit="icons"] .btn .btn-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .commandbar .toolbar-group[data-fit="icons"] .btn .icon { width: 16px; height: 16px; }
+  .commandbar .toolbar-group[data-fit="icons"] .btn-desc { display: none; }
+  .commandbar .toolbar-group[data-fit="icons"] .btn-field { flex-direction: row; gap: var(--space-1); }
+  .commandbar .toolbar-group[data-fit="icons"] .toolbar-control { max-width: 5.5em; min-width: 0; font-size: var(--font-size-caption); }
+  .commandbar .toolbar-group[data-fit="icons"] .toolbar-control[type="range"] { width: 48px; }
+  .commandbar .toolbar-group[data-fit="icons"] .toolbar-control[type="number"] { width: 44px; }
+  /* 3 段階目: グループ 1 つのドロップダウン（見出しは残し、開閉ボタンを付ける） */
+  .commandbar .toolbar-group[data-fit="menu"] { width: 56px; padding-left: 2px; }
+  .commandbar .toolbar-group[data-fit="menu"] .toolbar-group-heading { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; padding: 0; }
+  .commandbar .toolbar-group[data-fit="menu"] .toolbar-group-trigger { display: inline-flex; width: 100%; min-width: 0; min-height: 24px; padding: 0; }
+  .commandbar .toolbar-group[data-fit="menu"] .toolbar-group-items { display: none; }
+  .commandbar .toolbar-group[data-fit="menu"][data-open="true"] .toolbar-group-items { display: flex; position: fixed; z-index: 40; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 0; width: max-content; max-width: min(360px, calc(100vw - 16px)); overflow-y: auto; padding: var(--space-1); background: var(--color-surface); border: var(--stroke) solid var(--color-border); border-radius: var(--radius); box-shadow: var(--shadow-8); }
+  .commandbar .toolbar-group[data-fit="menu"] .toolbar-group-items .tooltip-host { display: flex; }
+  .commandbar .toolbar-group[data-fit="menu"] .toolbar-group-items .btn { flex: 1 1 auto; flex-direction: row; justify-content: flex-start; min-height: var(--target-size); min-width: 0; padding: 0 var(--space-2); }
+  .commandbar .toolbar-group[data-fit="menu"] .toolbar-group-items .btn .btn-label { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: nowrap; font-size: var(--font-size-body); }
+  .commandbar .toolbar-group[data-fit="menu"] .toolbar-group-items .btn-field { flex-wrap: wrap; }
+  .commandbar .toolbar-group[data-fit="menu"] .toolbar-group-items .btn-desc { display: inline; }
+  .commandbar .toolbar-group[data-fit="menu"] .toolbar-group-items .tooltip { display: none; } /* メニューではラベルが見えるので、ふきだしは出さない（説明は aria-describedby で読み上げる） */
+}
+
+/* 状態欄（AC-661・PARAM-177）: 案内・保存できない理由は 1 行（省略表示。全文は読み上げとツールチップ）。2 行目に並べて高さを抑える */
+.statusbar > #llm-guide { flex: 3 1 55%; min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
+.statusbar > #llm-guide > span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.statusbar > #llm-guide > .btn { flex: none; white-space: nowrap; }
+.speech-consent[hidden] { display: none; }
+.statusbar > #llm-guide[hidden] { display: none; }
+.statusbar .btn { min-height: 24px; padding: 0 var(--space-2); }
+.statusbar > .save-reason { flex: 2 1 35%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* FR-017 AC-661・AC-662: 図が主役。副次パネル（テキスト一覧・認識文字列）は初期は折りたたみ（見出しと展開ボタンだけ）。内容は失わない（非表示にするだけ） */
+.panel.is-collapsed > :not(.panel-head) { display: none; }
+.panel.is-collapsed .panel-head { height: 44px; flex-wrap: nowrap; overflow: hidden; border-bottom: 0; }
+.panel.is-collapsed .panel-menu { display: none; }
+.panel-head .panel-toggle { margin-right: auto; }
+.panel-toggle[hidden] { display: none; }

@@ -14,8 +14,8 @@
   <header class="app-header">
     <h1 id="app-title" data-i18n="app.title">グラフィックレコーディング パネル</h1>
     <button type="button" id="help-button" class="btn btn-subtle help-button" data-command="help.open" aria-haspopup="dialog" hidden></button>
+    <button type="button" id="ribbon-toggle" class="btn btn-sm ribbon-toggle" aria-controls="toolbar" aria-expanded="true"><span class="ribbon-toggle-shape" aria-hidden="true">▲</span> <span class="ribbon-toggle-text">リボンを閉じる</span></button>
   </header>
-  <button type="button" id="ribbon-toggle" class="btn btn-sm ribbon-toggle" aria-controls="toolbar" aria-expanded="true"><span class="ribbon-toggle-shape" aria-hidden="true">▲</span> <span class="ribbon-toggle-text">リボンを閉じる</span></button>
   <nav id="toolbar" class="toolbar commandbar" data-i18n-attr="aria-label:toolbar.label"></nav>
   <input id="import-file" type="file" accept=".txt,.vtt,text/plain,text/vtt" hidden tabindex="-1" aria-hidden="true">
   <div id="speech-consent-box" class="speech-consent" data-region="top" data-near="session.start" hidden>
@@ -26,7 +26,7 @@
   <main id="workspace" class="workspace" tabindex="-1">
     <section class="panel" data-panel="input" aria-labelledby="panel-input-title">
       <header class="panel-head"><h2 id="panel-input-title" data-i18n="panel.input">認識文字列</h2><div class="panel-menu" data-menu="input"></div></header>
-      <div class="panel-body">
+      <div class="panel-body" id="panel-body-input">
         <div id="transcript" class="transcript-host" tabindex="0" data-i18n-attr="aria-label:panel.input"></div>
         <form id="draft-form" class="draft-form">
           <label for="draft" data-i18n="input.label">発話を入力</label>

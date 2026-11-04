@@ -374,8 +374,18 @@ export async function createApp(options = {}) {
   // ---- レイアウト（FR-011） ----
   // FR-074: 音声認識の開始で認識文字列パネルを一時的に表示する。保存するレイアウト（layout）は書き換えず、見せ方だけに重ねる（AC-393）。
   let autoShownInput = false;
+  // FR-074 AC-390: 認識文字列パネルが折りたたまれているとき、音声認識の開始で一時的に展開する（保存しない。AC-393）
+  let autoExpandedInput = false;
   let activeTab = null;
-  app.getLayout = () => { const l = clone(layout); if (autoShownInput) l.panels.input.visible = true; return l; };
+  app.getLayout = () => {
+    const l = clone(layout);
+    if (autoShownInput || autoExpandedInput) {
+      if (autoShownInput) l.panels.input.visible = true;
+      if (autoExpandedInput) l.panels.input.collapsed = false;
+      L.retile(l);
+    }
+    return l;
+  };
   app.getLayoutMode = () => L.layoutMode(env.viewportWidth);
   // FR-074 AC-391: 狭い画面（積み重ね）では、パネルをタブにまとめる。広い画面は列（columns）。
   const visiblePanels = () => { const l = app.getLayout(); return L.PANEL_IDS.filter((id) => l.panels[id].visible); };
@@ -392,15 +402,23 @@ export async function createApp(options = {}) {
   on('speech:started', () => {
     activeTab = 'input';
     if (!layout.panels.input.visible) autoShownInput = true;
+    if (layout.panels.input.collapsed) autoExpandedInput = true;
     emit('change', app);
   });
   app.setViewportWidth = (w) => { if (typeof w === 'number' && w !== env.viewportWidth) { env.viewportWidth = w; emit('change', app); } };
   app.movePanel = (id, pos) => layoutChange(L.ops.move(layout, id, pos));
   app.resizePanel = (id, size) => layoutChange(L.ops.resize(layout, id, size));
   app.setPanelVisible = (id, v) => { if (id === 'input') autoShownInput = false; return layoutChange(L.ops.visible(layout, id, v)); }; // 利用者の操作が自動表示に優先する
+  // FR-017 AC-662: 副次パネルの折りたたみ・展開（保存・復元・既定に戻すの対象）。利用者の操作が自動展開に優先する
+  app.setPanelCollapsed = (id, v) => {
+    if (id === 'input') autoExpandedInput = false;
+    const ok = layoutChange(L.ops.collapsed(layout, id, v));
+    if (!ok) emitView();
+    return ok;
+  };
   app.setPanelMaximized = (id, v) => layoutChange(L.ops.maximized(layout, id, v));
   app.panelCommand = (id, name) => layoutChange(L.ops.command(layout, id, name));
-  app.resetLayout = () => { autoShownInput = false; layout = L.defaultLayout(layout.workArea); return layoutChange(true); };
+  app.resetLayout = () => { autoShownInput = false; autoExpandedInput = false; layout = L.defaultLayout(layout.workArea); return layoutChange(true); };
   // FR-017: タイル配置・フォーカス・最大化（コマンド・キー・コマンドの検索・ボタンから共通で呼ぶ）
   app.layoutCommand = (name, panelId) => layoutChange(L.ops.arrange(layout, name, panelId));
   app.setWorkArea = (w, h) => layoutChange(L.ops.workArea(layout, w, h));

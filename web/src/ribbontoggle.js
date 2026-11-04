@@ -7,7 +7,7 @@ export const RIBBON_COMPACT_MAX_HEIGHT = 600; // PARAM-130
 export function isCompactHeight(height) { return Number.isFinite(height) && height <= RIBBON_COMPACT_MAX_HEIGHT; }
 
 // AC-641・AC-642: 窓の高さがこれ未満ならリボンを折りたたんで起動する（保存がないときだけ）。保存は端末ごと（localStorage）。
-export const RIBBON_COLLAPSE_BELOW_HEIGHT = 900; // PARAM-155
+export const RIBBON_COLLAPSE_BELOW_HEIGHT = 0; // PARAM-155（依頼 2026-11-04: 900 → 0。0 は高さによる既定の折りたたみなし。リボンは AC-660 の 1 段で開いて始まる）
 export const RIBBON_STORAGE_KEY = 'grp.ribbon.collapsed'; // '1' = 折りたたみ、'0' = 開く。それ以外（壊れた値）は無視して既定へ
 export function initialCollapsed(stored, height) {
   if (stored === '1') return true;

@@ -1,9 +1,10 @@
 // DOM との結び付け（ブラウザ専用。app.js は DOM を知らない）。app の状態を描くだけで、状態は持たない。
-import { PANEL_IDS, PANEL_COMMANDS, MIN_H, WORK_AREA_MIN_PCT } from './layout.js';
+import { PANEL_IDS, PANEL_COMMANDS, MIN_H, WORK_AREA_MIN_PCT, SECONDARY_IDS, COLLAPSED_H } from './layout.js';
 
 import { coalesceFrame } from './frame.js';
 import { patchHtml } from './morph.js';
 import { GROUPS, ICONS, tooltipId, labelKey } from './commandbar.js';
+import { mountRibbonFit } from './ribbonfit.js';
 
 function icon(doc, command, path) {
   const t = doc.createElement('template');
@@ -17,6 +18,7 @@ export function mountUI(app, doc = document) {
   const $ = (sel, root = doc) => root.querySelector(sel);
   const toolbar = $('#toolbar');
   const workspace = $('#workspace');
+  const ribbonFit = mountRibbonFit(toolbar, doc);
   const draft = $('#draft');
   let builtLang = null; let builtStyles = null;
 
@@ -45,6 +47,14 @@ export function mountUI(app, doc = document) {
       lg.textContent = app.t(groupLabelKey);
       fs.setAttribute('aria-label', lg.textContent);
       fs.append(lg);
+      // NFR-UX-011 AC-660: 縮退（ドロップダウン）の開閉ボタンと、項目の入れ物（縮退したときはメニューとして開く）
+      const trg = doc.createElement('button'); trg.type = 'button'; trg.className = 'btn btn-subtle toolbar-group-trigger';
+      trg.setAttribute('aria-expanded', 'false'); trg.setAttribute('aria-controls', `toolbar-items-${groupId}`);
+      trg.setAttribute('aria-label', lg.textContent); trg.title = lg.textContent;
+      const chev = doc.createElement('span'); chev.className = 'toolbar-group-chevron'; chev.setAttribute('aria-hidden', 'true'); chev.textContent = '▾';
+      trg.append(chev);
+      const itemsEl = doc.createElement('div'); itemsEl.className = 'toolbar-group-items'; itemsEl.id = `toolbar-items-${groupId}`;
+      fs.append(itemsEl, trg); // 開閉ボタンは項目の後ろ（開くと先頭の項目へフォーカスを移し、Tab で最後の項目の次にボタンへ戻る）
       for (const name of names) {
         const bi = barItems[name];
         const field = bi && ['select', 'slider', 'number'].includes(bi.kind) ? bi.kind : null;
@@ -92,7 +102,7 @@ export function mountUI(app, doc = document) {
         fe.addEventListener('keydown', (e) => { if (e.key === 'Escape') { app.hideTooltip(name, 'blur'); syncTooltip(); } });
         const wrap = doc.createElement('span'); wrap.className = 'tooltip-host';
         wrap.append(b, tip);
-        fs.append(wrap);
+        itemsEl.append(wrap);
       }
       toolbar.append(fs);
     }
@@ -100,6 +110,51 @@ export function mountUI(app, doc = document) {
     const fs = doc.createElement('div'); fs.className = 'toolbar-group'; fs.dataset.role = 'panel-show';
     toolbar.append(fs);
     syncTooltip();
+    ribbonFit.refit(); // 縮退の段階を測り直す（言語・画風の変更でボタンの幅が変わる）
+  }
+
+  // FR-017 AC-662: 副次パネルの展開ボタンの見た目・名前・状態（aria-expanded）を当てる
+  function paintToggle(tg, id, collapsed, collapsible) {
+    const word = app.t(collapsed ? 'panel.expand' : 'panel.collapse');
+    const tl = `${app.t(`panel.${id}`)}: ${word}`;
+    const txt = `${collapsed ? '▸' : '▾'} ${word}`;
+    if (tg.textContent !== txt) tg.textContent = txt;
+    if (tg.getAttribute('aria-expanded') !== (collapsed ? 'false' : 'true')) tg.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    if (tg.getAttribute('aria-label') !== tl) tg.setAttribute('aria-label', tl);
+    if (tg.title !== tl) tg.title = tl;
+    if (tg.hidden !== !collapsible) tg.hidden = !collapsible;
+  }
+
+  // FR-017 AC-661・AC-662: パネルの位置・大きさと、副次パネルの折りたたみ（タイル・自由配置のとき。フォーカス・最大化では常に展開して見せる）。
+  // 値が変わったときだけ書く。配置の変更（折りたたみ・既定に戻す・窓の大きさ）は、描画を待たずその場で当てる
+  function paintPanelGeometry(id, el, p, kind, tabs = false) {
+    // タブ表示（狭い画面）では、タブで 1 枚だけ見せるので折りたたまない
+    const collapsible = !tabs && SECONDARY_IDS.includes(id) && (kind === 'tile' || kind === 'free');
+    const collapsed = collapsible && !!p.collapsed;
+    if (el.classList.contains('is-collapsed') !== collapsed) el.classList.toggle('is-collapsed', collapsed);
+    const rh = collapsed && kind === 'free' ? COLLAPSED_H : p.h; // 自由配置では、折りたたむと見出しの高さになる
+    const put = (k, v) => { if (el.style[k] !== v) el.style[k] = v; };
+    put('left', `${p.x}px`); put('top', `${p.y}px`); put('width', `${p.w}px`); put('height', `${rh}px`);
+    const tg = $(`[data-act="collapse"][data-panel="${id}"]`);
+    if (tg) paintToggle(tg, id, collapsed, collapsible);
+  }
+  const syncGeometry = () => {
+    const layout = app.getLayout();
+    const tabs = app.getPanelPresentation?.().mode === 'tabs';
+    for (const id of PANEL_IDS) { const el = $(`.panel[data-panel="${id}"]`); if (el) paintPanelGeometry(id, el, layout.panels[id], layout.kind, tabs); }
+    paintWorkspaceHeight(layout, app.getLayoutMode());
+  };
+  function paintWorkspaceHeight(layout, mode) {
+    const put = (k, v) => { if (workspace.style[k] !== v) workspace.style[k] = v; };
+    const fixed = layout.kind === 'tile' || layout.kind === 'focus' || layout.kind === 'maximized';
+    if (mode === 'floating' && fixed) {
+      put('minHeight', '');
+      put('height', `${layout.workArea.h}px`);
+    } else if (mode === 'floating') {
+      put('height', '');
+      const vis = PANEL_IDS.map((id) => layout.panels[id]).filter((p) => p.visible);
+      put('minHeight', `${Math.max(0, ...vis.map((p) => p.y + p.h)) + 24}px`);
+    } else { put('minHeight', ''); put('height', ''); }
   }
 
   function buildPanelMenus() {
@@ -116,6 +171,20 @@ export function mountUI(app, doc = document) {
         return b;
       };
       const sym = { 'move-left': '←', 'move-right': '→', 'move-up': '↑', 'move-down': '↓', grow: '＋', shrink: '－' };
+      // FR-017 AC-662: 副次パネル（テキスト一覧・認識文字列）の展開・折りたたみ。状態は aria-expanded で読み上げる（見た目の更新は render）
+      if (SECONDARY_IDS.includes(id)) {
+        // 展開ボタンは見出しの題名のすぐ右（パネルの右端にある画面右下の案内などに隠れない）。再構築のたびに作り直す
+        menu.parentElement?.querySelector(':scope > .panel-toggle')?.remove();
+        const tg = doc.createElement('button'); tg.type = 'button'; tg.className = 'btn btn-sm panel-toggle';
+        tg.dataset.act = 'collapse'; tg.dataset.panel = id;
+        tg.addEventListener('click', () => {
+          app.setPanelCollapsed(id, !(app.getLayout().panels[id].collapsed));
+          paintToggle(tg, id, !!app.getLayout().panels[id].collapsed, true); // 状態の読み上げ（aria-expanded）はその場で更新する（描画を待たない）
+        });
+        menu.before(tg);
+        tg.setAttribute('aria-controls', id === 'outline' ? 'outline' : `panel-body-${id}`);
+        paintToggle(tg, id, !!app.getLayout().panels[id].collapsed, true);
+      }
       for (const c of PANEL_COMMANDS) {
         const b = add(`${sym[c]}`, () => app.panelCommand(id, c));
         b.setAttribute('aria-label', `${app.t(`panel.${id}`)}: ${app.t(`panel.cmd.${c}`)}`);
@@ -289,7 +358,7 @@ export function mountUI(app, doc = document) {
       const hide = !p.visible || (pres.mode === 'tabs' && !pres.inView.includes(id));
       if (el.hidden !== hide) el.hidden = hide;
       if (el.classList.contains('is-maximized') !== !!p.maximized) el.classList.toggle('is-maximized', p.maximized);
-      setStyle(el, 'left', `${p.x}px`); setStyle(el, 'top', `${p.y}px`); setStyle(el, 'width', `${p.w}px`); setStyle(el, 'height', `${p.h}px`);
+      paintPanelGeometry(id, el, p, layout.kind, pres.mode === 'tabs');
       const max = $(`[data-act="max"][data-panel="${id}"]`);
       setText(max, p.maximized ? '▣' : '□');
       const label = `${app.t(`panel.${id}`)}: ${app.t(p.maximized ? 'panel.restore' : 'panel.maximize')}`;
@@ -309,15 +378,7 @@ export function mountUI(app, doc = document) {
     if (showBar.hidden !== !showBar.childElementCount) showBar.hidden = !showBar.childElementCount;
     // 自由配置の作業領域は、はみ出したパネルの端まで広げる（スクロールで到達できる）。
     // タイル・フォーカス・最大化は、作業領域に固定する（FR-017）
-    const fixed = layout.kind === 'tile' || layout.kind === 'focus' || layout.kind === 'maximized';
-    if (mode === 'floating' && fixed) {
-      setStyle(workspace, 'minHeight', '');
-      setStyle(workspace, 'height', `${layout.workArea.h}px`);
-    } else if (mode === 'floating') {
-      setStyle(workspace, 'height', '');
-      const vis = PANEL_IDS.map((id) => layout.panels[id]).filter((p) => p.visible);
-      setStyle(workspace, 'minHeight', `${Math.max(0, ...vis.map((p) => p.y + p.h)) + 24}px`);
-    } else { setStyle(workspace, 'minHeight', ''); setStyle(workspace, 'height', ''); }
+    paintWorkspaceHeight(layout, mode);
     measureWorkArea();
   }
 
@@ -327,7 +388,7 @@ export function mountUI(app, doc = document) {
     const w = Math.floor(workspace.clientWidth);
     const top = workspace.getBoundingClientRect?.().top ?? 0;
     const vw = doc.defaultView?.innerHeight ?? 0;
-    const vh = vw - Math.max(0, top) - 16;
+    const vh = vw - Math.max(0, top); // AC-661: 図の領域が窓の下端まで占める（窓の下に空きを残さない）
     // AC-641: 作業領域の高さは窓の高さの PARAM-156（55）% 以上（上部が高くても、読める広さを確保する。ページは縦にスクロールする）
     const h = Math.max(MIN_H, Math.floor(vh), Math.ceil(vw * WORK_AREA_MIN_PCT / 100));
     if (w > 0) app.setWorkArea(w, h);
@@ -690,7 +751,7 @@ export function mountUI(app, doc = document) {
     const bs = doc.createElement('p'); bs.id = 'budget-status'; bs.className = 'status-chip'; bs.setAttribute('role', 'status');
     const bw = doc.createElement('p'); bw.id = 'budget-warning'; bw.className = 'message'; bw.setAttribute('role', 'alert');
     const gd = doc.createElement('div'); gd.id = 'llm-guide'; gd.className = 'message'; gd.setAttribute('role', 'region'); gd.hidden = true;
-    const gt = doc.createElement('span'); const gdo = doc.createElement('button'); gdo.type = 'button'; gdo.className = 'btn'; const gdc = doc.createElement('button'); gdc.type = 'button'; gdc.className = 'btn';
+    const gt = doc.createElement('span'); gt.className = 'llm-guide-text'; const gdo = doc.createElement('button'); gdo.type = 'button'; gdo.className = 'btn'; const gdc = doc.createElement('button'); gdc.type = 'button'; gdc.className = 'btn';
     gdo.addEventListener('click', () => { app.commands['settings.open']?.(); });
     gdc.addEventListener('click', () => { void app.dismissLlmGuide(); });
     gd.append(gt, gdo, gdc);
@@ -849,6 +910,7 @@ export function mountUI(app, doc = document) {
     }
   };
   app.subscribe(syncRecordPressed);
+  app.subscribe(syncGeometry);
   app.subscribe(renderSoon);
   render();
   return { render, renderSoon, measureWorkArea };

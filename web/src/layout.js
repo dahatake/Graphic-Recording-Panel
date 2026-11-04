@@ -15,7 +15,12 @@ export const KINDS = ['tile', 'focus', 'maximized', 'free']; // free: 利用者�
 const TILE_ORDER = ['diagram', 'outline', 'input'];
 export const DIAGRAM_MIN_RATIO = 0.5; // PARAM-157: 既定のタイルで図のパネルが占める幅の下限
 export const WORK_AREA_MIN_PCT = 55; // PARAM-156: 作業領域の高さの下限（窓の高さに対する %）
-const TILE_WEIGHT = { diagram: 410, outline: 232, input: 320 };
+// FR-017 AC-661・AC-662（依頼 2026-11-04）: 既定のタイルは、図が幅の全面（上）、副次パネル（テキスト一覧・認識文字列）が図の下に横並び。
+// 副次パネルは初期は折りたたみ（見出しと展開ボタンだけ）。展開したときの高さは作業領域の SECONDARY_EXPANDED_RATIO。
+export const SECONDARY_IDS = ['outline', 'input']; // 副次パネル（折りたたみの対象）
+export const COLLAPSED_H = 44; // 折りたたんだ副次パネルの高さ（見出し行。styles/app.css の .panel-head と同じ）
+export const SECONDARY_EXPANDED_RATIO = 0.3; // 展開した副次パネルの高さ（作業領域の高さに対する割合）
+const isSecondary = (id) => SECONDARY_IDS.includes(id);
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const validArea = (a) => a && isNum(a.w) && isNum(a.h) && a.w >= MIN_W && a.h >= MIN_H;
@@ -34,17 +39,21 @@ function setRect(p, x, y, w, h) { p.x = x; p.y = y; p.w = w; p.h = h; }
 export function applyTile(layout) {
   const ids = visibleIds(layout);
   const { w: W, h: H } = layout.workArea;
-  const total = ids.reduce((s, id) => s + TILE_WEIGHT[id], 0);
-  // AC-643: 図のパネルは幅の PARAM-157（50）% 以上。残りを、ほかのパネルが重みの比で分ける。
   const others = ids.filter((id) => id !== 'diagram');
-  const hasDiagram = ids.includes('diagram');
-  const diagramShare = !hasDiagram ? 0 : (others.length ? Math.max(TILE_WEIGHT.diagram / total, DIAGRAM_MIN_RATIO) : 1);
-  const othersTotal = others.reduce((s, id) => s + TILE_WEIGHT[id], 0);
-  const share = (id) => (id === 'diagram' ? diagramShare : (1 - diagramShare) * TILE_WEIGHT[id] / othersTotal);
+  if (!ids.includes('diagram')) { // 図がないときは、表示中のパネルが領域を横に等分する
+    let x = 0;
+    ids.forEach((id, i) => { const w = i === ids.length - 1 ? W - x : Math.round(W / ids.length); setRect(layout.panels[id], x, 0, w, H); x += w; });
+    return;
+  }
+  if (!others.length) { setRect(layout.panels.diagram, 0, 0, W, H); return; }
+  // AC-661: 図は幅の全面（PARAM-157 の下限を満たす）。AC-662: 副次パネルは図の下に横並び。すべて折りたたみなら見出しの高さだけ。
+  const open = others.some((id) => !layout.panels[id].collapsed);
+  const rowH = open ? Math.min(Math.max(MIN_H, Math.round(H * SECONDARY_EXPANDED_RATIO)), Math.floor(H / 2)) : Math.min(COLLAPSED_H, H);
+  setRect(layout.panels.diagram, 0, 0, W, H - rowH);
   let x = 0;
-  ids.forEach((id, i) => {
-    const w = i === ids.length - 1 ? W - x : Math.round(W * share(id));
-    setRect(layout.panels[id], x, 0, w, H);
+  others.forEach((id, i) => {
+    const w = i === others.length - 1 ? W - x : Math.round(W / others.length);
+    setRect(layout.panels[id], x, H - rowH, w, rowH);
     x += w;
   });
 }
@@ -62,15 +71,15 @@ export function applyFocus(layout) {
   others.forEach((id, i) => setRect(layout.panels[id], mw, oh * i, W - mw, oh));
 }
 
-function retile(layout) {
+export function retile(layout) {
   if (layout.kind === 'tile') applyTile(layout);
   else if (layout.kind === 'focus') applyFocus(layout);
 }
 
 export function defaultLayout(workArea = DEFAULT_WORK_AREA) {
-  const mk = () => ({ x: 0, y: 0, w: MIN_W, h: MIN_H, visible: true, maximized: false });
+  const mk = (id) => ({ x: 0, y: 0, w: MIN_W, h: MIN_H, visible: true, maximized: false, collapsed: isSecondary(id) });
   const layout = {
-    panels: { diagram: mk(), outline: mk(), input: mk() },
+    panels: { diagram: mk('diagram'), outline: mk('outline'), input: mk('input') },
     kind: 'tile', mainPanel: null, workArea: { w: workArea.w, h: workArea.h },
   };
   applyTile(layout);
@@ -81,20 +90,25 @@ export function defaultLayout(workArea = DEFAULT_WORK_AREA) {
 export function normalizeLayout(raw) {
   const base = defaultLayout();
   if (!raw || typeof raw !== 'object' || !raw.panels || typeof raw.panels !== 'object') return base;
+  let legacyTile = false; // collapsed を持たない古い保存のタイルは、新しい既定（副次パネルは折りたたみ）で復元する
   for (const id of PANEL_IDS) {
     const p = raw.panels[id];
     if (!p || ![p.x, p.y, p.w, p.h].every(isNum)) return defaultLayout();
     if (typeof p.visible !== 'boolean' || typeof p.maximized !== 'boolean') return defaultLayout();
+    if (typeof p.collapsed !== 'boolean') legacyTile = legacyTile || raw.kind === 'tile';
+    const collapsed = isSecondary(id) && (typeof p.collapsed === 'boolean' ? p.collapsed : legacyTile);
     base.panels[id] = {
       x: Math.max(0, p.x), y: Math.max(0, p.y),
-      w: Math.max(MIN_W, p.w), h: Math.max(MIN_H, p.h),
+      w: Math.max(MIN_W, p.w), h: Math.max(collapsed ? COLLAPSED_H : MIN_H, p.h), // 折りたたんだ副次パネルは見出しの高さでよい
       visible: p.visible, maximized: p.maximized,
+      collapsed,
     };
   }
   // FR-017 AC-087: 種類・メイン・作業領域も復元する（古い保存内容は kind なし = 自由配置）
   base.kind = KINDS.includes(raw.kind) ? raw.kind : 'free';
   base.mainPanel = PANEL_IDS.includes(raw.mainPanel) ? raw.mainPanel : null;
   base.workArea = validArea(raw.workArea) ? { w: raw.workArea.w, h: raw.workArea.h } : { ...DEFAULT_WORK_AREA };
+  if (legacyTile) { for (const id of SECONDARY_IDS) base.panels[id].collapsed = true; applyTile(base); }
   return base;
 }
 
@@ -140,6 +154,15 @@ export const ops = {
     retile(layout); // FR-017 AC-083: タイル・フォーカスでは残りのパネルが空きを埋める
     return true;
   },
+  collapsed(layout, id, v) {
+    const p = layout.panels[id];
+    if (!p || !isSecondary(id)) return false;
+    const next = !!v;
+    if (p.collapsed === next) return false;
+    p.collapsed = next;
+    retile(layout); // AC-662: 折りたたみ・展開で、図の領域が副次パネルの残りの全面を占め直す
+    return true;
+  },
   maximized(layout, id, v) {
     const p = layout.panels[id];
     if (!p) return false;
@@ -160,6 +183,7 @@ export const ops = {
   arrange(layout, name, id) {
     if (name === 'tile') {
       for (const k of PANEL_IDS) layout.panels[k].maximized = false;
+      for (const k of SECONDARY_IDS) layout.panels[k].collapsed = true; // 元のタイル配置（既定）へ戻す（AC-662）
       layout.kind = 'tile'; applyTile(layout);
       return true;
     }

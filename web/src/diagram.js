@@ -683,7 +683,7 @@ function paint(host, app) {
   const svg = same ? host._lastSvg : app.renderSvg();
   host._ver = ver;
   // 同じ SVG・同じ拡大率・同じ幅なら、DOM を作り直さない（NFR-PERF-002/003: ドラッグ・ホバー中の全再構築を避ける）
-  const sig = `${host._zoom}|${host._fit}|${canvas.clientWidth}|${app.getProjectionSignature?.() ?? ''}`;
+  const sig = `${host._zoom}|${host._fit}|${canvas.clientWidth}|${canvas.clientHeight}|${app.getProjectionSignature?.() ?? ''}`;
   if (host._lastSvg === svg && host._lastSig === sig) return;
   // SVG が同じで幅・拡大率だけ変わったとき（パネルの大きさ変更中）は、図の DOM を作り直さず寸法だけ直す（長いタスクの回避）
   const reuse = host._lastSvg === svg && host._base && host._svgEl && host._svgEl.isConnected;
@@ -705,10 +705,13 @@ function paint(host, app) {
     // 下限で止めた分は、図のパネルの中でスクロールして読む（利用者が縮小ボタンで下げたときは、その操作に従う）
     if (!reuse || host._minFont === undefined) host._minFont = minTextFontSize(el);
     const minFit = host._minFont > 0 ? DIAGRAM_MIN_TEXT_PX / host._minFont : 0;
-    const fit = host._fit !== false && avail > 0 && w > avail ? Math.max(avail / w, minFit) : 1;
+    // FR-017 AC-663: 図の領域の全面に合わせる。幅だけでなく高さも領域に収まる縮尺で見せる（下限は同じ。下限で止めた分はスクロール）
+    const availH = canvas.clientHeight - 2;
+    const fitW = avail > 0 && w > avail ? avail / w : 1;
+    const fitH = availH > 0 && h > availH ? availH / h : 1;
+    const fit = host._fit !== false ? Math.max(Math.min(fitW, fitH), minFit) : 1;
     const z = host._fit !== false ? fit * host._zoom : host._zoom;
     // 紙面（背景）は図の大きさではなく、表示域の全体を覆う。小さい図でも、パネルの領域を全部使って描く（文字は等倍のまま）
-    const availH = canvas.clientHeight - 2;
     const cw = Math.max(w * z, avail);
     const ch = Math.max(h * z, availH);
     el.setAttribute('width', String(Math.round(cw))); el.setAttribute('height', String(Math.round(ch)));

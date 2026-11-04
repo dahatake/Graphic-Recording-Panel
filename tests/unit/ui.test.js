@@ -30,13 +30,16 @@ test('UI toolbar builds all command groups and translated labels without interru
     app.setLang(lang);
     const toolbar = element('nav');
     let tooltipSyncs = 0;
+    let refits = 0;
     runUIFunction('buildToolbar', {
       toolbar, app, GROUPS, labelKey, tooltipId,
       doc: { createElement: element },
       icon: (_, command) => ({ tag: 'svg', command }),
       keyLabel: () => 'Alt+Shift+R',
       syncTooltip: () => tooltipSyncs++,
+      ribbonFit: { refit: () => refits++ }, // NFR-UX-011 AC-660: 縮退の段階を測り直す
     });
+    assert.equal(refits, 1, '構築のたびに縮退の段階を測り直す');
     assert.equal(toolbar.children.length, GROUPS.length + 1);
     let buttonCount = 0;
     const barGroups = Object.fromEntries(app.getCommandBar().groups.map((g) => [g.id, g.commands]));
@@ -45,9 +48,17 @@ test('UI toolbar builds all command groups and translated labels without interru
       assert.ok(groupId !== 'drawStyle' || commands.length >= 13);
       const group = toolbar.children[i];
       assert.equal(group.children[0].textContent, app.t(groupLabel));
-      assert.equal(group.children.length, commands.length + 1);
+      // NFR-UX-011 AC-660: 見出し・項目の入れ物・縮退したときの開閉ボタン（項目の後ろ。aria-expanded・aria-controls の開示パターン）
+      assert.equal(group.children.length, 3);
+      const [, items, trigger] = group.children;
+      assert.equal(items.className, 'toolbar-group-items');
+      assert.equal(trigger.className.includes('toolbar-group-trigger'), true);
+      assert.equal(trigger.attributes['aria-expanded'], 'false');
+      assert.equal(trigger.attributes['aria-controls'], items.id);
+      assert.equal(trigger.attributes['aria-label'], app.t(groupLabel), '縮退したグループの開閉ボタンは見出しと同じ名前');
+      assert.equal(items.children.length, commands.length);
       commands.forEach((command, j) => {
-        const [button, tooltip] = group.children[j + 1].children;
+        const [button, tooltip] = items.children[j].children;
         assert.equal(button.dataset.command, command);
         const label = groupId === 'drawStyle' ? app.getDrawStyles().find((s) => `drawStyle.set:${s.id}` === command).label : app.t(labelKey(command));
         assert.equal(button.children[1].textContent, label);
@@ -89,7 +100,7 @@ test('UI work area fits below the controls in a short desktop window, and is at 
         setWorkArea: (w, h) => ops.workArea(layout, w, h),
       },
     });
-    const fit = Math.floor(viewport.height - viewport.top - 16);
+    const fit = Math.floor(viewport.height - viewport.top); // AC-661: 図の領域は窓の下端まで占める（下に余白を残さない）
     const floor = Math.ceil(viewport.height * 0.55);
     assert.equal(layout.workArea.h, Math.max(fit, floor, MIN_H));
     assert.ok(layout.workArea.h >= viewport.height * 0.55);
