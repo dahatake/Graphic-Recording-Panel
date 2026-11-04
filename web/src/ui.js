@@ -529,11 +529,11 @@ export function mountUI(app, doc = document) {
       const mfs = app.getMeetingFormSpec?.();
       if (mfs) {
         for (const f of mfs.fields) {
-          const c = doc.createElement(f.kind === 'agenda' ? 'textarea' : 'input');
-          if (f.kind === 'agenda') c.rows = 4; else c.type = 'text';
+          const c = doc.createElement(f.kind === 'agenda' || f.kind === 'participants' ? 'textarea' : 'input');
+          if (f.kind === 'agenda' || f.kind === 'participants') c.rows = 4; else c.type = 'text';
           c.dataset.meetingField = f.id;
           c.addEventListener('change', () => {
-            if (f.kind === 'title') app.setTitleInfo({ [f.id]: c.value });
+            if (f.kind === 'title' || f.kind === 'participants') app.setTitleInfo({ [f.id]: c.value }); // AC-668: 参加者名簿（1 行に 1 名）
             else if (f.kind === 'context') app.setMeetingContext({ [f.id]: c.value });
             else app.setMeetingAgendaText(c.value);
           });
@@ -557,6 +557,12 @@ export function mountUI(app, doc = document) {
         form.append(sw);
       }
       // FR-051 AC-228: RPG風の音（端末ごとに保存。ミュート・音量）
+      // AC-680: 名前を表示しない（端末ごとに保存。既定はオフ）
+      if (app.getHideNames) {
+        const hn = doc.createElement('input'); hn.type = 'checkbox'; hn.setAttribute('role', 'switch'); hn.dataset.namesField = 'hide';
+        hn.addEventListener('change', () => app.setHideNames(hn.checked));
+        row('names.hide', app.getBoardNamesLabels().hide, hn);
+      }
       const mute = doc.createElement('input'); mute.type = 'checkbox';
       mute.addEventListener('change', () => app.setRpgMuted(mute.checked));
       row('rpg.mute', app.t('rpg.audio.mute'), mute);
@@ -690,6 +696,7 @@ export function mountUI(app, doc = document) {
       }
     }
     const au = app.getRpgAudio();
+    { const hn = setEl.querySelector('[data-names-field="hide"]'); if (hn && app.getHideNames) hn.checked = app.getHideNames(); } // AC-680
     setEl.querySelector('#settings-rpg\\.mute').checked = au.muted;
     setEl.querySelector('#settings-rpg\\.volume').value = String(au.volume);
     if (app.getShowAudio) { // FR-116 AC-679: 保存値に合わせる（操作中の欄は触らない）

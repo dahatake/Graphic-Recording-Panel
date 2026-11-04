@@ -151,7 +151,16 @@ const BUILD = {
   open: (units, x, y, w) => listRows(units, x, y, w, 'question'),
   members: (units, x, y, w) => {
     const els = []; let cy = y;
-    for (const e of units) {
+    // AC-668 (b): 名前（参加者名簿・話者タグ）は人物の絵記号と名前の組で、幅に収まれば 2 つずつ並べる（絵記号の選び方は名前と結びつけない。AC-630）
+    const half = (w - 8) / 2; let col = 0;
+    for (const e of units.filter((u) => u.memberName != null)) {
+      const wide = textW(e.memberName, FS) > half - 36;
+      if (col === 1 && wide) { col = 0; cy += 36; }
+      els.push({ id: `member:${e.i}`, part: 'person', member: true, seed: `member:${e.i}`, persons: 1, x: x + col * (half + 8), y: cy, w: wide ? w : half, h: 32, name: e.memberName, nameShown: fit(e.memberName, (wide ? w : half) - 36, FS) });
+      if (wide || col === 1) { col = 0; cy += 36; } else col = 1;
+    }
+    if (col === 1) cy += 36;
+    for (const e of units.filter((u) => u.memberName == null)) {
       const n = Math.max(1, Math.min(6, (e.text.match(/さん|様|、|,|と/g) ?? []).length || 1));
       els.push({ id: `p:${e.pointId}`, part: 'person', x, y: cy, w, h: 62, pointId: e.pointId, sceneId: e.sceneId, persons: n, ...label(e, w) });
       cy += 68;
@@ -163,9 +172,9 @@ const BUILD = {
     units.forEach((st, i) => {
       if (i > 0 || st.cont) { els.push({ id: `arrow:${st.uid}`, part: 'arrow', dir: 'down', x: x + 4, y: cy, w: 20, h: 16 }); cy += 20; }
       const bh = 10 + st.lines.length * 20;
-      const h = Math.max(40, bh);
+      const h = Math.max(st.name ? 60 : 40, bh); // AC-668 (c): 話者タグの名前は人物の下に添える
       els.push({ id: `badge:${st.uid}`, part: 'badge', x, y: cy, w: 28, h: 28, n: st.n });
-      els.push({ id: `person:${st.uid}`, part: 'person', x: x + 34, y: cy, w: 40, h: 40, seed: st.key, persons: 1 });
+      els.push({ id: `person:${st.uid}`, part: 'person', x: x + 34, y: cy, w: 40, h: 40, seed: st.key, persons: 1, ...(st.name ? { name: st.name, nameShown: fit(st.name, 78, 12), speaker: true, firstPointId: st.lines[0].pointId } : {}) });
       els.push({ id: `bubble:${st.uid}`, part: 'bubble', x: x + 82, y: cy, w: w - 82, h: bh, step: st.n, sceneIds: st.sceneIds, pointIds: st.lines.map((l) => l.pointId), lines: st.lines.map((l) => ({ pointId: l.pointId, ...label(l, w - 82 - 30) })) });
       cy += h + 6;
     });
@@ -212,6 +221,9 @@ export function boardLayout(input, opts = {}) {
   const lang = L10N(input.lang);
   const tx = TEXT[lang];
   const info = input.titleInfo ?? {};
+  // AC-668: 人物に添える名前（参加者名簿・.vtt の話者タグ）。opts.names: { members: [名前], speakerOf(発話 id) } | null（名前を表示しない・名前なし）
+  const names = opts.names ?? null;
+  const memberUnits = (names?.members ?? []).map((n) => clipLabel(n)).filter(Boolean).map((n, i) => ({ memberName: n, i }));
   const title = { title: String(info.theme ?? '').trim(), subtitle: [info.series, info.venue].map((v) => String(v ?? '').trim()).filter(Boolean).join(' ・ '), date: String(info.date ?? '').trim() };
   const band = title.title || title.subtitle || title.date ? { x: M, y: M, w: W - M * 2, h: BAND, title: fit(title.title || title.subtitle, W - M * 2 - 220, 26), subtitle: title.title ? fit(title.subtitle, W - M * 2 - 40, 15) : '', date: fit(title.date, 180, 15), full: title } : null;
   // 要点 → 区画
@@ -237,10 +249,10 @@ export function boardLayout(input, opts = {}) {
   for (const e of by.flow) {
     if (!stepNo.has(e.topic)) stepNo.set(e.topic, stepNo.size + 1);
     let st = steps.findLast((x) => x.key === e.topic);
-    if (!st || st.lines.length >= GROUP_MAX) { const k = steps.filter((x) => x.key === e.topic).length; st = { key: e.topic, uid: `${e.topic}#${k}`, n: stepNo.get(e.topic), cont: !!st, lines: [], sceneIds: [] }; steps.push(st); }
+    if (!st || st.lines.length >= GROUP_MAX) { const k = steps.filter((x) => x.key === e.topic).length; st = { key: e.topic, uid: `${e.topic}#${k}`, n: stepNo.get(e.topic), cont: !!st, lines: [], sceneIds: [], name: names?.speakerOf?.(e.uid) ?? null }; steps.push(st); }
     st.lines.push(e); if (!st.sceneIds.includes(e.sceneId)) st.sceneIds.push(e.sceneId);
   }
-  const unitsOf = (id) => (id === 'flow' ? steps : by[id]);
+  const unitsOf = (id) => (id === 'flow' ? steps : id === 'members' ? [...memberUnits, ...by.members] : by[id]);
   // 区画の中身（PARAM-088 を超えたら下位のまとまりに分ける。AC-428）
   const content = (id, x, y, w) => {
     const units = unitsOf(id);
@@ -381,7 +393,11 @@ function elementSvg(el, C, tx) {
         const ps = Array.from({ length: el.persons }, (_, i) => personSvg(`${el.pointId}:${i}`, el.x + i * 44, el.y, 40, C)).join('');
         return g(`${ps}${labelSvg(el, el.x, el.y + 58, C)}`);
       }
-      return g(personSvg(String(el.seed), el.x, el.y, el.w, C));
+      if (el.member) { // AC-668 (b): 参加メンバーの名前（人物の絵記号と名前の組）
+        return g(`${personSvg(String(el.seed), el.x, el.y + 2, 28, C)}<text data-board-name x="${r1(el.x + 32)}" y="${r1(el.y + 22)}" font-size="${FS}" fill="${C.ink}">${escapeHtml(el.nameShown)}</text>`);
+      }
+      const said = el.name ? `<text data-board-name x="${r1(el.x - 34)}" y="${r1(el.y + 56)}" font-size="12" fill="${C.ink}">${escapeHtml(el.nameShown)}</text>` : ''; // AC-668 (c): 話者タグの名前
+      return g(personSvg(String(el.seed), el.x, el.y, el.w, C) + said);
     }
     case 'badge':
       return g(`<g data-board-part="badge"><circle cx="${el.x + 14}" cy="${el.y + 14}" r="13" fill="${C.line}"/><text x="${el.x + 14}" y="${el.y + 19}" font-size="15" font-weight="800" text-anchor="middle" fill="${C.badgeInk}">${el.n}</text></g>`);
@@ -513,7 +529,7 @@ export function createBoardMotion() {
 export function boardModule(ctx) {
   const { api, state } = ctx;
   const llmOf = (sceneId, idx) => api.getLlmPointSection?.(sceneId, idx) ?? null;
-  api.registerLayoutType(BOARD_TYPE_ID, { layout: (input) => boardLayout(input, { llmOf }) });
+  api.registerLayoutType(BOARD_TYPE_ID, { layout: (input) => boardLayout(input, { llmOf, names: api.getBoardNames?.() ?? null }) });
   const active = () => {
     const info = api.getLayoutInfo?.();
     return !!info && info.applied && info.head === BOARD_TYPE_ID && state.displayMode !== 'arrange';

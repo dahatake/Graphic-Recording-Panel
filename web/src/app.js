@@ -71,6 +71,7 @@ import { showAudioModule } from './showaudio.js';
 import { gaugeModule } from './gauge.js';
 import { personVariantsModule } from './personvariants.js';
 import { liveShowModule, liveShowBarModule } from './liveshow.js'; // FR-115: 描画の拡張（renderBaseSvg）の最も外側に置くため、並びの末尾
+import { boardNamesModule } from './boardnames.js'; // FR-114 AC-668・AC-680: 会議ボード型の人物に添える名前（設定・テキスト一覧の拡張なので末尾）
 
 const GAP_MS_DEFAULT = 20_000; // PARAM-002
 // NFR-PERF-003 AC-539: 自動保存の間引き（PARAM-108。0 なら変更のたびに即時保存）
@@ -513,7 +514,7 @@ export async function createApp(options = {}) {
   app.subscribe = (fn) => on('change', fn);
   app.getPanelRenderer = (id) => panelRenderers.get(id) ?? null;
   app.use = async (mod) => { await mod(ctx); };
-  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, viewStateModule, sessionModule, settingsModule, stylePickerModule, autoLayoutModule, layoutKindsModule, rpgModule, rpgAudioModule, llmModule, llmDrawModule, stylePresetModule, workshopModule, boardModule, relayoutModule, liveRefreshModule, speechSettingsModule, budgetModule, presentExportModule, meetingModule, minutesModule, agendaTimerModule, editHistoryModule, facilitationModule, kindStylesModule, glossaryModule, agendaViewModule, reviewModule, previewModule, visibilityModule,   conflictModule, voteModule, rolesModule, projectionModule, onboardingModule, drawModule, cinematicModule, gaugeModule, personVariantsModule, liveShowModule, ...(options.modules ?? [])]) await app.use(mod);
+  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, viewStateModule, sessionModule, settingsModule, stylePickerModule, autoLayoutModule, layoutKindsModule, rpgModule, rpgAudioModule, llmModule, llmDrawModule, stylePresetModule, workshopModule, boardModule, relayoutModule, liveRefreshModule, speechSettingsModule, budgetModule, presentExportModule, meetingModule, minutesModule, agendaTimerModule, editHistoryModule, facilitationModule, kindStylesModule, glossaryModule, agendaViewModule, reviewModule, previewModule, visibilityModule,   conflictModule, voteModule, rolesModule, projectionModule, onboardingModule, drawModule, cinematicModule, gaugeModule, personVariantsModule, liveShowModule, boardNamesModule, ...(options.modules ?? [])]) await app.use(mod);
   // FR-116: ライブ描画ショーの演出の音（ctx.showAudio を置く。ショー側は再生時に ctx.showAudio を参照する）
   await app.use(showAudioModule);
   // 機能ごとの保存項目の復元（モジュールが保存項目を登録した後）
