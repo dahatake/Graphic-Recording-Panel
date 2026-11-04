@@ -61,8 +61,8 @@ test('FR-106 AC-616: 投票（選択肢・票）は保存・復元され、デ�
 });
 
 // NFR-PERF-001 AC-038 ほか: 単発の反映の上限（PARAM-158=3 秒）とライブ更新の間隔の上限（PARAM-001=15 秒）は別の値
-test('FR-014 AC-053 AC-054 AC-122 AC-038 AC-401: ライブの上限（PARAM-001=15 秒）と単発の反映の上限（PARAM-158=3 秒）を混用しない', async () => {
-  assert.equal(LIVE_MAX_SEC, 15); // PARAM-001 と同じ（PARAM-099）
+test('FR-014 AC-053 AC-054 AC-122 AC-038 AC-401: ライブの上限（PARAM-001=60 秒）と単発の反映の上限（PARAM-158=3 秒）を混用しない', async () => {
+  assert.equal(LIVE_MAX_SEC, 60); // PARAM-001 と同じ（PARAM-099。依頼 2026-11-05 で 15→60）
   const { app, env } = await newApp();
   await seedThreeScenes(app, env);
   app.setDetailLevel('detail');

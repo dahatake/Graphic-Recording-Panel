@@ -167,7 +167,7 @@ export async function speechModule(ctx) {
     if (ctx.state.session !== 'recording') return; // 記録中以外は無視
     if (isFinal) {
       ctx.change(() => { speech.interim = ''; });
-      if (ctx.addUtterance(text)) ctx.transcript?.addFinals([String(text).trim()]);
+      if (ctx.addUtterance(text, { hold: true })) ctx.transcript?.addFinals([String(text).trim()]); // FR-014 AC-521: 図への描き足しは更新間隔ごと（liverefresh.js）
     } else {
       ctx.change(() => { speech.interim = String(text ?? ''); });
     }
