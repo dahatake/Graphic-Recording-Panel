@@ -117,12 +117,12 @@ test('NFR-UX-012 AC-466: 書体の系統の並びは 欧文専用の書体（従
   for (const k of FONTS) assert.ok(st[k].every((f) => f.name === YU || PARAM_093.includes(f.name) || TRADITIONAL[k].includes(f.name)), `${k}: 書体を足さない`);
 });
 
-test('NFR-UX-012 AC-466: 13 の描画スタイルと拡張点で追加した画風プリセットのすべてで、図（SVG）の書体の指定は NFR-UX-012 の並び', async () => {
+test('NFR-UX-012 AC-466: 15 の描画スタイルと拡張点で追加した画風プリセットのすべてで、図（SVG）の書体の指定は NFR-UX-012 の並び', async () => {
   const { app } = await seeded();
   const st = app.getFontStacks();
   for (const d of [REG('test-jp-a', 'handwriting', 'cloud'), REG('test-jp-b', 'roundGothic', 'rounded'), REG('test-jp-c', 'gothic', 'sticky')]) assert.equal(app.registerDrawStyle(d).ok, true, d.id);
   const styles = app.getDrawStyles();
-  assert.equal(styles.length, 16, '13 + 追加した 3');
+  assert.equal(styles.length, 18, '15 + 追加した 3');
   for (const s of styles) {
     assert.equal(app.setDrawStyle(s.id).ok, true, s.id);
     const svg = app.renderSvg();

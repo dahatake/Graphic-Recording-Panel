@@ -1,12 +1,12 @@
 // NFR-UX-011 AC-459〜464（System Test。契約: CONTRACT.md「コマンドバーの作業順グループ」）
-// 期待値は受入基準だけから決める（PARAM-006=640px、PARAM-092=13 個）。
+// 期待値は受入基準だけから決める（PARAM-006=640px、PARAM-092=15 個）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp, CJK } from './helpers.js';
 
 const NARROW = 640; // PARAM-006（以下で折り返す）
 const WIDE = 1280;
-const MAX_PER_GROUP = 13; // PARAM-092（画風グループの 13 項目で引き上げ。2026-11-04）
+const MAX_PER_GROUP = 15; // PARAM-092（画風グループの 15 項目で引き上げ。2026-11-04。AC-670 の追加後）
 const ORDER = ['import', 'session', 'view', 'drawStyle', 'layoutType', 'settings', 'presentation', 'export', 'data', 'environment'];
 const JA = ['取り込み', '記録', '表示', '画風', 'レイアウト型', '設定', 'プレゼンテーション', '図の書き出し', 'データ', '画面・環境'];
 const MEMBERS = {
@@ -35,12 +35,15 @@ test('NFR-UX-011 AC-459: グループは 取り込み→記録→表示→画風
   assert.ok(!groups.some((g) => g.id === 'apiKeys'), '接続キーのグループはない（AC-482）');
   for (const g of groups) {
     if (g.id === 'drawStyle') {
-      assert.deepEqual(g.commands, app.getDrawStyles().map((s) => `drawStyle.set:${s.id}`), '全 13 の描画スタイルの項目（drawStyle.set:<id>）が登録順に並ぶ');
-      assert.equal(g.commands.length, 13);
+      assert.deepEqual(g.commands, app.getDrawStyles().map((s) => `drawStyle.set:${s.id}`), '全 15 の描画スタイルの項目（drawStyle.set:<id>）が登録順に並ぶ');
+      assert.equal(g.commands.length, 15);
     } else if (g.id === 'layoutType') {
       assert.ok(groupOf(g).every(isLayoutType), '型アイコン・クリアだけ');
       assert.ok(g.commands.includes('layoutType.clear'));
       assert.ok(g.commands.length > 1, '型アイコンがある');
+      // AC-459: レイアウト型グループは 7 つの型アイコン（FR-114 の追加後）とクリアの 8 個
+      for (const t of ['timeline', 'bubble', 'diverge', 'zone', 'metaphor', 'workshop', 'board']) assert.ok(g.commands.includes(`layoutType.${t}`), `layoutType.${t} がある`);
+      assert.equal(g.commands.length, 8, '7 つの型アイコンとクリア');
     } else if (g.id === 'settings') {
       assert.ok(g.commands.includes('settings.open'));
       // FR-030・AC-648: 講演向けの初期値（settings.talkPreset）が設定グループにちょうど 1 つ（契約 CONTRACT-RIBBON-SETTINGS.md）
@@ -94,7 +97,7 @@ test('NFR-UX-011 AC-459 異常系: 描画スタイルの項目・プロンプト
   assert.ok(groups.find((g) => g.id === 'export').commands.length <= MAX_PER_GROUP);
 });
 
-test('NFR-UX-011 AC-459 異常系: 各グループは PARAM-092（13）個以内で、どのボタンも 1 つのグループにだけ属する（重複・未分類なし）', async () => {
+test('NFR-UX-011 AC-459 異常系: 各グループは PARAM-092（15）個以内で、どのボタンも 1 つのグループにだけ属する（重複・未分類なし）', async () => {
   const { app } = await newApp();
   const groups = bar(app).groups;
   for (const g of groups) assert.ok(g.commands.length >= 1 && g.commands.length <= MAX_PER_GROUP, `${g.id}: ${g.commands.length} 個`);

@@ -171,17 +171,17 @@ test('FR-076 AC-408 異常系: 端末に手書き風の書体がなくても、�
   assert.equal(none.app.getDrawStyle(), have.app.getDrawStyle());
 });
 
-// ---------------------------------------------------------------- FR-076 AC-409（13 の選択肢と 3.6 の表との一致）
+// ---------------------------------------------------------------- FR-076 AC-409（15 の選択肢と 3.6 の表との一致）
 // FR-076 AC-409
-test('FR-076 AC-409: 描画スタイルの選択肢は既存の 4 つと 9 つの風の計 13 で、名前は 3.6 の表のとおり（日本語・英語）、既定は手書き調', async () => {
+test('FR-076 AC-409: 描画スタイルの選択肢は既存の 4 つと 11 の風の計 15 で、名前は 3.6 の表のとおり（日本語・英語）、既定は手書き調', async () => {
   const { app } = await newApp();
   app.setLang('ja');
   const list = app.getDrawStyles();
-  assert.equal(list.length, 13);
+  assert.equal(list.length, 15);
   for (const id of LEGACY) assert.ok(list.some((s) => s.id === id), `既存の ${id}`);
   assert.deepEqual(list.filter((s) => !LEGACY.includes(s.id)).map((s) => s.label).sort(), PRESETS.map((p) => p.ja).sort());
-  assert.equal(new Set(list.map((s) => s.label)).size, 13, '名前は互いに異なる');
-  assert.equal(new Set(list.map((s) => s.id)).size, 13);
+  assert.equal(new Set(list.map((s) => s.label)).size, 15, '名前は互いに異なる');
+  assert.equal(new Set(list.map((s) => s.id)).size, 15);
   assert.equal(app.getDrawStyle(), 'handwritten', '既定は手書き調のまま');
   const ids = presetIds(app);
   app.setLang('en');
@@ -189,7 +189,7 @@ test('FR-076 AC-409: 描画スタイルの選択肢は既存の 4 つと 9 つ�
   for (const p of PRESETS) assert.equal(en.get(ids[p.ja]), p.en, `${p.ja} の英語名`);
 });
 
-test('FR-076 AC-409: 9 つの風の紙面の質感・書体の系統・見出しの飾り・吹き出しの形・線（揺らぎの有無・太さ）・線画人物と絵記号の有無が 3.6 の表と一致する', async () => {
+test('FR-076 AC-409: 11 の風の紙面の質感・書体の系統・見出しの飾り・吹き出しの形・線（揺らぎの有無・太さ）・線画人物と絵記号の有無が 3.6 の表と一致する', async () => {
   const { app } = await newApp();
   app.setLang('ja');
   const ids = presetIds(app);
@@ -216,7 +216,7 @@ test('FR-076 AC-409: 9 つの風の紙面の質感・書体の系統・見出し
   for (const id of LEGACY) assert.equal(app.getDrawStyleSpec(id).preset, false, `${id} は見た目の項目を持たない`);
 });
 
-test('FR-076 AC-409: 9 つの風を選ぶと、図がその紙面・配色・書体・見出しの飾り・吹き出し・線・線画人物で描かれる', async () => {
+test('FR-076 AC-409: 11 の風を選ぶと、図がその紙面・配色・書体・見出しの飾り・吹き出し・線・線画人物で描かれる', async () => {
   const { app, ids } = await seededApp();
   const scenes = app.getState().scenes;
   const frameW = { thick: [], medium: [], thin: [] };
@@ -316,7 +316,7 @@ function assertContrast(doc, p, spec) {
   }
 }
 // FR-076 AC-410
-test('FR-076 AC-410: 9 つの風のすべてで、文字と直下の背景が 4.5:1 以上、要点の枠・吹き出しの輪郭と紙面が 3:1 以上、黄の面に輪郭線・黄の上の文字は黒', async () => {
+test('FR-076 AC-410: 11 の風のすべてで、文字と直下の背景が 4.5:1 以上、要点の枠・吹き出しの輪郭と紙面が 3:1 以上、黄の面に輪郭線・黄の上の文字は黒', async () => {
   const { app, ids } = await seededApp();
   for (const p of PRESETS) { const { doc, spec } = usePreset(app, ids, p.ja); assertContrast(doc, p, spec); }
 });
@@ -333,7 +333,7 @@ test('FR-076 AC-410 異常系: 要点を強調表示している間・英語表�
 
 // ---------------------------------------------------------------- FR-076 AC-411（色だけに頼らない）
 // FR-076 AC-411
-test('FR-076 AC-411: 9 つの風のすべて（単色のミニマル風を含む）で、要点の種類が形・絵記号・文字で見分けられ、強調表示は色以外でも識別できる', async () => {
+test('FR-076 AC-411: 11 の風のすべて（単色のミニマル風を含む）で、要点の種類が形・絵記号・文字で見分けられ、強調表示は色以外でも識別できる', async () => {
   const { app, ids } = await seededApp();
   for (const p of PRESETS) {
     usePreset(app, ids, p.ja);
@@ -543,7 +543,7 @@ test('FR-076 AC-456: ハイコントラストが有効なとき、どの描画�
   const { app, ids } = await seededApp({ options: { env: { webgl: true, reducedMotion: false, viewportWidth: 1280, forcedColors: true } } });
   assert.equal(app.getForcedColors(), true);
   const all = app.getDrawStyles().map((s) => s.id);
-  assert.equal(all.length, 13);
+  assert.equal(all.length, 15);
   for (const id of all) {
     assert.equal(app.setDrawStyle(id).ok, true);
     const svg = app.renderSvg();
