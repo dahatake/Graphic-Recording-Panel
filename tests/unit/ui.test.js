@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import { createApp } from '../../web/src/app.js';
-import { GROUPS, PRIMARY, labelKey, tooltipId } from '../../web/src/commandbar.js';
+import { GROUPS, labelKey, tooltipId } from '../../web/src/commandbar.js';
 import { MIN_H, WORK_AREA_MIN_PCT, defaultLayout, ops } from '../../web/src/layout.js';
 
 const ui = fs.readFileSync(new URL('../../web/src/ui.js', import.meta.url), 'utf8');
@@ -31,7 +31,7 @@ test('UI toolbar builds all command groups and translated labels without interru
     const toolbar = element('nav');
     let tooltipSyncs = 0;
     runUIFunction('buildToolbar', {
-      toolbar, app, GROUPS, PRIMARY, labelKey, tooltipId,
+      toolbar, app, GROUPS, labelKey, tooltipId,
       doc: { createElement: element },
       icon: (_, command) => ({ tag: 'svg', command }),
       keyLabel: () => 'Alt+Shift+R',
@@ -55,6 +55,8 @@ test('UI toolbar builds all command groups and translated labels without interru
         assert.equal(button.attributes['aria-describedby'], tooltip.id);
         assert.equal(tooltip.attributes.role, 'tooltip');
         assert.equal(typeof button.listeners.click, 'function');
+        // FR-072 AC-647: 全コマンドが同じ見た目（塗りつぶしの btn-primary は付かない）
+        assert.ok(button.className.split(' ').includes('btn-subtle') && !button.className.split(' ').includes('btn-primary'), `${command}: 未押下は全コマンド同じ見た目`);
         if (groupId === 'drawStyle') assert.equal(button.attributes['aria-pressed'], String(command === 'drawStyle.set:handwritten'), 'FR-077: 通常のボタン + aria-pressed');
         buttonCount++;
       });
