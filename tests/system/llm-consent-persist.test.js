@@ -197,6 +197,42 @@ test('NFR-PRIV-003 AC-358: 送信は要点の文字・シーン番号・描画�
   assert.ok(!text.includes(PROBE));
 });
 
+// NFR-PRIV-003 AC-358（2026-11-05: 会議ボード型の参加者名簿と .vtt の話者タグの名前も送らない。AC-668 (e)。契約: CONTRACT-BOARD.md「人物の名前」）
+test('NFR-PRIV-003 AC-358: 会議ボード型の参加者名簿と .vtt の話者タグの名前は、図に載っていても LLM への送信にも画像生成プロンプトにも含まれない（簡易マスキングの有無によらず）', async () => {
+  const { app, env, relay } = await appWith();
+  await enable(app);
+  assert.equal(app.setLayoutTypes(['board']).ok, true, '会議ボード型');
+  const ROSTER = ['名簿PRT高橋', '名簿PRT伊藤'];
+  const TAGS = ['話者SPK渡辺', '話者SPK小林'];
+  const NAMES = [...ROSTER, ...TAGS];
+  assert.notEqual(app.setTitleInfo({ participants: ROSTER.join('\n') })?.ok, false, '参加者名簿を入力できる');
+  app.commands['session.start']();
+  const vtt = ['WEBVTT', '', '00:00:01.000 --> 00:00:03.000', `<v ${TAGS[0]}>受付の流れを振り返る</v>`, '',
+    '00:00:04.000 --> 00:00:06.000', `<v ${TAGS[1]}>窓口ごとの負荷の差を見る</v>`, ''].join('\n');
+  assert.equal((await app.importTextFile({ name: 'names.vtt', type: 'text/vtt', size: Buffer.byteLength(vtt), text: vtt })).ok, true, '.vtt を取り込める');
+  env.tick(3);
+  const svg = app.renderSvg();
+  for (const n of NAMES) assert.ok(svg.includes(n), `前提: ${n} は会議ボード型の図に載る（AC-668。送らないのは表示しないからではない）`);
+  for (const masking of [true, false]) {
+    app.setLlmMasking(masking);
+    const before = relay.calls.length;
+    type(app, env, `費用感をざっくり話す${masking ? 'M' : 'N'}`);
+    await app.flushLlm();
+    assert.ok(relay.extractCalls().length >= 1, '送信は行われる');
+    for (const c of relay.calls.slice(before)) {
+      const s = JSON.stringify(c);
+      for (const n of NAMES) assert.ok(!s.includes(n), `マスキング ${masking}: 名前「${n}」が中継への要求に含まれた`);
+      assert.ok(!/PRT|SPK/.test(s), `マスキング ${masking}: 名前の一部が中継への要求に含まれた`);
+    }
+    for (const mask of [true, false]) {
+      const t = app.getImagePrompt({ mask }).text;
+      for (const n of NAMES) assert.ok(!t.includes(n), `マスキング ${masking}: 画像生成プロンプト（mask=${mask}）に名前「${n}」を含めない`);
+    }
+  }
+  // それまでの送信の全体でも 0 件
+  for (const c of relay.calls) for (const n of NAMES) assert.ok(!JSON.stringify(c).includes(n), `名前「${n}」が送られた`);
+});
+
 // NFR-PRIV-003 AC-359
 test('NFR-PRIV-003 AC-359: 簡易マスキングで登録語・敬称付き人名・メール・電話番号が伏せ字になって送られ、応答の伏せ字は図で元に戻されない', async () => {
   const { app, env, relay } = await appWith({ extract: ({ body }) => ({ objects: [{ key: 'other', label: String(body.input).slice(0, 24) }], people: [], emotions: [], metaphors: [] }) });
