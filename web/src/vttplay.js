@@ -133,6 +133,27 @@ export function vttPlaybackModule(ctx, live) {
     return { ok: true, playback: true, total: cues.length };
   };
 
+  // 契約 CONTRACT-LIVE-SHOW（FR-022 AC-671）の観察点: 取込の方法 'bulk'|'replay'（内部の 'batch'|'playback'）と速さ、再生取込の進み具合、操作のコマンド
+  let everStarted = false;
+  const baseBegin = live.begin;
+  live = { ...live, begin(src) { everStarted = true; baseBegin(src); } };
+  api.getVttImportMode = () => ({ mode: pref.method === 'playback' ? 'replay' : 'bulk', speed: pref.speed, speeds: [...PLAYBACK_SPEEDS] });
+  api.setVttImportMode = (o) => {
+    if (!o || typeof o !== 'object' || (o.mode !== 'bulk' && o.mode !== 'replay')) return { ok: false, reason: 'invalid' };
+    if (o.speed !== undefined && !PLAYBACK_SPEEDS.includes(o.speed)) return { ok: false, reason: 'invalid' };
+    return api.setImportMethod({ method: o.mode === 'replay' ? 'playback' : 'batch', speed: o.speed });
+  };
+  api.getVttReplay = () => {
+    if (!everStarted) return null;
+    const s = api.getVttPlayback();
+    return { running: !!play, paused: play?.state === 'paused', done: s.delivered, total: s.total, text: s.text };
+  };
+  ctx.registerCommand('vttReplay.pause', () => api.pauseVttPlayback());
+  ctx.registerCommand('vttReplay.resume', () => api.resumeVttPlayback());
+  ctx.registerCommand('vttReplay.cancel', () => api.cancelVttPlayback());
+  // NFR-A11Y-001: すべての操作にキー割り当て（Ctrl+Shift+F2〜F4 は未使用。Ctrl+Shift+F9 はライブの更新間隔）
+  for (const [key, command] of [['F2', 'vttReplay.pause'], ['F3', 'vttReplay.resume'], ['F4', 'vttReplay.cancel']]) ctx.registerKey({ key, ctrl: true, shift: true, command });
+
   // 取込の状態（FR-023）: 再生取込の間と終わった後は、その進み具合を示す
   const baseStatus = api.getImportStatus;
   api.getImportStatus = () => {

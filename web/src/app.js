@@ -303,7 +303,17 @@ export async function createApp(options = {}) {
     let i = s.utterances.length;
     while (i > 0 && s.utterances[i - 1].held) i--;
     const out = [];
-    for (; i < s.utterances.length; i++) { delete s.utterances[i].held; ingestOne(s, i, false); out.push(s.utterances[i].text); }
+    for (; i < s.utterances.length; i++) {
+      const u = s.utterances[i];
+      delete u.held; ingestOne(s, i, false); out.push(u.text);
+      // 待ちの間に押された［次のシーン］（session.nextScene）の区切り: この発話までを前のシーンとして確定し、次の発話から新しいシーンにする
+      if (u.breakAfter) {
+        delete u.breakAfter;
+        const cur = s.scenes[s.scenes.length - 1];
+        if (cur && cur.status === 'in_progress') cur.status = 'confirmed';
+        breakScene = true;
+      }
+    }
     return out;
   }
 
@@ -393,6 +403,9 @@ export async function createApp(options = {}) {
     },
     'session.nextScene': () => {
       if (state.session !== 'recording') return;
+      // FR-014 AC-521: 図にまだ入っていないライブの発話（held）があるときは、区切りをその発話に保持し（breakAfter）、
+      // 更新の時点の取り込み（ingestHeld）で区切りの前・後のシーンに分ける（区切りの前の発話は前のシーン、後の発話は新しいシーン）
+      if (ctx.heldCount() > 0) { change((s) => { s.utterances[s.utterances.length - 1].breakAfter = true; }); return; }
       const cur = state.scenes[state.scenes.length - 1];
       if (!cur || cur.status !== 'in_progress') return;
       breakScene = true;

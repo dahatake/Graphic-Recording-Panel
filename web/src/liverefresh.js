@@ -65,13 +65,18 @@ export function liveRefreshModule(ctx) {
   api.getLiveRefresh = () => ({ count, held: ctx.heldCount() });
 
   // 1 回の描き足し: たまった発話をまとめて取り込む。なければ何もしない（描画を更新しない）
+  // ctx.liveRefreshing: いま更新間隔ごとの描き足しの最中か（FR-115 のショーは、この間に加わった・動いた要素だけを演出する）
   const tick = () => {
-    const n = ctx.flushHeld();
-    if (!n) return 0;
-    count += 1;
-    ctx.emit('live:tick', { count: n, refresh: count }); // FR-115 などが 1 回の描き足しを 1 つの単位として扱える
-    ctx.emit('change', api);
-    return n;
+    if (!ctx.heldCount()) return 0;
+    ctx.liveRefreshing = true;
+    try {
+      const n = ctx.flushHeld();
+      if (!n) return 0;
+      count += 1;
+      ctx.emit('live:tick', { count: n, refresh: count }); // FR-115 などが 1 回の描き足しを 1 つの単位として扱える
+      ctx.emit('change', api);
+      return n;
+    } finally { ctx.liveRefreshing = false; }
   };
   const stopTimer = () => { if (timer != null) { sched.clearTimeout(timer); timer = null; } };
   const arm = () => {

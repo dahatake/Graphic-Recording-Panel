@@ -7,6 +7,8 @@
 //   図の内容・最終の配置・保存物（renderSvgForSave）を変えない。演出が終われば OFF と同じ文字列に戻る。生成 AI・外部通信は使わない。
 // - 1 回の描き足しの演出の合計は、その時点の更新間隔（FR-014）の 80% 以内。超えるときは各要素の時間を等しく縮める（PARAM-182）。
 //   次の更新が来たら、前の演出は最後の状態へ収束させてから新しい演出を始める（前の演出を残さない）。
+// - 演出はライブ（音声入力の記録中・.vtt の再生取込）の更新間隔ごとの描き足し（FR-014 の 'live:tick'。liverefresh.js の ctx.liveRefreshing の間）にだけ行う。
+//   手入力・ファイルの一括取込（AC-054・AC-523）や、それ以外の図の変化は、ON でも演出せず従来どおり即時に反映する。
 // - 動きを減らす設定（prefers-reduced-motion）では動きを出さず、描き足した件数を状態メッセージ（読み上げ対象）で示す。
 //   強制カラーでは、ペン先・手・紙吹雪を出さない（文字と背景のコントラストを下げない）。
 // - 演出の音（FR-116）への接続点: 演出の出来事（getLiveShow().log）の時点で ctx.showAudio?.cue(name, detail) を呼ぶ
@@ -243,7 +245,8 @@ export function planShow(prev, P, opts = {}) {
   }
   let total = Math.max(t, ...celebrations.map((c) => c.start + c.dur), 0);
   let f = 1;
-  if (total > budget && total > 0) f = budget / total; // PARAM-182: 各要素の時間を等しく縮める
+  // PARAM-182: 各要素の時間を等しく縮める（浮動小数の丸めで予算をわずかに超えないよう、少しだけ小さく取る。超えると次の更新の時点に演出が残る）
+  if (total > budget && total > 0) f = (budget / total) * (1 - 1e-9);
   const sc = (v) => v * f;
   const carryOut = sc(carryDur) >= T.minStepMs ? carries.map((c) => ({ ...c, start: 0, dur: sc(carryDur) })) : [];
   const unitOut = units.map((u) => { const d = sc(u.draw + u.write); const instant = d < T.minStepMs; return { ...u, start: sc(u.start), draw: instant ? 0 : sc(u.draw), write: instant ? 0 : sc(u.write), charMs: instant ? 0 : sc(u.charMs) }; });
@@ -546,7 +549,10 @@ export function liveShowModule(ctx) {
       const cur = snapshotOf(parsed);
       if (snap) {
         const changed = parsed.units.some((u) => { const w = snap.get(u.key); return !w || (w.anchor && u.anchor && Math.hypot(w.anchor[0] - u.anchor[0], w.anchor[1] - u.anchor[1]) > MOVE_EPS); });
-        if (changed) {
+        // 演出するのはライブ（音声・.vtt の再生取込）の更新間隔ごとの描き足し（ctx.liveRefreshing）だけ。手入力・一括取込・周期の再配置などは
+        // ON でも演出せず即時に反映する（AC-054・AC-523。進行中の演目は続け、新しい要素はそのまま見せる）
+        const liveRefresh = ctx.liveRefreshing === true;
+        if (changed && liveRefresh) {
           // 同じ時点の続けての変更（一度の更新・取込で加わる複数の発話）は 1 回の演出にまとめる（まだ何も進んでいない計画を作り直す）
           // （ライブの描き足し 'live:tick' は flushHeld → 再配置 → 通知 が同期で続くので、同じ同期の処理の中の変更もまとめる。AC-675）
           const merge = plan && fired === 0 && (plan.t0 === now() || (turnOpen && plan.turn === turn)) ? plan.from : null;

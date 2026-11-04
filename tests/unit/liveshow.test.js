@@ -6,6 +6,15 @@ import { newApp, toDetail, visibleTexts, keyFor } from '../system/helpers.js';
 import { SHOW_KEY, SHOW_LIMITS, SHOW_TIMING, parseShowSvg, planShow, renderShowFrame, setAttrs, flattenPath, charsOf, showLook } from '../../web/src/liveshow.js';
 
 const add = (app, t) => { app.setDraft(t); app.submitDraft(); };
+// ライブの描き足し（FR-014 AC-521）: 音声の確定結果として送り、次の更新間隔の時点（'live:tick'）まで 1 ミリ秒ずつ進める。
+// ショーの演出はライブの描き足しだけに適用する（手入力・一括取込は演出しない。AC-054・AC-523）ので、演出を観測するテストはこれで加える。
+const speaking = new WeakSet();
+const liveAdd = (app, env, ...texts) => {
+  if (!speaking.has(app)) { app.startSpeech(); speaking.add(app); }
+  for (const t of texts) env.speech.emit(t, true);
+  const c0 = app.getLiveRefresh().count; const limit = app.getLiveInterval().sec * 1000 + 10;
+  for (let k = 0; app.getLiveRefresh().count === c0; k++) { assert.ok(k <= limit, '更新間隔の時点が来ない'); env.tick(0.001); env.scheduler.advance(1); }
+};
 const SHOW_RE = /data-show-(pen|hand|confetti|carry|select|layer|drawing|unwritten|hidden|writing)/;
 const has = (svg, name) => new RegExp(`data-show-${name}`).test(svg);
 const settle = (app, env, sec = 12) => { env.tick(sec); env.scheduler.advance(sec * 1000); return app.renderSvg(); };
@@ -124,7 +133,7 @@ test('FR-115 AC-672: ON の演出が終わった後の図・テキスト一覧�
     app.renderSvg();
     const seen = [];
     for (const t of ['今日の目的は方向性をそろえることです', '料金プランは月額制で合意しました', '来週までに見積を共有します']) {
-      add(app, t);
+      liveAdd(app, env, t);
       for (let i = 0; i < 6; i++) { env.tick(0.4); env.scheduler.advance(400); seen.push(app.renderSvg()); }
       seen.push(settle(app, env));
     }
@@ -148,7 +157,7 @@ test('FR-115 AC-673: 描線（dashoffset の途中）と 1 字ずつの書き込
   const { app, env } = await detailApp();
   add(app, '今日の目的は方向性をそろえることです'); env.tick(1); app.renderSvg();
   app.setLiveShow(true); app.renderSvg();
-  add(app, '料金プランは月額制で合意しました');
+  liveAdd(app, env, '料金プランは月額制で合意しました');
   const first = app.renderSvg();
   const plan = app.getLiveShowStatus().plan;
   assert.ok(plan && plan.units.length >= 1);
@@ -179,7 +188,7 @@ test('FR-115 AC-674 C-01 AC-439: 会議ボード型では詰め直しを手で�
   app.setLiveShow(true); app.renderSvg();
   let carried = false;
   for (let k = 1; k <= 16 && !carried; k++) {
-    add(app, `目的その${k}は品質の底上げ`); env.tick(0.01);
+    liveAdd(app, env, `目的その${k}は品質の底上げ`); env.tick(0.01);
     const s0 = app.renderSvg();
     assert.ok(!/data-board-appear/.test(s0), 'C-01: AC-669 の出現の演出は出さない');
     const plan = app.getLiveShowStatus().plan;
@@ -214,7 +223,7 @@ test('FR-115 AC-675: 決定事項・空だった区画の最初の要点でお�
   add(app, '今日の目的は新サービスの方向性をそろえることです'); env.tick(1); app.renderSvg();
   app.setLiveShow(true); app.renderSvg();
   for (const [text, kind] of [['料金プランは月額制で合意しました', 'decision'], ['来週の金曜日までに田中さんが見積を共有します', 'section']]) {
-    add(app, text); env.tick(0.01); app.renderSvg();
+    liveAdd(app, env, text); env.tick(0.01); app.renderSvg();
     const plan = app.getLiveShowStatus().plan;
     assert.equal(plan.celebrations.length, 1, text); const c = plan.celebrations[0];
     assert.equal(c.kind, kind); assert.ok(c.dur <= SHOW_LIMITS.celebrateMax);
@@ -234,7 +243,7 @@ test('FR-115 AC-675: 合計は更新間隔の 80% 以内に収まり、次の更
   const { app, env } = await detailApp();
   add(app, '最初の発話です'); env.tick(1); app.renderSvg();
   app.setLiveShow(true); app.renderSvg();
-  for (let i = 0; i < 12; i++) add(app, `一度に加わる要点その${i}についての少し長めの文章です`);
+  liveAdd(app, env, ...Array.from({ length: 12 }, (_, i) => `一度に加わる要点その${i}についての少し長めの文章です`));
   app.renderSvg();
   const p = app.getLiveShowStatus().plan;
   const interval = app.getLiveInterval().sec * 1000;
@@ -242,7 +251,7 @@ test('FR-115 AC-675: 合計は更新間隔の 80% 以内に収まり、次の更
   assert.ok(p.scale < 1, '収まらないので等しく縮めた');
   env.tick(1); app.renderSvg();
   const firstKeys = p.units.map((u) => u.key);
-  add(app, '次の更新で加わった要点です'); app.renderSvg();
+  liveAdd(app, env, '次の更新で加わった要点です'); app.renderSvg();
   const q = app.getLiveShowStatus().plan;
   assert.ok(q.units.every((u) => !firstKeys.includes(u.key)), '前の演出の要素は新しい計画に残らない（最後の状態へ収束）');
   env.tick(0.05); const s = app.renderSvg();
@@ -254,7 +263,7 @@ test('FR-115 AC-675: 動きを減らす設定では動きなしで件数をメ�
   const { app, env } = await detailApp({ options: { env: { webgl: true, reducedMotion: true, viewportWidth: 1280 } } });
   add(app, '最初の発話です'); env.tick(1); app.renderSvg();
   app.setLiveShow(true); app.renderSvg();
-  add(app, '料金プランは月額制で合意しました'); add(app, '二つ目の要点です');
+  liveAdd(app, env, '料金プランは月額制で合意しました', '二つ目の要点です');
   const s = app.renderSvg();
   assert.ok(!SHOW_RE.test(s), '動きを出さない');
   assert.equal(app.getLiveShowStatus().plan, null);
@@ -265,7 +274,7 @@ test('FR-115 AC-675: 動きを減らす設定では動きなしで件数をメ�
   const r2 = await detailApp();
   add(r2.app, '最初の発話です'); r2.env.tick(1); r2.app.renderSvg();
   r2.app.setLiveShow(true); r2.app.setForcedColors(true); r2.app.renderSvg();
-  add(r2.app, '料金プランは月額制で合意しました');
+  liveAdd(r2.app, r2.env, '料金プランは月額制で合意しました');
   let overlays = false; let drew = false; const t0 = r2.env.now();
   for (let ms = 0; ms < 4000; ms += 50) { r2.env.clock.t = t0 + ms; const x = r2.app.renderSvg(); if (/data-show-(pen|hand|confetti)/.test(x)) overlays = true; if (has(x, 'drawing') || has(x, 'unwritten')) drew = true; }
   assert.equal(overlays, false, '強制カラーではペン先・手・紙吹雪を出さない'); assert.ok(drew, '描線・書き込みは行う');
@@ -276,7 +285,7 @@ test('FR-115 FR-116 AC-677: 演出の各時点で ctx.showAudio.cue を pen・po
   const { app, env } = await detailApp();
   add(app, '最初の発話です'); env.tick(1); app.renderSvg();
   app.setLiveShow(true); app.renderSvg();
-  add(app, '料金プランは月額制で合意しました'); app.renderSvg();
+  liveAdd(app, env, '料金プランは月額制で合意しました'); app.renderSvg();
   const t0 = env.now();
   for (let ms = 0; ms < 5000; ms += 40) { env.clock.t = t0 + ms; app.renderSvg(); }
   // 鳴らす合図の記録（ctx.showAudio は FR-116 の showAudioModule が置く）。出来事と音: 描線→pen・現れた→pop・決定→chime・お祝い→sparkle（FR-116 AC-677）
@@ -294,7 +303,7 @@ test('FR-115 AC-673: getLiveShow の items は読み順に stroke → write → 
   const { app, env } = await detailApp();
   add(app, '最初の発話です'); env.tick(1); app.renderSvg();
   app.setLiveShow(true);
-  add(app, '料金プランは月額制で合意しました');
+  liveAdd(app, env, '料金プランは月額制で合意しました');
   const seen = new Map(); let penSeen = false; let partial = false;
   for (let ms = 0; ms <= 8000; ms += 20) {
     env.tick(0.02); env.scheduler.advance(20);
@@ -324,7 +333,7 @@ test('FR-115 AC-675: 同じ時点の続けての変更は 1 回の演出にま�
   const { app, env } = await detailApp();
   add(app, '最初の発話です'); env.tick(1); app.renderSvg();
   app.setLiveShow(true);
-  for (let i = 0; i < 3; i++) add(app, `同じ時点に加わる要点その${i}です`);
+  liveAdd(app, env, ...[0, 1, 2].map((i) => `同じ時点に加わる要点その${i}です`));
   const p = app.getLiveShowStatus().plan;
   assert.ok(p.fresh >= 3, `3 つの発話の要素が 1 つの計画に入る（${p.fresh}）`);
   assert.ok(p.total <= app.getLiveInterval().sec * 1000 * SHOW_LIMITS.budgetRatio + 1e-6);
@@ -390,4 +399,44 @@ test('FR-115 AC-675 FR-014 AC-521: 1 回のライブの描き足し（live:tick�
     if (round < 3) at = waitTick(round, 300);
   }
   assert.equal(app.getLiveShowStatus().refreshCount, ticks.length);
+});
+// FR-115 AC-675（方針: 演出はライブの更新間隔ごとの描き足しだけ）、FR-002 AC-054・FR-022 AC-523: ショーが ON でも、手入力とファイルの一括取込は
+// 演出せず、更新間隔を待たずに即時（PARAM-158＝3 秒以内。ここでは同じ時点）に図に反映する。ライブの描き足しは演出する。
+test('FR-115 AC-675 AC-054 AC-523: ショー ON でも手入力・一括取込は演出せず即時に反映し、ライブの描き足しだけを演出する', async () => {
+  const { app, env } = await detailApp();
+  add(app, '最初の発話です'); env.tick(1); app.renderSvg();
+  app.setLiveShow(true); app.renderSvg();
+  const c0 = app.getLiveShowStatus().cues.length;
+  // 手入力
+  add(app, '料金プランは月額制で合意しました');
+  let s = app.renderSvg();
+  assert.match(s, /料金プランは月額制で合意しました/, '手入力は即時に図へ反映');
+  assert.ok(!SHOW_RE.test(s), '手入力では演出の要素が現れない');
+  assert.equal(app.getLiveShowStatus().plan, null); assert.equal(app.getLiveShow().running, false);
+  // ファイルの一括取込
+  const text = '予算は百万円です\n次回は木曜の午後です\n';
+  const r = await app.importTextFile({ name: 'notes.txt', type: 'text/plain', size: Buffer.byteLength(text), text });
+  assert.equal(r.ok, true);
+  s = app.renderSvg();
+  assert.match(s, /予算は百万円です/); assert.match(s, /次回は木曜の午後です/);
+  assert.ok(!SHOW_RE.test(s), '一括取込では演出の要素が現れない');
+  assert.equal(app.getLiveShowStatus().plan, null);
+  for (let ms = 0; ms < 3000; ms += 100) { env.tick(0.1); env.scheduler.advance(100); assert.ok(!SHOW_RE.test(app.renderSvg())); }
+  assert.equal(app.getLiveShowStatus().cues.length, c0, '演出の合図（効果音）も出さない');
+  // ライブの描き足しは演出する
+  liveAdd(app, env, '担当者を割り当てる');
+  assert.ok(app.getLiveShowStatus().plan, 'ライブの描き足しでは演目が始まる');
+  assert.ok(SHOW_RE.test(app.renderSvg()));
+});
+
+// FR-115 AC-675 PARAM-182: 縮めた計画の合計は、浮動小数の丸めでも予算（更新間隔の 80%）を超えない（超えると次の更新の時点に演出が残る）
+test('FR-115 AC-675 PARAM-182: 縮めた計画の合計は丸めの誤差でも更新間隔の 80% を超えない', () => {
+  const pt = (i, y) => `<g data-point-id="p${i}"><rect x="0" y="${y}" width="300" height="30" stroke="#000" fill="#fff"/><text x="4" y="${y + 20}" font-size="14">要点その${i}の少し長めの文字です</text></g>`;
+  for (const n of [2, 3, 5, 7, 12]) {
+    const P = parseShowSvg(`<svg width="400" height="900">${Array.from({ length: n }, (_, i) => pt(i, i * 40)).join('')}</svg>`);
+    for (const sec of [5, 6, 7, 10, 13, 20]) {
+      const p = planShow(new Map(), P, { intervalMs: sec * 1000 });
+      assert.ok(p.total <= sec * 1000 * SHOW_LIMITS.budgetRatio, `${n} 要素・${sec} 秒: ${p.total}`);
+    }
+  }
 });
