@@ -86,7 +86,8 @@ export function mountOnboardingUI(app, doc = globalThis.document) {
   // 「サンプル」の印（色だけに頼らず文字で示す。AC-601）
   let chip = null;
   function badge() {
-    const on = app.getState().sample === true;
+    // NFR-PERF-003 AC-536: 状態の全件の複製（数千件の発話・シーン）をやめ、描画用の小さい写しの sample を読む（変更の通知のたびに呼ばれる）
+    const on = (app.getUiState?.() ?? app.getState()).sample === true;
     if (on && !chip) {
       chip = el('p', 'status-chip sample-badge', app.t('onboarding.sampleBadge')); chip.id = 'sample-badge';
       doc.querySelector('.statusbar')?.prepend(chip);

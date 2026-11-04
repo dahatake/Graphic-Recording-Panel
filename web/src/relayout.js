@@ -119,7 +119,7 @@ export function relayoutModule(ctx) {
     lastTransition = env.reducedMotion ? { animated: false, durationMs: 0 } : { animated: true, durationMs: TRANSITION_MS };
     onRearranged();
     inRearrange = true;
-    try { ctx.emit('change', api); } finally { inRearrange = false; }
+    try { ctx.emit('change', api, { arrangeOnly: true }); } finally { inRearrange = false; }
   }
   // 復元したセッションは再配置済みとして始める（起動時の回数は数えない）
   if (state.scenes.length) snap = canonical();

@@ -316,7 +316,7 @@ export function mountUI(app, doc = document) {
     // FR-013/FR-014: 認識文字列。過去を読んでいる間はスクロール位置を奪わない（AC-051）
     // NFR-PERF-003 AC-540: 全置換せず、キー（発話 ID）で既存のノードを残して差分だけを当てる。
     // AC-538: データの版（app.getRenderVersion があるとき）が前回と同じなら、文字列の再生成も呼ばない
-    const ver = app.getRenderVersion?.();
+    const ver = app.getTextVersion?.() ?? app.getRenderVersion?.(); // 再配置だけの変更では、文字列・アウトラインを作り直さない（並びは時系列のまま）
     const fresh = (el) => ver === undefined || el._ver !== ver;
     const tr = $('#transcript');
     if (tr && !dragging && fresh(tr)) {
@@ -820,6 +820,14 @@ export function mountUI(app, doc = document) {
   let lastPointer = 'mouse';
   doc.addEventListener('pointerdown', (e) => { lastPointer = e.pointerType || 'mouse'; if (lastPointer !== 'touch') app.setPreviewBlock?.('drag', true); }, true);
   for (const ev of ['pointerup', 'pointercancel']) doc.addEventListener(ev, () => app.setPreviewBlock?.('drag', false), true);
+  // NFR-PERF-003 AC-536: 何もない所（ページの背景・作業領域の余白）を押してドラッグしても、ブラウザの文字選択を始めない。
+  // 数千件の文字列の上へ選択を広げると、動かすたびにスタイル・配置の全再計算（画面外の省略の解除を含む）が起き、1 回 100ms を超える。
+  // 文字のある所（パネルの本文・見出しなど）から始める選択は妨げない。フォーカスは、既定動作と同じようにここで外す
+  doc.addEventListener('mousedown', (e) => {
+    if (e.button !== 0 || (e.target !== doc.documentElement && e.target !== doc.body && e.target !== workspace)) return;
+    e.preventDefault();
+    const ae = doc.activeElement; if (ae && ae !== doc.body && ae.blur) ae.blur();
+  }, true);
   doc.addEventListener('scroll', () => { app.closePreview?.(); }, true);
   doc.addEventListener('mouseover', (e) => {
     if (lastPointer === 'touch') return;
