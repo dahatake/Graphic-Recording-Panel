@@ -12,7 +12,7 @@ const css = fs.readFileSync(path.join(WEB, 'styles', 'app.css'), 'utf8');
 // AC-645: 折りたたみの CSS は、リボン全体を隠さず、開始（session.start）と停止（session.stop）を残す
 test('NFR-UX-003 AC-645: 折りたたみでリボン全体を display:none にせず（バーは visibility:hidden）、開始と停止のボタンを visible に残す', () => {
   assert.ok(!/\.commandbar\[data-collapsed="true"\]\s*\{\s*display:\s*none/.test(css), 'リボン全体を隠していない');
-  assert.match(css, /\[data-collapsed="true"\] \.toolbar-group > \.tooltip-host > \[data-command="session\.stop"\] \{ visibility: visible/);
+  assert.match(css, /\[data-collapsed="true"\] \.toolbar-group-items > \.tooltip-host > \[data-command="session\.stop"\] \{ visibility: visible/);
   assert.match(css, /\[data-collapsed="true"\][^{]*:not\(:has\(\[data-command="session\.start"\], \[data-command="session\.stop"\]\)\)/);
   assert.match(css, /\[data-collapsed="true"\][^{]*:not\(\[data-command="session\.start"\]\):not\(\[data-command="session\.stop"\]\)/);
 });
