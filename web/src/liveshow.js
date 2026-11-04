@@ -448,14 +448,14 @@ const escapeAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;
 // ---- アプリ組立の拡張（modules）。描画の拡張（renderBaseSvg）の最も外側に置くため、モジュールの並びの末尾に足す ----
 const STRINGS = {
   ja: {
-    'show.title': 'ライブ描画ショー', 'show.hint': '描き足しを、ペン先がなぞって描き・文字を書き込み・手で運び・お祝いする演出で見せます。図の内容と保存物は変わりません。動きを減らす設定では動きを出しません。',
+    'show.title': '描画ショー', 'show.hint': '描き足しを、ペン先がなぞって描き・文字を書き込み・手で運び・お祝いする演出で見せます。図の内容と保存物は変わりません。動きを減らす設定では動きを出しません。',
     'show.state.on': 'オン', 'show.state.off': 'オフ',
-    'label.show.toggle': 'ライブ描画', 'tooltip.show.toggle': 'ライブ描画ショー（描き足しをペン・手・お祝いの演出で見せる）のオン・オフを切り替えます',
+    'label.show.toggle': '描画ショー', 'tooltip.show.toggle': 'ライブ描画ショー（描き足しをペン・手・お祝いの演出で見せる）のオン・オフを切り替えます',
     'cmd.show.toggle': 'ライブ描画ショーの切り替え（オン・オフ）', 'description.show.toggle': '描き足しを演出で見せる',
     'msg.showState': 'ライブ描画ショー', 'msg.showInstant': 'ライブ描画ショー: {n} 件を描き足しました（動きを減らす設定のため動きなし）', 'msg.showInvalid': 'ライブ描画ショーはオンかオフを指定してください',
   },
   en: {
-    'show.title': 'Live drawing show', 'show.hint': 'Shows each update as if drawn live: a pen traces outlines and writes the text, a hand carries moved items, and small confetti celebrates. The diagram and saved files do not change. Reduced motion is respected.',
+    'show.title': 'Live show', 'show.hint': 'Shows each update as if drawn live: a pen traces outlines and writes the text, a hand carries moved items, and small confetti celebrates. The diagram and saved files do not change. Reduced motion is respected.',
     'show.state.on': 'On', 'show.state.off': 'Off',
     'label.show.toggle': 'Live show', 'tooltip.show.toggle': 'Turn the live drawing show (pen, hand and celebration effects for each update) on or off',
     'cmd.show.toggle': 'Live show: toggle the live drawing show (on/off)', 'description.show.toggle': 'Animate each update',
