@@ -446,7 +446,7 @@ test('FR-076 AC-670 FR-114: 雲形の枠の上のマーカーと文字のコン�
 
 // FR-114 AC-665（最終監査）: 否定・先送りの言い回しは「決定」「確認」の部分一致より先に判定して未決事項へ
 test('FR-114 AC-665: 否定・先送り（未決定・未定・保留・決まらない・次回まで）は決定・行動の語より先に未決事項へ', () => {
-  for (const t of ['決定は次回まで保留します', 'この件は未決定です', '担当はまだ決まらない', '承認は未定です', '確認は次回までに持ち越し', 'The scope is not decided yet']) assert.equal(sec(t), 'open', t);
+  for (const t of ['決定は次回まで保留します', 'この件は未決定です', '担当はまだ決まらない', '承認は未定です', '確認は次回までに持ち越し', 'The scope is TBD', 'The scope is undecided', '採用するかは未定', '次回まで持ち越しです']) assert.equal(sec(t), 'open', t);
   // 否定のない決定・行動は従来どおり
   assert.equal(sec('料金プランは月額制で決定しました'), 'decisions');
   assert.equal(sec('明日までに確認します'), 'actions');

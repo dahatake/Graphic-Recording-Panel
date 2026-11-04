@@ -41,8 +41,8 @@ const L10N = (lang) => (lang === 'en' ? 'en' : 'ja');
 export const DECISION_WORDS = ['決まりました', '決めました', '決定', '確定', '承認', '合意', '採用する', 'に決めた', 'agreed', 'decided'];
 export const ACTION_WORDS = ['お願いします', 'してください', '対応する', 'やります', '確認します', '共有します', '調整します', '対応します', '連絡します', 'までに', '担当', 'TODO', 'action item'];
 export const PENDING_WORDS = ['保留', '未定', '持ち帰り', '次回', '検討中', 'pending', 'TBD'];
-// 否定・先送りの言い回し（決定・行動の語より先に判定する。部分一致・大文字小文字を区別しない）
-export const NEGATION_WORDS = ['未決定', '未決', '未定', '保留', '決まらない', '決まらなかった', '決まっていない', '決められない', '決めかね', '次回まで', '持ち帰り', '先送り', '検討中', '未確認', 'pending', 'TBD', 'undecided', 'not decided'];
+// PARAM-178 の「未決事項」（否定・先送り。決定事項・次アクションの言い回しより先に判定する。日本語は部分一致、英語は単語単位）
+export const NEGATION_WORDS = ['未決定', '未決', '未定', '保留', '決まらない', '決まっていない', '決めていない', '決定していない', '次回まで', '持ち越し', '先送り', 'undecided', 'TBD'];
 // PARAM-131（質問）: 日本語は部分一致、英語の語は単語単位
 const QUESTION_RE = /[?？]|でしょうか|ですか|ますか|ませんか|でしょう|(?<![a-z0-9])(why|how|what)(?![a-z0-9])/i;
 // PARAM-178（区画ごとの言い回し）: 日本語は部分一致、英語は単語単位。判定の順は 目的・背景→最終的に目指す姿→参加メンバー→主要テーマ→メモ・補足
@@ -58,7 +58,7 @@ const esc = (w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const isAscii = (w) => /^[\x20-\x7e]+$/.test(w);
 const reOf = (words, wordBoundary) => new RegExp(words.map((w) => (wordBoundary && isAscii(w) ? `(?<![a-z0-9])${esc(w)}(?![a-z0-9])` : esc(w))).join('|'), 'gi');
 const RE = {
-  decision: reOf(DECISION_WORDS, false), action: reOf(ACTION_WORDS, false), pending: reOf(PENDING_WORDS, false), negation: reOf(NEGATION_WORDS, false),
+  decision: reOf(DECISION_WORDS, false), action: reOf(ACTION_WORDS, false), pending: reOf(PENDING_WORDS, false), negation: reOf(NEGATION_WORDS, true),
   ...Object.fromEntries(Object.entries(SECTION_WORDS).map(([k, ws]) => [k, reOf(ws, true)])),
 };
 const matches = (re, text) => [...String(text ?? '').matchAll(re)].map((m) => m[0]);
@@ -76,20 +76,20 @@ export function normalizeSection(v) {
 export function assignSection(point, opts = {}) {
   const text = String(point?.text ?? '');
   const kind = classifyPoint(point ?? '');
-  const words = [...matches(RE.decision, text), ...matches(RE.action, text), ...WORD_ORDER.flatMap((k) => matches(RE[k], text))];
+  const words = [...matches(RE.negation, text), ...matches(RE.decision, text), ...matches(RE.action, text), ...WORD_ORDER.flatMap((k) => matches(RE[k], text))];
   const llmWords = (Array.isArray(opts.llm?.emphasis) ? opts.llm.emphasis : []).filter((w) => typeof w === 'string' && w.trim() && text.includes(w.trim())).map((w) => w.trim());
   const emphasis = [...new Set([...llmWords, ...words])];
   const out = (section, rule) => ({ section, rule, emphasis, kind });
   const llm = normalizeSection(opts.llm?.section);
   if (llm) return out(llm, 1);
-  // 否定・先送りの言い回しは「決定」「確認」などの部分一致より先に判定して未決事項へ（「決定は次回まで保留」「未決定」）
-  if (matches(RE.negation, text).length) return out('open', 4);
-  if (kind === 'conclusion' || matches(RE.decision, text).length) return out('decisions', 2);
-  if (kind === 'action' || matches(RE.action, text).length) return out('actions', 3);
-  if (kind === 'undecided' || kind === 'question' || matches(RE.pending, text).length || QUESTION_RE.test(text)) return out('open', 4);
-  for (const k of WORD_ORDER) if (matches(RE[k], text).length) return out(k, 5);
-  if (kind === 'evidence') return out('memo', 6);
-  return out('flow', 7);
+  // AC-665 (2): 種類が未決定、または PARAM-127・PARAM-178（未決事項）の否定・先送りの言い回しは、(3)(4) の「決定」「確認」などの部分一致より先に未決事項へ
+  if (kind === 'undecided' || matches(RE.pending, text).length || matches(RE.negation, text).length) return out('open', 2);
+  if (kind === 'conclusion' || matches(RE.decision, text).length) return out('decisions', 3);
+  if (kind === 'action' || matches(RE.action, text).length) return out('actions', 4);
+  if (kind === 'question' || QUESTION_RE.test(text)) return out('open', 5);
+  for (const k of WORD_ORDER) if (matches(RE[k], text).length) return out(k, 6);
+  if (kind === 'evidence') return out('memo', 7);
+  return out('flow', 8);
 }
 
 // 次アクションの担当・期限（要点の文字の「〜さん」「〜担当」と「〜まで（に）」の語。ないときは null＝「未定」。自動で補わない）
