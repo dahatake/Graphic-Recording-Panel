@@ -44,6 +44,11 @@ async function mk({ storage = mem(), interval, visibility, start = true } = {}) 
   return { app, sched, speech, storage, count };
 }
 
+// FR-014 AC-521: 音声の確定結果は、ライブの更新間隔ごとに図へ描き足される（受付の時点では図に加わらない）。
+// ここでは FR-080 の時点（確定結果の受付と図への追加が同じ時点）を確かめるため、受付と同時に図へ反映される確定結果（手入力）を使う。
+// 音声の確定結果と更新間隔の組み合わせは、末尾の「FR-080 AC-437 (a) と FR-014 AC-521」のテストで確かめる。
+function confirmNow(app, text) { app.setDraft(text); app.submitDraft(); }
+
 // ---- 入力の判定（AC-436） ----
 // FR-080 AC-436
 test('FR-080 AC-436: 周期の入力の判定（数値・入力欄の文字列。空・整数でない・範囲外を区別）', () => {
@@ -93,10 +98,10 @@ test('FR-080 AC-436: 同じ値への変更では数え直さない。周期 0→
 // FR-080 AC-437 (a)
 test('FR-080 AC-437 (a): 周期 0 では、最後の確定結果から 3 秒、確定・暫定の結果がどちらも届かない時点で再配置される', async () => {
   const { app, sched, speech, count } = await mk({ interval: 0 });
-  sched.to(1000); speech.emit('会議室は三階にあります', true);
+  sched.to(1000); confirmNow(app, '会議室は三階にあります');
   sched.advance(0);
   const c0 = count(); // 最初のシーン（新しいトピック）で再配置されている
-  sched.to(1500); speech.emit('資料は共有', true);
+  sched.to(1500); confirmNow(app, '資料は共有');
   assert.equal(app.getArrangeStatus().pending, true);
   sched.to(1500 + SILENCE_SEC * 1000 - 1);
   assert.equal(count(), c0, '3 秒経つまでは再配置しない');
@@ -108,8 +113,8 @@ test('FR-080 AC-437 (a): 周期 0 では、最後の確定結果から 3 秒、�
 // FR-080 AC-437 (a) 異常系
 test('FR-080 AC-437 (a) 異常系: 暫定結果が届き続けている間（発話の途中）は無音の区切りにならない', async () => {
   const { app, sched, speech, count } = await mk({ interval: 0 });
-  sched.to(500); speech.emit('会議室は三階にあります', true);
-  sched.to(4000); speech.emit('資料は共有フォルダに置きました', true);
+  sched.to(500); confirmNow(app, '会議室は三階にあります');
+  sched.to(4000); confirmNow(app, '資料は共有フォルダに置きました');
   const c0 = count();
   assert.equal(app.getArrangeStatus().pending, true);
   for (let at = 5000, i = 1; at <= 12_000; at += 1000, i++) { sched.to(at); speech.emit(`次回は${'木'.repeat(i)}`, false); }
@@ -167,7 +172,7 @@ test('FR-080 AC-437 (c): 新しいトピックが生まれると、その時点�
 // FR-080 AC-437 異常系
 test('FR-080 AC-437 異常系: 区切りが起きても、前の再配置以降に新しい要素が加わっていなければ再配置されない', async () => {
   const { app, sched, speech, count } = await mk({ interval: 0 });
-  sched.to(500); speech.emit('会議室は三階にあります', true);
+  sched.to(500); confirmNow(app, '会議室は三階にあります');
   sched.to(5000);
   const c0 = count();
   assert.equal(app.getArrangeStatus().pending, false);
@@ -186,9 +191,9 @@ test('FR-080 AC-437: 同じ発話列と受付時刻からは毎回同じ時点�
     let last = app.getArrangeStatus().count;
     app.subscribe(() => { const c = app.getArrangeStatus().count; if (c !== last) { last = c; times.push(sched.t); } });
     const script = [[300, '会議室は三階にあります', true], [900, '会議室の', false], [1400, '会議室の予約', true], [6000, '次回は木曜の午後です', true], [6500, '次回は', false], [7100, '参加者は八名でした', true]];
-    for (const [at, text, fin] of script) { sched.to(at); speech.emit(text, fin); }
+    for (const [at, text, fin] of script) { sched.to(at); if (fin) confirmNow(app, text); else speech.emit(text, false); }
     app.commands['session.nextScene']();
-    sched.to(9000); speech.emit('資料は共有フォルダに置きました', true);
+    sched.to(9000); confirmNow(app, '資料は共有フォルダに置きました');
     sched.to(60_000);
     return times;
   };
@@ -201,11 +206,11 @@ test('FR-080 AC-437: 同じ発話列と受付時刻からは毎回同じ時点�
 // FR-080 AC-438
 test('FR-080 AC-438: 区切りが来ないまま発話が続いても、最初の追加から 30 秒を超えて保留しない', async () => {
   const { app, sched, speech, count } = await mk({ interval: 0 });
-  sched.to(500); speech.emit('会議室は三階にあります', true);
+  sched.to(500); confirmNow(app, '会議室は三階にあります');
   sched.to(4000); // 無音で再配置済み
   const c0 = count();
   const first = 5000;
-  sched.to(first); speech.emit('会議室の予約は三階です', true); // 同じシーン・同じトピック（区切りにならない）
+  sched.to(first); confirmNow(app, '会議室の予約は三階です'); // 同じシーン・同じトピック（区切りにならない）
   for (let at = first + 1000; at < first + HOLD_MAX_SEC * 1000; at += 1000) { sched.to(at); speech.emit(`会議室の話${at}`, false); } // 暫定結果が続く（発話の途中）
   sched.to(first + HOLD_MAX_SEC * 1000 - 1);
   assert.equal(count(), c0, '30 秒までは保留できる（区切りがない）');
@@ -216,12 +221,12 @@ test('FR-080 AC-438: 区切りが来ないまま発話が続いても、最初�
 
 // FR-080 AC-438
 test('FR-080 AC-438: 保留の上限は「前の再配置以降の最初の追加」から数え、後の追加で延びない', async () => {
-  const { sched, speech, count } = await mk({ interval: 0 });
-  sched.to(500); speech.emit('会議室は三階にあります', true);
+  const { app, sched, speech, count } = await mk({ interval: 0 });
+  sched.to(500); confirmNow(app, '会議室は三階にあります');
   sched.to(4000);
   const c0 = count();
-  speech.emit('会議室の予約は三階', true); // 4000: 最初の追加
-  for (let at = 6000; at <= 34_000; at += 2000) { sched.to(at); speech.emit(`会議室の件${at}`, true); } // 2 秒おきの確定（無音 3 秒にならない）
+  confirmNow(app, '会議室の予約は三階'); // 4000: 最初の追加
+  for (let at = 6000; at <= 34_000; at += 2000) { sched.to(at); confirmNow(app, `会議室の件${at}`); } // 2 秒おきの確定（無音 3 秒にならない）
   assert.equal(count(), c0 + 1, '4000+30000=34000 の時点で再配置（追加が続いても延びない）');
 });
 
@@ -230,7 +235,7 @@ test('FR-080 AC-438: 保留の上限は「前の再配置以降の最初の追�
 test('FR-080 AC-435 異常系: 非表示の間に到来した再配置は行わず、復帰後に行う（周期・会話の区切りとも）', async () => {
   const vis = new Vis();
   const { app, sched, speech, count } = await mk({ visibility: vis });
-  sched.to(500); speech.emit('会議室は三階にあります', true);
+  sched.to(500); confirmNow(app, '会議室は三階にあります');
   vis.set(true);
   sched.to(25_000);
   assert.equal(count(), 0, '非表示の間は再配置しない');
@@ -241,7 +246,7 @@ test('FR-080 AC-435 異常系: 非表示の間に到来した再配置は行わ�
   // 周期 0（無音）でも同じ
   app.setArrangeInterval(0);
   vis.set(true);
-  sched.to(26_000); speech.emit('会議室の予約は三階', true);
+  sched.to(26_000); confirmNow(app, '会議室の予約は三階');
   sched.to(40_000);
   assert.equal(count(), 1);
   vis.set(false); sched.advance(0);
@@ -323,4 +328,37 @@ test('FR-080 AC-439: 図の拡大率と表示位置は app が持ち、正でな
   assert.equal(n, 0, 'UI からのスクロールの反映は再描画を起こさない');
   off();
   assert.equal(app.getDiagramView().scrollX, 50);
+});
+
+// FR-080 AC-437 (a) と FR-014 AC-521: 無音の区切りの時点で、音声の確定結果がまだ図に描き足されていなければ（更新間隔の前）、
+// 描き足しの時点（新しい要素が図に加わった時点）で再配置する
+test('FR-080 AC-437 (a) FR-014 AC-521: 音声の確定結果は、無音の区切りの後の描き足しの時点で再配置される', async () => {
+  const { app, sched, speech, count } = await mk({ interval: 0 });
+  sched.to(500); confirmNow(app, '会議室は三階にあります');
+  sched.to(4000); // 無音で再配置済み
+  const c0 = count();
+  sched.to(5000); speech.emit('会議室の予約は三階です', true); // 同じシーン・同じトピック。図への描き足しは 10 秒の時点
+  sched.to(8000);
+  assert.equal(count(), c0, '無音 3 秒の時点では、まだ新しい要素が図にないので再配置しない');
+  assert.equal(app.getArrangeStatus().pending, false);
+  sched.to(app.getLiveInterval().sec * 1000 - 1);
+  assert.equal(count(), c0);
+  sched.to(app.getLiveInterval().sec * 1000);
+  sched.advance(0);
+  assert.equal(count(), c0 + 1, '描き足しの時点で再配置');
+  assert.equal(app.getArrangeStatus().pending, false);
+});
+
+// FR-080 AC-435 と FR-014 AC-521: 周期と更新間隔が同じ時点（初期値どうし 10 秒）なら、描き足した要素をその時点で再配置する
+test('FR-080 AC-435 FR-014 AC-521: 周期の時点とライブの描き足しが同じ時点なら、描き足してから再配置する', async () => {
+  const { app, sched, speech, count } = await mk();
+  assert.equal(app.getArrangeInterval().sec, app.getLiveInterval().sec, '初期値はどちらも 10 秒');
+  sched.to(2000); speech.emit('会議室は三階にあります', true);
+  sched.to(9999);
+  assert.equal(count(), 0);
+  assert.equal(app.getState().scenes.length, 0, '描き足しの前は図にない');
+  sched.to(10_000);
+  assert.equal(app.getState().scenes.length, 1, '10 秒の時点で描き足す');
+  assert.equal(count(), 1, '同じ 10 秒の時点で再配置する（次の周期まで待たない）');
+  assert.equal(app.getArrangeStatus().pending, false);
 });

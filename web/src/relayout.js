@@ -143,6 +143,7 @@ export function relayoutModule(ctx) {
   const vis = ctx.options.visibility ?? null;
   const isHidden = () => Boolean(vis ? vis.hidden : globalThis.document?.hidden);
   let deferred = false;
+  let periodAwaiting = false; // 周期の時点でライブの発話がまだ図に描き足されていなかった（FR-014 AC-521）
   // AC-439: プレゼンテーション（FR-010）の再生中は、再生中の図を動かさず再配置を保留する（休止・終了した後の最初の時点で行う）
   const isPlaying = () => state.presentation?.status === 'playing';
   let wasPlaying = false;
@@ -161,10 +162,11 @@ export function relayoutModule(ctx) {
 
   // 周期（P>0）: 起点から P 秒ごとの時点で、前の時点以降に新しい要素が加わっていたときだけ再配置する
   const startPeriod = () => {
-    clear('period');
+    clear('period'); periodAwaiting = false;
     if (intervalSec <= 0) return;
     const periodMs = intervalSec * 1000;
-    const tick = () => { arm('period', periodMs, tick); request(); };
+    // 周期の時点で、まだ図に描き足されていないライブの発話（FR-014 AC-521）があれば、それを描き足した時点（'live:tick'）でも再配置する
+    const tick = () => { arm('period', periodMs, tick); if ((ctx.heldCount?.() ?? 0) > 0) periodAwaiting = true; request(); };
     arm('period', periodMs, tick);
   };
 
@@ -179,7 +181,11 @@ export function relayoutModule(ctx) {
     confirmedIds = new Set(state.scenes.filter((s) => s.status === 'confirmed').map((s) => s.id));
     topicIds = new Set(topics().map((tp) => tp.id));
   };
-  const armSilence = () => { if (auto()) arm('silence', SILENCE_SEC * 1000, request); };
+  // FR-014 AC-521: ライブの確定結果は更新間隔ごとに図へ描き足される。無音の区切りの時点でまだ図にない発話があれば、
+  // 描き足し（'live:tick'）の時点で再配置する（新しい要素が図に加わってから。AC-521「再配置は更新時にも行われ得る」）
+  let breakAwaiting = false;
+  const onSilence = () => { if ((ctx.heldCount?.() ?? 0) > 0) { breakAwaiting = true; return; } request(); };
+  const armSilence = () => { if (auto()) arm('silence', SILENCE_SEC * 1000, onSilence); };
   const armHold = () => {
     if (!auto() || firstPendingAt == null) return;
     arm('hold', firstPendingAt + HOLD_MAX_SEC * 1000 - now(), request);
@@ -208,7 +214,12 @@ export function relayoutModule(ctx) {
     const newTopic = [...topicIds].some((id) => !prevTopics.has(id));
     if (p && (sceneConfirmed || newTopic)) arm('soon', 0, request); // 状態の変更が終わってから再配置する
   });
-  ctx.on('utterance', () => armSilence()); // 確定結果の受付から無音を数え直す
+  ctx.on('utterance', () => { if (!ctx.flushing) armSilence(); }); // 確定結果の受付から無音を数え直す（ライブの描き足しの通知では数え直さない）
+  ctx.on('utterance:held', () => { breakAwaiting = false; armSilence(); }); // ライブの確定結果も受付の時点で数え直す
+  ctx.on('live:tick', () => {
+    if (breakAwaiting && auto()) { breakAwaiting = false; request(); }
+    if (periodAwaiting && !auto()) { periodAwaiting = false; request(); }
+  });
 
   // 周期の変更（設定画面・コマンドの検索・キーボード・マウス。AC-436・AC-440）
   let msgKey = null; let msgFn = null;

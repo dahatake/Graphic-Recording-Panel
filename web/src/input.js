@@ -1,7 +1,7 @@
 // FR-002: 代替入力（手入力の送信はアプリ本体の submitDraft、ここはテキストファイルの取込）。
 // 取込の各行は、取込時の同一の受付時刻を持ち、無音間隔では分割しない（FR-003 AC-044）。
 // FR-022: .vtt（WebVTT）は vtt.js の純関数で cue ごとの本文だけを取り出す。
-import { isWebVtt, parseVttCues } from './vtt.js';
+import { isWebVtt, parseVttCues, cueOffsets } from './vtt.js';
 export const MAX_FILE_BYTES = 1 * 1024 * 1024; // PARAM-003: 1 MB
 
 export function validateTextFile({ name, type, size, text }) {
@@ -99,14 +99,7 @@ export function inputModule(ctx) {
       setImp({ state: 'processing', reason: null, processed: 0, total: lines.length, added: null, inputReset: false });
       const base = ctx.now();
       // FR-022 AC-113: 最初の cue=取込時刻、以降は開始時刻の差だけ遅らせる（読めない・戻る cue は直前の時刻）
-      let ats;
-      if (cues) {
-        let first = null; let prev = 0;
-        ats = cues.map((c) => {
-          if (c.startMs != null) { if (first == null) first = c.startMs; prev = Math.max(prev, c.startMs - first); }
-          return base + prev;
-        });
-      }
+      const ats = cues ? cueOffsets(cues).map((d) => base + d) : undefined;
       let added = 0;
       for (let from = 0; from < lines.length; from += CHUNK) {
         const part = lines.slice(from, from + CHUNK);

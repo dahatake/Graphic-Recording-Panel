@@ -6,9 +6,9 @@
 //   ctx.registerPanelRenderer(id, (host, ctx) => void)  パネルの描画（ui.js が呼ぶ）
 //   ctx.api                          app の公開面（機能が追加のメソッドを生やす）
 //   ctx.change(fn) / ctx.state       状態の変更（自動保存・再描画の通知つき）
-//   ctx.on(event, fn) / ctx.emit     'session:start|pause|resume|stop' 'utterance' 'lang' など
+//   ctx.on(event, fn) / ctx.emit     'session:start|pause|resume|stop' 'utterance' 'utterance:held' 'live:tick' 'lang' など
 //   ctx.i18n.addStrings({ja,en})     UI 文言
-//   ctx.addUtterance(text)           発話の追加（記録中のみ。音声・ファイル取込もここを通す）
+//   ctx.addUtterance(text, opts)     発話の追加（記録中のみ。音声・ファイル取込もここを通す。opts.hold はライブの描き足し待ち。ctx.flushHeld で取り込む）
 
 import { createI18n } from './i18n.js';
 import * as L from './layout.js';
@@ -233,6 +233,7 @@ export async function createApp(options = {}) {
     pointHooks: [],
     // 進行中のシーンを確定し、次の発話から新しいシーンにする（session.nextScene と同じ結果。FR-098 AC-571。記録の状態は問わない）
     breakScene() {
+      ctx.flushHeld(); // FR-014 AC-521: 区切りの前に届いていた発話は、区切りの前のシーンに入れる
       const cur = state.scenes[state.scenes.length - 1];
       breakScene = true;
       if (cur && cur.status === 'in_progress') { change(() => { cur.status = 'confirmed'; }); return cur.id; }
@@ -241,38 +242,68 @@ export async function createApp(options = {}) {
     // 発話の追加（記録中のみ）。opts.at: 受付時刻の指定、opts.ats: 発話ごとの受付時刻（件数が同じときのみ。FR-022）、opts.anyState: 記録中以外でも追加（ファイル取込のみ。FR-039）、opts.noGapSplit: 無音間隔で分割しない（ファイル取込: FR-003 AC-044）。
     addUtterance(text, opts) { return ctx.addUtterances([text], opts) > 0; },
     // 複数の発話を 1 回の状態変更（保存・再描画）で追加する。追加した件数を返す。
+    // opts.hold（FR-014 AC-521）: ライブ（音声・.vtt の再生取込）の確定結果。発話としてはすぐ記録・保存し（held の印）、
+    //   図（シーン・要点）への取り込みは ctx.flushHeld()（更新間隔ごと）でまとめて行う。通知は 'utterance:held'。
+    //   hold なし（手入力・一括取込）は、先に届いていた held の発話を順に取り込んでから自分を取り込む（順序を保つ）。
     addUtterances(texts, opts = {}) {
       const list = texts.map((x) => String(x ?? '').trim()).filter(Boolean);
       if ((state.session !== 'recording' && !opts.anyState) || !list.length) return 0; // FR-039: ファイル取込は状態によらず可（opts.anyState）
       const at0 = opts.at ?? now();
+      let flushed = [];
       change((s) => {
+        if (!opts.hold) flushed = ingestHeld(s);
         for (const [i, raw] of list.entries()) {
           const at = Array.isArray(opts.ats) && opts.ats.length === list.length ? opts.ats[i] : at0;
-            // FR-093 AC-550: 用語集の別表記は、発話として記録する時点で正しい表記に置き換える（置き換える前は rawText に残す。FR-024 AC-572）
-            const t = ctx.applyGlossary ? (ctx.applyGlossary(raw).trim() || raw) : raw;
-            const uid = nextId('u');
-            s.utterances.push({ id: uid, text: t, rawText: raw, receivedAt: at });
-          const cur = s.scenes[s.scenes.length - 1];
-          const prevAt = s.utterances.length > 1 ? s.utterances[s.utterances.length - 2].receivedAt : null;
-          const gap = !opts.noGapSplit && prevAt != null && at - prevAt > gapMs;
-          if (cur && cur.status === 'in_progress' && !breakScene && !gap) {
-            const n0 = cur.points.length;
-            appendPoints(cur, extractPoints(t), nextId, uid);
-            tagNew(cur.points.slice(n0));
-          } else {
-            if (cur && cur.status === 'in_progress') cur.status = 'confirmed';
-            const sc = newScene(t, nextId, uid);
-            tagNew(sc.points);
-            s.scenes.push(sc);
-            if (!s.selectedSceneId) s.selectedSceneId = sc.id;
-          }
-          breakScene = false;
+          // FR-093 AC-550: 用語集の別表記は、発話として記録する時点で正しい表記に置き換える（置き換える前は rawText に残す。FR-024 AC-572）
+          const t = ctx.applyGlossary ? (ctx.applyGlossary(raw).trim() || raw) : raw;
+          const u = { id: nextId('u'), text: t, rawText: raw, receivedAt: at };
+          if (opts.hold) u.held = true;
+          s.utterances.push(u);
+          if (!opts.hold) ingestOne(s, s.utterances.length - 1, opts.noGapSplit === true);
         }
       });
-      for (const t of list) emit('utterance', t);
+      if (opts.hold) { emit('utterance:held', list.length); return list.length; }
+      for (const t of [...flushed, ...list]) emit('utterance', t);
       return list.length;
     },
+    // FR-014 AC-521: 図にまだ取り込んでいないライブの発話（held）の件数と、それらをまとめて 1 回の状態変更で取り込む操作（取り込んだ件数を返す）
+    heldCount: () => { let n = 0; for (let i = state.utterances.length - 1; i >= 0 && state.utterances[i].held; i--) n++; return n; },
+    flushHeld() {
+      if (!ctx.heldCount()) return 0;
+      let done = [];
+      change((s) => { done = ingestHeld(s); });
+      ctx.flushing = true; // 受付ではなく図への取り込みの通知（relayout.js は無音を数え直さない）
+      try { for (const t of done) emit('utterance', t); } finally { ctx.flushing = false; }
+      return done.length;
+    },
   };
+  // 発話（state.utterances[idx]）を図のシーン・要点に取り込む。無音の間隔は直前の発話の受付時刻との差で判定する（FR-003）
+  function ingestOne(s, idx, noGapSplit) {
+    const u = s.utterances[idx]; const t = u.text; const uid = u.id;
+    const cur = s.scenes[s.scenes.length - 1];
+    const prevAt = idx > 0 ? s.utterances[idx - 1].receivedAt : null;
+    const gap = !noGapSplit && prevAt != null && u.receivedAt - prevAt > gapMs;
+    if (cur && cur.status === 'in_progress' && !breakScene && !gap) {
+      const n0 = cur.points.length;
+      appendPoints(cur, extractPoints(t), nextId, uid);
+      tagNew(cur.points.slice(n0));
+    } else {
+      if (cur && cur.status === 'in_progress') cur.status = 'confirmed';
+      const sc = newScene(t, nextId, uid);
+      tagNew(sc.points);
+      s.scenes.push(sc);
+      if (!s.selectedSceneId) s.selectedSceneId = sc.id;
+    }
+    breakScene = false;
+  }
+  // held の発話（末尾に続く）を古い順に取り込み、印を外す。取り込んだ本文の配列を返す
+  function ingestHeld(s) {
+    let i = s.utterances.length;
+    while (i > 0 && s.utterances[i - 1].held) i--;
+    const out = [];
+    for (; i < s.utterances.length; i++) { delete s.utterances[i].held; ingestOne(s, i, false); out.push(s.utterances[i].text); }
+    return out;
+  }
 
   // ---- 状態・言語 ----
   app.getState = () => clone(state);
@@ -470,6 +501,8 @@ export async function createApp(options = {}) {
   for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, viewStateModule, sessionModule, settingsModule, stylePickerModule, autoLayoutModule, layoutKindsModule, rpgModule, rpgAudioModule, llmModule, llmDrawModule, stylePresetModule, workshopModule, boardModule, relayoutModule, liveRefreshModule, speechSettingsModule, budgetModule, presentExportModule, meetingModule, minutesModule, agendaTimerModule, editHistoryModule, facilitationModule, kindStylesModule, glossaryModule, agendaViewModule, reviewModule, previewModule, visibilityModule,   conflictModule, voteModule, rolesModule, projectionModule, onboardingModule, drawModule, cinematicModule, gaugeModule, personVariantsModule, ...(options.modules ?? [])]) await app.use(mod);
   // 機能ごとの保存項目の復元（モジュールが保存項目を登録した後）
   if (saved?.extras) ctx.importExtras(saved.extras);
+  // FR-014 AC-521: 記録中に閉じられて図に取り込まれていなかったライブの発話（held）は、復元の時点で取り込む（失わない）
+  ctx.flushHeld();
 
   // FR-078: 画像生成 AI 向けのプロンプトのコピー（描画スタイル・レイアウト型・トピックの登録の後に足す）
   await app.use(imagePromptModule);
