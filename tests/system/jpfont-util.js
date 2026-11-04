@@ -22,11 +22,21 @@ export const TRADITIONAL = {
   gothic: ['BIZ UDPGothic', 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', 'Noto Sans JP', 'sans-serif'],
 };
 
+// FR-076 AC-670: 手書き風の系統の並びに Yomogi・Zen Kurenaido・Kaisei Decol を、NFR-UX-012（AC-466）の位置
+// （Yu Gothic UI の後の、日本語の字形を持ち得る書体の先頭）にこの順で含める。従来の並びにあった同名の書体はそこへ移す（重複させない）。
+// TRADITIONAL（記録）は変えず、期待の並びの側で足す。
+export const JP_HEAD = { handwriting: ['Yomogi', 'Zen Kurenaido', 'Kaisei Decol'] };
+
 // NFR-UX-012 の並び: 従来の並びにあった欧文専用の書体（従来の順）→ Yu Gothic UI → 従来の並びの残り（従来の順）
-export function expectedStack(traditional) {
-  const t = traditional.filter((n) => n !== YU);
-  return [...t.filter(isLatinOnly), YU, ...t.filter((n) => !isLatinOnly(n))];
+// head: Yu Gothic UI の直後に置く日本語の字形を持ち得る書体（AC-670）
+export function expectedStack(traditional, head = []) {
+  const t = traditional.filter((n) => n !== YU && !head.includes(n));
+  return [...t.filter(isLatinOnly), YU, ...head, ...t.filter((n) => !isLatinOnly(n))];
 }
+// 書体の系統（handwriting・roundGothic・gothic）の期待の並び（AC-466・AC-407・AC-670）
+export const expectedFamilyStack = (family) => expectedStack(TRADITIONAL[family], JP_HEAD[family] || []);
+// 書体の系統の並びに現れてよい書体名（欧文専用の書体は足さない。AC-466）
+export const allowedFamilyNames = (family) => [YU, ...TRADITIONAL[family], ...(JP_HEAD[family] || [])];
 
 const norm = (n) => String(n).trim();
 // 規則の確認（AC-465・AC-466）: Yu Gothic UI があり、それより前は欧文専用の書体だけ

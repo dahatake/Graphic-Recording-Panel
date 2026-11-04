@@ -20,7 +20,7 @@ export const PRESETS = [
   { ja: 'クラフト紙風', en: 'Kraft Paper', paper: 'kraft', font: 'handwriting', heading: 'sticky', balloon: 'sticky', wobble: true, width: 'medium', figures: true },
   // AC-670（依頼 2026-11-04）。3.6 の表の行: 暖色カード風＝白紙・手書き風・マーカー下線・角丸（白いカード）・揺らぎあり・中・線画人物あり、青見出し風＝白紙・丸ゴシック・帯に白抜き文字・角丸・揺らぎなし・中・線画人物あり
   { ja: '暖色カード風', en: 'Warm Cards', paper: 'plain', font: 'handwriting', heading: 'marker', balloon: 'rounded', wobble: true, width: 'medium', figures: true },
-  { ja: '青見出し風', en: 'Blue Headings', paper: 'plain', font: 'roundGothic', heading: 'band', balloon: 'rounded', wobble: false, width: 'medium', figures: true },
+  { ja: '青見出し風', en: 'Blue Heading', paper: 'plain', font: 'roundGothic', heading: 'band', balloon: 'rounded', wobble: false, width: 'medium', figures: true },
 ];
 export const PAPERS = ['plain', 'grid', 'ruled', 'chalkboard', 'whiteboard', 'kraft'];
 export const FONTS = ['handwriting', 'roundGothic', 'gothic'];

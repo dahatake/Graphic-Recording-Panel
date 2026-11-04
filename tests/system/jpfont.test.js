@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { newApp, seedThreeScenes, toDetail, WEB } from './helpers.js';
 import { LEGACY, PRESETS, FONTS, parseSvg, fontList, presetIds, stateTexts } from './stylepreset-util.js';
-import { YU, PARAM_093, TRADITIONAL, expectedStack, assertJpOrder, familiesOfFont, makeRecordingCanvas, withNetSpy, cssFontStacks } from './jpfont-util.js';
+import { YU, PARAM_093, TRADITIONAL, expectedStack, expectedFamilyStack, allowedFamilyNames, assertJpOrder, familiesOfFont, makeRecordingCanvas, withNetSpy, cssFontStacks } from './jpfont-util.js';
 
 const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
 const read = (f) => fs.readFileSync(f, 'utf8');
@@ -108,13 +108,13 @@ test('NFR-UX-012 AC-466: 書体の系統の並びは 欧文専用の書体（従
   for (const k of FONTS) {
     const names = st[k].map((f) => f.name);
     assertJpOrder(names, k);
-    assert.deepEqual(names, expectedStack(TRADITIONAL[k]), `${k}: ${names.join(', ')}`);
+    assert.deepEqual(names, expectedFamilyStack(k), `${k}: ${names.join(', ')}`);
   }
   // 例: ゴシックの系統は Yu Gothic UI が先頭、手書き風の系統は欧文専用の書体の次に Yu Gothic UI
   assert.equal(st.gothic[0].name, YU);
   assert.deepEqual(st.handwriting.slice(0, 4).map((f) => f.name), ['Segoe Print', 'Ink Free', 'Arial Rounded MT Bold', YU]);
   assert.deepEqual(st.roundGothic.slice(0, 2).map((f) => f.name), ['Arial Rounded MT Bold', YU]);
-  for (const k of FONTS) assert.ok(st[k].every((f) => f.name === YU || PARAM_093.includes(f.name) || TRADITIONAL[k].includes(f.name)), `${k}: 書体を足さない`);
+  for (const k of FONTS) assert.ok(st[k].every((f) => f.name === YU || PARAM_093.includes(f.name) || allowedFamilyNames(k).includes(f.name)), `${k}: 書体を足さない（AC-670 の 3 書体を除く）`);
 });
 
 test('NFR-UX-012 AC-466: 15 の描画スタイルと拡張点で追加した画風プリセットのすべてで、図（SVG）の書体の指定は NFR-UX-012 の並び', async () => {
@@ -127,7 +127,7 @@ test('NFR-UX-012 AC-466: 15 の描画スタイルと拡張点で追加した画�
     assert.equal(app.setDrawStyle(s.id).ok, true, s.id);
     const svg = app.renderSvg();
     const spec = app.getDrawStyleSpec(s.id);
-    const want = spec && spec.preset ? expectedStack(TRADITIONAL[spec.font]) : expectedStack(TRADITIONAL.legacy);
+    const want = spec && spec.preset ? expectedFamilyStack(spec.font) : expectedStack(TRADITIONAL.legacy);
     const lists = ffAll(svg);
     assert.ok(lists.length >= 1, `${s.id}: 図に書体の指定がある`);
     assert.deepEqual(fontList(parseSvg(svg).root.attrs['font-family']), want, `${s.id}: ルートの書体の指定`);
@@ -144,7 +144,7 @@ test('NFR-UX-012 AC-466: PNG・SVG・PDF の保存と RPG風の地図など Canv
   for (const id of targets) {
     assert.equal(app.setDrawStyle(id).ok, true, id);
     const spec = app.getDrawStyleSpec(id);
-    const want = spec && spec.preset ? expectedStack(TRADITIONAL[spec.font]) : expectedStack(TRADITIONAL.legacy);
+    const want = spec && spec.preset ? expectedFamilyStack(spec.font) : expectedStack(TRADITIONAL.legacy);
     const nFonts = canvas.log.fonts.length; const nDl = env.downloads.length;
     const calls = await withNetSpy(async () => { for (const c of ['save.png', 'save.svg', 'save.pdf']) await app.commands[c](); });
     assert.deepEqual(calls, [], `${id}: 書体・画像のための外部へのリクエスト 0 件`);

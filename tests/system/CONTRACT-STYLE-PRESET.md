@@ -3,7 +3,7 @@
 この契約は、System Test（`tests/system/stylepreset.test.js`）が実装を観察するための口です。期待値は要求定義書（FR-075・FR-076・3.6 の表）だけから決めています。既存の契約（`CONTRACT.md`「レイアウト型・描画スタイル・設定画面」「RPG風の描画スタイル」「図の演出」、`CONTRACT-LLM-CONSENT.md`）は変えず、ここに書いたものを加えます。
 
 ## 選択肢と識別子
-- `app.getDrawStyles()` → 15 件の `[{id,label}]`（既存の 4 つ `handwritten`・`anime`・`simple`・`rpg` と 11 の風。AC-670 で暖色カード風・青見出し風を追加）。風の `id` は実装が決める（テストは表示名で引く）。表示言語が日本語のとき、11 の風の `label` は 3.6 の表の日本語名（`黄黒手書き風`・`黒板風`・`付箋ボード風`・`色鉛筆風`・`ミント風`・`ビジネス風`・`ミニマル風`・`ポップ風`・`クラフト紙風`・`暖色カード風`・`青見出し風`）、`app.setLang('en')` の後は英語名（`Yellow Black`・`Chalkboard`・`Sticky Notes`・`Color Pencil`・`Mint Note`・`Business`・`Minimal`・`Pop Color`・`Kraft Paper`・`Warm Cards`・`Blue Headings`）。`label` は 15 件で互いに異なる。初期の既定は `handwritten` のまま。
+- `app.getDrawStyles()` → 15 件の `[{id,label}]`（既存の 4 つ `handwritten`・`anime`・`simple`・`rpg` と 11 の風。AC-670 で暖色カード風・青見出し風を追加）。風の `id` は実装が決める（テストは表示名で引く）。表示言語が日本語のとき、11 の風の `label` は 3.6 の表の日本語名（`黄黒手書き風`・`黒板風`・`付箋ボード風`・`色鉛筆風`・`ミント風`・`ビジネス風`・`ミニマル風`・`ポップ風`・`クラフト紙風`・`暖色カード風`・`青見出し風`）、`app.setLang('en')` の後は英語名（`Yellow Black`・`Chalkboard`・`Sticky Notes`・`Color Pencil`・`Mint Note`・`Business`・`Minimal`・`Pop Color`・`Kraft Paper`・`Warm Cards`・`Blue Heading`）。`label` は 15 件で互いに異なる。初期の既定は `handwritten` のまま。
 - `app.setDrawStyle(id)`・`app.setSettings({drawStyle:id})` は 11 の風の `id` も受け付ける。
 
 ## 定義の参照
@@ -24,7 +24,7 @@
 
 ## 日本語の字形の書体（NFR-UX-012。AC-465・AC-466。AC-061・AC-407・AC-408 の並びも同じ）
 - 欧文専用の書体は PARAM-093（`Segoe UI`・`Segoe UI Variable`・`Segoe Print`・`Ink Free`・`Arial Rounded MT Bold`）。それ以外の書体名・総称の書体・システムの書体のキーワード（`system-ui`・`-apple-system`・`BlinkMacSystemFont`・`sans-serif` など）は「日本語の字形を持ち得る書体」。
-- どの書体の指定も「従来の並びにあった欧文専用の書体（従来の順）→ `Yu Gothic UI` → 従来の並びの残り（従来の順）」。従来の並び（NFR-UX-012 の前、統合ブランチ de1f935 の記録）は `tests/system/jpfont-util.js` の `TRADITIONAL`（画面 `--font-sans`、既存の 4 つの描画スタイルの図・PNG・PDF・RPG風の地図、書体の系統 3 つ）。記録をやり直してはならない。
+- どの書体の指定も「従来の並びにあった欧文専用の書体（従来の順）→ `Yu Gothic UI` → 従来の並びの残り（従来の順）」。従来の並び（NFR-UX-012 の前、統合ブランチ de1f935 の記録）は `tests/system/jpfont-util.js` の `TRADITIONAL`（画面 `--font-sans`、既存の 4 つの描画スタイルの図・PNG・PDF・RPG風の地図、書体の系統 3 つ）。記録をやり直してはならない。 手書き風の系統（`handwriting`）は、AC-670 により `Yu Gothic UI` の直後（日本語の字形を持ち得る書体の先頭）に `Yomogi`・`Zen Kurenaido`・`Kaisei Decol` をこの順で置く（従来の並びにあった同名の書体はそこへ移す。`jpfont-util.js` の `JP_HEAD`・`expectedFamilyStack`）。
 - 画面（AC-465）: `web/` の CSS（`<style>` を含む）のすべての書体の指定（`font-family`・`font` の一括指定・`--font-*` の書体の並びのトークン）が上の規則に従い、`--font-sans` は従来の並びから上の規則で並べ替えたもの。表示言語で書体の指定を切り替えない。
 - 図と保存（AC-466）: `renderSvg()` のすべての `font-family` 属性、`save.svg` の `data`、PNG・PDF の保存で Canvas の `font` に代入する値の書体の部分（`options.canvasFactory` の 2D コンテキストへの代入で観察する）、`web/src` のスクリプトに書いた書体の指定の文字列が上の規則に従う。11 の風と追加した画風プリセットは `getFontStacks()[font]` の並び、既存の 4 つは `TRADITIONAL.legacy` から並べ替えたもの（`Yu Gothic UI` が先頭）。
 - 書体の有無（`options.fontCheck`。`Yu Gothic UI` がない場合を含む）で書体の指定・文字・`font-weight`・見出しの飾りは変わらない。書体のファイルを同梱せず、`@font-face`・`FontFace`・`document.fonts.load` を使わない。
