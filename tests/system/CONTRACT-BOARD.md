@@ -59,6 +59,8 @@
 - ステップの間の矢印（⇒）は `data-board-part="arrow"` に `data-between="<前の stepIndex>,<次の stepIndex>"` を付け、どのステップの `g` にも含めずに（`flow` の区画の中に）置く。隣り合うステップの組ごとに 1 つ。
 - `getBoardModel()` の `elements` では、ステップの部品に `stepIndex`（数）を、ステップの間の矢印に `between: [前, 次]` を付ける。
 - 別々のトピック（FR-025）の発言は別々のステップになる。テストは流れの 4 発言の前に `session.nextScene`（AC-008 の［次のシーン］）を実行して取り込む。
+- シーンの区切りがない会議（AC-666。2026-11-05 追加）: ［次のシーン］なし（1 シーン）でも、同じステップの中で (1) 無音: 発話の受付時刻（`options.now()`）が直前の要点の発話と PARAM-190（10 秒）以上離れる、(2) 話題語の入れ替わり: 同じステップのそれまでの要点と異なる語句を PARAM-015（2 語）以上共有しない、のいずれかが成り立つ位置で次のステップに区切る（ちょうど 10 秒を含む。9 秒で話題語が同じなら区切らない）。区切りは要点が加わる時点で決まり、同じ発話列なら毎回同じ。テストは `setDraft`・`submitDraft` の間に `now` と `scheduler.advance` を同じ量だけ進めて受付時刻の差を作る（PARAM-002 の 20 秒より短くし、シーンは分かれない）。語句は空白区切りの英単語で作る（共有する語句の数え方が日本語の分かち書きに依存しないように）。
+- 区画の余白（AC-669。PARAM-188・189。2026-11-05 追加）: `getBoardModel()` の `sections[].frame` と `elements` から、同じ横の並び（`frame.y` が同じ）で最も中身の高い区画を除く、要点のある区画（`assigned` に現れる区画）について、`frame.y + frame.h − max(要素の y + h)`（最後の要素の下の空き）が `frame.h` の 20%（PARAM-188）以下。要素の間隔・表の行の高さを広げて中身を縦に配分する（倍率は PARAM-189＝2 まで）ことで満たす。広げても超えるときだけ、その区画の `frame.h` は並びの高さに揃えず、自分の中身の高さにする（この場合も空きは 20% 以下）。要点が 0 件の区画は対象外。詰め直しの後（アニメーションの完了後）と、全 15 の描画スタイルで成り立つ。
 
 ## 強調（AC-667 (h)。2026-11-05 追加）
 - `data-board-part="emphasis"` の要素（マーカーの面・下線）には、`data-emph-word="<強調語>"` と `data-emph-start="<強調語の最初の文字の位置>"`（強調語を含む `<text>` の文字列（`textContent`）の中での 0 始まりの位置。UTF-16 の単位）を付ける。強調語の `<text>` は、強調の要素の祖先の `g` のどれかの子孫に置く（強調の要素の直近のまとまり）。
@@ -74,6 +76,6 @@
 
 ## 名前を表示しない（AC-680。2026-11-05 追加）
 - `app.getHideNames()` → 真偽値（既定 `false`＝名前を表示する）。`app.setHideNames(on)` → `{ ok }`。`on` が真偽値でないときは `{ ok:false }` で、直前の値を保つ。
-- ［設定］の項目 `board.hideNames`（`getSettingsDialog().fields` の `{ id:'board.hideNames', value:<真偽値>, label }`。ラベルは PARAM-011 以内で表示言語に従う）。コマンド `settings.hideNames` は［設定］を開いてこの項目にフォーカスし（`getSettingsDialog().focusedField === 'board.hideNames'`）、`handleKey({ key: ' ' })` で切り替わる。
+- ［設定］の項目 `board.hideNames`（`getSettingsDialog().fields` の `{ id:'board.hideNames', value:<真偽値>, label, description }`。ラベルは ja「名前を隠す」・en "Hide names"（AC-680）で PARAM-011 以内。`description`・`accessibleName`・`tooltip.text` のいずれかに「名前を表示しない」を含む）。コマンド `settings.hideNames` は［設定］を開いてこの項目にフォーカスし（`getSettingsDialog().focusedField === 'board.hideNames'`）、`handleKey({ key: ' ' })` で切り替わる。
 - 値は端末ごとの設定（`options.storage`）に保存され、再生成（再読込）後も保たれ、`data.reset`・`loadSessionFile` では変わらず、セッションファイルに含めない（`hideNames` などの項目名も出さない）。
 - オンのとき、`data-board-name` の文字を図・テキスト一覧・PNG・SVG・PDF・Markdown のどれにも出さない（人物の絵記号は残す）。名簿の入力と話者タグの名前の保持は消さない。切り替えの値によらず、LLM への送信と `getImagePrompt()` に名前は入らない（上の「人物の名前」）。

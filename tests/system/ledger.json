@@ -280,13 +280,15 @@
     "AC-663": "sha256:5d49ca9dc09bb3cd",
     "AC-661": "sha256:7a240add947338ad",
     "AC-662": "sha256:18d6be9b8d90b196",
-    "AC-667": "sha256:bf46153c0cc7d4b4",
+    "AC-667": "sha256:749692a9039220ed",
     "AC-671": "sha256:c0ef5951beb00337",
     "AC-672": "sha256:08d68711c656463d",
     "AC-673": "sha256:3b3b7ce394485d98",
     "AC-676": "sha256:3ec1900e10924ead",
     "AC-679": "sha256:aaf33bf0bacb220a",
-    "AC-680": "sha256:d6f0ed0c4f1ca26a"
+    "AC-680": "sha256:a46d7d3fa98dc43e",
+    "AC-666": "sha256:7136bdaca401be86",
+    "AC-669": "sha256:bc2ca2a611e93084"
   },
   "cases": [
     {
@@ -9410,7 +9412,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-667|AC-680\" tests/system/board.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "146a4e6",
       "last_run_at": "2026-11-05T06:18:31+09:00",
       "evidence": "work/runs/202611050444/logs/system-test/E2E-289-202611050617.log",
@@ -9438,6 +9440,30 @@
           "by": "test-designer",
           "change": "title: 'FR-114 AC-667 AC-680 会議ボード型: TeamA の会議の固定の文字起こしで (a)〜(g)、(h) 強調の左右端のずれ ≤0.5 文字（実ブラウザの getExtentOfChar・15 の描画スタイル）、(i) 議論の流れの 4 つ以上のステップ（番号バッジ・吹き出し・人物が 1 組ずつ・間ごとに矢印）。AC-680 名前を表示しない（既定オフ・キーボード・図/一覧/PNG/SVG/PDF に名前なし・端末ごとに保存・LLM 送信に名前なし）。異常系: 不正な値・外部リクエスト 0 件' -> 'FR-114 AC-667 AC-680 会議ボード型: TeamA の会議の固定の文字起こしで (a)〜(g)、(h) 強調の左右端のずれ ≤0.5 文字（実ブラウザの getExtentOfChar・15 の描画スタイル）、(i) 議論の流れの 4 つ以上のステップ（番号バッジ・吹き出し・人物が 1 組ずつ・間ごとに矢印）。AC-680 名前を表示しない（既定オフ・キーボード・図/一覧/PNG/SVG/PDF/Markdown に名前なし・Markdown の名前の行は一覧と一致・端末ごとに保存・LLM 送信に名前なしで要点の中の名前は簡易マスキングによらず伏せ字・画像生成プロンプトに名前なし）。異常系: 不正な値・外部リクエスト 0 件'",
           "reason": "AC-680 の改訂（最終監査 202611050444 C-02・C-03。commit b4d4e4d）: Markdown を名前の出る/出ない出力に加え（AC-529 一覧と一致）、要点の中の名前は簡易マスキング無効でも伏せ字で送る・画像生成プロンプトに名前なし、を観察に追加"
+        },
+        {
+          "at": "2026-11-05T07:02:25+09:00",
+          "by": "test-designer",
+          "change": "ac_ids: ['AC-667', 'AC-680'] -> ['AC-666']",
+          "reason": "AC-667 (i) をシーンの区切りなし（無音 PARAM-190・話題語の入れ替わり）に拡張、AC-669 の空き ≤ PARAM-188 を各取込後・15 の描画スタイルで測る、AC-680 のラベル ja「名前を隠す」・en Hide names・説明に「名前を表示しない」（Q-047 A 反映）"
+        },
+        {
+          "at": "2026-11-05T07:02:34+09:00",
+          "by": "test-designer",
+          "change": "ac_ids: ['AC-666'] -> ['AC-667', 'AC-680', 'AC-669', 'AC-666']",
+          "reason": "AC-667 (i) をシーンの区切りなしに拡張、AC-669 の空き測定、AC-680 のラベル確定（誤って AC を 1 件に置換したため全 AC を指定し直す）"
+        },
+        {
+          "at": "2026-11-05T07:03:02+09:00",
+          "by": "test-designer",
+          "change": "ac_ids: ['AC-667', 'AC-680', 'AC-669', 'AC-666'] -> ['AC-667', 'AC-680']",
+          "reason": "AC-666・AC-669 は検証レベル integration で System の台帳の対象外（CHK-10）。同じテストファイルで測るが AC には載せない"
+        },
+        {
+          "at": "2026-11-05T07:03:03+09:00",
+          "by": "script",
+          "change": "status -> not_run",
+          "reason": "board.test.js を変更（AC-667 (i)・AC-669・AC-680 の期待）"
         }
       ]
     },
