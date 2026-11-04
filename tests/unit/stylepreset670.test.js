@@ -118,11 +118,17 @@ test('FR-076 AC-670: 青見出し風のタイトル帯・見出しは青のグ�
     const bands = tags(svg, /<[a-z]+ [^>]*data-style-role="heading-band"[^>]*>/g);
     assert.ok(bands.length >= 1);
     for (const b of bands) assert.equal(attr(b, 'fill'), 'url(#preset-band-grad)');
+    // AC-670（AC-410）: グラデーションを描けない描画系向けに、帯ごとに最も明るい位置の色の単色の下地があり、文字の data-back はその塗り
+    const bases = tags(svg, /<rect [^>]*data-style-role="heading-band-base"[^>]*>/g);
+    assert.equal(bases.length, bands.length, '帯ごとに単色の下地');
+    const baseFills = new Set(bases.map((b) => attr(b, 'fill').toLowerCase()));
+    assert.equal(baseFills.size, 1);
     const heads = tags(svg, /<text [^>]*data-role="(?:heading|topic-title)"[^>]*>/g);
     assert.ok(heads.length >= 1);
     for (const h of heads) {
       assert.equal(attr(h, 'fill'), '#ffffff', '白抜きの文字');
       assert.ok(contrastRatio('#ffffff', attr(h, 'data-back')) >= 4.5, '最も明るい位置で測る');
+      assert.ok(baseFills.has(attr(h, 'data-back').toLowerCase()), '文字の直下の背景は下地の塗り');
     }
     const icons = tags(svg, /<g [^>]*data-style-role="heading-icon"[^>]*>/g);
     assert.equal(icons.length, bands.length, '帯ごとに絵記号');

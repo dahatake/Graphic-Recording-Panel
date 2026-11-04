@@ -2,7 +2,7 @@
 // アイコンはインライン SVG のパス（Fluent System Icons 風の 20px・線画）。外部の資産は使わない。
 import { LAYOUT_TYPE_IDS, LAYOUT_TYPE_META } from './layouttypes.js';
 
-// NFR-UX-011 AC-459〜462: 作業順（左→右）の 10 グループ [見出しの i18n キー, コマンド名, グループ ID]。1 グループは PARAM-092（13）個以内。
+// NFR-UX-011 AC-459〜462: 作業順（左→右）の 10 グループ [見出しの i18n キー, コマンド名, グループ ID]。1 グループは PARAM-092（15）個以内。
 // DOM 順＝フォーカス順＝視覚順。取り消せない data.reset はデータの末尾。
 // 「画風」グループ（FR-077）のコマンド名は空で、描画スタイルの登録簿（getDrawStyles）から drawStyle.set:<id> を並べる（DRAW_STYLE_PREFIX）。
 export const GROUPS = [

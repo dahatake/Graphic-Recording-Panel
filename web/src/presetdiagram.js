@@ -254,6 +254,8 @@ function headingSvg(look, id, x, y, w, status, heading, selected, boxes, glyph =
     // AC-670: グラデーションの帯（defs の preset-band-grad）。文字の直下の背景（data-back）は最も明るい位置の色で測る
     const grad = !!look.bandStops;
     const fill = grad ? 'url(#preset-band-grad)' : look.band;
+    // グラデーションを描けない描画系（PDF・一部の SVG ビューアー）向けの下地: 最も明るい位置の色の単色の帯（文字の data-back と同じ色）
+    if (grad) out.push(`<rect data-style-role="heading-band-base" x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${HEAD_H}" rx="4" fill="${look.bandBack}" stroke="none" aria-hidden="true"/>`);
     out.push(shapeEl(look, `data-style-role="heading-band" data-box="${box(x, y, w, HEAD_H)}"${grad ? ` data-gradient="${look.bandStops.join(' ')}"` : ''} fill="${fill}" stroke="${selected ? look.ink : look.band}" stroke-width="${sw}"`, x, y, w, HEAD_H, 'rect', `${id}:hb`, 4));
     out.push(head(look.bandText, grad ? look.bandBack : look.band));
     // 帯の右端に白抜きの絵記号（文字の外接矩形と重ならない。幅は見出しの文字の幅＋余白から決まっている）
