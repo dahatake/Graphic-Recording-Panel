@@ -3,7 +3,7 @@ import { PANEL_IDS, PANEL_COMMANDS, MIN_H, WORK_AREA_MIN_PCT } from './layout.js
 
 import { coalesceFrame } from './frame.js';
 import { patchHtml } from './morph.js';
-import { GROUPS, ICONS, PRIMARY, tooltipId, labelKey } from './commandbar.js';
+import { GROUPS, ICONS, tooltipId, labelKey } from './commandbar.js';
 
 function icon(doc, command, path) {
   const t = doc.createElement('template');
@@ -50,7 +50,7 @@ export function mountUI(app, doc = document) {
         const field = bi && ['select', 'slider', 'number'].includes(bi.kind) ? bi.kind : null;
         const b = doc.createElement(field ? 'div' : 'button'); // 値を入れる部品を持つ項目は、ボタンの中に部品を入れない（div）
         if (!field) b.type = 'button';
-        b.className = PRIMARY.has(name) ? 'btn btn-primary' : 'btn btn-subtle'; b.dataset.command = name;
+        b.className = 'btn btn-subtle'; b.dataset.command = name;
         const lab = doc.createElement('span'); lab.className = 'btn-label'; lab.textContent = bi?.label ?? app.t(labelKey(name));
         b.append(icon(doc, name, name.startsWith('drawStyle.set:') ? bi?.icon : ''), lab);
         // FR-073 AC-388: 取り込みは、取り込めるファイルの説明を常に文字で見せる（アイコンだけに頼らない）

@@ -5,7 +5,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createApp } from '../../web/src/app.js';
-import { GROUPS, ICONS, PRIMARY } from '../../web/src/commandbar.js';
+import * as commandbar from '../../web/src/commandbar.js';
+import { GROUPS, ICONS } from '../../web/src/commandbar.js';
 
 const WEB = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'web');
 const read = (f) => fs.readFileSync(path.join(WEB, f), 'utf8');
@@ -64,7 +65,8 @@ test('NFR-UX-001 AC-059: prefers-reduced-motion で transition/animation を省�
 // NFR-UX-001 AC-060: コマンドバーの定義（アイコン・主要コマンド・状態文言）
 test('NFR-UX-001 AC-060: すべてのコマンドにアイコンがあり、状態文言は日英で状態・音声認識・言語・表示を示す', async () => {
   for (const [, names] of GROUPS) for (const n of names) assert.ok(ICONS[n], `${n} のアイコン`);
-  assert.ok(PRIMARY.has('session.start'));
+  // FR-072 AC-647: 塗りつぶしの主要コマンド（PRIMARY）は廃止
+  assert.equal(commandbar.PRIMARY, undefined);
   const a = await createApp({ storage: null ?? undefined, env: {}, speechSource: { processLocally: true, start() {}, stop() {} } });
   const ja = a.getCommandBar().status.text;
   assert.match(ja, /準備中/); assert.match(ja, /音声認識: 使えます/); assert.match(ja, /日本語/); assert.match(ja, /2D/);
