@@ -2,13 +2,15 @@
 // アイコンはインライン SVG のパス（Fluent System Icons 風の 20px・線画）。外部の資産は使わない。
 import { LAYOUT_TYPE_IDS, LAYOUT_TYPE_META } from './layouttypes.js';
 
-// NFR-UX-011 AC-459〜462: 作業順（左→右）の 9 グループ [見出しの i18n キー, コマンド名, グループ ID]。1 グループは PARAM-092（12）個以内。
+// NFR-UX-011 AC-459〜462: 作業順（左→右）の 10 グループ [見出しの i18n キー, コマンド名, グループ ID]。1 グループは PARAM-092（13）個以内。
 // DOM 順＝フォーカス順＝視覚順。取り消せない data.reset はデータの末尾。
+// 「画風」グループ（FR-077）のコマンド名は空で、描画スタイルの登録簿（getDrawStyles）から drawStyle.set:<id> を並べる（DRAW_STYLE_PREFIX）。
 export const GROUPS = [
   ['toolbar.import', ['import.file'], 'import'],
   ['toolbar.session', ['session.start', 'session.pause', 'session.resume', 'session.stop', 'session.nextScene', 'input.focus'], 'session'],
-  // FR-077: 画風（描画スタイル。〇〇風）の一覧を開くボタンは「表示」の末尾（一覧・選択は stylepicker.js）
-  ['toolbar.view', ['view.2d', 'view.3d', 'view.timeline', 'view.arrange', 'detail.next', 'drawStyle.pick'], 'view'],
+  ['toolbar.view', ['view.2d', 'view.3d', 'view.timeline', 'view.arrange', 'detail.next'], 'view'],
+  // FR-077: 画風（描画スタイル。〇〇風）は「表示」の直後に常時表示（選択・押下は stylepicker.js）
+  ['toolbar.drawStyle', [], 'drawStyle'],
   ['toolbar.layoutType', [...LAYOUT_TYPE_IDS.map((id) => `layoutType.${id}`), 'layoutType.clear'], 'layoutType'],
   // FR-030 AC-519・FR-084: ［設定］を開く＋［設定］パネルの項目（決め方・音のミュート・音量・再配置の周期）。型のチェックはレイアウト型、描画スタイルは表示に 1 つだけ（settings.js・ribbonsettings.js）
   ['toolbar.settings', ['settings.open', 'settings.layoutMode', 'sound.toggleMute', 'sound.setVolume', 'arrange.setInterval', 'settings.talkPreset'], 'settings'],
@@ -27,7 +29,7 @@ const LABELS = {
   'save.png': ['PNG保存', 'Save PNG'], 'save.svg': ['SVG保存', 'Save SVG'], 'save.pdf': ['PDF保存', 'Save PDF'],
   'lang.ja': ['日本語', 'Japanese'], 'lang.en': ['英語', 'English'],
   'view.2d': ['2D表示', '2D view'], 'view.3d': ['3D表示', '3D view'], 'view.timeline': ['時系列', 'Timeline'], 'view.arrange': ['整理', 'Arrange'], 'detail.next': ['詳細度', 'Detail'],
-  'theme.toggle': ['配色', 'Theme'], 'drawStyle.pick': ['画風', 'Art style'],
+  'theme.toggle': ['配色', 'Theme'],
   'presentation.start': ['発表開始', 'Present'], 'presentation.pause': ['発表休止', 'Pause talk'], 'presentation.resume': ['発表再開', 'Resume talk'],
   'presentation.stop': ['発表終了', 'End talk'], 'presentation.prev': ['前へ', 'Previous'], 'presentation.next': ['次へ', 'Next'],
   'layout.tile': ['タイル', 'Tile'], 'layout.focus': ['集中', 'Focus'], 'layout.maximize': ['最大化', 'Maximize'], 'layout.reset': ['配置初期化', 'Reset layout'],
@@ -75,7 +77,7 @@ export const ICONS = {
   'session.start': P.rec, 'session.pause': P.pause, 'session.resume': P.play, 'session.stop': P.stop,
   'session.nextScene': P.next, 'input.focus': P.edit, 'import.file': P.import,
   'save.png': `M9 10h2`, 'save.svg': `M8 10l1.500 2L11 10`, 'save.pdf': `M8 10h4M8 12h4`, 'lang.ja': P.lang, 'lang.en': `M5 5h10`,
-  'view.2d': P.square, 'view.3d': P.cube, 'theme.toggle': P.theme, 'drawStyle.pick': P.palette, 'view.timeline': 'M3 10h14M6 6v8M10 4v12M14 7v6', 'view.arrange': P.tile, 'detail.next': P.detail,
+  'view.2d': P.square, 'view.3d': P.cube, 'theme.toggle': P.theme, 'view.timeline': 'M3 10h14M6 6v8M10 4v12M14 7v6', 'view.arrange': P.tile, 'detail.next': P.detail,
   // 発表（画面の枠＋記号）は記録（記号だけ）と別の形にする（同じ機能でない項目のアイコンを重ねない）
   'presentation.start': P.present, 'presentation.pause': 'M2 3h16v11H2zM8 6v5M12 6v5M7 17h6', 'presentation.resume': 'M2 3h16v11H2zM8 5.500v6l5-3zM7 17h6',
   'presentation.stop': 'M2 3h16v11H2zM7.500 6.500h5v5h-5zM7 17h6', 'presentation.prev': 'M2 3h16v11H2zM12 5.500l-4 3 4 3zM7 17h6', 'presentation.next': 'M2 3h16v11H2zM8 5.500l4 3-4 3zM7 17h6', 'layout.reset': P.reset,
@@ -109,7 +111,6 @@ const TIP = {
   'view.arrange': ['図を縦軸・横軸の区分に整理して表示します', 'Show the diagram arranged by vertical and horizontal axes'],
   'detail.next': ['図の詳細度（大項目・中項目・詳細）を次へ切り替えます', 'Switch the diagram detail level (topics, scenes, full) to the next one'],
   'theme.toggle': ['画面の配色をダークとライトで切り替えます', 'Toggle the screen colors between dark and light'],
-  'drawStyle.pick': ['図の画風（〇〇風などの描画スタイル）を一覧から選び、図をすぐに描き替えます', 'Pick the art style of the diagram from a list and redraw it at once'],
   'presentation.start': ['シーンを順に見せるプレゼンテーションを始めます', 'Start a presentation that plays the scenes in order'],
   'presentation.pause': ['プレゼンテーションを一時停止します', 'Pause the presentation'],
   'presentation.resume': ['一時停止したプレゼンテーションを再開します', 'Resume the paused presentation'],
@@ -145,7 +146,7 @@ export function commandBarModule(ctx) {
   });
   ctx.i18n.addStrings({
     ja: {
-      'toolbar.import': '取り込み', 'toolbar.export': '図の書き出し', 'toolbar.environment': '画面・環境', 'toolbar.settings': '設定',
+      'toolbar.import': '取り込み', 'toolbar.drawStyle': '画風', 'toolbar.export': '図の書き出し', 'toolbar.environment': '画面・環境', 'toolbar.settings': '設定',
       'import.description': 'テキストファイル（.txt）・字幕ファイル（.vtt）を取り込みます',
       'status.speech.label': '音声認識',
       'status.lang': '言語',
@@ -155,7 +156,7 @@ export function commandBarModule(ctx) {
       'view.name.2d': '2D', 'view.name.3d': '3D',
     },
     en: {
-      'toolbar.import': 'Import', 'toolbar.export': 'Export diagram', 'toolbar.environment': 'Screen & environment', 'toolbar.settings': 'Settings',
+      'toolbar.import': 'Import', 'toolbar.drawStyle': 'Art style', 'toolbar.export': 'Export diagram', 'toolbar.environment': 'Screen & environment', 'toolbar.settings': 'Settings',
       'import.description': 'Import a text file (.txt) or a caption file (.vtt)',
       'status.speech.label': 'Speech',
       'status.lang': 'Language',
@@ -179,9 +180,13 @@ export function commandBarModule(ctx) {
     ].join(' ｜ ');
     return { role: 'status', live: 'polite', session: st.session, speech, text };
   };
-  const known = (c) => GROUPS.some(([, n]) => n.includes(c)) && typeof api.commands[c] === 'function';
+  const DS = 'drawStyle.set:'; // FR-077: 画風のコマンド（登録簿から動的に作る。名前・説明は登録簿の値）
+  const dsOf = (c) => (typeof c === 'string' && c.startsWith(DS) ? api.getDrawStyles?.().find((s) => s.id === c.slice(DS.length)) ?? null : null);
+  const labelOfCmd = (c) => dsOf(c)?.label ?? ctx.t(labelKey(c));
+  const tipText = (c) => { const s = dsOf(c); return s ? (api.getDrawStyleShortText?.(s.id) || s.label) : ctx.t(`tooltip.${c}`); };
+  const known = (c) => (GROUPS.some(([, n]) => n.includes(c)) || !!dsOf(c)) && typeof api.commands[c] === 'function';
   let shown = null; // 表示中の説明文のコマンド（同時に 1 つ）
-  const tip = (command) => ({ id: tooltipId(command), text: ctx.t(`tooltip.${command}`) });
+  const tip = (command) => ({ id: tooltipId(command), text: tipText(command) });
   api.showTooltip = (command, trigger) => {
     if (!known(command) || (trigger !== 'hover' && trigger !== 'focus')) return { visible: false };
     shown = command;
@@ -195,14 +200,16 @@ export function commandBarModule(ctx) {
   // NFR-UX-011: 作業順のグループ。見出し（name）とアクセシブルな名前は表示言語に従い、呼ぶたびに作り直す（再読み込み不要）。
   const present = (name) => typeof api.commands[name] === 'function';
   api.getCommandBar = () => {
-    const groups = GROUPS.map(([key, names, id]) => {
+    const groups = GROUPS.map(([key, base, id]) => {
       const name = ctx.t(key);
+      const names = id === 'drawStyle' ? (api.getDrawStyles?.() ?? []).map((s) => `${DS}${s.id}`) : base;
       return { id, name, accessibleName: name, headingVisible: true, commands: names.filter(present) };
     }).filter((g) => g.commands.length);
     const groupOfCommand = new Map(groups.flatMap((g) => g.commands.map((c) => [c, g.id])));
     const items = groups.flatMap((g) => g.commands).map((command) => {
-      const label = ctx.t(labelKey(command));
-      const it = { command, group: groupOfCommand.get(command), label, labelVisible: true, accessibleName: label, tabbable: true, tabIndex: 0, tooltip: tip(command), describedBy: tooltipId(command), icon: ICONS[command] ?? '' };
+      const label = labelOfCmd(command);
+      const it = { command, group: groupOfCommand.get(command), label, labelVisible: true, accessibleName: label, tabbable: true, tabIndex: 0, tooltip: tip(command), describedBy: tooltipId(command), icon: dsOf(command) ? `${P.palette}M${1 + 1.4 * api.getDrawStyles().findIndex((s) => `${DS}${s.id}` === command)} 19h1` : (ICONS[command] ?? '') };
+      if (dsOf(command)) it.description = it.tooltip.text; // FR-077: 画風の短い説明（tooltip.text と同じ）
       // FR-073 AC-388: 取り込みは、何を取り込めるかの説明を常時表示する（ホバー・フォーカスを待たない）
       if (command === 'import.file') { it.description = ctx.t('import.description'); it.descriptionVisible = true; }
       return it;

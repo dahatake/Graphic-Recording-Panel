@@ -16,60 +16,65 @@ const CHALK = { id: 'chalk', label: { ja: 'チョーク風', en: 'Chalk' }, line
 const INK = { id: 'ink', label: { ja: '墨絵風', en: 'Ink wash' }, line: { width: 0.9, jitter: 0.2 }, fill: { mode: 'paper' }, text: { decor: 'plain', icons: false } };
 const CHALK_SPEC = { id: 'chalk', preset: true, ...CHALK_LOOK };
 const opts = (extra = {}) => ({ ...extra, options: { drawStyles: [CHALK, INK], ...(extra.options ?? {}) } });
-const pickItem = (app) => app.getCommandBar().items.find((i) => i.command === 'drawStyle.pick');
+const styleItems = (app) => app.getCommandBar().items.filter((i) => i.group === 'drawStyle');
+const pressedIds = (app) => styleItems(app).filter((i) => i.pressed).map((i) => i.command.slice('drawStyle.set:'.length));
 const labelOf = (app, id) => app.getDrawStyles().find((s) => s.id === id).label;
 
-// FR-077 AC-414: 一覧は登録簿のすべて（後から足した定義を含む）。説明は定義の description ＞ 組込みの説明 ＞ 名前
-test('FR-077 AC-414: 一覧は登録されたすべての描画スタイルを同じ並びで出し、説明は定義の description を使う', async () => {
+// FR-077 AC-414: 「画風」グループは登録簿のすべて（後から足した定義を含む）を同じ並びで常時出す。説明は定義の description ＞ 組込みの説明 ＞ 名前
+test('FR-077 AC-414: 画風グループは登録されたすべての描画スタイルを同じ並びで出し、説明は定義の description を使う', async () => {
   const { app } = await newApp(opts());
-  app.commands['drawStyle.pick']();
-  const p = app.getDrawStylePicker();
-  assert.deepEqual(p.options.map((o) => o.id), app.getDrawStyles().map((s) => s.id));
-  assert.deepEqual(p.options.map((o) => o.id).slice(-2), ['chalk', 'ink']);
-  assert.equal(p.options.find((o) => o.id === 'chalk').description, '黒板にチョークで描いた線', '画風の記述の描画の文');
-  assert.equal(p.options.find((o) => o.id === 'ink').description, '墨絵風', '説明がない定義は名前');
-  assert.ok(p.options.find((o) => o.id === 'anime').description.trim() !== 'アニメ調', '組込みには短い説明がある');
+  const ids = () => styleItems(app).map((i) => i.command.slice('drawStyle.set:'.length));
+  assert.deepEqual(ids(), app.getDrawStyles().map((s) => s.id));
+  assert.deepEqual(ids().slice(-2), ['chalk', 'ink']);
+  const item = (id) => styleItems(app).find((i) => i.command === `drawStyle.set:${id}`);
+  assert.equal(item('chalk').description, '黒板にチョークで描いた線', '画風の記述の描画の文');
+  assert.equal(item('chalk').tooltip.text, item('chalk').description);
+  assert.equal(item('ink').description, '墨絵風', '説明がない定義は名前');
+  assert.ok(item('anime').description.trim() !== 'アニメ調', '組込みには短い説明がある');
+  assert.equal(app.getCommandBar().groups.find((g) => g.id === 'drawStyle').commands.join(), styleItems(app).map((i) => i.command).join());
   app.setLang('en');
-  assert.equal(app.getDrawStylePicker().options.find((o) => o.id === 'chalk').description, 'Chalk lines on a blackboard');
-  for (const o of app.getDrawStylePicker().options) assert.ok(!CJK.test(o.description), `${o.id}: ${o.description}`);
-  // 後から登録した描画スタイルも一覧・コマンドの検索に現れる
+  assert.equal(item('chalk').description, 'Chalk lines on a blackboard');
+  for (const i of styleItems(app)) assert.ok(!CJK.test(i.description) && !CJK.test(i.label), `${i.command}: ${i.label} / ${i.description}`);
+  // 後から登録した描画スタイルもグループ・コマンドの検索に現れる
   assert.equal(app.registerDrawStyle({ ...INK, id: 'later', label: { ja: '後付け風', en: 'Later' } }).ok, true);
-  assert.equal(app.getDrawStylePicker().options.at(-1).id, 'later');
-  assert.ok(app.searchCommands('Later').some((c) => c.command === 'drawStyle.select.later'));
+  assert.equal(ids().at(-1), 'later');
+  assert.ok(app.searchCommands('Later').some((c) => c.command === 'drawStyle.set:later'));
 });
 
-// FR-077 AC-416: 候補の移動は端で止まり、Enter・Space で決定、Esc で取り消す。一覧が閉じているときは通常のキー処理
-test('FR-077 AC-416: 一覧のキー操作（端で止まる・Space で決定・閉じているときは素通し）', async () => {
+// FR-077 AC-416: コマンド drawStyle.set:<id>（実 DOM では項目のクリック・Enter・Space）で選ぶ。旧一覧・キーは廃止
+test('FR-077 AC-416: drawStyle.set:<id> で選ぶと現在値・pressed・読み上げメッセージが変わる。旧 drawStyle.pick・一覧・専用キーはない', async () => {
   const { app } = await newApp(opts());
-  assert.equal(app.handleKey({ key: 'ArrowDown' }), null, '一覧が閉じているときは何もしない');
-  const k = app.keymap.find((b) => b.command === 'drawStyle.pick');
-  assert.deepEqual([k.key, !!k.alt, !!k.shift, !!k.ctrl], ['s', true, true, false]);
-  app.handleKey({ key: 'S', altKey: true, shiftKey: true });
-  assert.equal(app.getDrawStylePicker().open, true);
-  app.handleKey({ key: 'ArrowUp' });
-  assert.equal(app.getDrawStylePicker().activeId, 'handwritten', '先頭より上へは行かない');
-  app.handleKey({ key: 'End' }); app.handleKey({ key: 'ArrowDown' });
-  assert.equal(app.getDrawStylePicker().activeId, 'ink', '末尾より下へは行かない');
-  app.handleKey({ key: 'ArrowUp' });
-  assert.equal(app.handleKey({ key: ' ' }), 'drawStyle.pick.choose');
+  for (const name of ['drawStyle.pick', 'drawStyle.select.chalk']) assert.equal(typeof app.commands[name], 'undefined', name);
+  assert.ok(!app.keymap.some((k) => k.command.startsWith('drawStyle.')), '画風の専用キーはない');
+  for (const n of ['getDrawStylePicker', 'getDrawStylePickerView', 'pickDrawStyle']) assert.equal(app[n], undefined, n);
+  assert.equal(app.commands['drawStyle.set:nosuch'], undefined, '登録された ID だけ');
+  assert.deepEqual(pressedIds(app), ['handwritten']);
+  assert.ok(styleItems(app).every((i) => i.tabbable && i.tabIndex === 0 && i.labelVisible && i.accessibleName === i.label && i.describedBy === i.tooltip.id));
+  for (const id of ['chalk', 'ink', 'anime']) {
+    app.commands[`drawStyle.set:${id}`]();
+    assert.equal(app.getDrawStyle(), id);
+    assert.match(app.renderSvg(), new RegExp(`data-draw-style="${id}"`));
+    assert.deepEqual(pressedIds(app), [id]);
+    assert.ok(styleItems(app).every((i) => (i.selectedMark !== null) === i.pressed), '現在のものだけ色以外の印');
+    assert.ok(app.getState().message.text.includes(labelOf(app, id)), '名前つきで読み上げ');
+    assert.equal(app.getCommandBar().status.role, 'status');
+  }
+  assert.equal(app.operateBarItem('drawStyle.set:chalk').ok, true);
   assert.equal(app.getDrawStyle(), 'chalk');
-  assert.deepEqual([app.getDrawStylePicker().open, app.getDrawStylePicker().focus], [false, 'button']);
-  assert.ok(app.getState().message.text.includes('チョーク風'));
-  // 同じコマンドでもう一度押すと閉じる（トグル）
-  app.commands['drawStyle.pick'](); app.commands['drawStyle.pick']();
-  assert.equal(app.getDrawStylePicker().open, false);
-  // 一覧の外へフォーカスが移ったら閉じる（ボタンへは戻さない）
-  app.commands['drawStyle.pick'](); app.closeDrawStylePicker(null);
-  assert.deepEqual([app.getDrawStylePicker().open, app.getDrawStylePicker().focus], [false, null]);
-  assert.equal(app.getDrawStyle(), 'chalk');
+  assert.equal(app.setDrawStyle('nosuch').ok, false);
+  assert.equal(app.getDrawStyle(), 'chalk', '未知の ID は不変');
+  // コマンドの検索
+  assert.ok(app.searchCommands('墨絵').some((c) => c.command === 'drawStyle.set:ink'));
 });
 
-// FR-077 AC-417: ボタンの外形は重ならず、狭い画面では折り返して画面の内側に収まる
-test('FR-077 AC-417: コマンドバーの外形は重ならず画面幅の内側に収まり、画風のボタンは一覧（listbox）を開くことを示す', async () => {
+// FR-077 AC-417: 13 項目（テストでは登録を足した数）すべてが狭い画面でも省かれず、折り返して重ならない
+test('FR-077 AC-417: 画風グループの全項目は省かれず、外形は重ならず画面幅の内側に収まる（横スクロールなし）', async () => {
   const { app } = await newApp(opts());
+  const n = app.getDrawStyles().length;
   for (const w of [320, 640, 1280]) {
     const lay = app.getCommandBarLayout({ viewportWidth: w });
     assert.equal(lay.scrollsHorizontally, false);
+    assert.equal(lay.items.filter((i) => i.command.startsWith('drawStyle.set:')).length, n, `${w}px: 全項目`);
     for (const [i, a] of lay.items.entries()) {
       assert.ok(a.rect.x >= 0 && a.rect.x + a.rect.w <= Math.max(w, a.rect.w + 16), `${w}px: ${a.command} は画面の内側`);
       for (const b of lay.items.slice(i + 1)) {
@@ -77,11 +82,11 @@ test('FR-077 AC-417: コマンドバーの外形は重ならず画面幅の内�
         assert.ok(!hit, `${w}px: ${a.command} と ${b.command} が重ならない`);
       }
     }
-    const v = app.getDrawStylePickerView({ viewportWidth: w });
-    assert.ok(v.width <= w, `${w}px: 一覧の幅は画面の内側`);
   }
-  assert.equal(pickItem(app).valueLabel, '手書き調');
-  assert.equal(pickItem(app).hasPopup, 'listbox');
+  assert.ok(app.getCommandBarLayout({ viewportWidth: 1280 }).items.filter((i) => i.command.startsWith('drawStyle.set:')).every((i) => i.labelLines === 1));
+  // 「表示」の直後の 10 グループ目（AC-459）。設定グループは描画スタイル・レイアウト型を持たない
+  assert.deepEqual(app.getCommandBar().groups.map((g) => g.id).slice(0, 4), ['import', 'session', 'view', 'drawStyle']);
+  assert.ok(!app.getCommandBar().groups.find((g) => g.id === 'settings').commands.some((c) => c.startsWith('drawStyle.') || c.startsWith('layoutType.')));
 });
 
 // FR-077 AC-418
@@ -89,7 +94,7 @@ test('FR-077 AC-418: 上部で選んだ値はセッションファイルで復�
   const { app, env } = await newApp(opts());
   await seedThreeScenes(app, env);
   const before = env.storage.dump().filter(([k]) => k === 'grp.settings');
-  assert.equal(app.pickDrawStyle('chalk').ok, true);
+  assert.equal(app.setDrawStyle('chalk').ok, true);
   assert.equal(app.getSettings().drawStyle, 'handwritten');
   assert.deepEqual(env.storage.dump().filter(([k]) => k === 'grp.settings'), before);
   assert.ok(!env.storage.dump().some(([k, v]) => k.startsWith('grp.') && k !== 'grp.session' && v.includes('"chalk"')), 'grp.*（自動保存のセッション以外）に現在値を書かない');
@@ -99,8 +104,7 @@ test('FR-077 AC-418: 上部で選んだ値はセッションファイルで復�
   const { app: b } = await newApp(opts());
   assert.equal((await b.loadSessionFile({ name: 's.json', type: 'application/json', size: Buffer.byteLength(data), text: data })).ok, true);
   assert.equal(b.getDrawStyle(), 'chalk');
-  assert.equal(b.getDrawStylePicker().current, 'chalk');
-  assert.equal(pickItem(b).valueLabel, 'チョーク風');
+  assert.equal(pressedIds(b).join(), 'chalk');
   // 登録にない名前（この端末に chalk がない）: ［設定］の既定で表示し、内容は失わない
   const { app: c } = await newApp();
   c.setSettings({ drawStyle: 'simple' });
@@ -113,10 +117,10 @@ test('FR-077 AC-418: 上部で選んだ値はセッションファイルで復�
 test('FR-077 AC-418: 上部と［設定］は後から操作した方が現在値になり、［設定］の選択肢は上部の一覧と同じ（後から足した定義を含む）', async () => {
   const { app, env, createApp } = await newApp(opts());
   await seedThreeScenes(app, env);
-  app.pickDrawStyle('chalk');
+  app.setDrawStyle('chalk');
   app.setSettings({ drawStyle: 'ink' });
-  assert.equal(app.getDrawStyle(), 'ink'); assert.equal(pickItem(app).valueLabel, '墨絵風');
-  app.pickDrawStyle('anime');
+  assert.equal(app.getDrawStyle(), 'ink'); assert.equal(pressedIds(app).join(), 'ink');
+  app.setDrawStyle('anime');
   assert.equal(app.getDrawStyle(), 'anime'); assert.equal(app.getSettings().drawStyle, 'ink');
   assert.match(app.renderSvg(), /data-draw-style="anime"/);
   app.registerDrawStyle({ ...INK, id: 'later', label: { ja: '後付け風', en: 'Later' } });
@@ -124,7 +128,7 @@ test('FR-077 AC-418: 上部と［設定］は後から操作した方が現在�
   for (const lang of ['ja', 'en']) {
     app.setLang(lang);
     const f = app.getSettingsDialog().fields.find((x) => x.id === 'drawStyle');
-    assert.deepEqual(f.options.map((o) => [o.value, o.label]), app.getDrawStylePicker().options.map((o) => [o.id, o.label]), lang);
+    assert.deepEqual(f.options.map((o) => [o.value, o.label]), app.getCommandBar().items.filter((i) => i.group === 'drawStyle').map((i) => [i.command.slice('drawStyle.set:'.length), i.label]), lang);
   }
   const again = await createApp(env.options);
   assert.equal(again.getDrawStyle(), 'ink', '再読込後は［設定］の既定');
@@ -159,7 +163,7 @@ test('FR-077 AC-419: 上部で選んだ描画スタイルで PNG・SVG・PDF を
   const strings = app.getState().scenes.flatMap((s) => [s.heading, ...s.points.map((p) => p.text)]);
   const outs = {};
   for (const id of ['handwritten', 'anime', 'simple', 'rpg', 'ink', 'chalk']) {
-    assert.equal(app.pickDrawStyle(id).ok, true);
+    assert.equal(app.setDrawStyle(id).ok, true);
     const n = env.downloads.length; cv.ops.length = 0;
     await app.commands['save.png'](); const ops = JSON.stringify(cv.ops);
     await app.commands['save.svg'](); await app.commands['save.pdf']();
@@ -219,34 +223,17 @@ test('FR-077 AC-419: 紙面の質感は白紙以外の 5 種すべてで図形�
   assert.doesNotMatch(Buffer.from(buildPdf(scenes)).toString('latin1'), / re f/, '従来の PDF は図形を描かない');
 });
 
-// FR-077 AC-417: 一覧の配置は画面の高さ・幅とボタンの位置から決まる（下に入りきらなければ上に開き、高さの上限は画面の内側）
-test('FR-077 AC-417: 一覧は画面の内側に収まり、下に入りきらないときは上に開き、低すぎる画面では届かないことを返す', async () => {
+// FR-077 AC-417: 画風の項目は狭い・低い画面でも一覧（開閉）を持たず、常時表示のボタンとして並ぶ（旧一覧の配置の計算はない）
+test('FR-077 AC-417: 画風の項目は開閉する一覧を持たず、どの幅でも全項目のボタンが縦横スクロールなしで並ぶ', async () => {
   const { app } = await newApp(opts());
-  const inside = (v, vw, vh) => v.top >= 0 && v.top + v.maxHeight <= vh && v.left >= 0 && v.left + v.width <= vw;
-  // 下に十分な高さ: 下に開き、全候補が入る
-  let v = app.getDrawStylePickerView({ viewportWidth: 1280, viewportHeight: 1400, anchor: { x: 390, y: 115, w: 63, h: 59 } });
-  assert.equal(v.placement, 'below'); assert.ok(inside(v, 1280, 1400)); assert.equal(v.scrollsVertically, false);
-  assert.ok(v.options.every((o) => o.reachable)); assert.equal(v.scrollsHorizontally, false);
-  // 狭く低い画面でボタンが下の方: 上に開く
-  v = app.getDrawStylePickerView({ viewportWidth: 480, viewportHeight: 400, anchor: { x: 12, y: 300, w: 63, h: 59 } });
-  assert.equal(v.placement, 'above'); assert.ok(inside(v, 480, 400)); assert.ok(v.top + v.maxHeight <= 300, 'ボタンに重ならない');
-  assert.ok(v.options.every((o) => o.reachable));
-  // ボタンが上の方で下が少し足りない: 下に開き、高さは「画面の高さ − 上端 − 余白」まで。残りは縦スクロール
-  v = app.getDrawStylePickerView({ viewportWidth: 320, viewportHeight: 300, anchor: { x: 200, y: 40, w: 63, h: 59 } });
-  assert.equal(v.placement, 'below'); assert.ok(inside(v, 320, 300)); assert.equal(v.top + v.maxHeight, 300 - 8);
-  assert.equal(v.scrollsVertically, true); assert.ok(v.options.every((o) => o.reachable)); assert.equal(v.scrollsHorizontally, false);
-  assert.ok(v.left + v.width <= 320 - 8, '右端の余白');
-  // ボタンの下端が画面の下端にかかる（下に余地がない）: 上に開き、ボタンに重ならない
-  v = app.getDrawStylePickerView({ viewportWidth: 767, viewportHeight: 360, anchor: { x: 12, y: 302, w: 63, h: 59 } });
-  assert.equal(v.placement, 'above'); assert.ok(v.top >= 0 && v.top + v.maxHeight <= 302); assert.ok(v.options.every((o) => o.reachable));
-  // 1 つの候補も見えない低さ: 届かないことを正直に返す
-  v = app.getDrawStylePickerView({ viewportWidth: 320, viewportHeight: 90, anchor: { x: 8, y: 20, w: 63, h: 59 } });
-  assert.ok(v.options.every((o) => o.reachable === false));
-  // 画面の外のボタンは、押せる位置まで送られた前提で置く（コマンドバーの見積もりを使う既定の呼び方）
-  for (const w of [320, 480, 640]) {
-    v = app.getDrawStylePickerView({ viewportWidth: w, viewportHeight: 560 });
-    assert.ok(inside(v, w, 560), `${w}px`); assert.ok(v.options.every((o) => o.reachable), `${w}px`);
+  for (const w of [320, 480, 767, 1280]) {
+    const lay = app.getCommandBarLayout({ viewportWidth: w });
+    const own = lay.items.filter((i) => i.command.startsWith('drawStyle.set:'));
+    assert.equal(own.length, app.getDrawStyles().length, `${w}px`);
+    assert.ok(own.every((i) => i.rect.w > 0 && i.rect.h > 0 && i.labelLines >= 1), `${w}px`);
+    assert.equal(lay.overflowMenu, undefined, `${w}px: 画風は溢れメニューに入れない`);
   }
+  assert.ok(styleItems(app).every((i) => !('expanded' in i) && !('hasPopup' in i) && !('valueLabel' in i)));
 });
 
 // AC-456 の指摘: 強制カラーのシステム色への変換は画面の表示だけ。保存する SVG・PNG・PDF は風の配色
@@ -254,7 +241,7 @@ test('FR-077 AC-419: 強制カラーの間も、保存する SVG・PNG・PDF は
   const cv = recordingCanvas();
   const { app, env } = await newApp(opts({ canvasFactory: cv }));
   await seedThreeScenes(app, env);
-  app.pickDrawStyle('chalk');
+  app.setDrawStyle('chalk');
   const before = { svg: app.renderSvg() };
   await app.commands['save.png'](); before.png = JSON.stringify(cv.ops); cv.ops.length = 0;
   await app.commands['save.pdf'](); before.pdf = Buffer.from(env.downloads.at(-1).data).toString('latin1');

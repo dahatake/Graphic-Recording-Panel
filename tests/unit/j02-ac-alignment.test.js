@@ -73,7 +73,7 @@ test('PARAM-170 FR-075 AC-414: 描画スタイルの一覧の短い説明は 40 
   const app = await createApp({ storage: mem() });
   for (const lang of ['ja', 'en']) {
     app.setLang(lang);
-    for (const o of app.getDrawStylePicker().options) assert.ok(o.description && textWeight(o.description) <= DESC_SHORT_MAX, `${lang} ${o.id}: ${o.description}`);
+    for (const i of app.getCommandBar().items.filter((x) => x.group === 'drawStyle')) assert.ok(i.description && textWeight(i.description) <= DESC_SHORT_MAX, `${lang} ${i.command}: ${i.description}`);
   }
 });
 
