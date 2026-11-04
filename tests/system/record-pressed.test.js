@@ -109,3 +109,24 @@ test('FR-072 AC-647 異常系: リボンを開いた状態でも同じ。一時�
     assert.ok(!anyOn(collapsed, 'session.pause'));
   });
 });
+
+// FR-072 AC-647（2026-11-04）起動直後は [記録開始]・[再開] を含め aria-pressed="false" で、利用者が押すまで記録・音声認識は始まらない（起動時に自動で開始しない）
+const COUNT_STARTS = `(() => { window.__srStarts = 0; for (const k of ['SpeechRecognition', 'webkitSpeechRecognition']) { const C = window[k]; if (C?.prototype?.start) { const s = C.prototype.start; C.prototype.start = function (...a) { window.__srStarts++; return s.apply(this, a); }; } } })();`;
+test('FR-072 AC-647: 起動直後は [記録開始]・[再開] の aria-pressed が "false" で、押すまで記録も音声認識も始まらず、押すと記録中になり音声認識が開始されて押された表示になる', async () => {
+  const { ctx, page } = await openApp(browser, srv.url, WIN, COUNT_STARTS);
+  try {
+    await page.waitForTimeout(1500); // 起動直後に自動で始まらないことの確認（固定の待ちはここだけ。条件の成立を待てないため）
+    assert.equal(await sessionOf(page), 'preparing', '起動直後は準備中のまま');
+    assert.equal(await page.evaluate(() => window.__srStarts), 0, '押すまで音声認識は始まらない');
+    for (const c of ['session.start', 'session.resume']) {
+      const els = await page.locator(`[data-command="${c}"]`).evaluateAll((es) => es.map((e) => e.getAttribute('aria-pressed')));
+      assert.ok(els.length > 0, `${c} のボタンがある`);
+      assert.ok(els.every((v) => v === 'false'), `${c}: aria-pressed が "false"（実際 ${JSON.stringify(els)}）`);
+    }
+    await startRecording(page);
+    await page.waitForFunction(() => globalThis.__app.getState().session === 'recording');
+    assert.ok(await page.evaluate(() => window.__srStarts) >= 1, '押すと音声認識が開始される');
+    const after = await page.locator('[data-command="session.start"]').evaluateAll((es) => es.map((e) => e.getAttribute('aria-pressed')));
+    assert.ok(after.every((v) => v === 'true'), '記録中は押された表示');
+  } finally { await ctx.close(); }
+});

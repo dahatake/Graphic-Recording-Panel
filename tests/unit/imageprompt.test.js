@@ -119,7 +119,7 @@ test('FR-078 AC-420 / FR-077 AC-414: 既存 4 つの画風の一覧の短い説�
   };
   for (const lang of ['ja', 'en']) {
     app.setLang(lang);
-    const opts = app.getDrawStylePicker().options;
+    const opts = app.getCommandBar().items.filter((i) => i.group === 'drawStyle').map((i) => ({ id: i.command.slice('drawStyle.set:'.length), description: i.description }));
     for (const [id, text] of Object.entries(SHORT[lang])) {
       assert.equal(opts.find((o) => o.id === id).description, text, `${lang} ${id}`);
       assert.notEqual(text, app.getDrawStyleDescription(id).drawing, '画像生成用の記述とは別');

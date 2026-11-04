@@ -1,6 +1,8 @@
 # System Test 契約（web/ の公開 API）
 
 System Test（`tests/system/*.test.js`、`node --test tests/system/`）が前提にする、`web/` の公開 API。実装者はこれに従う。
+
+> **改訂（2026-11-04）**: 外部音声認識の同意（チェック・`setSpeechConsent`・`speech.consent`）と画風の一覧（`drawStyle.pick`・`getDrawStylePicker`）に関する下記の記述は、`CONTRACT-2026-11-04.md` で置き換えられた。食い違うときは改訂が優先。
 期待値は要求定義書の受入基準だけから決めており、この契約は「テストが何を呼ぶか」だけを定める（内部構造は自由）。
 実ブラウザの性能テスト（perf-util.js）の前提: Node（npm 付き）、システムの Edge/Chrome（`PERF_BROWSER` で指定可）、初回に `tests/system` へ playwright-core を自動で `npm ci`（ブラウザはダウンロードしない）。
 アプリは静的 Web（ビルド不要、ES モジュール）。`web/index.html` が `web/src/app.js` を読み込んで DOM に結び付ける。

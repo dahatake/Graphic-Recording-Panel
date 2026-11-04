@@ -71,17 +71,13 @@ export async function speechModule(ctx) {
       'msg.speechApi': 'このブラウザは音声認識（Web Speech API）に対応していないため、音声認識は使えません。テキスト入力またはテキストファイルの取り込みをご利用ください',
       'msg.speechLang': '選択中の言語は、このブラウザの音声認識が対応していないため使えません。テキスト入力またはテキストファイルの取り込みをご利用ください',
       'msg.speechModel': '音声認識の言語モデルを導入できなかったため、音声認識は使えません。テキスト入力またはテキストファイルの取り込みをご利用ください',
-      'msg.speechConsent': 'デバイス内で音声認識できないため、外部サービスに音声が送られる可能性への同意が必要です。同意するか、テキスト入力またはテキストファイルの取り込みをご利用ください',
       'speech.status.local': '使えます（デバイス内）',
-      'speech.status.consent': '使えます（要同意・外部送信の可能性）',
+      'speech.status.consent': '使えます（外部送信の可能性）',
       'speech.status.api': '使えません（非対応のブラウザ）',
       'speech.status.language': '使えません（言語未対応）',
       'speech.status.model': '使えません（言語モデル未導入）',
       'speech.status.mic': '使えません（マイク未許可）',
-      'speech.consent.label': '外部サービスでの音声認識に同意する',
-      'speech.consent.notice': 'この言語はデバイス内で認識できないため、同意すると音声が外部の音声認識サービス（ブラウザ提供元など）へ送られる可能性があります。同意はこのページを開いている間だけ有効で、音声は保存されません。',
-      'speech.consent.on': '同意済み',
-      'speech.consent.off': '未同意',
+      'speech.consent.notice': 'この言語はデバイス内で認識できないため、音声が外部の音声認識サービス（ブラウザ提供元など）へ送られる可能性があります。同意は口頭で得てください。音声は保存されません。',
       'msg.speechDenied': 'マイクの許可が得られないため音声認識を使えません。記録済みの内容は保持されています。テキスト入力またはテキストファイルの取り込みをご利用ください',
       'msg.speechError': '音声認識でエラーが発生しました。記録済みの内容は保持されています。テキスト入力をご利用いただけます',
     },
@@ -90,17 +86,13 @@ export async function speechModule(ctx) {
       'msg.speechApi': 'This browser does not support speech recognition (Web Speech API), so it is unavailable. Please use text input or import a text file',
       'msg.speechLang': 'The selected language is not supported by this browser\'s speech recognition. Please use text input or import a text file',
       'msg.speechModel': 'The speech language model could not be installed, so speech recognition is unavailable. Please use text input or import a text file',
-      'msg.speechConsent': 'Speech cannot be recognized on this device, so consent to possible external transmission is required. Give consent, or use text input or import a text file',
       'speech.status.local': 'available (on-device)',
-      'speech.status.consent': 'available (consent required, may be sent externally)',
+      'speech.status.consent': 'available (may be sent externally)',
       'speech.status.api': 'unavailable (unsupported browser)',
       'speech.status.language': 'unavailable (language not supported)',
       'speech.status.model': 'unavailable (language model not installed)',
       'speech.status.mic': 'unavailable (microphone not allowed)',
-      'speech.consent.label': 'Allow speech recognition by an external service',
-      'speech.consent.notice': 'This language cannot be recognized on this device. If you consent, your audio may be sent to an external speech recognition service (such as the browser vendor). Consent lasts only while this page is open, and audio is never saved.',
-      'speech.consent.on': 'Consented',
-      'speech.consent.off': 'Not consented',
+      'speech.consent.notice': 'This language cannot be recognized on this device, so your audio may be sent to an external speech recognition service (such as the browser vendor). Obtain consent verbally. Audio is never saved.',
       'msg.speechDenied': 'Microphone permission was not granted, so speech recognition is unavailable. Your recorded content is kept. Please use text input or import a text file',
       'msg.speechError': 'A speech recognition error occurred. Your recorded content is kept. You can use text input',
     },
@@ -113,10 +105,9 @@ export async function speechModule(ctx) {
   const isAzure = () => ctx.api.getSpeechMethod?.() === 'azure';
   const speech = ctx.state.speech = { active: false, interim: '' };
   // 判定は選択中の言語だけで行う（FR-001 AC-040 AC-066 AC-067）。同意はこのページの利用中だけ（保存しない）。
-  let consentSet = null, micDenied = false, modelFailed = false;
-  // AC-442・AC-441: 同意の状態。未操作（null）のときの初期状態は方式別（Azure Speech は同意済み、ブラウザ標準は未同意。ホスト名が未取得の間は同意なし）。
-  // 利用者がチェックを操作したら true/false を保ち、再読込・方式の切替・ホスト名の変更で未操作（初期状態）に戻す。保存しない。
-  const consent = () => (ctx.api.getSpeechMethod?.() === 'azure' ? !!ctx.api.getAzureSpeechSettings?.().endpointHost && consentSet !== false : consentSet === true);
+  let micDenied = false, modelFailed = false;
+  // AC-067・AC-442: 同意は口頭で得たものとして常に同意済み（操作も保存もない。再読込・方式の切替・復元でも変わらない）。
+  const consent = () => true;
   let engine = null; // speech.active のときに動いている方式: 'browser' | 'azure'
   let azFailed = null; // Azure Speech の失敗で停止した理由（AC-444）。利用者の操作（再試行・再開・方式の切替）まで保つ
   const curLang = () => speechLang(ctx.state.lang);
@@ -136,7 +127,7 @@ export async function speechModule(ctx) {
     if (a === 'api' || a === 'language') { state = 'unavailable'; reason = a; }
     else if (micDenied) { state = 'unavailable'; reason = 'mic'; }
     else if (modelFailed && a === 'downloadable') { state = 'unavailable'; reason = 'model'; }
-    else if (a === 'remote') { state = 'consent'; if (!consent()) reason = 'consent'; }
+    else if (a === 'remote') state = 'consent'; // 外部送信の可能性（名前は維持）。同意は口頭で得るため同意待ちの理由は出ない
     else state = 'local';
     if (reason && reason !== null) startEnabled = false;
     const key = state === 'unavailable' ? reason : state;
@@ -147,7 +138,7 @@ export async function speechModule(ctx) {
   // FR-081 AC-444 AC-445: Azure Speech の状態（使えます・同意待ち・使えません（理由））。失敗のときは 1 回の操作の候補を添える
   const azureStatus = () => {
     let state, reason;
-    if (azFailed) { state = 'unavailable'; reason = azFailed; } else if (!azSource) { state = 'unavailable'; reason = 'unconfigured'; } else if (!consent() || !azHostName()) { state = 'consent'; reason = 'consent'; } else { state = 'available'; reason = null; }
+    if (azFailed) { state = 'unavailable'; reason = azFailed; } else if (!azSource) { state = 'unavailable'; reason = 'unconfigured'; } else if (!azHostName()) { state = 'unavailable'; reason = 'unconfigured'; } else { state = 'available'; reason = null; }
     const st = { method: 'azure', state, reason, startEnabled: state === 'available', alternative: state === 'unavailable',
       text: ctx.t(`speech.status.azure.${state === 'unavailable' ? reason : state}`) };
     if (state === 'unavailable') {
@@ -160,22 +151,16 @@ export async function speechModule(ctx) {
   ctx.api.isSpeechAvailable = available;
   ctx.api.getSpeechStatus = () => (isAzure() ? azureStatus() : statusNow());
   ctx.api.getSpeechConsent = () => consent();
-  ctx.api.getConsentUi = () => (isAzure() ? {
-    // FR-081 AC-442: Azure Speech では、デバイス内処理の可否によらず [記録開始] の直近に同意と送信先のホスト名を示す。
-    // ホスト名が未取得の間は、同意のチェックを選べない（disabled）と、その理由を示す
-    visible: true, noticeVisible: true,
-    region: 'top', nearCommand: 'session.start', role: 'checkbox', checked: consent(), tabbable: true,
-    disabled: !azHostName(), reason: azHostName() ? null : ctx.t('speech.azure.consent.noHost'),
-    label: ctx.t('speech.azure.consent.label'),
-    notice: azHostName() ? ctx.t('speech.azure.consent.notice').replace('{host}', azHostName()) : ctx.t('speech.azure.consent.noHost'),
-    stateText: ctx.t(consent() ? 'speech.consent.on' : 'speech.consent.off'), colorOnly: false,
-  } : {
-    // FR-072 AC-385: 同意のチェックと説明は最上部の [記録開始] の直近に、セッションの状態によらず（外部送信の可能性があるとき）常に見える。
-    visible: statusNow().state === 'consent', noticeVisible: statusNow().state === 'consent',
-    region: 'top', nearCommand: 'session.start', role: 'checkbox', checked: consent(), tabbable: true,
-    label: ctx.t('speech.consent.label'), notice: ctx.t('speech.consent.notice'),
-    stateText: ctx.t(consent() ? 'speech.consent.on' : 'speech.consent.off'), colorOnly: false,
-  });
+  // FR-072 AC-385・FR-081 AC-442: 外部送信の注意文（口頭で同意を得る旨）だけを、最上部の [記録開始] の直近に、セッションの状態によらず常に見せる。
+  // 同意の操作・状態（checked・stateText・label）は持たない。Azure Speech では、デバイス内処理の可否によらず送信先のホスト名を示す。
+  ctx.api.getConsentUi = () => {
+    const az = isAzure();
+    const visible = az || statusNow().state === 'consent';
+    const notice = az
+      ? ctx.t('speech.azure.consent.notice').replace('{host}', azHostName() ?? ctx.t('speech.azure.host.unknown'))
+      : ctx.t('speech.consent.notice');
+    return { visible, noticeVisible: visible, region: 'top', nearCommand: 'session.start', role: 'note', interactive: false, colorOnly: false, notice };
+  };
 
   // 認識結果の取り込み（方式によらず共通）。暫定結果は発話にしない（AC-052）。確定結果だけを発話にする（AC-003）
   const accept = ({ text, isFinal } = {}) => {
@@ -268,8 +253,7 @@ export async function speechModule(ctx) {
   const startAzure = () => {
     azFailed = null;
     if (!azSource) { azFailed = 'unconfigured'; return fail('unconfigured', 'msg.azureFail.unconfigured'); }
-    if (!azHostName()) { return fail('consent_required', 'msg.azureHostUnknown'); } // 示していないホストへは送らない
-    if (!consent()) return fail('consent_required', 'msg.azureConsent');
+    if (!azHostName()) { void ctx.api.refreshAzureSpeechStatus?.(); return fail('unconfigured', 'msg.azureHostUnknown'); } // 送信先が分からないものへは送らない（同意の問題ではなく未取得）
     if (!speech.active) { speech.active = true; engine = 'azure'; azBegin(); ctx.emit('speech:started'); }
     if (!keepMessage) ctx.change(() => ctx.setMessage(null));
     return { ok: true };
@@ -282,7 +266,7 @@ export async function speechModule(ctx) {
     const a = avail();
     if (a === 'api') return fail('api_missing', 'msg.speechApi');
     if (a === 'language') return fail('language_unsupported', 'msg.speechLang');
-    if (a === 'remote') return consent() ? go() : fail('consent_required', 'msg.speechConsent');
+    if (a === 'remote') return go(); // 同意は口頭で得たものとして扱う（AC-067）
     if (a === 'downloadable') {
       const lang = curLang();
       if (installing) return installing; // 導入の最中に重ねて呼ばれても、導入と開始は 1 回（[記録開始] と明示の開始の重複）
@@ -290,7 +274,6 @@ export async function speechModule(ctx) {
         installing = null;
         if (isAzure()) return { ok: false, reason: 'method_changed' }; // 導入の間に方式が変わった
         if (!r?.ok) { modelFailed = true; return fail('model_missing', 'msg.speechModel'); }
-        if (avail() === 'remote') return consent() ? go() : fail('consent_required', 'msg.speechConsent');
         return go();
       });
       return installing;
@@ -303,25 +286,7 @@ export async function speechModule(ctx) {
     if (azSource && (force || (speech.active && engine === 'azure'))) { try { azSource.stop(); } catch { /* 無視 */ } }
     cancelRestart(); cancelAzRestart(); fails = 0; engine = null;
   };
-  let pendingResume = false; // 再開したが同意がなく開始できなかった（同意後に始める）
-  ctx.api.setSpeechConsent = (v) => {
-    // FR-081 AC-442: Azure Speech で送信先のホスト名が未取得の間は同意できない（未同意のまま）
-    if (v && isAzure() && !azHostName()) {
-      consentSet = false;
-      void ctx.api.refreshAzureSpeechStatus?.(); // ホスト名を取り直す（取得できたら改めて同意できる）
-      ctx.change(() => ctx.setMessage('msg.azureHostUnknown'));
-      return;
-    }
-    consentSet = !!v; micDenied = false;
-    if (!consent() && speech.active) stopEngines(false); // 同意を外すと送信を止める（AC-442・AC-458 (c)）
-    ctx.change(() => { if (!consent()) { speech.active = false; speech.interim = ''; } });
-    // FR-081 AC-442: 記録中に Azure Speech の同意を外したら、同意待ちと、同意すれば始まる旨を示し、同意し直せば始める
-    if (!consent() && isAzure() && ctx.state.session === 'recording') { pendingResume = true; ctx.change(() => ctx.setMessage('msg.azureConsent')); }
-    // 記録中に同意を得たら、止まっていた認識を始める（再開時に同意がなかった場合: FR-019 AC-099）
-    if (consent() && pendingResume && ctx.state.session === 'recording' && !speech.active && available()) { pendingResume = false; ctx.api.startSpeech(); }
-  };
-  ctx.registerCommand('speech.consent', () => ctx.api.setSpeechConsent(!consent()));
-  ctx.registerKey({ key: 'c', alt: true, shift: true, command: 'speech.consent' });
+  // FR-072 AC-386: 同意の操作はなく、開始・再開では何も操作しなくても音声認識を始める。
   ctx.api.stopSpeech = (opts) => {
     if (speech.active || opts?.force) stopEngines(!!opts?.force);
     else { cancelRestart(); cancelAzRestart(); fails = 0; }
@@ -331,26 +296,18 @@ export async function speechModule(ctx) {
   // FR-072: 音声認識の開始は [記録開始]・[再開] だけ（音声だけを始める別の操作は設けない）。
 
   // 一時停止・停止で止め、記録開始・再開（復元後の再開を含む）で改めて開始する（FR-012 AC-043。Azure Speech も同じ: FR-081 AC-458 (d)）。
-  const halt = () => { pendingResume = false; if (speech.active) ctx.api.stopSpeech(); else { cancelAzRestart(); cancelRestart(); } };
-  const kick = () => {
-    pendingResume = false;
-    const r = ctx.api.startSpeech();
-    // 同意待ちなら、同意が入った時点で始める（FR-072 AC-386）
-    if (r && typeof r.then === 'function') r.then((x) => { if (x?.reason === 'consent_required') pendingResume = true; });
-    else if (r && r.reason === 'consent_required') pendingResume = true;
-    else if (!r?.ok && ctx.api.getSpeechStatus().reason === 'consent') pendingResume = true;
-  };
+  const halt = () => { if (speech.active) ctx.api.stopSpeech(); else { cancelAzRestart(); cancelRestart(); } };
+  const kick = () => { ctx.api.startSpeech(); };
   ctx.on('session:pause', halt);
   ctx.on('session:stop', halt);
   ctx.on('session:start', kick);
   ctx.on('session:resume', kick);
 
   // FR-081 AC-441: 方式の切替（選択・キーの保存・キーの削除）と、Azure Speech のエンドポイントのホストの変更では、
-  // それまでの方式の認識を止め、同意を未同意に戻す。記録中なら新しい方式の開始の条件（同意など）を満たせば開始し、
-  // 満たさなければ同意待ちにする。記録中の状態と記録済みの発話・図は変えない。
+  // それまでの方式の認識を止める（同意は常に同意済みで変わらない）。記録中なら新しい方式で開始する。記録中の状態と記録済みの発話・図は変えない。
   const switchEngine = () => {
     if (speech.active || azTimer != null || restartTimer != null) stopEngines(false);
-    consentSet = null; azFailed = null; micDenied = false; modelFailed = false; pendingResume = false;
+    azFailed = null; micDenied = false; modelFailed = false;
     ctx.change(() => { speech.active = false; speech.interim = ''; });
     if (ctx.state.session === 'recording') {
       keepMessage = true;
@@ -364,13 +321,10 @@ export async function speechModule(ctx) {
   ctx.registerCommand('speech.retryAzure', () => {
     if (!isAzure()) return { ok: false, reason: 'not_azure' };
     azFailed = null;
-    if (!azHostName()) void ctx.api.refreshAzureSpeechStatus?.(); // 未取得なら取り直す（開始は同意の後: startAzure）
+    if (!azHostName()) void ctx.api.refreshAzureSpeechStatus?.(); // 未取得なら取り直す
     if (ctx.state.session !== 'recording') { ctx.change(() => ctx.setMessage(null)); return { ok: true }; }
     if (speech.active) return { ok: true };
-    pendingResume = false;
-    const r = startAzure();
-    if (r.reason === 'consent_required') pendingResume = true;
-    return r;
+    return startAzure();
   });
   ctx.registerCommand('speech.useBrowser', () => ctx.api.setSpeechMethod?.('browser') ?? { ok: false });
   ctx.registerKey({ key: 'u', ctrl: true, alt: true, shift: true, command: 'speech.retryAzure' });
@@ -384,7 +338,7 @@ export async function speechModule(ctx) {
     if (!source) return;
     source.stop();
     const a = avail();
-    if (a === 'local' || (a === 'remote' && consent())) begin();
+    if (a === 'local' || a === 'remote') begin();
     else { speech.active = false; engine = null; cancelRestart(); ctx.change(() => { speech.interim = ''; }); }
   });
 }

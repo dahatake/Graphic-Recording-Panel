@@ -68,10 +68,25 @@ test('NFR-OFFLINE-001 AC-032: ネットワーク遮断（fetch 等が全て失�
   assert.equal(calls.length, 0);
 });
 
-test('NFR-OFFLINE-001 AC-032 異常系: 音声認識がデバイス内処理でないとき開始されず、外部へ音声を送る経路がない', async () => {
-  const { app, env } = await newApp({ speech: Object.assign(new (await import('./helpers.js')).FakeSpeech(), { processLocally: false }) });
-  app.commands['session.start']();
-  const r = app.startSpeech();
-  assert.equal(r.ok, false);
-  assert.equal(env.speech.startCalls.length, 0);
+// NFR-OFFLINE-001 AC-032 異常系 / FR AC-067 AC-040（CONTRACT-2026-11-04 §1: 同意の操作なし・注意文の表示のみ）
+test('NFR-OFFLINE-001 AC-032 異常系: 音声認識がデバイス内処理でないとき、準備中は開始されず、session.start 後は同意操作なしで開始され注意文が出て、アプリ自身は外部通信をしない', async () => {
+  const { FakeSpeech } = await import('./helpers.js');
+  const calls = [];
+  const names = ['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource'];
+  const saved = {};
+  for (const k of names) {
+    saved[k] = Object.getOwnPropertyDescriptor(globalThis, k);
+    Object.defineProperty(globalThis, k, { configurable: true, writable: true, value: function (...a) { calls.push({ k, a }); throw new Error('network blocked'); } });
+  }
+  try {
+    const { app, env } = await newApp({ speech: Object.assign(new FakeSpeech(), { processLocally: false }) });
+    assert.equal(env.speech.startCalls.length, 0, '準備中は開始しない');
+    app.commands['session.start']();
+    assert.equal(env.speech.startCalls.length, 1, '同意操作なしで開始');
+    assert.equal('processLocally' in env.speech.startCalls[0], false, 'processLocally キーなし');
+    assert.equal(app.getConsentUi().visible, true, '外部送信の可能性の注意文を表示');
+    assert.equal(calls.length, 0, 'アプリ自身は fetch/XHR/WebSocket/EventSource を呼ばない');
+  } finally {
+    for (const k of names) { if (saved[k]) Object.defineProperty(globalThis, k, saved[k]); else delete globalThis[k]; }
+  }
 });

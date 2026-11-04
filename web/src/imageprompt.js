@@ -279,8 +279,7 @@ export function imagePromptModule(ctx) {
   const notify = () => ctx.emit('change', api);
   const openNotice = () => {
     fallback = null; // 前回の手でコピーする表示は閉じる
-    api.closeDrawStylePicker?.(null);
-    notice = { mask: api.getLlmMasking?.() !== false, focus: 'mask', error: null }; // 初期値は簡易マスキングの設定（AC-472）
+    notice =  { mask: api.getLlmMasking?.() !== false, focus: 'mask', error: null }; // 初期値は簡易マスキングの設定（AC-472）
     notify();
   };
   // 閉じると、フォーカスは開く前の位置（focus はそのまま残っている）に戻る

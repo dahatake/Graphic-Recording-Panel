@@ -8,10 +8,11 @@ import { newApp, seedThreeScenes, CJK } from './helpers.js';
 const PARAM_011 = 6;
 const weight = (s) => [...String(s)].reduce((n, ch) => n + (CJK.test(ch) ? 1 : 0.5), 0);
 const items = (app) => app.getCommandBar().items;
+const ids13 = (app) => app.getDrawStyles().map((s) => s.id);
 const bySetting = (app, id) => items(app).filter((i) => i.settingsField === id);
 const sfield = (app, id) => app.getSettingsDialog().fields.find((f) => f.id === id);
 const TYPES = ['timeline', 'bubble', 'diverge', 'zone', 'metaphor', 'workshop'];
-const PANEL_FIELDS = ['layout.mode', 'layout.types', 'drawStyle', 'sound.muted', 'sound.volume', 'arrange.interval'];
+const PANEL_FIELDS = ['layout.mode', 'layout.types', 'sound.muted', 'sound.volume', 'arrange.interval']; // 描画スタイルは「画風」グループの 13 項目だけで選び、リボン上の選択は画風 13 項目だけ（AC-519・AC-459）。［設定］パネルの「既定の描画スタイル」欄は別に残る（AC-149・AC-418）ので、欄の有無はここでは検証しない
 
 // FR-030 AC-519
 test('FR-030 AC-519: リボンに［設定］パネルの全項目（決め方・型の各チェック・描画スタイル・ミュート・音量・再配置の周期）があり、アイコン（アクセシブルな名前）・説明・PARAM-011 文字以内のラベルを持つ', async () => {
@@ -19,6 +20,11 @@ test('FR-030 AC-519: リボンに［設定］パネルの全項目（決め方�
   app.commands['settings.open'](); app.getSettingsDialog();
   const ids = app.getSettingsDialog().fields.map((f) => f.id);
   for (const id of PANEL_FIELDS) assert.ok(ids.includes(id), `［設定］に ${id} がある`);
+  assert.equal(items(app).some((i) => i.settingsField === 'drawStyle'), false, 'リボンに settingsField=drawStyle の項目はない');
+  const drawItems = items(app).filter((i) => /^drawStyle\./.test(i.command));
+  assert.deepEqual(drawItems.map((i) => i.command), app.getDrawStyles().map((s) => `drawStyle.set:${s.id}`), 'リボンの描画スタイル項目は「画風」の 13 項目だけ');
+  assert.equal(drawItems.length, 13);
+  assert.equal(drawItems.every((i) => i.group === 'drawStyle'), true, '13 項目はすべて「画風」グループ');
   app.commands['settings.close']();
   for (const id of PANEL_FIELDS) assert.ok(bySetting(app, id).length >= 1, `リボンに ${id} の項目がある`);
   assert.deepEqual(TYPES.filter((t) => bySetting(app, 'layout.types').some((i) => i.command === `layoutType.${t}`)), TYPES, '型の各チェックは 6 つ');
@@ -41,7 +47,7 @@ test('FR-030 AC-519: リボンで操作した値は［設定］の同じ項目�
   await seedThreeScenes(app, env);
   const op = (c, v) => app.operateBarItem(c, v);
   const mode = bySetting(app, 'layout.mode')[0].command;
-  const draw = bySetting(app, 'drawStyle')[0].command;
+  const drawPressed = () => items(app).filter((i) => i.group === 'drawStyle' && i.pressed).map((i) => i.command);
   const mute = bySetting(app, 'sound.muted')[0].command;
   const vol = bySetting(app, 'sound.volume')[0].command;
   const itv = bySetting(app, 'arrange.interval')[0].command;
@@ -49,13 +55,14 @@ test('FR-030 AC-519: リボンで操作した値は［設定］の同じ項目�
   app.commands['settings.open']();
   // リボン → ［設定］
   assert.equal(op(mode, 'auto').ok, true); assert.equal(sfield(app, 'layout.mode').value, 'auto'); assert.equal(app.getLayoutInfo().source, 'auto');
-  assert.equal(op(draw, 'simple').ok, true); assert.equal(sfield(app, 'drawStyle').value, 'simple'); assert.equal(app.getDrawStyle(), 'simple');
+  // 描画スタイルは「画風」グループの項目（押下の表示が現在値。FR-077 AC-418: 上部での選択は［設定］の既定を変えない）
+  assert.equal(op('drawStyle.set:simple').ok, true); assert.equal(app.getDrawStyle(), 'simple'); assert.deepEqual(drawPressed(), ['drawStyle.set:simple']);
   assert.equal(op(mute, true).ok, true); assert.equal(sfield(app, 'sound.muted').value, true); assert.equal(app.getRpgAudio().muted, true);
   assert.equal(op(vol, 30).ok, true); assert.equal(sfield(app, 'sound.volume').value, 30); assert.equal(app.getRpgAudio().volume, 30);
   assert.equal(op(itv, 25).ok, true); assert.equal(sfield(app, 'arrange.interval').value, 25); assert.equal(app.getArrangeInterval().sec, 25);
   // ［設定］ → リボン
   assert.ok(app.setSettings({ layout: { mode: 'fixed', types: ['zone', 'bubble'] }, drawStyle: 'handwritten' }).ok);
-  assert.equal(val(mode), 'fixed'); assert.equal(val(draw), 'handwritten');
+  assert.equal(val(mode), 'fixed'); assert.deepEqual(drawPressed(), ['drawStyle.set:handwritten'], '［設定］の既定の描画スタイルを変えると「画風」の押下も変わる（AC-149・AC-418）');
   assert.deepEqual(TYPES.filter((t) => items(app).find((i) => i.command === `layoutType.${t}`).selected), ['bubble', 'zone'], '型のチェックが反映される');
   app.setRpgMuted(false); app.setRpgVolume(70); app.setArrangeInterval(40);
   assert.equal(val(mute), false); assert.equal(val(vol), 70); assert.equal(val(itv), 40);
@@ -63,7 +70,7 @@ test('FR-030 AC-519: リボンで操作した値は［設定］の同じ項目�
   app.commands['settings.close']();
   const again = await createApp({ ...env.options });
   assert.equal(again.getSettings().drawStyle, 'handwritten');
-  assert.equal(items(again).find((i) => i.command === draw).value, 'handwritten');
+  assert.deepEqual(items(again).filter((i) => i.group === 'drawStyle' && i.pressed).map((i) => i.command), ['drawStyle.set:handwritten']);
   assert.equal(items(again).find((i) => i.command === vol).value, 70);
   assert.equal(items(again).find((i) => i.command === itv).value, 40);
 });
@@ -94,12 +101,13 @@ test('FR-030 AC-520: リボンに同じ機能の項目の重複がなく（型�
   const once = (pred, name) => assert.equal(its.filter(pred).length, 1, `${name} は 1 つだけ`);
   for (const t of TYPES) once((i) => i.command === `layoutType.${t}`, `型 ${t}`);
   once((i) => i.command === 'layoutType.clear', '型を解除');
-  once((i) => i.command === 'drawStyle.pick', '描画スタイル');
+  for (const s of ids13(app)) once((i) => i.command === `drawStyle.set:${s}`, `画風 ${s}`);
+  assert.equal(its.filter((i) => i.command === 'drawStyle.pick').length, 0, '旧 drawStyle.pick は廃止');
   for (const c of ['layout.tile', 'layout.focus', 'layout.maximize', 'layout.reset']) once((i) => i.command === c, c);
   once((i) => i.command === 'theme.toggle', '配色');
   once((i) => i.command === 'lang.ja', '日本語'); once((i) => i.command === 'lang.en', '英語');
   for (const id of ['layout.mode', 'sound.muted', 'sound.volume', 'arrange.interval']) assert.equal(bySetting(app, id).length, 1, `${id} は 1 つだけ`);
-  assert.equal(bySetting(app, 'drawStyle').length, 1, '描画スタイルは［設定］と 1 つにまとまる');
+  assert.equal(app.getCommandBar().groups.find((g) => g.id === 'settings').commands.filter((c) => /^drawStyle\./.test(c)).length, 0, '描画スタイルは「画風」の項目だけで、設定のグループに重複させない');
   assert.equal(bySetting(app, 'layout.types').length, TYPES.length, '型のチェックは型ごとに 1 つ');
   for (const k of ['label', 'icon']) {
     const vs = its.map((i) => i[k]).filter(Boolean);

@@ -159,13 +159,11 @@ test('FR-093 AC-550: 手入力・ファイル取込の記録時に別表記が�
 });
 
 // FR-093 AC-551（案 A）: 用語集の語は Azure Speech でも外部へ送らない。認識の開始・クライアントの fetch・結果の表記統一（AC-550）。
-test('FR-093 AC-551: Azure Speech の開始に用語集の語を渡さない（同意の前後とも）。認識結果は別表記が正しい表記に統一される', async () => {
+test('FR-093 AC-551: Azure Speech の開始に用語集の語を渡さない。認識結果は別表記が正しい表記に統一される', async () => {
   const c = await bootAzure();
   c.app.addGlossaryTerm({ term: 'Kubernetes', variants: ['くべるねてす'] });
   await startAzureRecording(c.app, { consent: false });
-  assert.equal(c.azure.startCalls.length, 0, '同意前は開始しない');
-  c.app.setSpeechConsent(true); await flush();
-  assert.equal(c.azure.startCalls.length, 1);
+  assert.equal(c.azure.startCalls.length, 1, '同意は口頭で得たものとして、操作なしに開始する');
   assert.equal('phrases' in c.azure.startCalls[0], false);
   assert.equal(JSON.stringify(c.azure.startCalls[0]).includes('Kubernetes'), false);
   // AC-550: Azure の認識結果（記録の入口）でも別表記が正しい表記になり、rawText に元が残る
