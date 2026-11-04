@@ -28,10 +28,11 @@ test('NFR-UX-012 AC-466: jpFontOrder は欧文専用の書体（PARAM-093）→ 
   assert.equal(fontFamilyValue(['Segoe UI', 'sans-serif']), "'Segoe UI', sans-serif");
 });
 
-// NFR-UX-012 AC-466 / FR-075 AC-407: 書体の系統の並び
-test('NFR-UX-012 AC-466 FR-075 AC-407: 書体の系統の並びは欧文専用の書体の次に Yu Gothic UI、系統の順は保つ', () => {
+// NFR-UX-012 AC-466 / FR-075 AC-407 / FR-076 AC-670: 書体の系統の並び（Yomogi・Zen Kurenaido・Kaisei Decol は Yu Gothic UI の後の、
+// 日本語の字形を持ち得る書体の先頭。Q-046 の回答まで Yu Gothic UI より前には置かない）
+test('NFR-UX-012 AC-466 FR-075 AC-407 FR-076 AC-670: 書体の系統の並びは欧文専用の書体の次に Yu Gothic UI、その次に 3 つの手書き風の書体', () => {
   const n = (k) => FONT_STACKS[k].map((f) => f.name);
-  assert.deepEqual(n('handwriting'), ['Segoe Print', 'Ink Free', 'Arial Rounded MT Bold', JP_FONT, 'Klee One', 'Klee', 'Yomogi', 'Zen Kurenaido',
+  assert.deepEqual(n('handwriting'), ['Segoe Print', 'Ink Free', 'Arial Rounded MT Bold', JP_FONT, 'Yomogi', 'Zen Kurenaido', 'Kaisei Decol', 'Klee One', 'Klee',
     'Zen Maru Gothic', 'M PLUS Rounded 1c', 'Kosugi Maru', 'Hiragino Maru Gothic ProN', 'sans-serif']);
   assert.deepEqual(n('roundGothic'), ['Arial Rounded MT Bold', JP_FONT, 'Zen Maru Gothic', 'M PLUS Rounded 1c', 'Kosugi Maru', 'Hiragino Maru Gothic ProN', 'sans-serif']);
   assert.deepEqual(n('gothic'), [JP_FONT, 'BIZ UDPGothic', 'Hiragino Sans', 'Meiryo', 'Noto Sans JP', 'sans-serif']);

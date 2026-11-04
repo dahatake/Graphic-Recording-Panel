@@ -8,6 +8,7 @@ import { escapeHtml } from './outline.js';
 import { acceptGeneratedSvg } from './svgsanitize.js';
 import { withoutConfidential } from './visibility.js';
 import { readJson, writeJson } from './persist.js';
+import { normalizeSection, SECTIONS as BOARD_SECTIONS } from './board.js';
 export const LLM_LABEL_MAX = 24; // PARAM-165: LLM が返したラベル文字列の最大の長さ（文字）
 
 export const EXTRACT_PATH = '/api/llm/extract'; // 中継サーバーが /api/llm/responses と同じ中継をする
@@ -67,6 +68,22 @@ export function parseExtraction(body) {
   })); // 名前・特定の人物を表す指定は読まない（Q-006 の回答 B）
   const emotions = uniq((b.emotions ?? []).map((e) => e.key).filter((k) => typeof k === 'string' && CHARACTER_OPTIONS.expression.includes(k) && k !== 'neutral')).slice(0, LIMITS.emotions);
   return { objects: partKeys(b.objects, LIMITS.objects), metaphors: partKeys(b.metaphors, LIMITS.metaphors), people, emotions };
+}
+
+// FR-114 AC-665 (1)（監査 S-01）: 応答の任意の項目 sections（[{ point: 1 始まりの要点の番号, section: 区画名, emphasis?: 強調語 }]）。
+// 形式の検証（AC-317）を通った応答でだけ使う。不正な項目は、その項目の区画の指定だけを無視する（規則で振り分ける）。文字は LLM_LABEL_MAX まで・文字としてだけ扱う（AC-320）。
+export function parseSections(body, pointCount = Infinity) {
+  const b = unwrap(body);
+  const out = new Map(); // 要点の添字（0 始まり）→ { section, emphasis }
+  if (!b || !isArr(b.sections)) return out;
+  for (const it of b.sections.slice(0, 200)) {
+    if (!isObj(it) || !Number.isInteger(it.point) || it.point < 1 || it.point > pointCount || out.has(it.point - 1)) continue;
+    const section = normalizeSection(it.section);
+    if (!section) continue;
+    const em = (isArr(it.emphasis) ? it.emphasis : [it.emphasis]).filter((w) => typeof w === 'string').map((w) => [...w.replace(/[<>&"'\u0000-\u001f]/g, ' ').trim()].slice(0, LLM_LABEL_MAX).join('')).filter(Boolean).slice(0, 2);
+    out.set(it.point - 1, { section, emphasis: em });
+  }
+  return out;
 }
 
 // FR-065 AC-331: 同梱部品にない物体（key が部品キーでなく label がある）の名前。重複なし・上限つき。
@@ -170,7 +187,11 @@ export function llmDrawModule(ctx) {
     + `"key" of objects and metaphors must be one of these part keys: ${catalogText()}. `
     + `people use only: hair ${CHARACTER_OPTIONS.hair.join('|')}; hairColor ${CHARACTER_OPTIONS.hairColor.join('|')}; outfit ${CHARACTER_OPTIONS.outfit.join('|')}; expression ${CHARACTER_OPTIONS.expression.join('|')}. `
     + `emotions keys: ${CHARACTER_OPTIONS.expression.filter((e) => e !== 'neutral').join('|')}. Never include names of real people.`
-    + (svgGeneration ? ' For an object that has no suitable part, use key "other" and give a short "label" naming it.' : '');
+    + (svgGeneration ? ' For an object that has no suitable part, use key "other" and give a short "label" naming it.' : '')
+    + ` Lines after the first line are key points numbered from 1. Optionally add "sections":[{"point":<number>,"section":"<id>","emphasis":"<one word from the point>"}] where id is one of: ${BOARD_SECTIONS.map((s) => s.id).join('|')}.`; // FR-114・AC-317: 9 つの区画名は固定の指示文に含める（送信の内容は変えない）
+  // FR-114: 要点ごとの区画の指定（シーン ID → Map(要点の添字 → { section, emphasis })）。LLM 連携が無効のときは使わない
+  const sectionsOf = new Map();
+  api.getLlmPointSection = (sceneId, index) => (active() ? sectionsOf.get(sceneId)?.get(index) ?? null : null);
 
   function requestFor(scene) {
     const [safe] = withoutConfidential([scene], state.lang === 'en' ? 'en' : 'ja'); // 機密の要点は公開範囲に関わらず LLM へ送らない（監査 S-1）
@@ -190,6 +211,7 @@ export function llmDrawModule(ctx) {
     const parsed = parseExtraction(res.body);
     if (!parsed) return; // 形式に合わない応答は全体を無視（ルールベースのまま）
     drawn.set(scene.id, parsed);
+    { const secs = parseSections(res.body, scene.points.length); const same = withoutConfidential([scene], state.lang === 'en' ? 'en' : 'ja')[0].points.length === scene.points.length; if (secs.size && same) sectionsOf.set(scene.id, secs); else sectionsOf.delete(scene.id); } // 機密の要点を除いて送ったときは番号がずれるので使わない
     if (svgGeneration) { const labels = parseUnbundled(res.body); if (labels.length) { ctx.emit('change', api); await generate(scene.id, labels, n); return; } }
     ctx.emit('change', api);
   }

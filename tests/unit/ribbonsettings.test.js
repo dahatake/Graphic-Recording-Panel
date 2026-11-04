@@ -29,11 +29,14 @@ test('FR-030 AC-519: リボンの値のある項目は［設定］の同じ項�
 });
 
 // FR-030 AC-520 / NFR-UX-011 AC-459
-test('FR-030 AC-520 / NFR-UX-011 AC-459: 10 グループ（画風は表示の直後）で接続キーのグループがなく、設定グループは［設定］と 4 項目（描画スタイル・レイアウト型を含まない）、各グループ 13 個以内', async () => {
+test('FR-030 AC-520 / NFR-UX-011 AC-459: 10 グループ（画風は表示の直後）で接続キーのグループがなく、設定グループは［設定］と 4 項目（描画スタイル・レイアウト型を含まない）、各グループ PARAM-092（15）個以内', async () => {
   const app = await mk();
   const groups = app.getCommandBar().groups;
   assert.deepEqual(groups.map((g) => g.id), ['import', 'session', 'view', 'drawStyle', 'layoutType', 'settings', 'presentation', 'export', 'data', 'environment']);
-  assert.ok(groups.every((g) => g.commands.length <= 13));
+  // PARAM-092（15。AC-670 の 2 つの風の追加で 13 から引き上げ）はすべてのグループに適用する。画風グループは AC-414 のとおり登録された 15 の描画スタイルをすべて常時表示する
+  assert.ok(groups.every((g) => g.commands.length <= 15));
+  assert.equal(groups.find((g) => g.id === 'drawStyle').commands.length, app.getDrawStyles().length);
+  assert.equal(app.getDrawStyles().length, 15);
   assert.deepEqual(groups.find((g) => g.id === 'settings').commands, ['settings.open', 'settings.layoutMode', 'sound.toggleMute', 'sound.setVolume', 'arrange.setInterval', 'settings.talkPreset']);
   assert.ok(!app.getCommandBar().items.some((i) => /^apiKeys\./.test(i.command)));
   const icons = app.getCommandBar().items.map((i) => i.icon);

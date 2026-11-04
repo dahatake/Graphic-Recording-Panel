@@ -6,11 +6,17 @@
 //   headingDecoration 'band'|'marker'|'sticky'|'classic' ／ balloon 'cloud'|'rounded'|'sticky'
 //   stroke { wobble>=0（0 で揺らぎなし）, width>0（px）} ／ figures:boolean（線画人物）／ icons:boolean（絵記号）
 //   description { ja:{color,drawing,font,mood}, en:{…} }（画風の記述。見た目は変えない。FR-078 の画像生成プロンプトが使う）
+// FR-076 AC-670 で足した任意の項目（見た目の項目を持つ定義だけが使う。持たなければ従来どおり）:
+//   palette.outline 黄の面の輪郭線の色（黒かグレー。紙面と 3:1 以上。AC-410）
+//   card { radius>0 }（要点・吹き出しを白いカードで描く。角の丸み px）／ paletteOnly:boolean（図の色を配色と白・黒に限る）
+//   headingBand { gradient:[色 2 つ以上], icons:boolean }（見出しの帯をグラデーションにし、帯に白抜きの絵記号を添える）
+//   boardFrame 'cloud'|'rect'（会議ボード型 FR-114 の区画の枠の形。cloudFramePath・boardFrameLook）
 
 export const PAPERS = ['plain', 'grid', 'ruled', 'chalkboard', 'whiteboard', 'kraft'];
 export const FONT_KINDS = ['handwriting', 'roundGothic', 'gothic'];
 export const HEADING_DECORATIONS = ['band', 'marker', 'sticky', 'classic'];
 export const BALLOON_SHAPES = ['cloud', 'rounded', 'sticky'];
+export const BOARD_FRAMES = ['cloud', 'rect'];
 export const PALETTE_ROLES = ['background', 'primary', 'accent', 'text', 'secondary'];
 export const DESCRIPTION_AXES = ['color', 'drawing', 'font', 'mood'];
 export const DESCRIPTION_AXIS_MAX = 60; // PARAM-169: 画風の記述（1 軸）の最大の長さ（日本語の文字数。英語は半角で 2 倍）
@@ -45,7 +51,9 @@ export const LEGACY_FONT_FAMILY = fontFamilyValue(LEGACY_FONT_NAMES);
 // 書体の系統ごとの並び（端末に入っている書体の名前だけ。書体のファイルは同梱せず外部からも取得しない）。
 // 手書き風 → 丸ゴシック → 端末の標準の書体、丸ゴシック → 端末の標準の書体 の順に、ブラウザが最初に見つかったものを使う。
 // 日本語の字形は、欧文専用の書体の次の Yu Gothic UI が先に受け持つ（NFR-UX-012。系統の順は欧文専用の書体どうし・残りどうしで保つ）。
-const HAND = [['Klee One', 'handwriting'], ['Klee', 'handwriting'], ['Yomogi', 'handwriting'], ['Zen Kurenaido', 'handwriting'], ['Segoe Print', 'handwriting'], ['Ink Free', 'handwriting']];
+// FR-076 AC-670: Yomogi・Zen Kurenaido・Kaisei Decol は、Yu Gothic UI の後の日本語の字形を持ち得る書体の先頭（Q-046 の回答まで
+// NFR-UX-012 の並びを守り、Yu Gothic UI より前には置かない）。端末にないときは並びの次の書体で表示される。
+const HAND = [['Yomogi', 'handwriting'], ['Zen Kurenaido', 'handwriting'], ['Kaisei Decol', 'handwriting'], ['Klee One', 'handwriting'], ['Klee', 'handwriting'], ['Segoe Print', 'handwriting'], ['Ink Free', 'handwriting']];
 const ROUND = [['Zen Maru Gothic', 'roundGothic'], ['M PLUS Rounded 1c', 'roundGothic'], ['Kosugi Maru', 'roundGothic'], ['Hiragino Maru Gothic ProN', 'roundGothic'], ['Arial Rounded MT Bold', 'roundGothic']];
 const GOTHIC = [['BIZ UDPGothic', 'gothic'], ['Hiragino Sans', 'gothic'], ['Yu Gothic UI', 'gothic'], ['Meiryo', 'gothic'], ['Noto Sans JP', 'gothic']];
 const GENERIC = [['sans-serif', 'generic']];
@@ -120,7 +128,20 @@ export function validatePresetFields(def) {
     for (const k of ['background', 'primary', 'text', 'secondary']) if (!isColor(p[k])) return { ok: false, reason: 'invalid_palette' };
     if (!Array.isArray(p.accent) || !p.accent.length || !p.accent.every(isColor)) return { ok: false, reason: 'invalid_palette' };
     if (contrastRatio(p.text, p.background) < MIN_TEXT_CONTRAST) return { ok: false, reason: 'low_contrast' };
+    if (p.outline !== undefined) {
+      if (!isColor(p.outline) || !isNeutralColor(p.outline)) return { ok: false, reason: 'invalid_palette' };
+      if (contrastRatio(p.outline, p.background) < MIN_OUTLINE_CONTRAST) return { ok: false, reason: 'low_contrast' };
+    }
   }
+  if (def.card !== undefined && (!isObj(def.card) || !(isNum(def.card.radius) && def.card.radius > 0))) return { ok: false, reason: 'invalid_card' };
+  if (def.paletteOnly !== undefined && typeof def.paletteOnly !== 'boolean') return { ok: false, reason: 'invalid_card' };
+  if (def.headingBand !== undefined) {
+    const b = def.headingBand;
+    if (!isObj(b) || !Array.isArray(b.gradient) || b.gradient.length < 2 || !b.gradient.every(isColor) || (b.icons !== undefined && typeof b.icons !== 'boolean')) return { ok: false, reason: 'invalid_heading' };
+    // 帯の文字（白か黒）が、グラデーションのどの位置でも 4.5:1 以上になること（AC-670。最も明るい位置で判定）
+    if (!['#ffffff', '#000000'].some((c) => b.gradient.every((s) => contrastRatio(c, s) >= MIN_TEXT_CONTRAST))) return { ok: false, reason: 'low_contrast' };
+  }
+  if (def.boardFrame !== undefined && !BOARD_FRAMES.includes(def.boardFrame)) return { ok: false, reason: 'invalid_board_frame' };
   if (def.paper !== undefined && !PAPERS.includes(def.paper)) return { ok: false, reason: 'invalid_paper' };
   if (def.font !== undefined && !FONT_KINDS.includes(def.font)) return { ok: false, reason: 'invalid_font' };
   if (def.headingDecoration !== undefined && !HEADING_DECORATIONS.includes(def.headingDecoration)) return { ok: false, reason: 'invalid_heading' };
@@ -149,7 +170,52 @@ export function presetOf(def) {
     stroke: def.stroke ?? { wobble: line.jitter, width: Math.max(0.5, 2 * line.width) },
     figures: def.figures ?? false,
     icons: def.icons ?? def.text?.icons ?? true,
+    card: isObj(def.card) ? { radius: def.card.radius } : null,
+    paletteOnly: def.paletteOnly === true,
+    headingBand: isObj(def.headingBand) ? { gradient: [...def.headingBand.gradient], icons: def.headingBand.icons === true } : null,
+    boardFrame: def.boardFrame ?? 'rect',
   };
+}
+
+// ---- 会議ボード型（FR-114）の区画の枠（FR-076 AC-670）。DOM に依存しない ----
+// 決定的な擬似乱数（文字列の種から。乱数・時刻に依存しない。AC-412）
+function seeded(seed) {
+  let h = 2166136261;
+  for (const ch of String(seed)) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619); }
+  let a = h >>> 0;
+  return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+const rr = (n) => Math.round(n * 10) / 10;
+// 雲形の枠の SVG パス。矩形 (x, y, w, h) の周に沿って外向きの弧を連ねる（中の矩形は枠の内側に収まり、文字が枠をまたがない）。
+// 戻り値: { d, box:[x,y,w,h]（弧のふくらみを含む外接矩形）, inner:[x,y,w,h]（文字を置いてよい矩形） }。同じ引数なら同じ形。
+export function cloudFramePath(x, y, w, h, { seed = '', step = 28 } = {}) {
+  const W = Math.max(1, w); const H = Math.max(1, h); const rand = seeded(`cloud:${seed}:${W}x${H}`);
+  const nx = Math.max(2, Math.round(W / step)); const ny = Math.max(2, Math.round(H / step));
+  const pts = [];
+  for (let i = 0; i < nx; i++) pts.push([x + (W * i) / nx, y]);
+  for (let i = 0; i < ny; i++) pts.push([x + W, y + (H * i) / ny]);
+  for (let i = 0; i < nx; i++) pts.push([x + W - (W * i) / nx, y + H]);
+  for (let i = 0; i < ny; i++) pts.push([x, y + H - (H * i) / ny]);
+  let d = `M${rr(pts[0][0])} ${rr(pts[0][1])}`; let bulge = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const [ax, ay] = pts[i]; const [bx, by] = pts[(i + 1) % pts.length]; const c = Math.hypot(bx - ax, by - ay);
+    const r = c * (0.56 + rand() * 0.1);
+    bulge = Math.max(bulge, r - Math.sqrt(Math.max(0, r * r - (c * c) / 4)));
+    d += `A${rr(r)} ${rr(r)} 0 0 1 ${rr(bx)} ${rr(by)}`; // 時計回りの小さい弧 = 外側へふくらむ
+  }
+  const m = Math.ceil(bulge + 1);
+  return { d: `${d}Z`, box: [x - m, y - m, W + 2 * m, H + 2 * m], inner: [x, y, W, H] };
+}
+// 区画の枠の配色と形（spec は描画スタイルの定義）。boardFrame が 'cloud' の定義は雲形で、黄（塗り）・黒（輪郭線と文字）・グレー（影）の 3 色。
+// それ以外は null（区画の枠は会議ボード型の既定の描き方）。黄の面には黒の輪郭線を付け、黄の上の文字は黒（AC-410）。
+export function boardFrameLook(spec) {
+  const pr = presetOf(spec);
+  if (!pr || pr.boardFrame !== 'cloud') return null;
+  const P = pr.palette;
+  const fill = P.accent.find(isYellowish) ?? '#ffd400';
+  const dark = [P.primary, P.text, '#1a1a1a'].find((c) => isNeutralColor(c) && contrastRatio(c, fill) >= MIN_TEXT_CONTRAST && contrastRatio(c, P.background) >= MIN_OUTLINE_CONTRAST) ?? '#000000';
+  const shadow = isNeutralColor(P.secondary) ? P.secondary : '#9e9e9e';
+  return { shape: 'cloud', fill, stroke: dark, text: dark, shadow, strokeWidth: pr.stroke.width, path: cloudFramePath };
 }
 
 // ---- 組み込みの 11 の風（3.6 の表。名前は日本語 6 文字・英語 12 文字以内） ----
@@ -160,6 +226,7 @@ export const PRESET_STYLES = [
     id: 'yellowBlack', label: { ja: '黄黒手書き風', en: 'Yellow Black' }, ...legacy(1.3, 1, 'bold'),
     palette: { background: '#ffffff', primary: '#1a1a1a', accent: ['#ffd400'], text: '#1a1a1a', secondary: '#9e9e9e' },
     paper: 'plain', font: 'handwriting', headingDecoration: 'band', balloon: 'cloud', stroke: { wobble: 1, width: 3.2 }, figures: true, icons: true,
+    boardFrame: 'cloud', // AC-670: 会議ボード型（FR-114）の区画の枠を雲形（黄・黒・グレー）で描く
     description: {
       ja: d('白い紙に黄色・黒・グレーの 3 色。黄色は強調・吹き出し・アイコンの塗り、黒は文字と枠、グレーは区切り線と影', '揺らぎのある太めの手描きの線。黄色い雲形の吹き出しに黒の輪郭線。丸い頭と細い線のシンプルな人物の線画と小さなアイコン', '手書き風の柔らかく少し太めで丸みのある文字。見出しは黒い帯に白抜きの文字', 'やさしく温かく親しみやすい'),
       en: d('Yellow, black and gray on white paper. Yellow for highlights and balloons, black for text and frames, gray for dividers', 'Bold, slightly wobbly hand-drawn lines. Yellow cloud balloons with black outlines. Simple line-art people, small icons', 'Soft, slightly bold and rounded handwritten lettering. Headings in white letters on black bands', 'Gentle, warm and friendly'),
@@ -235,6 +302,30 @@ export const PRESET_STYLES = [
     description: {
       ja: d('茶色のクラフト紙にこげ茶。差し色は白と赤、ベージュを補助に使う', '中くらいの太さで揺らぐ線。手で切ったような縁取りの付箋の見出しと吹き出し。人物の線画と絵記号', '手書き風の文字', '温かい手作り'),
       en: d('Dark brown on brown kraft paper, with white and red accents and beige as a support color', 'Medium, wobbly lines. Headings and speech balloons on sticky notes with hand-torn edges. Line-art people and pictograms', 'Handwritten lettering', 'Warm and handmade'),
+    },
+  },
+  // FR-076 AC-670（依頼 2026-11-04・SRC-082）: 配色は 5 色と白に限る（文字は #593C47、黄の面の輪郭線と黄の上の文字は黒。AC-410）。
+  // 橙・赤（#F25C05・#F24405）は線・マーカー・下線・絵記号の塗りだけに使い、文字の背景にしない。要点・吹き出しは白いカード（角の丸み 12 px）。
+  {
+    id: 'warmCards', label: { ja: '暖色カード風', en: 'Warm Cards' }, ...legacy(1, 0.8, 'standard'),
+    palette: { background: '#ffffff', primary: '#593c47', accent: ['#f25c05', '#f2e63d', '#f2c53d', '#f24405'], text: '#593c47', secondary: '#f24405', outline: '#000000' },
+    paper: 'plain', font: 'handwriting', headingDecoration: 'marker', balloon: 'rounded', stroke: { wobble: 0.8, width: 2.2 }, figures: true, icons: true,
+    card: { radius: 12 }, paletteOnly: true,
+    description: {
+      ja: d('白い紙に濃いプラムの文字と枠。黄の強調、橙と赤は線・マーカー・絵記号だけ', '白いカードに角丸の枠と少し揺らぐ手描きの線。人物の線画と絵記号を添える', '手書き風の文字。見出しは橙のマーカーの下線で強調', '温かく活気がある'),
+      en: d('Dark plum text and frames on white paper. Yellow highlights; orange and red only for lines, markers and icons', 'White cards with rounded frames and slightly wobbly hand-drawn lines. Line-art people and pictograms', 'Handwritten lettering. Headings underlined with an orange marker', 'Warm and lively'),
+    },
+  },
+  // FR-076 AC-670: タイトル帯・見出しは #1e40af を基調とする青のグラデーションの帯に白抜きの文字と絵記号
+  // （最も明るい位置 #3b5bdb でも白との比は 5.67:1。PARAM-007 の 4.5 以上）。
+  {
+    id: 'blueHeadings', label: { ja: '青見出し風', en: 'Blue Heading' }, ...legacy(1, 0, 'bold'),
+    palette: { background: '#ffffff', primary: '#1e40af', accent: ['#2563eb', '#3b82f6'], text: '#374151', secondary: '#3b82f6' },
+    paper: 'plain', font: 'roundGothic', headingDecoration: 'band', balloon: 'rounded', stroke: { wobble: 0, width: 2.2 }, figures: true, icons: true,
+    headingBand: { gradient: ['#1e40af', '#3b5bdb'], icons: true },
+    description: {
+      ja: d('白い背景に濃い青のグラデーションの帯、明るい青の強調、濃いグレーの文字', '揺らぎのない中くらいの線と角丸の枠。人物の線画と絵記号を添える', '丸ゴシック。見出しは青のグラデーションの帯に白抜きの文字と絵記号', '整理されて信頼感がある'),
+      en: d('Dark blue gradient bands on a white background, bright blue highlights and dark gray text', 'Medium lines without wobble and rounded frames. Line-art people and pictograms', 'Rounded gothic type. Headings in white letters and icons on blue gradient bands', 'Organized and trustworthy'),
     },
   },
 ];

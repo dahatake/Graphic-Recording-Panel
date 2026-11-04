@@ -1,0 +1,121 @@
+{
+ "_comment": "FR-114 AC-667 の期待の区画の表。AC-665 の規則（PARAM-126・127・129・131・132・178。2026-11-04 の値）を各発言の文字に当てはめた結果（test-designer が要求定義書だけから作成。実装から作っていない）。board.test.js が PARAM から作り直して一致を自己検証する。区画の識別子は CONTRACT-BOARD.md。",
+ "source": "tests/system/fixtures/teama-meeting.txt",
+ "rows": [
+  {
+   "no": 1,
+   "text": "今日の目的は新サービスの進め方の整理",
+   "section": "purpose"
+  },
+  {
+   "no": 2,
+   "text": "背景として問い合わせ件数が倍増しています",
+   "section": "purpose"
+  },
+  {
+   "no": 3,
+   "text": "本日はTeamAから五名が参加しています",
+   "section": "members"
+  },
+  {
+   "no": 4,
+   "text": "一年後に顧客満足度一位を目指す",
+   "section": "vision"
+  },
+  {
+   "no": 5,
+   "text": "まず現行の受付の流れを振り返りました",
+   "section": "flow"
+  },
+  {
+   "no": 6,
+   "text": "次に窓口ごとの負荷の差を見ました",
+   "section": "flow"
+  },
+  {
+   "no": 7,
+   "text": "続いて自動応答の試作を見せました",
+   "section": "flow"
+  },
+  {
+   "no": 8,
+   "text": "最後に費用感をざっくり話しました",
+   "section": "flow"
+  },
+  {
+   "no": 9,
+   "text": "主要テーマは受付の一元化",
+   "section": "themes"
+  },
+  {
+   "no": 10,
+   "text": "論点は既存の窓口との役割分担",
+   "section": "themes"
+  },
+  {
+   "no": 11,
+   "text": "受付窓口を一本化することに決めました",
+   "section": "decisions"
+  },
+  {
+   "no": 12,
+   "text": "試作はA案を採用すると決まりました",
+   "section": "decisions"
+  },
+  {
+   "no": 13,
+   "text": "料金体系は持ち帰りで再検討",
+   "section": "open"
+  },
+  {
+   "no": 14,
+   "text": "移行時期はまだ未定です",
+   "section": "open"
+  },
+  {
+   "no": 15,
+   "text": "夜間の受付の扱いは次回に持ち越し",
+   "section": "open"
+  },
+  {
+   "no": 16,
+   "text": "外部委託の範囲は保留とします",
+   "section": "open"
+  },
+  {
+   "no": 17,
+   "text": "問い合わせの分類方法はどうしますか",
+   "section": "open"
+  },
+  {
+   "no": 18,
+   "text": "佐藤さんが金曜までに要件を共有します",
+   "section": "actions"
+  },
+  {
+   "no": 19,
+   "text": "鈴木さんが月末までに見積を出します",
+   "section": "actions"
+  },
+  {
+   "no": 20,
+   "text": "田中さん担当で来週までに比較表を作成",
+   "section": "actions"
+  },
+  {
+   "no": 21,
+   "text": "山田さんが十日までに窓口一覧を確認します",
+   "section": "actions"
+  },
+  {
+   "no": 22,
+   "text": "高橋さんが今月末までに案内文を対応します",
+   "section": "actions"
+  },
+  {
+   "no": 23,
+   "text": "補足ですが昨年度も同様の検討あり",
+   "section": "memo"
+  }
+ ]
+}

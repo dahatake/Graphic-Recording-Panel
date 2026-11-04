@@ -383,7 +383,7 @@ async function renderStyledPng(scenes, canvasFactory, look, parts, imageFactory,
         const pts = jaggedPoints(bx + JAG_PX, by + JAG_PX, bw - JAG_PX * 2, bh - JAG_PX * 2, JAG_PX, 12);
         g.beginPath(); pts.forEach(([px, py], k) => (k ? g.lineTo(px, py) : g.moveTo(px, py))); g.closePath(); g.fill(); g.stroke();
       } else if (L.balloon === 'sticky') { g.fillRect(bx, by, bw, bh); g.strokeRect(bx, by, bw, bh); }
-      else { round(bx, by, bw, bh, L.balloon === 'cloud' ? bh / 2 : Math.min(bh / 2, L.cardRadius ?? 8)); g.fill(); g.stroke(); }
+      else { round(bx, by, bw, bh, L.balloon === 'cloud' ? bh / 2 : Math.min(bh / 2, L.cardRadius ?? 8)); g.fill(); g.stroke(); } // AC-670: 白いカードの角の丸み
       g.fillStyle = L.pointTexts[i % L.pointTexts.length]; g.font = font(FS_P, L.weight, L.fontFamily);
       g.fillText(p.text, bx + 12, by + bh / 2);
       y += ROW_H;

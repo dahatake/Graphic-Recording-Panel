@@ -11,7 +11,7 @@ System Test（apikeys.test.js・ribbon-settings.test.js）が前提にする観�
 
 ## リボンの設定項目（FR-030 AC-519・AC-520）
 - `getSettingsDialog().fields` に `layout.mode`・`layout.types`・`drawStyle`・`sound.muted`（値 boolean。`getRpgAudio().muted`）・`sound.volume`（値 0〜100。`getRpgAudio().volume`）・`arrange.interval`（値 0〜300）がある。
-- `getCommandBar().items[i]` は［設定］の項目に対応するとき `settingsField`（上の id）を持つ。型のチェックは `layoutType.<id>`（5 つ。`settingsField:'layout.types'`、`selected` が選択中）、描画スタイルは既存の `drawStyle.pick`（`settingsField:'drawStyle'`）。決め方・ミュート・音量・周期は新しい項目（`settingsField` が `layout.mode`・`sound.muted`・`sound.volume`・`arrange.interval`。コマンド名は実装が決める）で、1 つずつ。
+- `getCommandBar().items[i]` は［設定］の項目に対応するとき `settingsField`（上の id）を持つ。型のチェックは `layoutType.<id>`（AC-139 の 7 つ。`settingsField:'layout.types'`、`selected` が選択中）、描画スタイルは既存の `drawStyle.pick`（`settingsField:'drawStyle'`）。決め方・ミュート・音量・周期は新しい項目（`settingsField` が `layout.mode`・`sound.muted`・`sound.volume`・`arrange.interval`。コマンド名は実装が決める）で、1 つずつ。
 - 項目は `kind`（`'button'|'toggle'|'select'|'slider'|'number'`。省略は button）、`value`（現在値。［設定］の同じ項目の `value` と常に一致）、スライダー・数値は `min`・`max`、`icon`、`accessibleName`、`tabbable`、`description`＋`descriptionVisible` または `tooltip.text`、無効な項目は `disabled:true` と `disabledReason` を持つ。
 ## 講演向けの初期値（FR-030 AC-648。2026-11-03）
 - コマンド `settings.talkPreset`（`app.commands['settings.talkPreset']()`。返り値は `undefined`・`true`・`{ok:true}` のいずれか。失敗は `false`／`{ok:false}`）。1 回の呼び出しで、設定の `layout.mode` を `'auto'` にするだけ（`drawStyle`・詳細度・内容・選択・入力中・記録中・手動の型の選択は変えない。`layout.types` は固定へ戻したときのために保持してよい）。冪等。保存は FR-030 の設定と同じ。

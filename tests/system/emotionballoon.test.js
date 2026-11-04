@@ -68,7 +68,7 @@ function assertEmotionBalloons(app, id, where, { nine }) {
   for (const b of emo) {
     assert.ok(b.attrs['data-shape'] && b.attrs['data-shape'] !== spec.balloon, `${where}: 形の名前が通常（${spec.balloon}）と異なる: ${b.attrs['data-shape']}`);
     assert.ok(!normalSigs.has(shapeSig(b)), `${where}: 色を取り除いても形で見分けられる（${shapeSig(b)} と 通常 ${[...normalSigs].join(' / ')}）`);
-    // 配色と輪郭線の規定（9 つの風は AC-410）
+    // 配色と輪郭線の規定（11 の風は AC-410）
     assert.ok(b.attrs.stroke && b.attrs.stroke !== 'none' && Number(b.attrs['stroke-width']) > 0, `${where}: 輪郭線がある`);
     if (b.attrs.fill && b.attrs.fill !== 'none') assert.ok(palette.has(lc(b.attrs.fill)) || normal.some((x) => lc(x.attrs.fill) === lc(b.attrs.fill)), `${where}: 塗りはその画風の配色: ${b.attrs.fill}`);
     if (nine) {
@@ -87,7 +87,7 @@ function assertEmotionBalloons(app, id, where, { nine }) {
 }
 
 // FR-076 AC-467
-test('FR-076 AC-467: 9 つの風のすべてで、吹き出し型の感情語を含むトピックの吹き出しは通常の形と異なり、色を取り除いても形で見分けられ、配色・輪郭線の規定に従う', async () => {
+test('FR-076 AC-467: 11 の風のすべてで、吹き出し型の感情語を含むトピックの吹き出しは通常の形と異なり、色を取り除いても形で見分けられ、配色・輪郭線の規定に従う', async () => {
   const { app } = await bubbleApp();
   const ids = presetIds(app);
   for (const p of PRESETS) {

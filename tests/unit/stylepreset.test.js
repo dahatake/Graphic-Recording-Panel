@@ -90,9 +90,10 @@ test('FR-075 AC-405: 値が不正な見た目の項目を持つ定義は理由�
 });
 
 // FR-076 AC-409
-test('FR-076 AC-409: 組込みは既存の 4 つの後に 9 つの風が並び、すべて検証に通り、候補の値だけを使う', () => {
+test('FR-076 AC-409: 組込みは既存の 4 つの後に 11 の風が並び、すべて検証に通り、候補の値だけを使う', () => {
   assert.deepEqual(BUILTIN_STYLES.slice(0, 4).map((s) => s.id), ['handwritten', 'anime', 'simple', 'rpg']);
-  assert.equal(BUILTIN_STYLES.length, 13);
+  assert.equal(BUILTIN_STYLES.length, 15);
+  assert.equal(PRESET_STYLES.length, 11);
   for (const p of PRESET_STYLES) {
     assert.equal(validateStyle(p).ok, true, p.id);
     assert.ok(PAPERS.includes(p.paper) && FONT_KINDS.includes(p.font) && HEADING_DECORATIONS.includes(p.headingDecoration) && BALLOON_SHAPES.includes(p.balloon), p.id);
@@ -106,7 +107,7 @@ test('FR-076 AC-409: 組込みは既存の 4 つの後に 9 つの風が並び�
 });
 
 // FR-076 AC-410: 配色の役割の判読性（文字 4.5:1・輪郭 3:1・黄の面は黒かグレーの輪郭・黄の上は黒）
-test('FR-076 AC-410: 9 つの風の配色の役割は、面の上の文字が 4.5:1 以上、枠・面の輪郭と紙面が 3:1 以上になる', () => {
+test('FR-076 AC-410: 11 の風の配色の役割は、面の上の文字が 4.5:1 以上、枠・面の輪郭と紙面が 3:1 以上になる', () => {
   for (const p of PRESET_STYLES) {
     const L = buildLook(p);
     const surfaces = [L.bg, L.frameFill, L.emph, L.headSticky, ...(L.stickyFills ?? []), L.iconFill(0), L.iconFill(1), L.iconFill(2)];

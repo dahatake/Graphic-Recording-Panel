@@ -82,7 +82,7 @@ export function kindStylesModule(ctx) {
     if (api.getDrawStyle?.() === 'rpg') return false;
     if (state.displayMode === 'arrange') return false;
     const info = api.getLayoutInfo?.();
-    return !(info && info.applied && info.head === 'workshop');
+    return !(info && info.applied && (info.head === 'workshop' || info.head === 'board')); // FR-114: 会議ボード型も描画を引き取る
   };
   api.presetifyStyleSpec = presetify;
   // 種類 → 画風の定義（有効なときだけ。無効なら null）。保存（PNG・PDF）も同じ値を使う

@@ -30,9 +30,9 @@ async function copyVia(app, mask) {
   return app.promptNoticeAction('copy');
 }
 
-// FR-078 AC-420 AC-421: 組み込みの 13 の描画スタイルはすべて ja・en の画風の記述を持ち、既存の 4 つも見た目の項目は持たない（preset:false）
+// FR-078 AC-420 AC-421: 組み込みの 15 の描画スタイル（FR-076 AC-409・AC-670 で 2 つ追加）はすべて ja・en の画風の記述を持ち、既存の 4 つも見た目の項目は持たない（preset:false）
 test('FR-078 AC-420 AC-421: 組み込みの描画スタイルはすべて画風の記述（4 軸・ja/en）を持ち、既存 4 つの見た目は変えない', async () => {
-  assert.equal(BUILTIN_STYLES.length, 13);
+  assert.equal(BUILTIN_STYLES.length, 15);
   for (const s of BUILTIN_STYLES) {
     assert.equal(validateStyle(s).ok, true, s.id);
     for (const l of ['ja', 'en']) for (const ax of ['color', 'drawing', 'font', 'mood']) assert.ok(s.description?.[l]?.[ax]?.trim(), `${s.id} ${l}.${ax}`);
