@@ -7,7 +7,7 @@
 import { classifyPoint } from './diagram.js';
 import { escapeHtml } from './outline.js';
 import { personGroupFor } from './personvariants.js';
-import { contrastRatio, mix } from './stylepresets.js';
+import { contrastRatio, mix, boardFrameLook } from './stylepresets.js';
 
 export const BOARD_TYPE_ID = 'board';
 export const LABEL_MAX = 24; // PARAM-165: 図に出すラベルの最大の長さ（文字）
@@ -308,18 +308,17 @@ const ICONS = {
 };
 const icon = (name, x, y, color, scale = 1) => `<g data-board-part="icon" data-board-icon="${name}" transform="translate(${r1(x)} ${r1(y)})${scale !== 1 ? ` scale(${scale})` : ''}">${(ICONS[name] ?? ICONS.dot)(color)}</g>`;
 
-// 区画の枠: 角丸（既定）か、描画スタイルの boardFrame が 'cloud' のときは雲形（枠の内側に収める）
-function framePath(f, shape) {
-  if (shape !== 'cloud') return null;
-  const r = 10; const out = [];
-  const nx = Math.max(2, Math.round((f.w - 2 * r) / 36)); const ny = Math.max(1, Math.round((f.h - 2 * r) / 36));
-  const x0 = f.x + r; const y0 = f.y + r; const x1 = f.x + f.w - r; const y1 = f.y + f.h - r;
-  out.push(`M${r1(x0)} ${r1(y0)}`);
-  for (let i = 1; i <= nx; i++) out.push(`Q${r1(x0 + (x1 - x0) * (i - 0.5) / nx)} ${r1(f.y)} ${r1(x0 + (x1 - x0) * i / nx)} ${r1(y0)}`);
-  for (let i = 1; i <= ny; i++) out.push(`Q${r1(f.x + f.w)} ${r1(y0 + (y1 - y0) * (i - 0.5) / ny)} ${r1(x1)} ${r1(y0 + (y1 - y0) * i / ny)}`);
-  for (let i = 1; i <= nx; i++) out.push(`Q${r1(x1 - (x1 - x0) * (i - 0.5) / nx)} ${r1(f.y + f.h)} ${r1(x1 - (x1 - x0) * i / nx)} ${r1(y1)}`);
-  for (let i = 1; i <= ny; i++) out.push(`Q${r1(f.x)} ${r1(y1 - (y1 - y0) * (i - 0.5) / ny)} ${r1(x0)} ${r1(y1 - (y1 - y0) * i / ny)}`);
-  return `${out.join('')}Z`;
+// 区画の枠: 角丸（既定）か、描画スタイルの boardFrame が 'cloud' のときは雲形（stylepresets.js の boardFrameLook・cloudFramePath。AC-670）。
+// 雲形の弧のふくらみと影が区画の枠（モデルの frame）の外へ出ないよう、内側へ寄せて描く（隣の区画と重ならない）
+function cloudFrameSvg(f, look, seed) {
+  let k = 0; let c = null;
+  for (let i = 0; i < 3; i++) { // ふくらみの量は大きさで少し変わるので、収まるまで寄せ直す
+    c = look.path(f.x + k, f.y + k, Math.max(1, f.w - 2 * k), Math.max(1, f.h - 2 * k), { seed });
+    const need = Math.max(f.x - c.box[0], f.y - c.box[1], c.box[0] + c.box[2] - (f.x + f.w), c.box[1] + c.box[3] - (f.y + f.h)) + 3; // 3 = 影のずれ
+    if (need <= 0.01) break;
+    k += need;
+  }
+  return `<path d="${c.d}" transform="translate(3 3)" fill="${look.shadow}" stroke="none"/><path d="${c.d}" fill="${look.fill}" stroke="${look.stroke}" stroke-width="${r1(look.strokeWidth)}" stroke-linejoin="round"/>`;
 }
 
 function labelSvg(l, x, y, C, attrs = '') {
@@ -385,7 +384,8 @@ export function boardSvg(L, opts = {}) {
   const m = L.board; const tx = m.text;
   const spec = opts.style ?? null;
   const C = boardColors(spec);
-  const shape = spec?.boardFrame === 'cloud' ? 'cloud' : 'rounded';
+  const look = spec ? boardFrameLook(spec) : null; // AC-670: 雲形の枠の配色と形（style-670 の定義）
+  const shape = look ? 'cloud' : 'rounded';
   const lw = Math.max(1.2, Math.min(3, 2 * (spec?.line?.width ?? 1)));
   const attrs = [`data-draw-style="${escapeHtml(opts.drawStyle ?? 'handwritten')}"`, `data-board-frame="${shape}"`];
   if (opts.types) attrs.push(`data-layout-types="${escapeHtml(opts.types.join(' '))}"`, `data-layout-head="${BOARD_TYPE_ID}"`);
@@ -400,13 +400,14 @@ export function boardSvg(L, opts = {}) {
   }
   for (const s of m.sections) {
     const f = s.shown ?? s.frame; // 描き足しで枠が動く途中は表示の位置（createBoardMotion）
-    const d = framePath(f, shape);
-    const frame = d ? `<path d="${d}" fill="${C.bg}" stroke="${C.line}" stroke-width="${lw}" stroke-linejoin="round"/>` : `<rect x="${f.x}" y="${f.y}" width="${f.w}" height="${f.h}" rx="12" fill="${C.bg}" stroke="${C.line}" stroke-width="${lw}"/>`;
+    const frame = look ? cloudFrameSvg(f, look, s.id) : `<rect x="${f.x}" y="${f.y}" width="${f.w}" height="${f.h}" rx="12" fill="${C.bg}" stroke="${C.line}" stroke-width="${lw}"/>`;
+    // 雲形の枠（黄の面）の上の文字は、枠の配色の文字の色（黄の面と白い面の両方で PARAM-007 以上のときだけ）
+    const SC = look && contrastRatio(look.text, look.fill) >= MIN_CONTRAST && contrastRatio(look.text, C.bg) >= MIN_CONTRAST ? { ...C, ink: look.text } : C;
     // 見出しの絵記号は枠と見出しの一部（部品「絵記号」は要点のある区画にだけ現れる）
-    const head = `<g data-board-heading-icon="${s.icon}" transform="translate(${f.x + 12} ${f.y + 8})">${ICONS[s.icon](C.line)}</g><text data-board-heading x="${f.x + 40}" y="${f.y + 25}" font-size="16" font-weight="800" fill="${C.ink}">${escapeHtml(s.name)}</text>`
+    const head = `<g data-board-heading-icon="${s.icon}" transform="translate(${f.x + 12} ${f.y + 8})">${ICONS[s.icon](C.line)}</g><text data-board-heading x="${f.x + 40}" y="${f.y + 25}" font-size="16" font-weight="800" fill="${SC.ink}">${escapeHtml(s.name)}</text>`
       + `<path d="M${f.x + 40} ${f.y + 31}h${r1(Math.min(f.w - 52, textW(s.name, 16)))}" stroke="${C.under}" stroke-width="2.5" stroke-linecap="round"/>`;
     const subs = s.subgroups.map((sg) => `<rect data-board-subgroup x="${sg.x}" y="${sg.y}" width="${sg.w}" height="${sg.h}" rx="8" fill="none" stroke="${C.line}" stroke-width="1" stroke-dasharray="5 4"/>`).join('');
-    out.push(`<g data-board-section="${s.id}" data-board-part="frame" data-count="${s.count}">${frame}${head}${subs}${s.elements.map((el) => { const g = elementSvg(el, C, tx); return el.dx || el.dy ? `<g transform="translate(${r1(el.dx ?? 0)} ${r1(el.dy ?? 0)})">${g}</g>` : g; }).join('')}</g>`);
+    out.push(`<g data-board-section="${s.id}" data-board-part="frame" data-count="${s.count}">${frame}${head}${subs}${s.elements.map((el) => { const g = elementSvg(el, SC, tx); return el.dx || el.dy ? `<g transform="translate(${r1(el.dx ?? 0)} ${r1(el.dy ?? 0)})">${g}</g>` : g; }).join('')}</g>`);
   }
   const { w, h } = m.canvas;
   const title = opts.title ?? tx.aria;

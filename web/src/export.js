@@ -31,7 +31,7 @@ export function exportLook(spec) {
     pointFills: fills.map(hex6), pointTexts: fills.map((f) => hex6(L.textOn(f))), pointStroke: (f) => hex6(L.outlineOf(f)),
     texture: hex6(L.texture), accent: hex6(pr.palette.accent[0]),
     lineWidth: Math.round(pr.stroke.width * 10) / 10, headingDecoration: pr.headingDecoration, balloon: pr.balloon,
-    headWeight: L.headWeight, weight: L.weight, paper: PAPERS.includes(pr.paper) ? pr.paper : 'plain', fontFamily: fontFamilyOf(pr.font),
+    headWeight: L.headWeight, weight: L.weight, cardRadius: L.card?.radius ?? null, paper: PAPERS.includes(pr.paper) ? pr.paper : 'plain', fontFamily: fontFamilyOf(pr.font),
   };
 }
 const rnd = (i) => { const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }; // 決定的な擬似乱数（毎回同じ質感）
@@ -383,7 +383,7 @@ async function renderStyledPng(scenes, canvasFactory, look, parts, imageFactory,
         const pts = jaggedPoints(bx + JAG_PX, by + JAG_PX, bw - JAG_PX * 2, bh - JAG_PX * 2, JAG_PX, 12);
         g.beginPath(); pts.forEach(([px, py], k) => (k ? g.lineTo(px, py) : g.moveTo(px, py))); g.closePath(); g.fill(); g.stroke();
       } else if (L.balloon === 'sticky') { g.fillRect(bx, by, bw, bh); g.strokeRect(bx, by, bw, bh); }
-      else { round(bx, by, bw, bh, L.balloon === 'cloud' ? bh / 2 : 8); g.fill(); g.stroke(); }
+      else { round(bx, by, bw, bh, L.balloon === 'cloud' ? bh / 2 : Math.min(bh / 2, L.cardRadius ?? 8)); g.fill(); g.stroke(); } // AC-670: 白いカードの角の丸み
       g.fillStyle = L.pointTexts[i % L.pointTexts.length]; g.font = font(FS_P, L.weight, L.fontFamily);
       g.fillText(p.text, bx + 12, by + bh / 2);
       y += ROW_H;
