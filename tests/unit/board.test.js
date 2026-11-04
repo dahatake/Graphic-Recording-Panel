@@ -290,3 +290,191 @@ test('FR-114 AC-667: 位置が変わる要素は 600ms 以内に途中の位置�
     assert.equal(end.sections[0].elements[0].y, 110); assert.equal(end.sections[0].elements[0].dy, 0);
   }
 });
+
+// ---- FR-079 AC-669・AC-432 (b)(c)・AC-434・AC-439: 会議ボード型の描き足し（収まる間は不動・あふれたときだけ詰め直し・出現の演出） ----
+const secsOf = (L) => new Map(L.board.sections.map((s) => [s.id, { frame: { ...s.frame }, els: s.elements.map((e) => [e.id, e.x, e.y]) }]));
+function checkBoard(L, where) {
+  const els = allEls(L);
+  for (let i = 0; i < els.length; i++) for (let j = i + 1; j < els.length; j++) assert.ok(!overlap(els[i], els[j]), `${where}: ${els[i].id} と ${els[j].id} が重ならない`);
+  for (const e of els) assert.ok(inside(e, e.frame), `${where}: ${e.id} は自分の区画の枠からはみ出さない`);
+  for (const s of L.board.sections) assert.ok(inside(s.frame, { x: 0, y: 0, w: L.canvas.w, h: L.canvas.h }), `${where}: ${s.id} の枠は図の領域内`);
+  const fr = L.board.sections.map((s) => s.frame);
+  for (let i = 0; i < fr.length; i++) for (let j = i + 1; j < fr.length; j++) assert.ok(!overlap(fr[i], fr[j]), `${where}: 区画の枠が重ならない`);
+}
+
+// FR-079 AC-669 AC-432: 区画の中身が枠に収まる間はほかの区画の枠・要素は動かず、あふれたときだけ枠を決め直して詰め直し、図の領域は縦に伸びる
+test('FR-079 AC-669 AC-432: 収まる間はほかの区画は不動、あふれたときだけ詰め直し、重なり 0・はみ出し 0・図の領域を縦に伸ばす', () => {
+  const groups = [['今日の目的は新サービスの方向性をそろえることです']];
+  let prev = boardLayout({ scenes: scenesOf(groups), topics: [] });
+  checkBoard(prev, '最初');
+  let overflowed = 0; let stayed = 0;
+  for (let k = 1; k <= 24; k++) {
+    groups.push([`目的その${k}は品質の底上げ`]);
+    const L = boardLayout({ scenes: scenesOf(groups), topics: [] });
+    checkBoard(L, `追加 ${k}`);
+    const a = secsOf(prev); const b = secsOf(L);
+    const pur = (m) => m.get('purpose');
+    // 新しい要点は区画の読み順の末尾
+    assert.equal(pur(b).els.at(-1)[0], `p:s${k + 1}p0`, `追加 ${k}: 末尾に加わる`);
+    // 既存の要点の文字は縮小・省略されない（全要点が図にある）
+    assert.equal(pur(b).els.length, k + 1);
+    const grew = pur(b).frame.h !== pur(a).frame.h;
+    const others = [...b.keys()].filter((id) => id !== 'purpose');
+    if (!grew) {
+      stayed++;
+      for (const id of others) assert.deepEqual(b.get(id), a.get(id), `追加 ${k}: 収まる間は ${id} の枠と要素は動かない`);
+      assert.equal(L.canvas.h, prev.canvas.h, `追加 ${k}: 図の領域も変わらない`);
+    } else {
+      overflowed++;
+      assert.ok(L.canvas.h > prev.canvas.h, `追加 ${k}: あふれたら図の領域を縦に伸ばす`);
+      assert.ok(others.some((id) => b.get(id).frame.y !== a.get(id).frame.y), `追加 ${k}: ほかの区画を詰め直す`);
+    }
+    prev = L;
+  }
+  assert.ok(stayed >= 10 && overflowed >= 3, `収まる追加（${stayed}）とあふれ（${overflowed}）の両方を確かめた`);
+  // AC-434・AC-432 (c): 同じ入力からは毎回同じ配置、新しい要素がなければ配置は変わらない
+  const again = boardLayout({ scenes: scenesOf(groups), topics: [] });
+  assert.deepEqual(secsOf(again), secsOf(prev));
+  assert.deepEqual(again.canvas, prev.canvas);
+});
+
+// FR-079 AC-669 AC-439: 新しい要素は MOVE_MS（PARAM-181 以内）でフェードと拡大で現れ、動きを減らす設定・最初の描画では演出なし
+test('FR-079 AC-669 AC-439: 新しい要点は PARAM-181 以内のフェードと拡大で現れ、動きを減らす設定では演出なし', () => {
+  const L1 = () => boardLayout({ scenes: scenesOf([['今日の目的は方向性をそろえることです']]), topics: [] });
+  const L2 = () => boardLayout({ scenes: scenesOf([['今日の目的は方向性をそろえることです'], ['今日の目的は品質の底上げです'], ['料金プランは月額制で合意しました', 'まず市場の状況を整理しました']]), topics: [] });
+  const elOf = (L, id) => allEls(L).find((e) => e.id === id);
+  for (const reduced of [false, true]) {
+    const mo = createBoardMotion();
+    const a = L1(); mo.apply(a.board, 0, reduced);
+    assert.equal(elOf(a, 'p:s1p0').appear, undefined, '最初の描画は演出なし');
+    const b = L2(); const busy = mo.apply(b.board, 1000, reduced);
+    const c = L2(); mo.apply(c.board, 1000 + MOVE_MS / 2, reduced);
+    const d = L2(); mo.apply(d.board, 1000 + 600, reduced);
+    const svgMid = boardSvg(c);
+    assert.equal(elOf(b, 'p:s1p0').appear, undefined, '既存の要素は演出なし');
+    if (reduced) {
+      assert.equal(busy, false);
+      for (const L of [b, c]) assert.ok(allEls(L).every((e) => e.appear == null));
+      assert.ok(!/data-board-appear/.test(svgMid));
+    } else {
+      assert.equal(busy, true);
+      assert.equal(elOf(b, 'p:s2p0').appear, 0, '出現の始まりは透明');
+      const m = elOf(c, 'p:s2p0').appear; assert.ok(m > 0 && m < 1, String(m));
+      // 吹き出しの中の 1 行（議論の流れ）も現れる
+      assert.ok(c.board.sections.find((s) => s.id === 'flow').elements.some((e) => e.part === 'bubble'));
+      const op = [...svgMid.matchAll(/data-board-appear opacity="([\d.]+)" transform="translate\([^)]*\) scale\(([\d.]+)\)/g)];
+      assert.ok(op.length >= 1 && op.every((x) => Number(x[1]) > 0 && Number(x[1]) < 1 && Number(x[2]) < 1), 'フェードと拡大の途中');
+    }
+    assert.ok(allEls(d).every((e) => e.appear == null), `${MOVE_MS}ms（PARAM-181 の 600ms 以内）で演出が終わる`);
+    assert.ok(!/data-board-appear/.test(boardSvg(d)));
+    assert.equal(mo.moving(), false);
+  }
+});
+
+// FR-079 AC-669 AC-432 (b)(c) AC-439: アプリで、再配置の周期をまたいでも新しい要素がなければ位置は変わらず、演出の途中も記録中の状態・選択を保つ
+test('FR-079 AC-669 AC-432 AC-439: 会議ボード型では周期の再配置で位置が変わらず（冪等）、演出の途中も記録中の状態が保たれる', async () => {
+  const { app, env } = await newApp();
+  app.setLang('ja');
+  app.setLayoutTypes(['board']);
+  app.commands['session.start']();
+  const pos = () => JSON.stringify(app.getBoardModel().sections.map((s) => [s.id, s.frame, s.elements.map((e) => [e.id, e.x, e.y])]));
+  for (const t of ['今日の目的は方向性をそろえることです', '料金プランは月額制で合意しました']) { app.setDraft(t); app.submitDraft(); }
+  env.tick(1); env.scheduler?.advance?.(1000); app.renderSvg(); // 描画済み（画面は変更のたびに描き直す）
+  const session = JSON.stringify(app.getState().session);
+  // 出現の途中（同じ時刻）でも記録中の状態は変わらない
+  app.setDraft('価格の上限は保留'); app.submitDraft();
+  assert.match(app.renderSvg(), /data-board-appear/);
+  assert.equal(JSON.stringify(app.getState().session), session, '演出の途中も記録中');
+  for (let i = 0; i < 4; i++) { env.tick(0.2); env.scheduler?.advance?.(200); app.renderSvg(); }
+  assert.ok(!/data-board-appear/.test(app.renderSvg()), '演出は終わる');
+  const before = pos();
+  for (let i = 0; i < 3; i++) { env.tick(10); env.scheduler?.advance?.(10000); app.renderSvg(); }
+  assert.equal(pos(), before, '新しい要素がなければ周期の再配置で位置は変わらない（AC-432 (c)）');
+  assert.equal(JSON.stringify(app.getState().session), session);
+});
+
+// ---- FR-076 AC-670 × FR-114: 会議ボード型を暖色カード風・青見出し風・雲形の枠で描いたときの配色 ----
+const colorsOf = (svg) => new Set([...svg.matchAll(/(?:fill|stroke|stop-color)="(#[0-9a-fA-F]{3,6})"/g)].map((m) => m[1].toLowerCase()));
+const boardSvgOf = (id) => { const reg = createDrawStyleRegistry(); const spec = reg.spec(id); return { spec, svg: boardSvg(boardLayout({ scenes: scenesOf(MEETING), topics: TOPICS, lang: 'ja', titleInfo: { theme: 'TeamA との会議' } }), { style: spec }) }; };
+
+// FR-076 AC-670 FR-114: 暖色カード風（paletteOnly）は配色の 5 色と白・黒・グレーだけ（マーカーは混色しない黄）。要点の行と吹き出しは角丸 12px の白いカード
+test('FR-076 AC-670 FR-114: 会議ボード型×暖色カード風の色は配色の 5 色＋白・黒・グレー以内で、マーカーは配色の黄、行と吹き出しは白いカード', () => {
+  const { spec, svg } = boardSvgOf('warmCards');
+  const allowed = new Set([spec.palette.background, spec.palette.primary, spec.palette.text, spec.palette.secondary, ...spec.palette.accent, '#ffffff', '#000000', '#9e9e9e'].map((c) => c.toLowerCase()));
+  const extra = [...colorsOf(svg)].filter((c) => !allowed.has(c));
+  assert.deepEqual(extra, [], `配色の外の色がない（${[...colorsOf(svg)]}）`);
+  const C = boardColors(spec);
+  assert.ok(['#f2e63d', '#f2c53d'].includes(C.marker), `マーカーは配色の黄（${C.marker}）`);
+  assert.ok(contrastRatio(C.ink, C.marker) >= 4.5);
+  assert.match(svg, /data-emph="marker"[^>]*fill="#f2e63d"/);
+  const cards = [...svg.matchAll(/<rect data-board-(?:part="bubble" data-board-)?card [^>]*rx="(\d+)" fill="(#[0-9a-f]+)"/g)];
+  assert.ok(cards.length >= 5 && cards.every((m) => m[1] === '12' && m[2] === '#ffffff'), `白いカード（角丸 12px）: ${cards.length}`);
+  assert.match(svg, /data-board-part="bubble" data-board-card/);
+});
+
+// FR-076 AC-670 FR-114: 青見出し風（headingBand）はタイトル帯と 9 区画の見出しを青のグラデーションの帯で描き、白抜きの文字と絵記号は最も明るい位置で 4.5 以上
+test('FR-076 AC-670 FR-114: 会議ボード型×青見出し風はグラデーションの帯に白抜きの見出しで、最も明るい位置で 4.5:1 以上', () => {
+  const { spec, svg } = boardSvgOf('blueHeadings');
+  const stops = [...svg.matchAll(/<stop offset="[\d.]+" stop-color="(#[0-9a-f]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(stops, spec.headingBand.gradient);
+  assert.match(svg, /<linearGradient id="board-head-band"/);
+  assert.match(svg, /<g data-board-part="title"><rect [^>]*fill="url\(#board-head-band\)"/);
+  assert.equal((svg.match(/data-board-heading-band /g) || []).length, 9, '9 区画の見出しが帯の上');
+  const ink = boardColors(spec).headBand.ink;
+  const heads = [...svg.matchAll(/<text data-board-heading [^>]*fill="(#[0-9a-f]+)"/g)].map((m) => m[1]);
+  assert.ok(heads.length === 9 && heads.every((c) => c === ink), '見出しの文字は白抜き');
+  assert.ok([...svg.matchAll(/data-board-heading-icon="[a-z]+" [^>]*>(.*?)<\/g>/g)].every((m) => !/stroke="#(?!ffffff)/.test(m[1])), '見出しの絵記号も白抜き');
+  const brightest = stops.reduce((a, c) => (contrastRatio(c, '#000000') > contrastRatio(a, '#000000') ? c : a));
+  assert.ok(contrastRatio(ink, brightest) >= 4.5, `最も明るい位置 ${brightest} で ${contrastRatio(ink, brightest).toFixed(2)}`);
+  // 帯のない定義では従来どおり（帯もグラデーションもない）
+  assert.ok(!/linearGradient/.test(boardSvgOf('yellowBlack').svg));
+});
+
+// FR-076 AC-670 FR-114: 雲形の枠（黄の面）の上の文字とマーカーのコントラストが 4.5 以上
+test('FR-076 AC-670 FR-114: 雲形の枠の上のマーカーと文字のコントラストは 4.5 以上', () => {
+  const reg = createDrawStyleRegistry();
+  let n = 0;
+  for (const id of reg.ids()) {
+    const spec = reg.spec(id); const look = boardFrameLook(spec); if (!look) continue;
+    n++;
+    const C = boardColors(spec);
+    assert.ok(contrastRatio(look.text, look.fill) >= 4.5, `${id}: 黄の面と文字`);
+    if (C.marker) assert.ok(contrastRatio(look.text, C.marker) >= 4.5, `${id}: マーカー ${C.marker} と文字 ${look.text}`);
+  }
+  assert.ok(n >= 1, '雲形の枠の定義がある');
+});
+
+// FR-114 AC-665（最終監査）: 否定・先送りの言い回しは「決定」「確認」の部分一致より先に判定して未決事項へ
+test('FR-114 AC-665: 否定・先送り（未決定・未定・保留・決まらない・次回まで）は決定・行動の語より先に未決事項へ', () => {
+  for (const t of ['決定は次回まで保留します', 'この件は未決定です', '担当はまだ決まらない', '承認は未定です', '確認は次回までに持ち越し', 'The scope is TBD', 'The scope is undecided', '採用するかは未定', '次回まで持ち越しです']) assert.equal(sec(t), 'open', t);
+  // 否定のない決定・行動は従来どおり
+  assert.equal(sec('料金プランは月額制で決定しました'), 'decisions');
+  assert.equal(sec('明日までに確認します'), 'actions');
+  // LLM の区画の指定は引き続き最優先
+  assert.equal(sec('この件は未決定です', { section: 'decisions' }), 'decisions');
+});
+
+// FR-114 AC-664 AC-666: 会議ボード型は詳細度（初期値「大項目」を含むどの値）に関わらず区画に要点を描き、発話 0 件でも全区画の枠と見出しを描く
+test('FR-114 AC-664 AC-666: 詳細度に関わらず区画に要点を描き、発話 0 件でも 9 区画の骨格の枠と見出しを描く', async () => {
+  const { app, env } = await newApp();
+  app.setLang('ja');
+  const initial = app.getDetailLevel();
+  app.setLayoutTypes(['board']);
+  const svg0 = app.renderSvg();
+  assert.equal((svg0.match(/data-board-section=/g) || []).length, 9, '発話 0 件: 9 区画の枠');
+  assert.equal((svg0.match(/data-board-heading /g) || []).length, 9, '発話 0 件: 9 区画の見出し');
+  app.commands['session.start']();
+  const texts = ['今日の目的は方向性をそろえることです', '料金プランは月額制で合意しました', 'この件は未決定です'];
+  for (const t of texts) { app.setDraft(t); app.submitDraft(); env.tick(1); }
+  assert.equal(initial, 'major', '詳細度の初期値は大項目');
+  for (const lv of ['major', 'middle', 'detail']) {
+    if (lv !== initial) assert.equal(app.setDetailLevel(lv).ok, true, lv);
+    const svg = app.renderSvg();
+    assert.match(svg, /data-layout-head="board"/, `${lv}: 会議ボード型`);
+    const ids = new Set([...svg.matchAll(/data-point-id="([^"]+)"/g)].map((m) => m[1]));
+    assert.ok(ids.size >= texts.length, `${lv}: 要点が区画に描かれる（${ids.size}）`);
+    assert.equal((svg.match(/data-board-heading /g) || []).length, 9, `${lv}: 9 区画の見出し`);
+    const m = app.getBoardModel();
+    assert.equal(m.sections.find((s) => s.id === 'open').count, 1, `${lv}: 未決定は未決事項`);
+  }
+});
