@@ -146,7 +146,7 @@ const BUILD = {
     const els = []; let cy = y;
     for (const e of units) {
       const n = Math.max(1, Math.min(6, (e.text.match(/さん|様|、|,|と/g) ?? []).length || 1));
-      els.push({ part: 'person', x, y: cy, w, h: 62, pointId: e.pointId, sceneId: e.sceneId, persons: n, ...label(e, w) });
+      els.push({ id: `p:${e.pointId}`, part: 'person', x, y: cy, w, h: 62, pointId: e.pointId, sceneId: e.sceneId, persons: n, ...label(e, w) });
       cy += 68;
     }
     return { els, h: cy - y - 6 };
@@ -154,12 +154,12 @@ const BUILD = {
   flow: (units, x, y, w) => { // units = ステップ（トピックごと）。バッジ・人物・吹き出し、ステップの間に ⇒
     const els = []; let cy = y;
     units.forEach((st, i) => {
-      if (i > 0 || st.cont) { els.push({ part: 'arrow', dir: 'down', x: x + 4, y: cy, w: 20, h: 16 }); cy += 20; }
+      if (i > 0 || st.cont) { els.push({ id: `arrow:${st.uid}`, part: 'arrow', dir: 'down', x: x + 4, y: cy, w: 20, h: 16 }); cy += 20; }
       const bh = 10 + st.lines.length * 20;
       const h = Math.max(40, bh);
-      els.push({ part: 'badge', x, y: cy, w: 28, h: 28, n: st.n });
-      els.push({ part: 'person', x: x + 34, y: cy, w: 40, h: 40, seed: st.key, persons: 1 });
-      els.push({ part: 'bubble', x: x + 82, y: cy, w: w - 82, h: bh, step: st.n, sceneIds: st.sceneIds, pointIds: st.lines.map((l) => l.pointId), lines: st.lines.map((l) => ({ pointId: l.pointId, ...label(l, w - 82 - 30) })) });
+      els.push({ id: `badge:${st.uid}`, part: 'badge', x, y: cy, w: 28, h: 28, n: st.n });
+      els.push({ id: `person:${st.uid}`, part: 'person', x: x + 34, y: cy, w: 40, h: 40, seed: st.key, persons: 1 });
+      els.push({ id: `bubble:${st.uid}`, part: 'bubble', x: x + 82, y: cy, w: w - 82, h: bh, step: st.n, sceneIds: st.sceneIds, pointIds: st.lines.map((l) => l.pointId), lines: st.lines.map((l) => ({ pointId: l.pointId, ...label(l, w - 82 - 30) })) });
       cy += h + 6;
     });
     return { els, h: cy - y - 6 };
@@ -169,8 +169,8 @@ const BUILD = {
     chunk(units, 3).forEach((row) => {
       row.forEach((e, j) => {
         const ax = x + j * (AW + iw);
-        if (!(first && cy === y && j === 0)) els.push({ part: 'arrow', dir: 'right', x: ax, y: cy + 8, w: AW - 4, h: 16 });
-        els.push({ part: 'icon', icon: 'bulb', x: ax + AW, y: cy, w: iw, h: 32, pointId: e.pointId, sceneId: e.sceneId, ...label(e, iw - 30) });
+        if (!(first && cy === y && j === 0)) els.push({ id: `arrow:p:${e.pointId}`, part: 'arrow', dir: 'right', x: ax, y: cy + 8, w: AW - 4, h: 16 });
+        els.push({ id: `p:${e.pointId}`, part: 'icon', icon: 'bulb', x: ax + AW, y: cy, w: iw, h: 32, pointId: e.pointId, sceneId: e.sceneId, ...label(e, iw - 30) });
       });
       cy += 40;
     });
@@ -180,10 +180,10 @@ const BUILD = {
     const els = []; let cy = y;
     if (first) {
       const bw = Math.floor((w - 40 - 48) / 2);
-      els.push({ part: 'icon', icon: 'dot', x, y: cy, w: bw, h: 40, word: 'now' });
-      els.push({ part: 'arrow', dir: 'right', x: x + bw + 4, y: cy + 12, w: 32, h: 16 });
-      els.push({ part: 'icon', icon: 'flag', x: x + bw + 40, y: cy, w: bw, h: 40, word: 'goal' });
-      els.push({ part: 'person', x: x + w - 44, y: cy, w: 40, h: 40, seed: 'vision', persons: 1 });
+      els.push({ id: 'vision:now', part: 'icon', icon: 'dot', x, y: cy, w: bw, h: 40, word: 'now' });
+      els.push({ id: 'vision:arrow', part: 'arrow', dir: 'right', x: x + bw + 4, y: cy + 12, w: 32, h: 16 });
+      els.push({ id: 'vision:goal', part: 'icon', icon: 'flag', x: x + bw + 40, y: cy, w: bw, h: 40, word: 'goal' });
+      els.push({ id: 'vision:person', part: 'person', x: x + w - 44, y: cy, w: 40, h: 40, seed: 'vision', persons: 1 });
       cy += 46;
     }
     const r = listRows(units, x, cy, w, 'icon', 'flag');
@@ -191,11 +191,11 @@ const BUILD = {
   },
   actions: (units, x, y, w) => { // No・内容・担当・期限の 4 列の表
     const rows = units.map((e) => ({ pointId: e.pointId, sceneId: e.sceneId, no: e.no, owner: e.owner, due: e.due, ...label(e, w - 36 - 120 - 120 - 16) }));
-    return { els: [{ part: 'table', x, y, w, h: ROW * (rows.length + 1), cols: [36, w - 36 - 240, 120, 120], rows }], h: ROW * (rows.length + 1) };
+    return { els: [{ id: `table:${units[0].pointId}`, part: 'table', x, y, w, h: ROW * (rows.length + 1), cols: [36, w - 36 - 240, 120, 120], rows }], h: ROW * (rows.length + 1) };
   },
 };
 function listRows(units, x, y, w, part, icon) {
-  const els = units.map((e, i) => ({ part, icon, x, y: y + i * ROW, w, h: ROW - 4, pointId: e.pointId, sceneId: e.sceneId, ...label(e, w - 26) }));
+  const els = units.map((e, i) => ({ id: `p:${e.pointId}`, part, icon, x, y: y + i * ROW, w, h: ROW - 4, pointId: e.pointId, sceneId: e.sceneId, ...label(e, w - 26) }));
   return { els, h: units.length ? units.length * ROW - 4 : 0 };
 }
 
@@ -230,7 +230,7 @@ export function boardLayout(input, opts = {}) {
   for (const e of by.flow) {
     if (!stepNo.has(e.topic)) stepNo.set(e.topic, stepNo.size + 1);
     let st = steps.findLast((x) => x.key === e.topic);
-    if (!st || st.lines.length >= GROUP_MAX) { st = { key: e.topic, n: stepNo.get(e.topic), cont: !!st, lines: [], sceneIds: [] }; steps.push(st); }
+    if (!st || st.lines.length >= GROUP_MAX) { const k = steps.filter((x) => x.key === e.topic).length; st = { key: e.topic, uid: `${e.topic}#${k}`, n: stepNo.get(e.topic), cont: !!st, lines: [], sceneIds: [] }; steps.push(st); }
     st.lines.push(e); if (!st.sceneIds.includes(e.sceneId)) st.sceneIds.push(e.sceneId);
   }
   const unitsOf = (id) => (id === 'flow' ? steps : by[id]);
@@ -264,7 +264,7 @@ export function boardLayout(input, opts = {}) {
   }
   const H = top - GAP + M;
   let k = 0;
-  for (const s of sections) for (const el of s.elements) { el.id = `${s.id}-${k++}`; el.section = s.id; }
+  for (const s of sections) for (const el of s.elements) { el.id ??= `${s.id}-${k++}`; el.section = s.id; } // id は要点・ステップから決める（取込の前後で同じ要素は同じ id。CONTRACT-BOARD）
   const model = { lang, band, sections, assigned, text: tx, canvas: { w: W, h: H } };
   return {
     canvas: { w: W, h: H }, title: { x: M, y: M, w: W - M * 2, h: 0, visible: false }, body: { x: M, y: band ? M + BAND + GAP : M, w: W - M * 2, h: H - M * 2 },
@@ -399,14 +399,14 @@ export function boardSvg(L, opts = {}) {
       + '</g>');
   }
   for (const s of m.sections) {
-    const f = s.frame;
+    const f = s.shown ?? s.frame; // 描き足しで枠が動く途中は表示の位置（createBoardMotion）
     const d = framePath(f, shape);
     const frame = d ? `<path d="${d}" fill="${C.bg}" stroke="${C.line}" stroke-width="${lw}" stroke-linejoin="round"/>` : `<rect x="${f.x}" y="${f.y}" width="${f.w}" height="${f.h}" rx="12" fill="${C.bg}" stroke="${C.line}" stroke-width="${lw}"/>`;
     // 見出しの絵記号は枠と見出しの一部（部品「絵記号」は要点のある区画にだけ現れる）
     const head = `<g data-board-heading-icon="${s.icon}" transform="translate(${f.x + 12} ${f.y + 8})">${ICONS[s.icon](C.line)}</g><text data-board-heading x="${f.x + 40}" y="${f.y + 25}" font-size="16" font-weight="800" fill="${C.ink}">${escapeHtml(s.name)}</text>`
       + `<path d="M${f.x + 40} ${f.y + 31}h${r1(Math.min(f.w - 52, textW(s.name, 16)))}" stroke="${C.under}" stroke-width="2.5" stroke-linecap="round"/>`;
     const subs = s.subgroups.map((sg) => `<rect data-board-subgroup x="${sg.x}" y="${sg.y}" width="${sg.w}" height="${sg.h}" rx="8" fill="none" stroke="${C.line}" stroke-width="1" stroke-dasharray="5 4"/>`).join('');
-    out.push(`<g data-board-section="${s.id}" data-board-part="frame" data-count="${s.count}">${frame}${head}${subs}${s.elements.map((el) => elementSvg(el, C, tx)).join('')}</g>`);
+    out.push(`<g data-board-section="${s.id}" data-board-part="frame" data-count="${s.count}">${frame}${head}${subs}${s.elements.map((el) => { const g = elementSvg(el, C, tx); return el.dx || el.dy ? `<g transform="translate(${r1(el.dx ?? 0)} ${r1(el.dy ?? 0)})">${g}</g>` : g; }).join('')}</g>`);
   }
   const { w, h } = m.canvas;
   const title = opts.title ?? tx.aria;
@@ -416,6 +416,45 @@ export function boardSvg(L, opts = {}) {
 // 図に現れる部品の種類（AC-666・AC-667 (b)）
 export const partKindsOf = (svg) => [...new Set([...String(svg).matchAll(/data-board-part="([a-z]+)"/g)].map((x) => x[1]))].filter((k) => PART_KINDS.includes(k));
 // テキスト一覧（NFR-A11Y-001）は AC-141・AC-664 のとおり型の影響を受けない（区画名・次アクションの表を一覧に足さない）。要点の文字は従来の一覧にある
+
+// ---- 描き足しで位置が変わる要素の移動（FR-079 AC-669・AC-667 (f)）。DOM に依存しない ----
+export const MOVE_MS = 400; // PARAM-181（600 ミリ秒）以内
+const ease = (k) => 1 - (1 - k) ** 3;
+// 区画の枠と要素の目標の位置が変わったら、いまの表示位置から MOVE_MS かけて移す。reduced（動きを減らす設定）なら移動なし。
+// board（getDiagramLayout の写し）の位置を表示位置に書き換え、要素には目標からのずれ dx・dy を付ける。移動中なら true
+export function createBoardMotion() {
+  const last = new Map(); const moving = new Map();
+  const at = (key, t) => {
+    const m = moving.get(key); if (!m) return null;
+    const k = Math.min(1, Math.max(0, (t - m.t0) / MOVE_MS));
+    if (k >= 1) { moving.delete(key); return m.to; }
+    const e = ease(k); const o = {};
+    for (const p of Object.keys(m.to)) o[p] = m.from[p] + (m.to[p] - m.from[p]) * e;
+    return o;
+  };
+  const step = (key, target, t, reduced) => {
+    const prev = last.get(key);
+    if (reduced) moving.delete(key);
+    else if (prev && Object.keys(target).some((p) => prev[p] !== target[p])) moving.set(key, { from: at(key, t) ?? prev, to: target, t0: t });
+    last.set(key, target);
+    return at(key, t) ?? target;
+  };
+  return {
+    apply(board, t, reduced) {
+      for (const s of board.sections) {
+        const f = step(`frame:${s.id}`, { ...s.frame }, t, reduced);
+        const fdx = f.x - s.frame.x; const fdy = f.y - s.frame.y;
+        if (fdx || fdy || f.h !== s.frame.h || f.w !== s.frame.w) s.shown = f; // 枠の表示（見出しも一緒に動く）
+        for (const el of s.elements) {
+          const p = step(el.id, { x: el.x, y: el.y }, t, reduced);
+          el.dx = p.x - el.x; el.dy = p.y - el.y; el.x = p.x; el.y = p.y;
+        }
+      }
+      return moving.size > 0;
+    },
+    moving: () => moving.size > 0,
+  };
+}
 
 // ---- アプリ組立の拡張（modules）。workshopModule の後に足す（先頭の型が board のとき、描画を引き取る） ----
 export function boardModule(ctx) {
@@ -427,12 +466,27 @@ export function boardModule(ctx) {
     return !!info && info.applied && info.head === BOARD_TYPE_ID && state.displayMode !== 'arrange';
   };
   api.isBoardActive = active;
+  // 移動の途中の表示を描き直す契機（scheduler.setTimeout。移動が終われば予約しない）
+  const motion = createBoardMotion();
+  const sched = ctx.options?.scheduler ?? { setTimeout: (f, ms) => globalThis.setTimeout(f, ms) };
+  const now = () => (typeof ctx.now === 'function' ? ctx.now() : Date.now());
+  let ticking = false;
+  const tick = () => { ticking = false; if (active() && motion.moving()) ctx.emit('change', api); };
+  const shownLayout = () => {
+    const L = api.getDiagramLayout();
+    if (motion.apply(L.board, now(), ctx.env?.reducedMotion === true) && !ticking) { ticking = true; sched.setTimeout(tick, 40); }
+    return L;
+  };
   const baseRender = api.renderBaseSvg;
   api.renderBaseSvg = () => {
     if (!active()) return baseRender();
     const info = api.getLayoutInfo();
-    return boardSvg(api.getDiagramLayout(), { types: info.selected, drawStyle: api.getDrawStyle?.(), style: api.getDrawStyleSpec?.(), title: ctx.t('app.title') });
+    return boardSvg(shownLayout(), { types: info.selected, drawStyle: api.getDrawStyle?.(), style: api.getDrawStyleSpec?.(), title: ctx.t('app.title') });
   };
-  // 契約の補助: 会議ボードの配置のモデル（区画の枠・要素の外枠・振り分け）。先頭の型が board でないときは null
-  api.getBoardModel = () => (active() ? api.getDiagramLayout().board : null);
+  // 契約（CONTRACT-BOARD）: 会議ボードの配置のモデル（区画の枠・要素の現在の表示位置の外枠・振り分け）。先頭の型が board でないときは null
+  api.getBoardModel = () => {
+    if (!active()) return null;
+    const b = shownLayout().board;
+    return { ...b, sections: b.sections.map(({ shown, ...s }) => ({ ...s, frame: shown ?? s.frame })) };
+  };
 }
