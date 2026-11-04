@@ -104,12 +104,12 @@ test('FR-078 AC-420: シーンがあるときボタンでコピーの操作を�
   assert.equal(app.getCommandBar().status.role, 'status');
 });
 
-test('FR-078 AC-420: 配色〜雰囲気は選んでいる描画スタイルの画風の記述、構成は選んでいる型の名称と説明、内容はトピック・見出し・要点（13 の描画スタイルすべて）', async () => {
+test('FR-078 AC-420: 配色〜雰囲気は選んでいる描画スタイルの画風の記述、構成は選んでいる型の名称と説明、内容はトピック・見出し・要点（15 の描画スタイルすべて）', async () => {
   const { app, env } = await appWith();
   await seedThreeScenes(app, env);
   app.setLayoutTypes(['zone', 'bubble']);
   const all = app.getDrawStyles().map((s) => s.id);
-  assert.equal(all.length, 13);
+  assert.equal(all.length, 15);
   const seen = new Set();
   for (const id of all) {
     assert.equal(app.setDrawStyle(id).ok, true, id);
@@ -128,7 +128,7 @@ test('FR-078 AC-420: 配色〜雰囲気は選んでいる描画スタイルの�
     for (const t of app.getTopics()) assert.ok(content.includes(t.title), `トピック「${t.title}」`);
     for (const s of app.getState().scenes) { assert.ok(content.includes(s.heading)); for (const p of s.points) assert.ok(content.includes(p.text)); }
   }
-  assert.equal(seen.size, 13, '画風の記述は描画スタイルごとに異なる');
+  assert.equal(seen.size, 15, '画風の記述は描画スタイルごとに異なる');
   for (const id of OLD) assert.ok(all.includes(id));
 });
 

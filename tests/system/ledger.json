@@ -83,10 +83,10 @@
     "AC-131": "sha256:a16d3de259554f88",
     "AC-133": "sha256:99c1ed1af447aff1",
     "AC-137": "sha256:fc3fb6a046a5a16e",
-    "AC-139": "sha256:f4afe441087b88d7",
+    "AC-139": "sha256:91e4d60022a1fcf6",
     "AC-140": "sha256:5be987d95045a761",
     "AC-145": "sha256:e5246af6ca8a6d0a",
-    "AC-146": "sha256:16f98b30da146db7",
+    "AC-146": "sha256:04c7809af6466cc1",
     "AC-149": "sha256:b5b5dda7de75f210",
     "AC-151": "sha256:0fbd22a84fb9e78f",
     "AC-152": "sha256:7764f7ef5b30410f",
@@ -158,7 +158,7 @@
     "AC-391": "sha256:51f44b4089402ced",
     "AC-392": "sha256:f35114fe0479748c",
     "AC-393": "sha256:3831359b6bea6a60",
-    "AC-414": "sha256:989a95158a90aee2",
+    "AC-414": "sha256:6a32fb7296f64aa8",
     "AC-415": "sha256:3ac190dd8d27d68c",
     "AC-416": "sha256:5c013b4298eea244",
     "AC-417": "sha256:91ea5603f2f654a0",
@@ -170,13 +170,13 @@
     "AC-423": "sha256:4ac7dbc0de97712e",
     "AC-424": "sha256:2926e2da14f072c2",
     "AC-408": "sha256:38415744d202c30a",
-    "AC-409": "sha256:23864ec115eee3ea",
-    "AC-410": "sha256:6d60b6b74d86cf5d",
-    "AC-411": "sha256:56066efff0855d9a",
+    "AC-409": "sha256:22c5717f6256f47b",
+    "AC-410": "sha256:4c7884a3cef29b16",
+    "AC-411": "sha256:9ad81e23f6c2339a",
     "AC-412": "sha256:6768b137333b3db8",
     "AC-413": "sha256:7e5ab20ec94f8377",
     "AC-425": "sha256:a17ed59fca40e738",
-    "AC-456": "sha256:50195bfce03b445b",
+    "AC-456": "sha256:2f9580a80a618e00",
     "AC-406": "sha256:76c7b518aeace6a3",
     "AC-407": "sha256:0486275ce33b62c1",
     "AC-395": "sha256:bd95fd615d1ede9f",
@@ -186,13 +186,13 @@
     "AC-399": "sha256:281370b2a80ba6d5",
     "AC-401": "sha256:f3d1b6140cfea751",
     "AC-402": "sha256:3ae6afa4032fee90",
-    "AC-459": "sha256:64e5909301f9e417",
+    "AC-459": "sha256:33c7f3f835071e49",
     "AC-460": "sha256:e5633f20b76bcbf4",
     "AC-461": "sha256:e739eb391b8b4c84",
     "AC-462": "sha256:788240e79830f31d",
     "AC-463": "sha256:fd00d0ec74e295fc",
     "AC-464": "sha256:ae269b4046bb3a27",
-    "AC-435": "sha256:e914cc1766f2178a",
+    "AC-435": "sha256:019417a082e56672",
     "AC-436": "sha256:1d5cad323ac8017b",
     "AC-439": "sha256:afa998f8bed55a68",
     "AC-440": "sha256:cb8e709859fa53d9",
@@ -216,8 +216,8 @@
     "AC-471": "sha256:291ad791869857be",
     "AC-473": "sha256:f3cae654f124d117",
     "AC-465": "sha256:77a8339788153c21",
-    "AC-466": "sha256:237a9758ed5c6c34",
-    "AC-467": "sha256:c4226d7de46cdab0",
+    "AC-466": "sha256:0189b7cea4bf21a8",
+    "AC-467": "sha256:58c18daec437f8c5",
     "AC-468": "sha256:f80e054d2adb4c3d",
     "AC-469": "sha256:6fe4e419ca2b590c",
     "AC-482": "sha256:f3a7f63426aac750",
@@ -235,7 +235,7 @@
     "AC-513": "sha256:854c341617196141",
     "AC-514": "sha256:0faa36632a862ea8",
     "AC-511": "sha256:b882f15318d530fb",
-    "AC-519": "sha256:4c998cb5dd509cd6",
+    "AC-519": "sha256:242211b1bfcffceb",
     "AC-520": "sha256:3f494c793a29f5b2",
     "AC-521": "sha256:52662eceeb1c94bf",
     "AC-523": "sha256:b65db9b138433e1d",
@@ -252,7 +252,7 @@
     "AC-537": "sha256:304cf3cdd99a85eb",
     "AC-541": "sha256:23f9420b94c5b58d",
     "AC-542": "sha256:154aa45b8dfa50ae",
-    "AC-543": "sha256:7fe6f80b98295f5c",
+    "AC-543": "sha256:0bcf11007b4356a7",
     "AC-546": "sha256:1130436affef75e9",
     "AC-572": "sha256:33df74955658a7bc",
     "AC-560": "sha256:7a3af85761c3db7e",
@@ -279,7 +279,8 @@
     "AC-660": "sha256:b67719713d75faf6",
     "AC-663": "sha256:5d49ca9dc09bb3cd",
     "AC-661": "sha256:7a240add947338ad",
-    "AC-662": "sha256:18d6be9b8d90b196"
+    "AC-662": "sha256:18d6be9b8d90b196",
+    "AC-667": "sha256:ec0c08349bf164e0"
   },
   "cases": [
     {
@@ -3088,11 +3089,11 @@
       "ac_ids": [
         "AC-139"
       ],
-      "title": "レイアウト型のアイコン・名称ラベル・ツールチップ・選択の識別・キーボード/検索（異常系含む）",
+      "title": "レイアウト型 7 つ（FR-114 の追加後）のアイコン・名称ラベル・ツールチップ・選択の識別・キーボード/検索（異常系含む）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-139\" tests/system/layouttype.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "219632d",
       "last_run_at": "2026-11-04T20:39:40+09:00",
       "evidence": "work/runs/202611041619/logs/system-test/E2E-087-202611042039.log",
@@ -3108,6 +3109,12 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "6 型化でテストを拡張。実装待ち"
+        },
+        {
+          "at": "2026-11-04T23:28:32+09:00",
+          "by": "test-designer",
+          "change": "title: 'レイアウト型のアイコン・名称ラベル・ツールチップ・選択の識別・キーボード/検索（異常系含む）' -> 'レイアウト型 7 つ（FR-114 の追加後）のアイコン・名称ラベル・ツールチップ・選択の識別・キーボード/検索（異常系含む）'",
+          "reason": "AC-139 の変更（9af7576: 7 つの型）に合わせて layouttype.test.js の型の一覧に board を追加"
         }
       ]
     },
@@ -3169,11 +3176,11 @@
       "ac_ids": [
         "AC-146"
       ],
-      "title": "描画スタイルの切替（既存 4 つと 9 つの画風プリセットの計 13）・内容保持・色以外の識別（異常系含む）",
+      "title": "描画スタイルの切替（既存 4 つと 11 の画風プリセットの計 15）・内容保持・色以外の識別（異常系含む）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-146\" tests/system/drawstyle.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "219632d",
       "last_run_at": "2026-11-04T20:39:40+09:00",
       "evidence": "work/runs/202611041619/logs/system-test/E2E-090-202611042039.log",
@@ -3201,6 +3208,12 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "テストを AC の文面の変更（run 202610200356、FR-075/076）に合わせて見直したため、再実行まで not_run"
+        },
+        {
+          "at": "2026-11-04T23:28:30+09:00",
+          "by": "test-designer",
+          "change": "title: '描画スタイルの切替（既存 4 つと 9 つの画風プリセットの計 13）・内容保持・色以外の識別（異常系含む）' -> '描画スタイルの切替（既存 4 つと 11 の画風プリセットの計 15）・内容保持・色以外の識別（異常系含む）'",
+          "reason": "AC-670（暖色カード風・青見出し風の追加）で描画スタイルが 13→15（要求定義書 9af7576・PARAM-092=15）。テストの数も 15 に更新"
         }
       ]
     },
@@ -5647,11 +5660,11 @@
       "ac_ids": [
         "AC-414"
       ],
-      "title": "「画風」グループに 13 の描画スタイルが常時表示の項目として並び、各項目は BUTTON で role=menuitem でなく aria-pressed を持ち、クリックで切り替わる（異常系含む）",
+      "title": "「画風」グループに 15 の描画スタイルが常時表示の項目として並び、各項目は BUTTON で role=menuitem でなく aria-pressed を持ち、クリックで切り替わる（異常系含む）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-414\" tests/system/stylepicker.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "219632d",
       "last_run_at": "2026-11-04T20:39:40+09:00",
       "evidence": "work/runs/202611041619/logs/system-test/E2E-199-202611042039.log",
@@ -5679,6 +5692,12 @@
           "by": "test-designer",
           "change": "title: '「画風」グループに 13 の描画スタイルが常時表示の項目（ラベル・ツールチップ）として並び、クリックで切り替わり現在の項目は aria-pressed と色以外の印で示される（異常系含む）' -> '「画風」グループに 13 の描画スタイルが常時表示の項目として並び、各項目は BUTTON で role=menuitem でなく aria-pressed を持ち、クリックで切り替わる（異常系含む）'",
           "reason": "AC-414 修正: menuitem でなく aria-pressed の通常ボタン（実ブラウザ検証を追加）"
+        },
+        {
+          "at": "2026-11-04T23:28:30+09:00",
+          "by": "test-designer",
+          "change": "title: '「画風」グループに 13 の描画スタイルが常時表示の項目として並び、各項目は BUTTON で role=menuitem でなく aria-pressed を持ち、クリックで切り替わる（異常系含む）' -> '「画風」グループに 15 の描画スタイルが常時表示の項目として並び、各項目は BUTTON で role=menuitem でなく aria-pressed を持ち、クリックで切り替わる（異常系含む）'",
+          "reason": "AC-670（暖色カード風・青見出し風の追加）で描画スタイルが 13→15（要求定義書 9af7576・PARAM-092=15）。テストの数も 15 に更新"
         }
       ]
     },
@@ -5764,11 +5783,11 @@
       "ac_ids": [
         "AC-417"
       ],
-      "title": "640px 以下でも画風の全 13 項目とラベルは省かれず横スクロールなしで到達でき、1280px で 1 行・重ならず、日英の切替で名前と説明が切り替わる",
+      "title": "640px 以下でも画風の全 15 項目とラベルは省かれず横スクロールなしで到達でき、1280px で 1 行・重ならず、日英の切替で名前と説明が切り替わる",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-417\" tests/system/stylepicker.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "219632d",
       "last_run_at": "2026-11-04T20:39:40+09:00",
       "evidence": "work/runs/202611041619/logs/system-test/E2E-202-202611042039.log",
@@ -5790,6 +5809,12 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "2026-11-04 の依頼で AC・契約が変わったため、実装前の再検証待ち（test-designer）"
+        },
+        {
+          "at": "2026-11-04T23:28:31+09:00",
+          "by": "test-designer",
+          "change": "title: '640px 以下でも画風の全 13 項目とラベルは省かれず横スクロールなしで到達でき、1280px で 1 行・重ならず、日英の切替で名前と説明が切り替わる' -> '640px 以下でも画風の全 15 項目とラベルは省かれず横スクロールなしで到達でき、1280px で 1 行・重ならず、日英の切替で名前と説明が切り替わる'",
+          "reason": "AC-670（暖色カード風・青見出し風の追加）で描画スタイルが 13→15（要求定義書 9af7576・PARAM-092=15）。テストの数も 15 に更新"
         }
       ]
     },
@@ -6055,7 +6080,7 @@
       "ac_ids": [
         "AC-409"
       ],
-      "title": "描画スタイルの選択肢 13 と、9 つの風の紙面・書体・見出しの飾り・通常の吹き出し・線・線画人物が 3.6 の表と一致し図に反映（異常系: 未知の ID）",
+      "title": "描画スタイルの選択肢 15 と、11 の風の紙面・書体・見出しの飾り・通常の吹き出し・線・線画人物が 3.6 の表と一致し図に反映（異常系: 未知の ID）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-409\" tests/system/stylepreset.test.js",
       "canary": false,
@@ -6087,6 +6112,18 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートで --test-name-pattern で実行できる"
+        },
+        {
+          "at": "2026-11-04T23:28:46+09:00",
+          "by": "test-designer",
+          "change": "title: '描画スタイルの選択肢 13 と、9 つの風の紙面・書体・見出しの飾り・通常の吹き出し・線・線画人物が 3.6 の表と一致し図に反映（異常系: 未知の ID）' -> '描画スタイルの選択肢 15 と、11 の風の紙面・書体・見出しの飾り・通常の吹き出し・線・線画人物が 3.6 の表と一致し図に反映（異常系: 未知の ID）'",
+          "reason": "参考（blocked のまま）: AC-670 で 11 の風・計 15 に（9af7576）。参照するテストの数を更新"
+        },
+        {
+          "at": "2026-11-04T23:28:56+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートの --test-name-pattern で実行できる（タイトル更新後に元の blocked に戻す）"
         }
       ]
     },
@@ -6098,7 +6135,7 @@
       "ac_ids": [
         "AC-410"
       ],
-      "title": "9 つの風の文字 4.5:1・枠と吹き出しの輪郭 3:1・黄の面の輪郭線と黄の上の黒文字（異常系: 強調表示中・英語表示）",
+      "title": "11 の風の文字 4.5:1・枠と吹き出しの輪郭 3:1・黄の面の輪郭線と黄の上の黒文字（異常系: 強調表示中・英語表示）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-410\" tests/system/stylepreset.test.js",
       "canary": false,
@@ -6118,6 +6155,18 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "参考として blocked: AC-410 は検証レベル=integration で System Test の台帳の対象外（CHK-10）。受入基準だけから作ったテストは tests/system/stylepreset.test.js（契約 CONTRACT-STYLE-PRESET.md）にあり、implementer の結合テストのゲートで command を実行して確かめる"
+        },
+        {
+          "at": "2026-11-04T23:28:46+09:00",
+          "by": "test-designer",
+          "change": "title: '9 つの風の文字 4.5:1・枠と吹き出しの輪郭 3:1・黄の面の輪郭線と黄の上の黒文字（異常系: 強調表示中・英語表示）' -> '11 の風の文字 4.5:1・枠と吹き出しの輪郭 3:1・黄の面の輪郭線と黄の上の黒文字（異常系: 強調表示中・英語表示）'",
+          "reason": "参考（blocked のまま）: AC-670 で 11 の風・計 15 に（9af7576）。参照するテストの数を更新"
+        },
+        {
+          "at": "2026-11-04T23:28:57+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートの --test-name-pattern で実行できる（タイトル更新後に元の blocked に戻す）"
         }
       ]
     },
@@ -6129,7 +6178,7 @@
       "ac_ids": [
         "AC-411"
       ],
-      "title": "9 つの風で要点の種類・強調表示を色以外で見分けられ、黄の面は輪郭線で見える（異常系: 単色のミニマル風）",
+      "title": "11 の風で要点の種類・強調表示を色以外で見分けられ、黄の面は輪郭線で見える（異常系: 単色のミニマル風）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-411\" tests/system/stylepreset.test.js",
       "canary": false,
@@ -6149,6 +6198,18 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "参考として blocked: AC-411 は検証レベル=integration で System Test の台帳の対象外（CHK-10）。受入基準だけから作ったテストは tests/system/stylepreset.test.js（契約 CONTRACT-STYLE-PRESET.md）にあり、implementer の結合テストのゲートで command を実行して確かめる"
+        },
+        {
+          "at": "2026-11-04T23:28:47+09:00",
+          "by": "test-designer",
+          "change": "title: '9 つの風で要点の種類・強調表示を色以外で見分けられ、黄の面は輪郭線で見える（異常系: 単色のミニマル風）' -> '11 の風で要点の種類・強調表示を色以外で見分けられ、黄の面は輪郭線で見える（異常系: 単色のミニマル風）'",
+          "reason": "参考（blocked のまま）: AC-670 で 11 の風・計 15 に（9af7576）。参照するテストの数を更新"
+        },
+        {
+          "at": "2026-11-04T23:28:57+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートの --test-name-pattern で実行できる（タイトル更新後に元の blocked に戻す）"
         }
       ]
     },
@@ -6253,7 +6314,7 @@
       "ac_ids": [
         "AC-456"
       ],
-      "title": "ハイコントラストでは全 13 の描画スタイルの図がシステム色で描かれ、無効に戻すと風の配色（異常系: 不正な指定）",
+      "title": "ハイコントラストでは全 15 の描画スタイルの図がシステム色で描かれ、無効に戻すと風の配色（異常系: 不正な指定）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-456\" tests/system/stylepreset.test.js",
       "canary": false,
@@ -6273,6 +6334,18 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "参考として blocked: AC-456 は検証レベル=integration で System Test の台帳の対象外（CHK-10）。受入基準だけから作ったテストは tests/system/stylepreset.test.js（契約 CONTRACT-STYLE-PRESET.md）にあり、implementer の結合テストのゲートで command を実行して確かめる"
+        },
+        {
+          "at": "2026-11-04T23:28:47+09:00",
+          "by": "test-designer",
+          "change": "title: 'ハイコントラストでは全 13 の描画スタイルの図がシステム色で描かれ、無効に戻すと風の配色（異常系: 不正な指定）' -> 'ハイコントラストでは全 15 の描画スタイルの図がシステム色で描かれ、無効に戻すと風の配色（異常系: 不正な指定）'",
+          "reason": "参考（blocked のまま）: AC-670 で 11 の風・計 15 に（9af7576）。参照するテストの数を更新"
+        },
+        {
+          "at": "2026-11-04T23:28:58+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートの --test-name-pattern で実行できる（タイトル更新後に元の blocked に戻す）"
         }
       ]
     },
@@ -6575,11 +6648,11 @@
       "ac_ids": [
         "AC-459"
       ],
-      "title": "コマンドバーの作業順 10 グループ（画風は表示の直後）と所属・13 個以内、画風は 13 項目、プロンプトのコピーは図の書き出しの末尾（異常系: 折返し）",
+      "title": "コマンドバーの作業順 10 グループ（画風は表示の直後）と所属・15 個以内、画風は 15 項目、レイアウト型は 7 つの型アイコンとクリアの 8 個、プロンプトのコピーは図の書き出しの末尾（異常系: 折返し）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-459\" tests/system/cmdgroups.test.js",
       "canary": true,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "219632d",
       "last_run_at": "2026-11-04T20:39:40+09:00",
       "evidence": "work/runs/202611041619/logs/system-test/E2E-225-202611042038.log",
@@ -6625,6 +6698,12 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "AC-519/459 明確化: ［設定］パネルの drawStyle 欄は残る前提に修正"
+        },
+        {
+          "at": "2026-11-04T23:28:31+09:00",
+          "by": "test-designer",
+          "change": "title: 'コマンドバーの作業順 10 グループ（画風は表示の直後）と所属・13 個以内、画風は 13 項目、プロンプトのコピーは図の書き出しの末尾（異常系: 折返し）' -> 'コマンドバーの作業順 10 グループ（画風は表示の直後）と所属・15 個以内、画風は 15 項目、レイアウト型は 7 つの型アイコンとクリアの 8 個、プロンプトのコピーは図の書き出しの末尾（異常系: 折返し）'",
+          "reason": "AC-459 の変更（9af7576: 画風 15 項目・PARAM-092=15・レイアウト型グループ 8 個）に合わせ、cmdgroups.test.js の上限と型アイコンの検証を更新"
         }
       ]
     },
@@ -7628,7 +7707,7 @@
       "ac_ids": [
         "AC-466"
       ],
-      "title": "13 の描画スタイル・追加した画風プリセットの図（SVG）・PNG/SVG/PDF 保存・RPG の Canvas の書体の指定が NFR-UX-012 の並び（異常系: Yu Gothic UI なし・判定失敗）",
+      "title": "15 の描画スタイル・追加した画風プリセットの図（SVG）・PNG/SVG/PDF 保存・RPG の Canvas の書体の指定が NFR-UX-012 の並び（異常系: Yu Gothic UI なし・判定失敗）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-466\" tests/system/jpfont.test.js",
       "canary": false,
@@ -7648,6 +7727,18 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートで --test-name-pattern で実行できる"
+        },
+        {
+          "at": "2026-11-04T23:28:48+09:00",
+          "by": "test-designer",
+          "change": "title: '13 の描画スタイル・追加した画風プリセットの図（SVG）・PNG/SVG/PDF 保存・RPG の Canvas の書体の指定が NFR-UX-012 の並び（異常系: Yu Gothic UI なし・判定失敗）' -> '15 の描画スタイル・追加した画風プリセットの図（SVG）・PNG/SVG/PDF 保存・RPG の Canvas の書体の指定が NFR-UX-012 の並び（異常系: Yu Gothic UI なし・判定失敗）'",
+          "reason": "参考（blocked のまま）: AC-670 で 11 の風・計 15 に（9af7576）。参照するテストの数を更新"
+        },
+        {
+          "at": "2026-11-04T23:28:59+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートの --test-name-pattern で実行できる（タイトル更新後に元の blocked に戻す）"
         }
       ]
     },
@@ -7659,7 +7750,7 @@
       "ac_ids": [
         "AC-467"
       ],
-      "title": "吹き出し型で感情語を含むトピックの吹き出しは 9 つの風・追加した定義のすべてで通常と異なる形、色なしでも形で区別、配色・輪郭線の規定、保存でも同じ（異常系: 強制カラー・感情語なし）",
+      "title": "吹き出し型で感情語を含むトピックの吹き出しは 11 の風・追加した定義のすべてで通常と異なる形、色なしでも形で区別、配色・輪郭線の規定、保存でも同じ（異常系: 強制カラー・感情語なし）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-467\" tests/system/emotionballoon.test.js",
       "canary": false,
@@ -7679,6 +7770,18 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートで --test-name-pattern で実行できる"
+        },
+        {
+          "at": "2026-11-04T23:28:48+09:00",
+          "by": "test-designer",
+          "change": "title: '吹き出し型で感情語を含むトピックの吹き出しは 9 つの風・追加した定義のすべてで通常と異なる形、色なしでも形で区別、配色・輪郭線の規定、保存でも同じ（異常系: 強制カラー・感情語なし）' -> '吹き出し型で感情語を含むトピックの吹き出しは 11 の風・追加した定義のすべてで通常と異なる形、色なしでも形で区別、配色・輪郭線の規定、保存でも同じ（異常系: 強制カラー・感情語なし）'",
+          "reason": "参考（blocked のまま）: AC-670 で 11 の風・計 15 に（9af7576）。参照するテストの数を更新"
+        },
+        {
+          "at": "2026-11-04T23:28:59+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "検証レベルが integration（System Test の対象外。CHK-10）。implementer の結合テストで確認する。この System 側のテストは参考で、ゲートの --test-name-pattern で実行できる（タイトル更新後に元の blocked に戻す）"
         }
       ]
     },
@@ -8129,11 +8232,11 @@
       "ac_ids": [
         "AC-519"
       ],
-      "title": "リボンに［設定］パネルの項目（描画スタイルを除く）があり、［設定］に drawStyle の欄はなく、リボンの描画スタイル項目は「画風」13 項目だけで、リボンと［設定］の値が一致する（異常系含む）",
+      "title": "リボンに［設定］パネルの項目（描画スタイルを除く）があり、［設定］に drawStyle の欄はなく、リボンの描画スタイル項目は「画風」15 項目だけで、型のチェックは 7 つ、リボンと［設定］の値が一致する（異常系含む）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=AC-519 tests/system/ribbon-settings.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "219632d",
       "last_run_at": "2026-11-04T20:39:40+09:00",
       "evidence": "work/runs/202611041619/logs/system-test/E2E-257-202611042039.log",
@@ -8173,6 +8276,12 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "AC-519/459 明確化: ［設定］パネルの drawStyle 欄は残る前提に修正"
+        },
+        {
+          "at": "2026-11-04T23:28:32+09:00",
+          "by": "test-designer",
+          "change": "title: 'リボンに［設定］パネルの項目（描画スタイルを除く）があり、［設定］に drawStyle の欄はなく、リボンの描画スタイル項目は「画風」13 項目だけで、リボンと［設定］の値が一致する（異常系含む）' -> 'リボンに［設定］パネルの項目（描画スタイルを除く）があり、［設定］に drawStyle の欄はなく、リボンの描画スタイル項目は「画風」15 項目だけで、型のチェックは 7 つ、リボンと［設定］の値が一致する（異常系含む）'",
+          "reason": "AC-519 の変更（9af7576: 15 項目）と FR-114 の追加（型 7 つ）に合わせて ribbon-settings.test.js を更新"
         }
       ]
     },
@@ -9152,6 +9261,31 @@
           "by": "test-designer",
           "change": "ac_ids: ['AC-663'] -> ['AC-661', 'AC-662', 'AC-663']",
           "reason": "AC-661〜663 を 1 ケースで検証（--ac の複数指定が最後だけ残ったため補正）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-289",
+      "requirement_ids": [
+        "FR-114"
+      ],
+      "ac_ids": [
+        "AC-667"
+      ],
+      "title": "FR-114 AC-667 会議ボード型: TeamA の会議の固定の文字起こし（23 発言）を 1 発言ずつ取り込み、区画 6 以上・部品 8 種類以上・期待の区画・重なり/はみ出しなし・15 の描画スタイルでコントラスト 4.5 以上・600ms 以内の途中を経由する移動（動きを減らす設定ではなし）・反映時間（手入力/ファイル 3 秒・ライブ 17 秒）・外部リクエスト 0 件",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=\"AC-667\" tests/system/board.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-11-04T23:28:08+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
         }
       ]
     }

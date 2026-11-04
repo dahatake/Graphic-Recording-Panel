@@ -31,7 +31,7 @@ function seedScenes(app, env, nScenes = 10, perScene = 5) {
 }
 
 // FR-077 AC-414（2026-11-04 の依頼で、画風は常時表示の「画風」グループの項目。ドロップダウン・一覧の開閉はない。契約: CONTRACT-2026-11-04.md「2.」）
-test('FR-077 AC-414: 「画風」グループに 13 の描画スタイルが、開く操作なしに最初から常時、項目として表示され、各項目に常時表示のラベル（6 文字以内）とツールチップ（短い説明）がある', async () => {
+test('FR-077 AC-414: 「画風」グループに 15 の描画スタイルが、開く操作なしに最初から常時、項目として表示され、各項目に常時表示のラベル（6 文字以内）とツールチップ（短い説明）がある', async () => {
   const { app } = await newApp();
   const grp = app.getCommandBar().groups.find((g) => g.id === 'drawStyle');
   assert.ok(grp, '「画風」グループがある');
@@ -40,9 +40,9 @@ test('FR-077 AC-414: 「画風」グループに 13 の描画スタイルが、�
   assert.equal(app.commands['drawStyle.pick'], undefined);
   assert.equal(app.getDrawStylePicker, undefined, '開閉する一覧はない');
   assert.deepEqual(grp.commands, ids(app).map((id) => `drawStyle.set:${id}`), '登録されたすべての描画スタイルが、同じ並びで最初から項目として出ている');
-  assert.equal(grp.commands.length, 13, '既存の 4 つ＋9 つの風');
+  assert.equal(grp.commands.length, 15, '既存の 4 つ＋11 の風（AC-670 の 2 つを含む）');
   for (const id of OLD) assert.ok(setItem(app, id), `${id} がある`);
-  assert.equal(presets(app).length, 9);
+  assert.equal(presets(app).length, 11);
   for (const lang of ['ja', 'en']) {
     app.setLang(lang);
     for (const id of ids(app)) {
@@ -61,7 +61,7 @@ test('FR-077 AC-414: 「画風」グループに 13 の描画スタイルが、�
       assert.equal(tip.visible, true); assert.equal(tip.text, it.tooltip.text);
       app.hideTooltip(it.command, 'leave');
     }
-    assert.equal(new Set(styleItems(app).map((i) => i.label)).size, 13, `${lang}: 名前はそれぞれ異なる`);
+    assert.equal(new Set(styleItems(app).map((i) => i.label)).size, 15, `${lang}: 名前はそれぞれ異なる`);
   }
 });
 
@@ -92,7 +92,7 @@ test('FR-077 AC-414 実ブラウザ: 画風の各項目は通常の <button> で
     const { ctx, page } = await openApp(browser, srv.url, { width: 1280, height: 1000 });
     try {
       const all = await page.evaluate(() => globalThis.__app.getDrawStyles().map((s) => s.id));
-      assert.equal(all.length, 13);
+      assert.equal(all.length, 15);
       const cur = await page.evaluate(() => globalThis.__app.getDrawStyle());
       for (const id of all) {
         const el = page.locator(`[data-command="drawStyle.set:${id}"]`).first();
@@ -121,7 +121,7 @@ test('FR-077 AC-414 異常系: 登録にない・不正な値は選べず、現�
 });
 
 // FR-077 AC-415
-test('FR-077 AC-415: 10 シーン・要点 50 個・詳細度「詳細」で、項目を選んでから図が描き替わるまで 1 秒以内（13 の描画スタイルすべて）', async () => {
+test('FR-077 AC-415: 10 シーン・要点 50 個・詳細度「詳細」で、項目を選んでから図が描き替わるまで 1 秒以内（15 の描画スタイルすべて）', async () => {
   const { app, env } = await newApp();
   seedScenes(app, env);
   toDetail(app);
@@ -159,7 +159,7 @@ test('FR-077 AC-415: 描き替えの前後で、シーン・要点・配置・�
     for (const s of app.getState().scenes) { assert.ok(svg.includes(s.heading), `${id}: 見出し`); for (const p of s.points) assert.ok(svg.includes(p.text), `${id}: 要点「${p.text}」`); }
     svgs.add(svg);
   }
-  assert.equal(svgs.size, 13, '13 の描画スタイルで図の見た目が異なる');
+  assert.equal(svgs.size, 15, '15 の描画スタイルで図の見た目が異なる');
   assert.equal(app.getState().session, 'recording');
   assert.equal(app.submitDraft().ok, true, '描き替えの後も記録を続けられる');
 });
@@ -169,12 +169,12 @@ test('FR-077 AC-416: キーボードだけで、画風の項目への移動（Ta
   const { app, env } = await newApp();
   await seedThreeScenes(app, env);
   const items = styleItems(app);
-  assert.equal(items.length, 13);
+  assert.equal(items.length, 15);
   for (const it of items) { assert.equal(it.tabbable, true, `${it.command}: Tab で移動できる`); assert.equal(it.tabIndex, 0); }
   const order = app.getCommandBar().focusOrder;
   const first = order.indexOf(items[0].command);
   assert.ok(first >= 0);
-  assert.deepEqual(order.slice(first, first + 13), items.map((i) => i.command), '画風の 13 項目は Tab で連続して巡る（DOM 順）');
+  assert.deepEqual(order.slice(first, first + 15), items.map((i) => i.command), '画風の 15 項目は Tab で連続して巡る（DOM 順）');
   for (const id of [ids(app).at(-1), ids(app)[0], presets(app)[3]]) {
     pickStyle(app, id); // 実 DOM の項目は <button>。Enter・Space はクリックと同じ
     assert.equal(app.getDrawStyle(), id);
@@ -192,7 +192,7 @@ test('FR-077 AC-416 実ブラウザ: 画風の項目は <button> で Tab で到�
     try {
       const sel = (id) => `[data-command="drawStyle.set:${id}"]`;
       const all = await page.evaluate(() => globalThis.__app.getDrawStyles().map((s) => s.id));
-      assert.equal(all.length, 13);
+      assert.equal(all.length, 15);
       for (const id of all) {
         assert.equal(await page.locator(sel(id)).first().evaluate((e) => e.tagName), 'BUTTON', `${id}: button`);
         assert.notEqual(await page.locator(sel(id)).first().getAttribute('role'), 'menuitem', `${id}: role=menuitem ではない（AC-416）`);
@@ -235,7 +235,7 @@ test('FR-077 AC-416: コマンドの検索から描画スタイルの名前で�
 });
 
 // FR-077 AC-417（例外: ユーザーの明示操作によるリボンの折りたたみ中（AC-579）は除く。ここは折りたたまない状態で省かれないことを検証し、折りたたみ中は AC-579 のケースで検証する）
-test('FR-077 AC-417: 画面幅 640px 以下でも画風の全 13 項目とラベルは省かれず（あふれメニューへも移さない）、横スクロールなしで全項目へ到達できる', async () => {
+test('FR-077 AC-417: 画面幅 640px 以下でも画風の全 15 項目とラベルは省かれず（あふれメニューへも移さない）、横スクロールなしで全項目へ到達できる', async () => {
   const { app } = await newApp();
   for (const w of [NARROW, 480, 320]) {
     const lay = app.getCommandBarLayout({ viewportWidth: w });

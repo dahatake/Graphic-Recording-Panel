@@ -11,8 +11,8 @@ const items = (app) => app.getCommandBar().items;
 const ids13 = (app) => app.getDrawStyles().map((s) => s.id);
 const bySetting = (app, id) => items(app).filter((i) => i.settingsField === id);
 const sfield = (app, id) => app.getSettingsDialog().fields.find((f) => f.id === id);
-const TYPES = ['timeline', 'bubble', 'diverge', 'zone', 'metaphor', 'workshop'];
-const PANEL_FIELDS = ['layout.mode', 'layout.types', 'sound.muted', 'sound.volume', 'arrange.interval']; // 描画スタイルは「画風」グループの 13 項目だけで選び、リボン上の選択は画風 13 項目だけ（AC-519・AC-459）。［設定］パネルの「既定の描画スタイル」欄は別に残る（AC-149・AC-418）ので、欄の有無はここでは検証しない
+const TYPES = ['timeline', 'bubble', 'diverge', 'zone', 'metaphor', 'workshop', 'board']; // FR-114 の追加後の 7 つ（AC-139・AC-664）
+const PANEL_FIELDS = ['layout.mode', 'layout.types', 'sound.muted', 'sound.volume', 'arrange.interval']; // 描画スタイルは「画風」グループの 15 項目だけで選び、リボン上の選択は画風 15 項目だけ（AC-519・AC-459）。［設定］パネルの「既定の描画スタイル」欄は別に残る（AC-149・AC-418）ので、欄の有無はここでは検証しない
 
 // FR-030 AC-519
 test('FR-030 AC-519: リボンに［設定］パネルの全項目（決め方・型の各チェック・描画スタイル・ミュート・音量・再配置の周期）があり、アイコン（アクセシブルな名前）・説明・PARAM-011 文字以内のラベルを持つ', async () => {
@@ -22,12 +22,12 @@ test('FR-030 AC-519: リボンに［設定］パネルの全項目（決め方�
   for (const id of PANEL_FIELDS) assert.ok(ids.includes(id), `［設定］に ${id} がある`);
   assert.equal(items(app).some((i) => i.settingsField === 'drawStyle'), false, 'リボンに settingsField=drawStyle の項目はない');
   const drawItems = items(app).filter((i) => /^drawStyle\./.test(i.command));
-  assert.deepEqual(drawItems.map((i) => i.command), app.getDrawStyles().map((s) => `drawStyle.set:${s.id}`), 'リボンの描画スタイル項目は「画風」の 13 項目だけ');
-  assert.equal(drawItems.length, 13);
-  assert.equal(drawItems.every((i) => i.group === 'drawStyle'), true, '13 項目はすべて「画風」グループ');
+  assert.deepEqual(drawItems.map((i) => i.command), app.getDrawStyles().map((s) => `drawStyle.set:${s.id}`), 'リボンの描画スタイル項目は「画風」の 15 項目だけ');
+  assert.equal(drawItems.length, 15);
+  assert.equal(drawItems.every((i) => i.group === 'drawStyle'), true, '15 項目はすべて「画風」グループ');
   app.commands['settings.close']();
   for (const id of PANEL_FIELDS) assert.ok(bySetting(app, id).length >= 1, `リボンに ${id} の項目がある`);
-  assert.deepEqual(TYPES.filter((t) => bySetting(app, 'layout.types').some((i) => i.command === `layoutType.${t}`)), TYPES, '型の各チェックは 6 つ');
+  assert.deepEqual(TYPES.filter((t) => bySetting(app, 'layout.types').some((i) => i.command === `layoutType.${t}`)), TYPES, '型の各チェックは 7 つ');
   for (const id of PANEL_FIELDS) for (const it of bySetting(app, id)) {
     assert.ok(typeof it.icon === 'string' && it.icon.trim(), `${it.command}: アイコン`);
     assert.ok(it.accessibleName?.trim() && it.accessibleName.includes(it.label), `${it.command}: アクセシブルな名前`);
