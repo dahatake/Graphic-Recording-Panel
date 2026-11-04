@@ -144,3 +144,56 @@ test('AC-660 縮退: 幅 1280→1000→800→660（高さ 720）で縦 1 段の�
     assert.deepEqual(back.shown.map((c) => c.id), wide.shown.map((c) => c.id), '広げると直接見えるボタンの集合と順が元に戻る');
   } finally { await ctx.close(); }
 });
+
+// NFR-UX-011 AC-660 縮退中の見出し・DOM 順・フォーカス順: 縮退中も各グループの見出しが表示され、グループの順（左→右）と DOM 順・Tab の順が一致し、
+// ドロップダウン内の項目の順は、縮退前（幅 1920）のグループ内の順と同じである。
+test('AC-660 縮退中の見出し・DOM 順・フォーカス順: 幅 1000・800・660 で全グループの見出しが表示され、DOM 順・Tab 順が視覚上の順と一致し、ドロップダウン内の順もグループ内の順と同じ', async () => {
+  const { ctx, page } = await open({ width: 1920, height: 1080 });
+  const GROUPS = () => {
+    const vis = (el) => el.checkVisibility({ checkVisibilityCSS: true }) && el.getBoundingClientRect().width > 0;
+    const bar = document.querySelector('#toolbar');
+    const headings = [...bar.querySelectorAll('.toolbar-group-heading')].map((h) => h.textContent.trim()).filter(Boolean);
+    const groups = [...bar.querySelectorAll('[role="group"]')].map((g) => ({ vis: vis(g), left: g.getBoundingClientRect().left, ids: [...g.querySelectorAll('[data-command]')].map((e) => e.dataset.command), text: (g.innerText || '').trim() }));
+    return { headings, groups, barText: bar.innerText };
+  };
+  try {
+    const wide = await page.evaluate(GROUPS);
+    assert.ok(wide.headings.length >= 2, '基準（幅 1920）で見出しが複数ある');
+    const orderOf = new Map(); // コマンド ID → 縮退前のグループの順・グループ内の順
+    wide.groups.forEach((g, gi) => g.ids.forEach((id, ii) => { if (!orderOf.has(id)) orderOf.set(id, gi * 1000 + ii); }));
+    for (const w of [1000, 800, 660]) {
+      await resize(page, w, 720);
+      const s = await page.evaluate(GROUPS);
+      for (const h of wide.headings) assert.ok(s.barText.includes(h), `幅 ${w}: 見出し「${h}」が縮退中も表示される`);
+      const lefts = s.groups.filter((g) => g.vis).map((g) => g.left);
+      assert.deepEqual(lefts, [...lefts].sort((a, b) => a - b), `幅 ${w}: DOM 順のグループが視覚上の順（左→右）と一致する`);
+      // Tab で巡る順（トリガーを含む）: ツールバー内で左から右へ進み、コマンドの縮退前の順（グループの順）を逆戻りしない。
+      await page.locator('#toolbar').evaluate((el) => { el.ownerDocument.activeElement?.blur?.(); });
+      await page.evaluate(() => document.body.focus());
+      const seq = [];
+      for (let i = 0; i < 80; i++) {
+        await page.keyboard.press('Tab');
+        const f = await page.evaluate(() => { const a = document.activeElement; if (!a || !a.closest('#toolbar')) return null; const r = a.getBoundingClientRect(); return { left: r.left, id: a.dataset.command || null }; });
+        if (f) seq.push(f); else if (seq.length) break;
+      }
+      assert.ok(seq.length >= 3, `幅 ${w}: Tab でリボンの項目を巡れる`);
+      const fl = seq.map((x) => x.left);
+      assert.ok(fl.every((x, i) => i === 0 || x >= fl[i - 1] - 1), `幅 ${w}: Tab 順が視覚上の順（左→右）と一致する`);
+      const ids = seq.map((x) => orderOf.get(x.id)).filter((x) => x !== undefined);
+      assert.deepEqual(ids, [...ids].sort((a, b) => a - b), `幅 ${w}: Tab 順がグループの順→グループ内の順（縮退前）と一致する`);
+      // ドロップダウン内の順: 開いたメニューの項目の順は、縮退前のグループ内の順と同じ。
+      const triggers = page.locator('#toolbar button[aria-haspopup], #toolbar button[aria-expanded][aria-controls]:not(#ribbon-toggle)');
+      for (let i = 0; i < await triggers.count(); i++) {
+        const t = triggers.nth(i);
+        if (!(await t.isVisible())) continue;
+        await t.click();
+        const menu = await page.evaluate(() => [...document.querySelectorAll('[role="menu"] [data-command], [role="menu"] [role="menuitem"][data-command], #toolbar [data-command]')]
+          .filter((e) => e.checkVisibility({ checkVisibilityCSS: true }) && e.closest('[role="menu"]')).map((e) => e.dataset.command));
+        const o = menu.map((id) => orderOf.get(id)).filter((x) => x !== undefined);
+        assert.deepEqual(o, [...o].sort((a, b) => a - b), `幅 ${w}: ドロップダウン内の項目の順がグループ内の順と同じ`);
+        await page.keyboard.press('Escape');
+        if ((await t.getAttribute('aria-expanded')) === 'true') await t.click();
+      }
+    }
+  } finally { await ctx.close(); }
+});

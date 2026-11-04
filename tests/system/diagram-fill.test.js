@@ -1,11 +1,11 @@
 // FR-017 AC-661 AC-662 AC-663（System Test。実ブラウザ＝Chromium 系を playwright-core で起動して測る。perf.test.js と同じ方式）
 // 期待値は受入基準（依頼 2026-11-04）だけから決める。実装は、起動方法・DOM の場所（[data-panel]・#diagram・.statusbar）を知るためにだけ使う。
 //  AC-661: 既定の窓（1280×720・1920×1080。配置を変えていない起動）で、図の領域は、リボン・状態欄・副次パネルを除く残りの全面を占め
-//          （区切り線以外の空きがない）、面積は窓の面積の PARAM-174（60）% 以上。利用者が手で変えたレイアウトは上書きしない。
+//          （区切り線以外の空きがない）、面積は窓の面積（状態欄を含む窓の全体）の PARAM-174（55）% 以上。状態欄の高さは窓の高さの PARAM-177（8）% 以下。利用者が手で変えたレイアウトは上書きしない。
 //  AC-662: 副次パネル（テキスト一覧・認識文字列）は、保存されたレイアウトがない起動で、折りたたみ（見出しと展開ボタンだけ）または
 //          高さが窓の高さの PARAM-175（20）% 以下で始まる。展開ボタン（マウス・キーボード・状態を読み上げる＝aria-expanded）で展開でき、
 //          折りたたみ・展開は FR-011 のレイアウトの保存・復元・「既定に戻す」の対象。折りたたみ中も内容は失われず、
-//          新しい認識文字列があっても自動で展開して図の領域を縮めない。
+//          新しい認識文字列があっても自動で展開して図の領域を縮めない（例外は音声認識の開始時の展開だけ。AC-390 は panel-autoexpand.test.js）。
 //  AC-663: 窓の大きさを変えると、図の領域は PARAM-176（500）ms 以内に AC-661 の占有（窓からリボン・副次パネルを除いた領域）に追従し、
 //          図の描画は新しい領域に合わせて再計算され、図の一部が領域の外へはみ出して切れない。
 // 要求 ID: FR-017（AC-661・AC-662・AC-663）。
@@ -13,7 +13,8 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { serveWeb, launch, openApp } from './perf-util.js';
 
-const PARAM_174_PCT = 60; // 図の領域の面積の下限（窓の面積に対する割合）
+const PARAM_174_PCT = 55; // 図の領域の面積の下限（窓の面積に対する割合。窓の全体＝状態欄を含む。リボン 15＋状態欄 8＋副次 20 が上限でも 57% 残る）
+const PARAM_177_PCT = 8; // 状態欄の高さの上限（窓の高さに対する割合）
 const PARAM_175_PCT = 20; // 副次パネルの初期の高さの上限（窓の高さに対する割合）
 const PARAM_176_MS = 500; // サイズ変更後に追従し終えるまでの上限
 const GAP = 4; // 境界の区切り線として許す隙間（px）
@@ -65,6 +66,7 @@ for (const size of [{ width: 1280, height: 720 }, { width: 1920, height: 1080 }]
       await page.waitForFunction(() => document.querySelector('[data-panel="diagram"]')?.checkVisibility());
       const g0 = await geom(page);
       assertFills(g0, name);
+      assert.ok(g0.status.height <= g0.H * PARAM_177_PCT / 100, `状態欄の高さ ${g0.status.height}px が窓の高さの ${PARAM_177_PCT}%（PARAM-177）を超える`);
       const area = g0.diagram.width * g0.diagram.height;
       assert.ok(area >= g0.W * g0.H * PARAM_174_PCT / 100, `図の領域の面積 ${Math.round(area)} が窓の面積の ${PARAM_174_PCT}% 未満`);
       for (const k of SECONDARY) {

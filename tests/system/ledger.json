@@ -55,7 +55,7 @@
     "AC-084": "sha256:45867f6555c9af69",
     "AC-085": "sha256:530594fd0a98db0e",
     "AC-086": "sha256:4d5980e9bc6ea0f2",
-    "AC-090": "sha256:c59c3b1dd0dd09f6",
+    "AC-090": "sha256:04de7dd82a3a4349",
     "AC-091": "sha256:68ba6f2beb1088e4",
     "AC-093": "sha256:9a080531660ba5eb",
     "AC-094": "sha256:c644963613d4b158",
@@ -154,14 +154,14 @@
     "AC-394": "sha256:55fba90fd32fdbaa",
     "AC-388": "sha256:4763edb855b78154",
     "AC-389": "sha256:d76adcb523bd6173",
-    "AC-390": "sha256:bc08a577595d5281",
+    "AC-390": "sha256:02a65160e5d03d88",
     "AC-391": "sha256:51f44b4089402ced",
-    "AC-392": "sha256:030ffeb6868d41ed",
-    "AC-393": "sha256:1915692914e41269",
+    "AC-392": "sha256:f35114fe0479748c",
+    "AC-393": "sha256:3831359b6bea6a60",
     "AC-414": "sha256:989a95158a90aee2",
     "AC-415": "sha256:3ac190dd8d27d68c",
     "AC-416": "sha256:5c013b4298eea244",
-    "AC-417": "sha256:4170a5a45c3041f3",
+    "AC-417": "sha256:91ea5603f2f654a0",
     "AC-418": "sha256:02f6cc4a1725a831",
     "AC-419": "sha256:b46710ca130981f0",
     "AC-420": "sha256:9c77661e64449c5e",
@@ -190,7 +190,7 @@
     "AC-460": "sha256:e5633f20b76bcbf4",
     "AC-461": "sha256:e739eb391b8b4c84",
     "AC-462": "sha256:788240e79830f31d",
-    "AC-463": "sha256:6e96cc8c51660daa",
+    "AC-463": "sha256:fd00d0ec74e295fc",
     "AC-464": "sha256:ae269b4046bb3a27",
     "AC-435": "sha256:e914cc1766f2178a",
     "AC-436": "sha256:1d5cad323ac8017b",
@@ -276,10 +276,10 @@
     "AC-656": "sha256:0c4807fe362ca881",
     "AC-657": "sha256:293c903d90385cbf",
     "AC-658": "sha256:a7a919fc80691cdd",
-    "AC-660": "sha256:d53215cc40060924",
-    "AC-663": "sha256:0a3e7586164172fb",
-    "AC-661": "sha256:daeffb5dd39877b7",
-    "AC-662": "sha256:ffbe251a52c31266"
+    "AC-660": "sha256:263d5ba9725e26ff",
+    "AC-663": "sha256:125e4e7774e86107",
+    "AC-661": "sha256:7a240add947338ad",
+    "AC-662": "sha256:18d6be9b8d90b196"
   },
   "cases": [
     {
@@ -5502,13 +5502,14 @@
         "FR-074"
       ],
       "ac_ids": [
-        "AC-390"
+        "AC-390",
+        "AC-393"
       ],
       "title": "音声認識の開始（記録開始・再開。同意の操作なし）で非表示の認識文字列パネルが自動表示され、表示済みなら変わらない",
       "layer": "e2e",
-      "command": "node --test --test-name-pattern=\"AC-390\" tests/system/startbar.test.js",
+      "command": "node --test --test-name-pattern=\"AC-390|AC-393\" tests/system/startbar.test.js tests/system/panel-autoexpand.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "74161cf",
       "last_run_at": "2026-11-04T12:35:34+09:00",
       "evidence": "work/runs/202611041217/logs/system-test/E2E-188-202611041233.log",
@@ -5530,6 +5531,18 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "2026-11-04 の依頼で AC・契約が変わったため、実装前の再検証待ち（test-designer）"
+        },
+        {
+          "at": "2026-11-04T13:15:22+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test --test-name-pattern=\"AC-390\" tests/system/startbar.test.js' -> 'node --test --test-name-pattern=\"AC-390|AC-393\" tests/system/startbar.test.js tests/system/panel-autoexpand.test.js'; ac_ids: ['AC-390'] -> ['AC-390', 'AC-393']",
+          "reason": "AC-390 改訂（折りたたみ中の開始で展開）・AC-393 追従。実ブラウザのケース panel-autoexpand.test.js を追加し AC-393 を統合"
+        },
+        {
+          "at": "2026-11-04T13:15:33+09:00",
+          "by": "script",
+          "change": "status -> not_run",
+          "reason": "AC-390 改訂（command 変更）"
         }
       ]
     },
@@ -5607,7 +5620,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-393\" tests/system/startbar.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "blocked",
       "last_commit": "74161cf",
       "last_run_at": "2026-11-04T12:35:34+09:00",
       "evidence": "work/runs/202611041217/logs/system-test/E2E-191-202611041233.log",
@@ -5617,6 +5630,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610192220）"
+        },
+        {
+          "at": "2026-11-04T13:15:23+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "E2E-188 に統合（AC-393）"
         }
       ]
     },
