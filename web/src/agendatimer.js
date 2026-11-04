@@ -97,8 +97,9 @@ export function agendaTimerModule(ctx) {
   api.agendaTimerAfterRemoved = (id, at) => {
     if (!active()) return;
     if (at < agenda().length) {
-      const sceneId = ctx.breakScene(); const t0 = now();
-      ctx.change((s) => { s.agendaBoundaries.push({ sceneId, agendaId: id, at: t0 }); loadItem(at); ctx.setMessage('msg.timerNext'); });
+      const b = { sceneId: null, agendaId: id, at: now() };
+      ctx.breakScene((sid) => { b.sceneId = sid; }); // A-874: 待ちの発話があれば、区切りの前のシーンは次の更新の時点で決まる
+      ctx.change((s) => { s.agendaBoundaries.push(b); loadItem(at); ctx.setMessage('msg.timerNext'); });
       armTick();
     } else { clearTick(); tm = { state: 'idle', index: 0, remainingMs: 0, resumedAt: null, warned: false, expiredNotified: false }; refresh(); }
   };
@@ -169,10 +170,11 @@ export function agendaTimerModule(ctx) {
     if (cur + 1 >= list.length) return fail('last', 'timer.err.last');
     const from = list[cur];
     // AC-571: 進行中のシーンを確定し、次の発話から新しいシーンにする。切替の時点を記録する（発話列は変えない）
-    const sceneId = ctx.breakScene();
-    const at = now();
+    // A-874（AC-521）: 更新間隔の待ちの発話は、切替の時点では描き足さず、切替の前のシーンとして次の更新の時点に描き足す
+    const b = { sceneId: null, agendaId: from.id, at: now() };
+    ctx.breakScene((sid) => { b.sceneId = sid; });
     ctx.change((s) => {
-      s.agendaBoundaries.push({ sceneId, agendaId: from.id, at });
+      s.agendaBoundaries.push(b);
       loadItem(cur + 1);
       ctx.setMessage('msg.timerNext');
     });

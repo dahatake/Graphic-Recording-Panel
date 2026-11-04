@@ -112,6 +112,7 @@ const BASE = {
     'diagram.relMore': '他 {n} 件', // FR-053 AC-584
     'cmd.settings.arrangeInterval': '再配置の周期を設定', // FR-080 AC-440
     'cmd.settings.liveInterval': 'ライブ更新の間隔を設定', // FR-014 AC-522
+    'cmd.settings.hideNames': '名前を隠すの切り替え', // FR-114 AC-680
     'cmd.vttReplay.pause': '再生取込を一時停止', 'cmd.vttReplay.resume': '再生取込を再開', 'cmd.vttReplay.cancel': '再生取込を中止', // FR-022 AC-671
  'cmd.help.open': 'ヘルプを開く', 'cmd.onboarding.next': '案内の次へ', 'cmd.onboarding.back': '案内の戻る', 'cmd.onboarding.skip': '案内をスキップ', 'cmd.sample.load': '練習用のサンプルを読み込む', // FR-103
     'cmd.settings.layoutMode': 'レイアウトの決め方を切り替え', 'cmd.sound.toggleMute': '音のミュートを切り替え', 'cmd.sound.setVolume': '音量を上げる', 'cmd.arrange.setInterval': '再配置の周期を切り替え', 'cmd.settings.talkPreset': '講演向けの初期値にする', // FR-030 AC-519・AC-648
@@ -223,6 +224,7 @@ const BASE = {
     'diagram.relMore': '+{n} more', // FR-053 AC-584
     'cmd.settings.arrangeInterval': 'Set the rearrange interval', // FR-080 AC-440
     'cmd.settings.liveInterval': 'Set the live update interval', // FR-014 AC-522
+    'cmd.settings.hideNames': 'Toggle hide names', // FR-114 AC-680
     'cmd.vttReplay.pause': 'Pause playback import', 'cmd.vttReplay.resume': 'Resume playback import', 'cmd.vttReplay.cancel': 'Stop playback import', // FR-022 AC-671
  'cmd.help.open': 'Open help', 'cmd.onboarding.next': 'Guide: next', 'cmd.onboarding.back': 'Guide: back', 'cmd.onboarding.skip': 'Skip the guide', 'cmd.sample.load': 'Load the practice sample', // FR-103
     'cmd.settings.layoutMode': 'Switch how the layout is decided', 'cmd.sound.toggleMute': 'Toggle sound mute', 'cmd.sound.setVolume': 'Raise the volume', 'cmd.arrange.setInterval': 'Switch the rearrange interval', 'cmd.settings.talkPreset': 'Apply the talk preset', // FR-030 AC-519・AC-648

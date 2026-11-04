@@ -2,11 +2,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp, keyFor } from '../system/helpers.js';
-import { assignSection, actionFields, boardLayout, boardSvg, boardColors, partKindsOf, normalizeSection, SECTIONS, SECTION_IDS, PART_KINDS, LABEL_MAX, GROUP_MAX, MOVE_MS, createBoardMotion } from '../../web/src/board.js';
+import { assignSection, actionFields, boardLayout, boardSvg, boardColors, boardFontKind, partKindsOf, normalizeSection, SECTIONS, SECTION_IDS, PART_KINDS, LABEL_MAX, GROUP_MAX, MOVE_MS, createBoardMotion } from '../../web/src/board.js';
+import { glyphWidth } from '../../web/src/glyphwidth.js';
 import { parseSections } from '../../web/src/llmdraw.js';
 import { selectLayoutTypes } from '../../web/src/autolayout.js';
 import { createDrawStyleRegistry } from '../../web/src/drawstyles.js';
-import { contrastRatio, boardFrameLook } from '../../web/src/stylepresets.js';
+import { contrastRatio, boardFrameLook, fontFamilyOf, LEGACY_FONT_FAMILY } from '../../web/src/stylepresets.js';
 import { LAYOUT_TYPE_IDS, LAYOUT_TYPE_META } from '../../web/src/layouttypes.js';
 
 const sec = (text, llm) => assignSection({ text }, { llm }).section;
@@ -129,8 +130,8 @@ test('FR-114 AC-666: 区画ごとに決まった部品で描かれ、会議の�
   assert.ok(parts('vision').has('arrow') && parts('vision').has('person'), '目指す姿: 現状→目指す姿の矢印と人物');
   assert.deepEqual([...parts('members')], ['person']);
   assert.deepEqual([...parts('purpose')], ['icon']);
-  // 議論の流れの番号はトピックごとの話順
-  assert.deepEqual(by.flow.elements.filter((e) => e.part === 'badge').map((e) => e.n), [1, 2]);
+  // FR-114 AC-666: 議論の流れの番号は話順のステップで、トピックかシーンが前の要点と変わる位置で次の番号に区切る（s3・s4 は同じトピックの別のシーン）
+  assert.deepEqual(by.flow.elements.filter((e) => e.part === 'badge').map((e) => e.n), [1, 2, 3]);
   const svg = boardSvg(L, {});
   assert.deepEqual(partKindsOf(svg).sort(), [...PART_KINDS].sort(), '11 種類');
   assert.ok(L.board.sections.filter((s) => s.count > 0).length >= 6, 'PARAM-179');
@@ -303,23 +304,23 @@ function checkBoard(L, where) {
 }
 
 // FR-079 AC-669 AC-432: 区画の中身が枠に収まる間はほかの区画の枠・要素は動かず、あふれたときだけ枠を決め直して詰め直し、図の領域は縦に伸びる
+// （PARAM-186: 並びの中で最も中身の高い区画の空きは 1 行以下なので、収まる追加は並びの中で中身の低い区画への追加で起きる）
 test('FR-079 AC-669 AC-432: 収まる間はほかの区画は不動、あふれたときだけ詰め直し、重なり 0・はみ出し 0・図の領域を縦に伸ばす', () => {
-  const groups = [['今日の目的は新サービスの方向性をそろえることです']];
+  // 議論の流れ（同じ並びの決定事項より高い）を先に作り、決定事項に 1 件ずつ足す
+  const groups = ['まず市場の状況を整理しました', '次に顧客の声を共有しました', '続いて試作を見せました', '最後に費用を話しました', 'さらに体制を話しました', 'そして日程を話しました'].map((t) => [t]);
   let prev = boardLayout({ scenes: scenesOf(groups), topics: [] });
   checkBoard(prev, '最初');
   let overflowed = 0; let stayed = 0;
   for (let k = 1; k <= 24; k++) {
-    groups.push([`目的その${k}は品質の底上げ`]);
+    groups.push([`案その${k}に決めました`]);
     const L = boardLayout({ scenes: scenesOf(groups), topics: [] });
     checkBoard(L, `追加 ${k}`);
     const a = secsOf(prev); const b = secsOf(L);
-    const pur = (m) => m.get('purpose');
-    // 新しい要点は区画の読み順の末尾
-    assert.equal(pur(b).els.at(-1)[0], `p:s${k + 1}p0`, `追加 ${k}: 末尾に加わる`);
-    // 既存の要点の文字は縮小・省略されない（全要点が図にある）
-    assert.equal(pur(b).els.length, k + 1);
-    const grew = pur(b).frame.h !== pur(a).frame.h;
-    const others = [...b.keys()].filter((id) => id !== 'purpose');
+    const dec = (m) => m.get('decisions');
+    assert.equal(dec(b).els.at(-1)[0], `p:s${groups.length}p0`, `追加 ${k}: 末尾に加わる`);
+    assert.equal(dec(b).els.length, k, `追加 ${k}: 全要点が図にある`);
+    const grew = dec(b).frame.h !== dec(a).frame.h;
+    const others = [...b.keys()].filter((id) => id !== 'decisions');
     if (!grew) {
       stayed++;
       for (const id of others) assert.deepEqual(b.get(id), a.get(id), `追加 ${k}: 収まる間は ${id} の枠と要素は動かない`);
@@ -331,11 +332,104 @@ test('FR-079 AC-669 AC-432: 収まる間はほかの区画は不動、あふれ�
     }
     prev = L;
   }
-  assert.ok(stayed >= 10 && overflowed >= 3, `収まる追加（${stayed}）とあふれ（${overflowed}）の両方を確かめた`);
+  assert.ok(stayed >= 3 && overflowed >= 3, `収まる追加（${stayed}）とあふれ（${overflowed}）の両方を確かめた`);
   // AC-434・AC-432 (c): 同じ入力からは毎回同じ配置、新しい要素がなければ配置は変わらない
   const again = boardLayout({ scenes: scenesOf(groups), topics: [] });
   assert.deepEqual(secsOf(again), secsOf(prev));
   assert.deepEqual(again.canvas, prev.canvas);
+});
+
+// FR-079 AC-669 PARAM-186: 区画の高さは中身に合わせ、並びの中で最も中身の高い区画の最後の要素の下の空き（見出し・枠の内側の余白を除く）は 1 行以下。
+// 要点が 0 件の区画は見出しと 1 行分の空きだけ
+test('FR-079 AC-669 PARAM-186: 各並びの最も中身の高い区画の空きは 1 行以下、0 件の区画は見出しと 1 行分', () => {
+  const HEAD_AND_GAP = 36 + 8; const PAD = 12; // 見出しと枠の内側の余白（空きに含めない）
+  const cases = [[], MEETING, MEETING.slice(0, 3), [...MEETING, ...MEETING.slice(2, 4)]];
+  for (const [ci, g] of cases.entries()) {
+    for (let n = 0; n <= g.length; n++) {
+      const L = boardLayout({ scenes: scenesOf(g.slice(0, n)), topics: [], lang: 'ja' });
+      const line = L.board.line;
+      assert.ok(line > 0 && line <= 26, '1 行は区画のラベルの 1 行の高さ');
+      const rows = new Map();
+      for (const s of L.board.sections) (rows.get(s.frame.y) ?? rows.set(s.frame.y, []).get(s.frame.y)).push(s);
+      for (const [y, secs] of rows) {
+        assert.equal(new Set(secs.map((s) => s.frame.h)).size, 1, `${ci}/${n}: 同じ並びの枠の高さは揃う`);
+        const body = (s) => s.frame.h - HEAD_AND_GAP - PAD;
+        const bottom = (s) => (s.elements.length ? Math.max(...s.elements.map((e) => e.y + e.h)) - (s.frame.y + HEAD_AND_GAP) : 0);
+        const tallest = secs.reduce((m, s) => (bottom(s) > bottom(m) ? s : m), secs[0]);
+        const spare = body(tallest) - bottom(tallest);
+        assert.ok(spare >= 0 && spare <= line, `${ci}/${n} y=${y}: ${tallest.id} の空き ${spare} は 1 行（${line}）以下`);
+        for (const s of secs) if (!s.count && secs.every((t) => !t.count)) assert.equal(body(s), line, `${ci}/${n}: 0 件の並びは見出しと 1 行分`);
+      }
+    }
+  }
+});
+
+// FR-114 AC-666: 議論の流れはトピックかシーンが前の要点と変わる位置でステップに区切り（異なるトピック・シーンを 1 つの吹き出しにまとめない）、
+// 1 ステップが PARAM-088 を超えると同じ番号の続きに分け、各ステップに番号バッジ・吹き出し・人物が 1 組、隣り合うステップの間ごとに ⇒
+test('FR-114 AC-666: 議論の流れはトピック・シーンの変わり目ごとの ①②③… のステップで、ステップの間ごとに矢印', () => {
+  const flow = (L) => L.board.sections.find((s) => s.id === 'flow').elements;
+  // 同じシーンの続く要点は 1 つのステップ、シーンが変われば（同じトピックでも）次のステップ、前のトピックに戻っても新しい番号
+  const g = [['まず市場の状況を整理しました', '市場の規模も見ました'], ['次に顧客の声を共有しました'], ['続いて試作を見せました'], ['改めて市場の話に戻りました']];
+  const L = boardLayout({ scenes: scenesOf(g), topics: [{ id: 'tA', sceneIds: ['s1', 's2', 's4'] }, { id: 'tB', sceneIds: ['s3'] }] });
+  const els = flow(L);
+  const bubbles = els.filter((e) => e.part === 'bubble');
+  assert.deepEqual(els.filter((e) => e.part === 'badge').map((e) => e.n), [1, 2, 3, 4]);
+  assert.deepEqual(bubbles.map((b) => b.pointIds), [['s1p0', 's1p1'], ['s2p0'], ['s3p0'], ['s4p0']]);
+  for (const b of bubbles) assert.equal(new Set(b.sceneIds).size, 1, '1 つの吹き出しに 1 つのシーン');
+  assert.equal(els.filter((e) => e.part === 'person').length, 4, '各ステップに人物');
+  assert.equal(els.filter((e) => e.part === 'arrow').length, 3, '隣り合うステップの間ごとに矢印');
+  // 1 ステップの要点が PARAM-088 を超えると同じ番号の続きのステップ
+  const many = [Array.from({ length: GROUP_MAX + 2 }, (_, i) => `話題その${i + 1}を話しました`)];
+  const M2 = flow(boardLayout({ scenes: scenesOf(many), topics: [] }));
+  assert.deepEqual(M2.filter((e) => e.part === 'badge').map((e) => e.n), [1, 1]);
+  // 要素の id は取込の前後で同じ（後ろにステップが加わっても前のステップの id は変わらない）
+  const before = flow(boardLayout({ scenes: scenesOf(g.slice(0, 2)), topics: [] })).map((e) => e.id);
+  const after = flow(boardLayout({ scenes: scenesOf(g), topics: [] })).map((e) => e.id);
+  assert.deepEqual(after.slice(0, before.length), before);
+});
+
+// NFR-UX-012 AC-466 FR-076 AC-670: 会議ボード型の図の書体はその描画スタイルの並び（jpFontOrder）で、字幅は共通部品「字幅の見積もり」の系統で見積もる
+test('NFR-UX-012 AC-466 FR-114: 会議ボード型の書体は描画スタイルの並びで、強調の位置は字幅の見積もり（glyphwidth）の系統で求める', () => {
+  const reg = createDrawStyleRegistry();
+  const scenes = scenesOf([['本日はTeamAから五名が参加しています']]);
+  const has = (svg, fam) => svg.includes(`font-family="${fam}"`) || svg.includes(`font-family="${fam.replace(/'/g, '&#39;')}"`);
+  assert.ok(has(boardSvg(boardLayout({ scenes, topics: [] }), {}), LEGACY_FONT_FAMILY), '既存の 4 つは従来の並び');
+  const kinds = new Set();
+  for (const id of reg.ids()) {
+    const spec = reg.spec(id);
+    const kind = boardFontKind(spec);
+    if (!kind) continue;
+    const L = boardLayout({ scenes, topics: [] }, { fontKind: kind });
+    assert.ok(has(boardSvg(L, { style: spec }), fontFamilyOf(kind)), `${id}: 書体は ${kind} の並び`);
+    const e = L.board.sections.find((s) => s.id === 'members').elements[0].emph.find((x) => x.word === '参加');
+    const want = [...'本日はTeamAから五名が'].reduce((w, ch) => w + glyphWidth(ch, 14, kind), 0);
+    assert.ok(Math.abs(e.dx - want) <= 0.05, `${id}: 強調の位置は ${kind} の字幅（${e.dx} と ${want}）`);
+    kinds.add(kind);
+  }
+  assert.ok(kinds.has('handwriting'), `手書き風の系統の描画スタイルを確かめた（${[...kinds]}）`);
+});
+
+// FR-114 AC-667 (h) PARAM-187: 強調のある文字は強調語ごとの tspan に分け、tspan の始まり・幅をマーカー・下線の左端・幅と同じにする
+// （描いた書体の字幅が見積もりと違っても、強調語の最初の文字の左端・最後の文字の右端が強調の左端・右端に重なる）
+test('FR-114 AC-667 (h) PARAM-187: 強調語は自分の tspan に入り、その x・textLength はマーカー（下線）の x・幅と一致する', () => {
+  const L = boardLayout({ scenes: scenesOf([['本日はTeamAから五名が参加しています'], ['受付窓口を一本化することに決めました'], ['佐藤さんが金曜までに要件を共有します']]), topics: [] });
+  {
+    const svg = boardSvg(L, {});
+    const texts = [...svg.matchAll(/((?:<rect data-board-part="emphasis"[^>]*\/>|<path data-board-part="emphasis"[^>]*\/>)+)<text [^>]*>(.*?)<\/text>/g)];
+    assert.ok(texts.length >= 3, '強調のある文字');
+    for (const [, ems, body] of texts) {
+      const marks = [...ems.matchAll(/(?:x="([\d.]+)"[^>]*width="([\d.]+)"|d="M([\d.]+) [\d.]+h([\d.]+)")/g)].map((m) => ({ x: Number(m[1] ?? m[3]), w: Number(m[2] ?? m[4]) }));
+      const words = [...body.matchAll(/<tspan x="([\d.]+)" textLength="([\d.]+)" lengthAdjust="spacingAndGlyphs" data-emph-span="">/g)].map((m) => ({ x: Number(m[1]), w: Number(m[2]) }));
+      assert.equal(words.length, marks.length, '強調ごとに 1 つの tspan');
+      marks.forEach((mk, i) => { assert.ok(Math.abs(mk.x - words[i].x) <= 0.05 && Math.abs(mk.w - words[i].w) <= 0.05, `${JSON.stringify(mk)} と ${JSON.stringify(words[i])}`); });
+      const all = [...body.matchAll(/<tspan x="([\d.]+)" textLength="([\d.]+)"/g)].map((m) => [Number(m[1]), Number(m[2])]);
+      for (let i = 1; i < all.length; i++) assert.ok(Math.abs(all[i - 1][0] + all[i - 1][1] - all[i][0]) <= 0.15, 'tspan は隙間・重なりなく続く');
+      assert.equal(body.replace(/<[^>]+>/g, '').length > 0, true);
+    }
+  }
+  // 文字は分けても、描かれる文字列は元のラベルと同じ
+  const svg = boardSvg(L, {});
+  assert.ok(svg.replace(/<\/?tspan[^>]*>/g, '').includes('本日はTeamAから五名が参加しています'));
 });
 
 // FR-079 AC-669 AC-439: 新しい要素は MOVE_MS（PARAM-181 以内）でフェードと拡大で現れ、動きを減らす設定・最初の描画では演出なし

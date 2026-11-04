@@ -36,15 +36,18 @@ test('FR-022 AC-116: WEBVTT 判定', () => {
 
 const sample = 'WEBVTT\n\n1\n00:00:01.000 --> 00:00:02.000\n<v 山田太郎>一つ目</v>\n\n2\n00:00:03.000 --> 00:00:04.000\n<v 佐藤花子>二つ目</v>\n';
 
-// FR-022 AC-113 AC-117
-test('FR-022 AC-113 AC-117: 記録中の取込は本文だけが順に追加され、話者名はどこにも残らない', async () => {
+// FR-022 AC-113 AC-117（Q-045 2026-11-05 の更新: 話者タグの名前は会議ボード型の人物に添えるためにブラウザ内の grp.boardNames にだけ保存される。AC-668）
+test('FR-022 AC-113 AC-117: 記録中の取込は本文だけが順に追加され、話者名は発話・状態・grp.session に残らず grp.boardNames にだけ保存される', async () => {
   const { app, storage } = await mk();
   app.commands['session.start']();
   const r = await app.importTextFile(f('M.VTT', sample));
   assert.equal(r.ok, true);
   assert.deepEqual(texts(app), ['一つ目', '二つ目']);
-  const dump = JSON.stringify(app.getState()) + JSON.stringify([...Array(storage.length).keys()].map((i) => storage.getItem(storage.key(i))));
+  app.flushSave?.();
+  const keys = [...Array(storage.length).keys()].map((i) => storage.key(i));
+  const dump = JSON.stringify(app.getState()) + JSON.stringify(keys.filter((k) => k !== 'grp.boardNames').map((k) => storage.getItem(k)));
   assert.ok(!dump.includes('山田太郎') && !dump.includes('佐藤花子') && !dump.includes('00:00:01'));
+  assert.ok(String(storage.getItem('grp.boardNames')).includes('山田太郎'));
 });
 
 // FR-039 AC-180 AC-181 AC-182（FR-022 AC-115 は FR-039 で置き換え）: 準備中・一時停止・停止でも取り込め、状態は変わらず、手入力は拒否のまま

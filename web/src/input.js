@@ -104,6 +104,7 @@ export function inputModule(ctx) {
       for (let from = 0; from < lines.length; from += CHUNK) {
         const part = lines.slice(from, from + CHUNK);
         const n = ctx.addUtterances(part, cues ? { ats: ats.slice(from, from + CHUNK), anyState: true } : { at: base, noGapSplit: true, anyState: true });
+        if (cues && n) ctx.api.recordSpeakers?.(ctx.state.utterances.slice(-n), cues.slice(from, from + n).map((c) => c.speaker)); // AC-668: 話者タグの名前（ブラウザ内だけ）
         ctx.transcript?.addFinals(part.slice(0, n));
         added += n;
         if (n < part.length) break; // 途中で記録中でなくなった
