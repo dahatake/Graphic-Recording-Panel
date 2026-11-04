@@ -517,7 +517,7 @@ test('FR-114 AC-667: 固定の文字起こし（TeamA との会議）を会議�
 });
 
 // FR-114 AC-680（契約: CONTRACT-BOARD.md「人物の名前」「名前を表示しない」）
-test('FR-114 AC-680: ［設定］の「名前を表示しない」は既定オフ（名前を表示）で、キーボードだけでオンにすると参加者名簿と話者タグの名前が図・テキスト一覧・PNG・SVG・PDF のどれにも出ず、オフで再び出る。端末ごとに保存され、初期化・セッションファイルでは変わらず、外部へのリクエスト 0 件・LLM への送信に名前なし', async () => {
+test('FR-114 AC-680: ［設定］の「名前を表示しない」は既定オフ（名前を表示）で、キーボードだけでオンにすると参加者名簿と話者タグの名前が図・テキスト一覧・PNG・SVG・PDF・Markdown のどれにも出ず、オフで再び出る（Markdown はテキスト一覧と一致）。端末ごとに保存され、初期化・セッションファイルでは変わらず、外部へのリクエスト 0 件・LLM への送信に名前なし（要点の中の名前は簡易マスキングによらず伏せ字）・画像生成プロンプトに名前なし', async () => {
   const ROSTER = ['名簿NM青木', '名簿NM石井'];
   const TAG = '話者NM上田';
   const NAMES = [...ROSTER, TAG];
@@ -538,14 +538,26 @@ test('FR-114 AC-680: ［設定］の「名前を表示しない」は既定オ�
     env.tick(3); env.scheduler.advance(3000);
     const views = async () => {
       const nC = env.canvasFactory.log.texts.length; const nD = env.downloads.length;
-      for (const c of ['save.png', 'save.svg', 'save.pdf']) await app.commands[c]();
+      for (const c of ['save.png', 'save.svg', 'save.pdf', 'save.markdown']) await app.commands[c]();
       const dl = env.downloads.slice(nD);
-      assert.deepEqual(dl.map((d) => d.mime), ['image/png', 'image/svg+xml', 'application/pdf'], '3 形式で保存できる');
+      assert.deepEqual(dl.map((d) => d.mime), ['image/png', 'image/svg+xml', 'application/pdf', 'text/markdown'], '4 形式で保存できる');
       const pdf = dl[2].data instanceof Uint8Array ? pdfTexts(dl[2].data) : String(dl[2].data);
-      return { 図: app.renderSvg(), テキスト一覧: app.renderOutline(), PNG: env.canvasFactory.log.texts.slice(nC).join('\n'), SVG: String(dl[1].data), PDF: pdf };
+      // Markdown（AC-529・AC-668 (d)）: テキスト一覧と一致し、名前を表示する間は同じ「参加メンバー: 名前、…」の行と「（発言: 名前）」が載る
+      return { 図: app.renderSvg(), テキスト一覧: app.renderOutline(), PNG: env.canvasFactory.log.texts.slice(nC).join('\n'), SVG: String(dl[1].data), PDF: pdf, Markdown: String(dl[3].data) };
     };
     const assertNames = (v, shown, where) => {
       for (const [k, s] of Object.entries(v)) for (const n of NAMES) assert.equal(s.includes(n), shown, `${where}: ${k} に「${n}」が${shown ? '載る' : '載らない'}`);
+      // Markdown の名前の行はテキスト一覧と同じ（AC-529: 名前の掲載はテキスト一覧と一致）
+      const memberLine = (s) => s.split(/\r?\n/).map((l) => l.replace(/^[\s>*\-#]+/, '').trim()).find((l) => /^参加メンバー\s*[:：]/.test(l)) ?? null;
+      const said = (s) => [...s.matchAll(/[（(]発言\s*[:：]\s*([^）)]+)[）)]/g)].map((m) => m[1].trim());
+      assert.equal(memberLine(v.Markdown), memberLine(v.テキスト一覧), `${where}: Markdown の「参加メンバー」の行はテキスト一覧と同じ`);
+      assert.deepEqual(said(v.Markdown), said(v.テキスト一覧), `${where}: Markdown の「（発言: 名前）」はテキスト一覧と同じ`);
+      if (shown) {
+        assert.ok(memberLine(v.Markdown)?.includes(ROSTER[0]), `${where}: Markdown に「参加メンバー: 名前、…」の行が載る`);
+        assert.ok(said(v.Markdown).includes(TAG), `${where}: Markdown に「（発言: ${TAG}）」が載る`);
+      } else {
+        assert.equal(said(v.Markdown).length, 0, `${where}: Markdown に「（発言: 名前）」は載らない`);
+      }
     };
     // 既定はオフ（名前を表示する）
     assert.equal(app.getHideNames(), false, '既定はオフ');
@@ -579,12 +591,26 @@ test('FR-114 AC-680: ［設定］の「名前を表示しない」は既定オ�
       assert.equal(r?.ok, false, `${JSON.stringify(bad)} は受け付けない`);
       assert.equal(app.getHideNames(), true, '直前の値が保たれる');
     }
-    // LLM 連携を有効にしても、送信の内容に名前は含まれない（オン・オフどちらでも）
+    // LLM 連携を有効にしても、送信の内容に名前は含まれない（オン・オフどちらでも）。
+    // 要点の文字に現れる名簿・話者タグの名前は、簡易マスキングの設定によらず伏せ字に置き換えて送られ、画像生成プロンプトにも名前は入らない（最終監査 202611050444 C-02・C-03）
     assert.equal((await app.requestLlmEnable()).ok, true); await app.answerLlmConsent(true);
     for (const hide of [true, false]) {
-      assert.equal(app.setHideNames(hide).ok, true);
-      app.setDraft(`次に窓口ごとの負荷の差を見ました${hide ? 'H' : 'S'}`); app.submitDraft(); env.tick(1);
-      await app.flushLlm();
+      for (const masking of [true, false]) {
+        assert.equal(app.setHideNames(hide).ok, true);
+        app.setLlmMasking(masking);
+        const sfx = `${hide ? 'H' : 'S'}${masking ? 'M' : 'N'}`;
+        const before = relayCalls.length;
+        app.setDraft(`次に窓口ごとの負荷の差を見ました${sfx}`); app.submitDraft(); env.tick(1);
+        app.setDraft(`「${ROSTER[1]}」と「${TAG}」が負荷を確認${sfx}`); app.submitDraft(); env.tick(1);
+        await app.flushLlm();
+        const sent = relayCalls.slice(before).filter((c) => c.path === '/api/llm/extract').map((c) => String(c.body?.input ?? '')).join('\n');
+        const m = sent.match(new RegExp(`「([^」]*)」と「([^」]*)」が負荷を確認${sfx}`));
+        assert.ok(m && m[1].length > 0 && m[2].length > 0, `名前を表示しない=${hide}・簡易マスキング=${masking}: 名前を含む要点は、名前を伏せ字に置き換えて送られる`);
+        for (const mask of [true, false]) {
+          const t = app.getImagePrompt({ mask }).text;
+          for (const n of NAMES) assert.ok(!t.includes(n), `名前を表示しない=${hide}・簡易マスキング=${masking}: 画像生成プロンプト（mask=${mask}）に「${n}」を含めない`);
+        }
+      }
     }
     assert.ok(relayCalls.some((c) => c.path === '/api/llm/extract'), 'LLM への送信が行われた');
     for (const c of relayCalls) for (const n of NAMES) assert.ok(!JSON.stringify(c).includes(n), `LLM への送信に「${n}」を含まない`);
