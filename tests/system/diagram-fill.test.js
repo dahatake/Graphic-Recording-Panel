@@ -171,7 +171,10 @@ test(`AC-663: 窓を 1280×720 → 1920×1080 → 1280×720 に変えると、�
         const alt = await page.evaluate(() => {
           const d = document.querySelector('#diagram');
           const ov = (el) => /auto|scroll/.test(getComputedStyle(el).overflowX + getComputedStyle(el).overflowY);
-          const scrollable = [d, d.parentElement, document.querySelector('[data-panel="diagram"]')].some((el) => el && ov(el) && (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1));
+          // 図の領域内のスクロール容器（.diagram-canvas など）のいずれかで見渡せればよい。ページ全体（documentElement）は含めない。
+          const panel = document.querySelector('[data-panel="diagram"]');
+          const cands = new Set([d, d.parentElement, panel, ...d.querySelectorAll('.diagram-canvas'), ...(panel ? panel.querySelectorAll('.diagram-canvas, *') : []), d.closest('.diagram-canvas')]);
+          const scrollable = [...cands].some((el) => el && el !== document.documentElement && el !== document.body && ov(el) && (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1));
           const px = [...d.querySelectorAll('svg text')].filter((t) => (t.textContent ?? '').trim() && getComputedStyle(t).display !== 'none').map((t) => { const m = t.getScreenCTM(); return (parseFloat(getComputedStyle(t).fontSize) || 0) * (m ? Math.hypot(m.a, m.b) : 1); });
           return { scrollable, minPx: px.length ? Math.min(...px) : 0 };
         });
