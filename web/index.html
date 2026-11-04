@@ -19,10 +19,7 @@
   <nav id="toolbar" class="toolbar commandbar" data-i18n-attr="aria-label:toolbar.label"></nav>
   <input id="import-file" type="file" accept=".txt,.vtt,text/plain,text/vtt" hidden tabindex="-1" aria-hidden="true">
   <div id="speech-consent-box" class="speech-consent" data-region="top" data-near="session.start" hidden>
-    <input type="checkbox" id="speech-consent" aria-describedby="speech-consent-notice">
-    <label for="speech-consent" id="speech-consent-label">外部サービスでの音声認識に同意する</label>
-    <span id="speech-consent-state" class="consent-state"></span>
-    <p id="speech-consent-notice" class="message"></p>
+    <p id="speech-consent-notice" class="message" role="note"></p>
   </div>
   <div id="panel-tabs" class="tabs" role="tablist" hidden></div>
   <div class="statusbar"><p id="session-status" class="status-chip" role="status" aria-live="polite"></p><p id="layout-kind" class="status-chip" role="status" aria-live="polite"></p><p id="message" class="message" role="status" aria-live="polite"></p><p id="import-status" class="message" role="status" aria-live="polite"></p></div>

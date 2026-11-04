@@ -31,24 +31,30 @@ test('FR-072 AC-384: [記録開始] 1 回で記録中になり音声認識も開
   assert.ok(!app.keymap.some((k) => k.command === 'speech.start' || k.command === 'speech.stop'));
 });
 
-test('FR-072 AC-385 AC-387: 同意は最上部の [記録開始] の直近・準備中から見え、パネルには含まれず、文言は言語に従う', async () => {
+test('FR-072 AC-385 AC-387: 注意文は最上部の [記録開始] の直近・準備中から見え、同意の操作はなく、パネルには含まれず、文言は言語に従う', async () => {
   const { app } = await boot('remote');
   const c = app.getConsentUi();
-  assert.deepEqual([c.visible, c.noticeVisible, c.region, c.nearCommand, c.checked, c.tabbable], [true, true, 'top', 'session.start', false, true]);
+  assert.deepEqual([c.visible, c.noticeVisible, c.region, c.nearCommand, c.interactive, c.colorOnly], [true, true, 'top', 'session.start', false, false]);
+  assert.ok(['note', 'status'].includes(c.role));
+  assert.ok(c.notice.includes('外部') && c.notice.includes('口頭'));
+  for (const k of ['checked', 'stateText', 'tabbable', 'label']) assert.equal(c[k], undefined, k);
+  assert.equal(app.setSpeechConsent, undefined);
+  assert.equal(app.commands['speech.consent'], undefined);
   assert.ok(!app.renderTranscript().includes(c.notice));
   app.setLang('en');
   assert.match(app.getConsentUi().notice, /external/i);
-  assert.notEqual(app.getConsentUi().stateText, '');
+  assert.match(app.getConsentUi().notice, /verbal/i);
+  const l = await boot('local');
+  assert.equal(l.app.getConsentUi().visible, false, 'デバイス内処理では注意文は出ない');
 });
 
-test('FR-072 AC-386 AC-394: 未同意の記録開始は開始せず同意待ち。同意で開始、再開でも同意状態は引き継がれる', async () => {
+test('FR-072 AC-386 AC-394 AC-647: 起動直後は開始せず、[記録開始] で同意の操作なしに開始。一時停止・停止の後の再開・再記録も操作なしで開始する', async () => {
   const { app, speech } = await boot('remote');
+  assert.equal(speech.startCalls.length, 0, '起動直後は音声認識を始めない');
   await cmd(app, 'session.start');
-  assert.equal(speech.startCalls.length, 0);
-  assert.equal(app.getSpeechStatus().reason, 'consent');
-  assert.match(app.getState().message.text, /同意/);
-  app.setSpeechConsent(true); await flush();
   assert.equal(speech.startCalls.length, 1);
+  assert.notEqual(app.getSpeechStatus().reason, 'consent');
+  assert.equal(app.getSpeechConsent(), true);
   await cmd(app, 'session.pause');
   assert.ok(speech.stopCalls >= 1);
   await cmd(app, 'session.resume');
@@ -89,11 +95,12 @@ test('FR-074 AC-390 AC-392 AC-393: 開始でパネルを一時表示、開始し
   assert.equal(speech.startCalls.length, 1);
 });
 
-test('FR-074 AC-391 AC-392: 同意待ちでは表示しない。狭い画面ではタブの input が選ばれ、入力中の文字は保たれる', async () => {
+test('FR-074 AC-391 AC-392: 外部送信の可能性があっても同意待ちはなく、非表示のパネルは開始で一時表示される。狭い画面ではタブの input が選ばれ、入力中の文字は保たれる', async () => {
   const r = await boot('remote');
   r.app.setPanelVisible('input', false);
   await cmd(r.app, 'session.start');
-  assert.equal(r.app.getLayout().panels.input.visible, false);
+  assert.equal(r.speech.startCalls.length, 1, '同意の操作なしに開始する');
+  assert.equal(r.app.getLayout().panels.input.visible, true);
   const { app } = await boot('local', { env: { viewportWidth: 500 } });
   assert.equal(app.getPanelPresentation().mode, 'tabs');
   await cmd(app, 'session.start');

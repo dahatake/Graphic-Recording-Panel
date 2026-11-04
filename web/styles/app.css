@@ -174,8 +174,6 @@ textarea:focus { border-bottom-color: var(--color-primary); }
 }
 
 .speech-consent { margin-top: var(--space-2, 8px); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.speech-consent .consent-state { font-weight: 600; }
-.speech-consent input:focus-visible { outline: 3px solid currentColor; outline-offset: 2px; }
 
 /* NFR-UX-003: コマンドバーのラベルをアイコンの下に常に表示（折り返しで横スクロールなし）。トークンのみ使用 */
 .commandbar .btn { flex-direction: column; gap: 0; padding: var(--space-1) var(--space-2); min-width: 56px; line-height: 1.2; }

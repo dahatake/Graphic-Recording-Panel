@@ -19,8 +19,6 @@ export function mountUI(app, doc = document) {
   const workspace = $('#workspace');
   const draft = $('#draft');
   let builtLang = null;
-  const consentBox = $('#speech-consent');
-  if (consentBox) consentBox.addEventListener('change', () => app.setSpeechConsent(consentBox.checked));
 
   const keyLabel = (name) => {
     const k = app.keymap.find((e) => e.command === name);
@@ -234,15 +232,9 @@ export function mountUI(app, doc = document) {
       if (actEl.hidden !== (acts.length === 0)) actEl.hidden = acts.length === 0;
     }
     const cu = app.getConsentUi();
-    const box = $('#speech-consent');
-    if (box) {
-      setProp($('#speech-consent-box'), 'hidden', !cu.visible);
-      setProp(box, 'checked', cu.checked);
-      if (box.disabled !== !!cu.disabled) box.disabled = !!cu.disabled; // FR-081 AC-442: 送信先のホスト名が未取得の間は選べない
-      setText($('#speech-consent-label'), cu.label);
-      setText($('#speech-consent-notice'), cu.notice);
-      setText($('#speech-consent-state'), cu.stateText);
-    }
+    // FR-072 AC-385: 注意文だけを表示する（同意の操作・状態表示は持たない）
+    setProp($('#speech-consent-box'), 'hidden', !cu.visible);
+    setText($('#speech-consent-notice'), cu.visible ? cu.notice : '');
     // FR-013/FR-014: 認識文字列。過去を読んでいる間はスクロール位置を奪わない（AC-051）
     // NFR-PERF-003 AC-540: 全置換せず、キー（発話 ID）で既存のノードを残して差分だけを当てる。
     // AC-538: データの版（app.getRenderVersion があるとき）が前回と同じなら、文字列の再生成も呼ばない
