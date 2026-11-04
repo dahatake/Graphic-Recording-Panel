@@ -929,7 +929,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-032\" tests/system/offline.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "31cca0e",
       "last_run_at": "2026-11-04T01:07:59+09:00",
       "evidence": "work/runs/adhoc-202611040106/logs/system-test/E2E-022-202611040106.log",
@@ -939,6 +939,12 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-11-04T10:21:56+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "契約 2026-11-04 §1 に合わせて期待値を修正（同意なしで開始・注意文表示）"
         }
       ]
     },
