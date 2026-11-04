@@ -2,11 +2,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp, keyFor } from '../system/helpers.js';
-import { assignSection, actionFields, boardLayout, boardSvg, boardColors, partKindsOf, normalizeSection, SECTIONS, SECTION_IDS, PART_KINDS, LABEL_MAX, GROUP_MAX, MOVE_MS, createBoardMotion } from '../../web/src/board.js';
+import { assignSection, actionFields, boardLayout, boardSvg, boardColors, boardFontKind, partKindsOf, normalizeSection, SECTIONS, SECTION_IDS, PART_KINDS, LABEL_MAX, GROUP_MAX, MOVE_MS, createBoardMotion } from '../../web/src/board.js';
+import { glyphWidth } from '../../web/src/glyphwidth.js';
 import { parseSections } from '../../web/src/llmdraw.js';
 import { selectLayoutTypes } from '../../web/src/autolayout.js';
 import { createDrawStyleRegistry } from '../../web/src/drawstyles.js';
-import { contrastRatio, boardFrameLook } from '../../web/src/stylepresets.js';
+import { contrastRatio, boardFrameLook, fontFamilyOf, LEGACY_FONT_FAMILY } from '../../web/src/stylepresets.js';
 import { LAYOUT_TYPE_IDS, LAYOUT_TYPE_META } from '../../web/src/layouttypes.js';
 
 const sec = (text, llm) => assignSection({ text }, { llm }).section;
@@ -385,6 +386,27 @@ test('FR-114 AC-666: 議論の流れはトピック・シーンの変わり目�
   const before = flow(boardLayout({ scenes: scenesOf(g.slice(0, 2)), topics: [] })).map((e) => e.id);
   const after = flow(boardLayout({ scenes: scenesOf(g), topics: [] })).map((e) => e.id);
   assert.deepEqual(after.slice(0, before.length), before);
+});
+
+// NFR-UX-012 AC-466 FR-076 AC-670: 会議ボード型の図の書体はその描画スタイルの並び（jpFontOrder）で、字幅は共通部品「字幅の見積もり」の系統で見積もる
+test('NFR-UX-012 AC-466 FR-114: 会議ボード型の書体は描画スタイルの並びで、強調の位置は字幅の見積もり（glyphwidth）の系統で求める', () => {
+  const reg = createDrawStyleRegistry();
+  const scenes = scenesOf([['本日はTeamAから五名が参加しています']]);
+  const has = (svg, fam) => svg.includes(`font-family="${fam}"`) || svg.includes(`font-family="${fam.replace(/'/g, '&#39;')}"`);
+  assert.ok(has(boardSvg(boardLayout({ scenes, topics: [] }), {}), LEGACY_FONT_FAMILY), '既存の 4 つは従来の並び');
+  const kinds = new Set();
+  for (const id of reg.ids()) {
+    const spec = reg.spec(id);
+    const kind = boardFontKind(spec);
+    if (!kind) continue;
+    const L = boardLayout({ scenes, topics: [] }, { fontKind: kind });
+    assert.ok(has(boardSvg(L, { style: spec }), fontFamilyOf(kind)), `${id}: 書体は ${kind} の並び`);
+    const e = L.board.sections.find((s) => s.id === 'members').elements[0].emph.find((x) => x.word === '参加');
+    const want = [...'本日はTeamAから五名が'].reduce((w, ch) => w + glyphWidth(ch, 14, kind), 0);
+    assert.ok(Math.abs(e.dx - want) <= 0.05, `${id}: 強調の位置は ${kind} の字幅（${e.dx} と ${want}）`);
+    kinds.add(kind);
+  }
+  assert.ok(kinds.has('handwriting'), `手書き風の系統の描画スタイルを確かめた（${[...kinds]}）`);
 });
 
 // FR-114 AC-667 (h) PARAM-187: 強調のある文字は強調語ごとの tspan に分け、tspan の始まり・幅をマーカー・下線の左端・幅と同じにする

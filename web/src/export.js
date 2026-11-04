@@ -239,7 +239,8 @@ async function loadPartImage(svg, imageFactory) {
     im.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
   });
 }
-async function partsBand(items, width, imageFactory) {
+// family: 文字の書体の指定（画風プリセットはその書体の系統の並び。NFR-UX-012 AC-466・FR-076 AC-408）
+async function partsBand(items, width, imageFactory, family = LEGACY_FONT_FAMILY) {
   if (!items?.length) return { h: 0, draw: () => {} };
   const per = Math.max(1, Math.floor((width - MARGIN * 2) / BAND_CELL));
   const rows = Math.ceil(items.length / per);
@@ -252,7 +253,7 @@ async function partsBand(items, width, imageFactory) {
       items.forEach((it, i) => {
         const x = MARGIN + (i % per) * BAND_CELL; const y = top + Math.floor(i / per) * BAND_CELL;
         g.drawImage(imgs[i], x, y, 48, 48);
-        g.fillStyle = '#15191f'; g.font = `11px ${LEGACY_FONT_FAMILY}`;
+        g.fillStyle = '#15191f'; g.font = `11px ${family}`;
         g.fillText(String(it.label).slice(0, 8), x, y + 54);
       });
     },
@@ -291,13 +292,13 @@ function withStrokes(factory, strokes) {
   };
 }
 // 見出しの帯を描く（呼び出し側が先に紙面を塗る）。以降の描画は帯の高さだけ下へずらす。
-function drawHeader(g, hdr, ink, w) {
+function drawHeader(g, hdr, ink, w, family = LEGACY_FONT_FAMILY) {
   if (!hdr.height) return;
   g.textBaseline = 'alphabetic'; g.fillStyle = ink;
-  for (const r of hdr.rows) { g.font = `${r.bold ? '700 ' : ''}${r.size}px ${LEGACY_FONT_FAMILY}`; g.fillText(r.text, hdr.margin, r.y, Math.max(40, w - hdr.margin * 2)); }
+  for (const r of hdr.rows) { g.font = `${r.bold ? '700 ' : ''}${r.size}px ${family}`; g.fillText(r.text, hdr.margin, r.y, Math.max(40, w - hdr.margin * 2)); }
   if (hdr.speaker) { // FR-036 AC-659: 登壇者名は図の右上（右端そろえ）
     const s = hdr.speaker;
-    g.font = `${s.size}px ${LEGACY_FONT_FAMILY}`; g.textAlign = 'right';
+    g.font = `${s.size}px ${family}`; g.textAlign = 'right';
     g.fillText(s.text, s.right, s.y, Math.max(40, s.maxWidth));
     g.textAlign = 'left';
   }
@@ -353,7 +354,7 @@ async function renderStyledPng(scenes, canvasFactory, look, parts, imageFactory,
   let w = 320;
   for (const sc of scenes) w = Math.max(w, measure(sc.heading, FS_H, look.headWeight) + 40, ...sc.points.map((p) => measure(p.text, FS_P, look.weight) + 64));
   w = Math.ceil(w + MARGIN * 2);
-  const band = await partsBand(parts, w, imageFactory);
+  const band = await partsBand(parts, w, imageFactory, look.fontFamily);
   const baseH = Math.ceil(MARGIN * 2 + scenes.reduce((a, sc) => a + HEAD_H + sc.points.length * ROW_H + GAP, 0));
   const hdr = layoutHeader(header, w, { margin: MARGIN });
   const h = baseH + band.h + hdr.height;
@@ -361,7 +362,7 @@ async function renderStyledPng(scenes, canvasFactory, look, parts, imageFactory,
   const g = canvas.getContext('2d');
   g.fillStyle = look.background; g.fillRect(0, 0, w, h);
   for (const t of paperTexture(look, w, h)) { g.strokeStyle = t.color; g.lineWidth = t.width; g.beginPath(); g.moveTo(t.x1, t.y1); g.lineTo(t.x2, t.y2); g.stroke(); } // 紙面の質感
-  drawHeader(g, hdr, look.text, w);
+  drawHeader(g, hdr, look.text, w, look.fontFamily);
   const round = (x, y, rw, rh, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + rw, y, x + rw, y + rh, r); g.arcTo(x + rw, y + rh, x, y + rh, r); g.arcTo(x, y + rh, x, y, r); g.arcTo(x, y, x + rw, y, r); g.closePath(); };
   let y = MARGIN;
   scenes.forEach((sc, i) => {

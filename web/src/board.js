@@ -7,7 +7,8 @@
 import { classifyPoint } from './diagram.js';
 import { escapeHtml } from './outline.js';
 import { personGroupFor } from './personvariants.js';
-import { contrastRatio, mix, boardFrameLook } from './stylepresets.js';
+import { contrastRatio, mix, boardFrameLook, presetOf, fontFamilyOf, LEGACY_FONT_FAMILY } from './stylepresets.js';
+import { glyphWidth, textWidthOf, fitTextWidth } from './glyphwidth.js';
 
 export const BOARD_TYPE_ID = 'board';
 export const LABEL_MAX = 24; // PARAM-165: 図に出すラベルの最大の長さ（文字）
@@ -100,20 +101,19 @@ export function actionFields(text) {
   return { owner: o ? o[1] : null, due: d ? d[1] : null };
 }
 
-// ---- 文字の幅（決定的な見積もり） ----
-const charW = (ch, size) => (ch.codePointAt(0) >= 0x2e80 ? size : size * 0.58);
-export const textW = (s, size) => [...String(s ?? '')].reduce((w, ch) => w + charW(ch, size), 0);
+// ---- 文字の幅（決定的な見積もり。共通部品「字幅の見積もり」glyphwidth.js） ----
+// FONT_KIND: 描画スタイルの書体の系統（presetOf の font。'handwriting'・'roundGothic'・'gothic'。既存の 4 つの描画スタイルは null＝従来の見積もり）。
+// 配置（boardLayout）と描画（boardSvg）の間だけ使う（同期。boardLayout が設定し、boardSvg は配置に記録した系統に戻す）
+let FONT_KIND = null;
+export const boardFontKind = (spec) => (spec ? presetOf(spec)?.font ?? null : null);
+const charW = (ch, size) => glyphWidth(ch, size, FONT_KIND ?? undefined);
+// 文字の送り幅の和（強調・tspan の位置の計算。前の文字の幅の和が次の文字の位置）
+const advanceW = (s, size) => [...String(s ?? '')].reduce((w, ch) => w + charW(ch, size), 0);
+// 1 行の描かれる幅の見積もり（枠に収まるかの判定。手書き風の系統は合成の太字の広がりを含む）
+export const textW = (s, size) => textWidthOf(s, size, FONT_KIND ?? undefined);
 export const clipLabel = (s) => [...String(s ?? '').replace(/[\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim()].slice(0, LABEL_MAX).join('');
-function fit(text, maxPx, size) {
-  const chars = [...String(text ?? '')];
-  let w = 0; let out = '';
-  for (let i = 0; i < chars.length; i++) {
-    const c = charW(chars[i], size);
-    if (w + c > maxPx) return `${out.replace(/\s+$/, '')}…`;
-    out += chars[i]; w += c;
-  }
-  return out;
-}
+// 幅 maxPx に収まるように末尾を「…」に置き換えて切る（共通部品の見積もりで判定）
+const fit = (text, maxPx, size) => fitTextWidth(text, maxPx, size, FONT_KIND ?? undefined);
 // 表示する文字の中の強調語の位置（左端からの距離と幅）
 function emphOf(shown, words, size) {
   const out = []; const used = [];
@@ -121,7 +121,7 @@ function emphOf(shown, words, size) {
     const i = shown.indexOf(w);
     if (i < 0 || used.some(([a, b]) => i < b && a < i + w.length)) continue;
     used.push([i, i + w.length]);
-    out.push({ word: w, i, n: w.length, dx: Math.round(textW(shown.slice(0, i), size) * 10) / 10, w: Math.round(textW(w, size) * 10) / 10 });
+    out.push({ word: w, i, n: w.length, dx: Math.round(advanceW(shown.slice(0, i), size) * 10) / 10, w: Math.round(advanceW(w, size) * 10) / 10 });
     if (out.length >= 2) break;
   }
   return out;
@@ -211,6 +211,7 @@ function listRows(units, x, y, w, part, icon) {
 // input: { scenes, topics, titleInfo, lang }。opts.llmOf(sceneId, index) → { section, emphasis } | null
 // 次アクションの表の行は、この区画に振り分けた要点ごとの図の表示で、議事項目（FR-094）の候補・確定とは別（「候補」の印は付けない。AC-666）
 export function boardLayout(input, opts = {}) {
+  FONT_KIND = opts.fontKind ?? null; // AC-466・AC-670: 描画スタイルの書体の系統で字幅を見積もる（glyphwidth.js）
   const lang = L10N(input.lang);
   const tx = TEXT[lang];
   const info = input.titleInfo ?? {};
@@ -280,7 +281,7 @@ export function boardLayout(input, opts = {}) {
   const H = top - GAP + M;
   let k = 0;
   for (const s of sections) for (const el of s.elements) { el.id ??= `${s.id}-${k++}`; el.section = s.id; } // id は要点・ステップから決める（取込の前後で同じ要素は同じ id。CONTRACT-BOARD）
-  const model = { lang, band, sections, assigned, text: tx, canvas: { w: W, h: H }, line: LINE };
+  const model = { lang, band, sections, assigned, text: tx, canvas: { w: W, h: H }, line: LINE, fontKind: FONT_KIND };
   return {
     canvas: { w: W, h: H }, title: { x: M, y: M, w: W - M * 2, h: 0, visible: false }, body: { x: M, y: band ? M + BAND + GAP : M, w: W - M * 2, h: H - M * 2 },
     units: [], arrows: [], orderMark: 'number', centered: false, titleLines: [], board: model,
@@ -363,14 +364,14 @@ export function emphSpans(l, x) {
   const segs = []; let pos = 0;
   for (const e of emph) {
     if (e.i < pos) continue;
-    if (e.i > pos) segs.push({ s: text.slice(pos, e.i), dx: Math.round(textW(text.slice(0, pos), FS) * 10) / 10, w: Math.round(textW(text.slice(pos, e.i), FS) * 10) / 10 });
+    if (e.i > pos) segs.push({ s: text.slice(pos, e.i), dx: Math.round(advanceW(text.slice(0, pos), FS) * 10) / 10, w: Math.round(advanceW(text.slice(pos, e.i), FS) * 10) / 10 });
     segs.push({ s: text.slice(e.i, e.i + e.n), dx: e.dx, w: e.w, emph: true });
     pos = e.i + e.n;
   }
   if (pos < text.length) {
     // 最後の強調語より後ろの文字は、後ろに位置を合わせる強調がないので、全角の文字だけなら書体の字幅のまま描く（見積もりの全角幅は上限で、枠を越えない）
     const rest = text.slice(pos);
-    segs.push({ s: rest, dx: Math.round(textW(text.slice(0, pos), FS) * 10) / 10, w: Math.round(textW(rest, FS) * 10) / 10, natural: [...rest].every((ch) => ch.codePointAt(0) >= 0x2e80) });
+    segs.push({ s: rest, dx: Math.round(advanceW(text.slice(0, pos), FS) * 10) / 10, w: Math.round(advanceW(rest, FS) * 10) / 10, natural: [...rest].every((ch) => ch.codePointAt(0) >= 0x2e80) });
   }
   return segs.map((g) => `<tspan x="${r1(x + g.dx)}"${g.natural ? '' : ` textLength="${r1(g.w)}" lengthAdjust="${g.emph ? 'spacingAndGlyphs' : 'spacing'}"`}${g.emph ? ' data-emph-span=""' : ''}>${escapeHtml(g.s)}</tspan>`).join('');
 }
@@ -446,6 +447,9 @@ function elementSvg(el, C, tx) {
 export function boardSvg(L, opts = {}) {
   const m = L.board; const tx = m.text;
   const spec = opts.style ?? null;
+  // 配置と同じ書体の系統で強調・tspan の位置を求め、図の書体はその描画スタイルの並び（NFR-UX-012 AC-466。jpFontOrder の並び）にする
+  FONT_KIND = m.fontKind !== undefined ? m.fontKind : boardFontKind(spec);
+  const family = FONT_KIND ? fontFamilyOf(FONT_KIND) : LEGACY_FONT_FAMILY;
   const C = boardColors(spec);
   const look = spec ? boardFrameLook(spec) : null; // AC-670: 雲形の枠の配色と形（style-670 の定義）
   const shape = look ? 'cloud' : 'rounded';
@@ -480,7 +484,7 @@ export function boardSvg(L, opts = {}) {
   }
   const { w, h } = m.canvas;
   const title = opts.title ?? tx.aria;
-  return `<svg ${attrs.join(' ')} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" font-family="'Yu Gothic UI', system-ui, 'Hiragino Sans', Meiryo, sans-serif" role="img" aria-label="${escapeHtml(tx.aria)}"><title>${escapeHtml(title)}</title>${out.join('')}</svg>`;
+  return `<svg ${attrs.join(' ')} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" font-family="${family.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" role="img" aria-label="${escapeHtml(tx.aria)}"><title>${escapeHtml(title)}</title>${out.join('')}</svg>`;
 }
 
 // 図に現れる部品の種類（AC-666・AC-667 (b)）
@@ -545,7 +549,7 @@ export function createBoardMotion() {
 export function boardModule(ctx) {
   const { api, state } = ctx;
   const llmOf = (sceneId, idx) => api.getLlmPointSection?.(sceneId, idx) ?? null;
-  api.registerLayoutType(BOARD_TYPE_ID, { layout: (input) => boardLayout(input, { llmOf }) });
+  api.registerLayoutType(BOARD_TYPE_ID, { layout: (input) => boardLayout(input, { llmOf, fontKind: boardFontKind(api.getDrawStyleSpec?.()) }) });
   const active = () => {
     const info = api.getLayoutInfo?.();
     return !!info && info.applied && info.head === BOARD_TYPE_ID && state.displayMode !== 'arrange';
