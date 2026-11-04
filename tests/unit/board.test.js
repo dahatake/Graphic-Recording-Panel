@@ -397,7 +397,7 @@ test('FR-114 AC-667 (h) PARAM-187: 強調語は自分の tspan に入り、そ�
     assert.ok(texts.length >= 3, '強調のある文字');
     for (const [, ems, body] of texts) {
       const marks = [...ems.matchAll(/(?:x="([\d.]+)"[^>]*width="([\d.]+)"|d="M([\d.]+) [\d.]+h([\d.]+)")/g)].map((m) => ({ x: Number(m[1] ?? m[3]), w: Number(m[2] ?? m[4]) }));
-      const words = [...body.matchAll(/<tspan x="([\d.]+)" textLength="([\d.]+)" lengthAdjust="spacingAndGlyphs" data-emph-word="">/g)].map((m) => ({ x: Number(m[1]), w: Number(m[2]) }));
+      const words = [...body.matchAll(/<tspan x="([\d.]+)" textLength="([\d.]+)" lengthAdjust="spacingAndGlyphs" data-emph-span="">/g)].map((m) => ({ x: Number(m[1]), w: Number(m[2]) }));
       assert.equal(words.length, marks.length, '強調ごとに 1 つの tspan');
       marks.forEach((mk, i) => { assert.ok(Math.abs(mk.x - words[i].x) <= 0.05 && Math.abs(mk.w - words[i].w) <= 0.05, `${JSON.stringify(mk)} と ${JSON.stringify(words[i])}`); });
       const all = [...body.matchAll(/<tspan x="([\d.]+)" textLength="([\d.]+)"/g)].map((m) => [Number(m[1]), Number(m[2])]);

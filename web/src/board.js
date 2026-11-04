@@ -162,13 +162,13 @@ const BUILD = {
   },
   flow: (units, x, y, w) => { // units = ステップ（トピックごと）。バッジ・人物・吹き出し、ステップの間に ⇒
     const els = []; let cy = y;
-    units.forEach((st, i) => {
-      if (i > 0 || st.cont) { els.push({ id: `arrow:${st.uid}`, part: 'arrow', dir: 'down', x: x + 4, y: cy, w: 20, h: 16 }); cy += 20; }
+    units.forEach((st) => { // AC-667 (i): 部品に stepIndex（1 始まり・ステップごと）、隣り合うステップの間ごとに矢印（区画の下位のまとまりをまたいでも）
+      if (st.idx > 1) { els.push({ id: `arrow:${st.uid}`, part: 'arrow', dir: 'down', x: x + 4, y: cy, w: 20, h: 16, between: [st.idx - 1, st.idx] }); cy += 20; }
       const bh = 10 + st.lines.length * 20;
       const h = Math.max(40, bh);
-      els.push({ id: `badge:${st.uid}`, part: 'badge', x, y: cy, w: 28, h: 28, n: st.n });
-      els.push({ id: `person:${st.uid}`, part: 'person', x: x + 34, y: cy, w: 40, h: 40, seed: st.key, persons: 1 });
-      els.push({ id: `bubble:${st.uid}`, part: 'bubble', x: x + 82, y: cy, w: w - 82, h: bh, step: st.n, sceneIds: st.sceneIds, pointIds: st.lines.map((l) => l.pointId), lines: st.lines.map((l) => ({ pointId: l.pointId, ...label(l, w - 82 - 30) })) });
+      els.push({ id: `badge:${st.uid}`, part: 'badge', x, y: cy, w: 28, h: 28, n: st.n, stepIndex: st.idx });
+      els.push({ id: `person:${st.uid}`, part: 'person', x: x + 34, y: cy, w: 40, h: 40, seed: st.key, persons: 1, stepIndex: st.idx });
+      els.push({ id: `bubble:${st.uid}`, part: 'bubble', x: x + 82, y: cy, w: w - 82, h: bh, step: st.n, stepIndex: st.idx, sceneIds: st.sceneIds, pointIds: st.lines.map((l) => l.pointId), lines: st.lines.map((l) => ({ pointId: l.pointId, ...label(l, w - 82 - 30) })) });
       cy += h + 6;
     });
     return { els, h: cy - y - 6 };
@@ -243,7 +243,7 @@ export function boardLayout(input, opts = {}) {
     if (!same) stepN++;
     if (!same || st.lines.length >= GROUP_MAX) {
       const k = same ? st.k + 1 : 0;
-      st = { key: e.topic, sceneId: e.sceneId, k, uid: `${e.topic}#${e.sceneId}#${k}`, n: stepN, cont: same, lines: [], sceneIds: [] }; steps.push(st);
+      st = { idx: steps.length + 1, key: e.topic, sceneId: e.sceneId, k, uid: `${e.topic}#${e.sceneId}#${k}`, n: stepN, cont: same, lines: [], sceneIds: [] }; steps.push(st);
     }
     st.lines.push(e); if (!st.sceneIds.includes(e.sceneId)) st.sceneIds.push(e.sceneId);
   }
@@ -348,8 +348,8 @@ function cloudFrameSvg(f, look, seed) {
 
 function labelSvg(l, x, y, C, attrs = '') {
   const em = (l.emph ?? []).map((e) => (C.marker
-    ? `<rect data-board-part="emphasis" data-emph="marker" x="${r1(x + e.dx)}" y="${r1(y - FS + 1)}" width="${r1(e.w)}" height="${FS + 4}" rx="2" fill="${C.marker}"/>`
-    : `<path data-board-part="emphasis" data-emph="underline" d="M${r1(x + e.dx)} ${r1(y + 4)}h${r1(e.w)}" stroke="${C.under}" stroke-width="3" stroke-linecap="round"/>`)).join('');
+    ? `<rect data-board-part="emphasis" data-emph="marker"${emphAttrs(e)} x="${r1(x + e.dx)}" y="${r1(y - FS + 1)}" width="${r1(e.w)}" height="${FS + 4}" rx="2" fill="${C.marker}"/>`
+    : `<path data-board-part="emphasis" data-emph="underline"${emphAttrs(e)} d="M${r1(x + e.dx)} ${r1(y + 4)}h${r1(e.w)}" stroke="${C.under}" stroke-width="3" stroke-linecap="round"/>`)).join('');
   return `${em}<text x="${r1(x)}" y="${r1(y)}" font-size="${FS}" fill="${C.ink}"${attrs}>${emphSpans(l, x)}</text>`;
 }
 // FR-114 AC-667 (h)・PARAM-187: 強調のある文字は、強調語とその前後を別々の tspan に分け、各 tspan の始まりを
@@ -372,11 +372,15 @@ export function emphSpans(l, x) {
     const rest = text.slice(pos);
     segs.push({ s: rest, dx: Math.round(textW(text.slice(0, pos), FS) * 10) / 10, w: Math.round(textW(rest, FS) * 10) / 10, natural: [...rest].every((ch) => ch.codePointAt(0) >= 0x2e80) });
   }
-  return segs.map((g) => `<tspan x="${r1(x + g.dx)}"${g.natural ? '' : ` textLength="${r1(g.w)}" lengthAdjust="${g.emph ? 'spacingAndGlyphs' : 'spacing'}"`}${g.emph ? ' data-emph-word=""' : ''}>${escapeHtml(g.s)}</tspan>`).join('');
+  return segs.map((g) => `<tspan x="${r1(x + g.dx)}"${g.natural ? '' : ` textLength="${r1(g.w)}" lengthAdjust="${g.emph ? 'spacingAndGlyphs' : 'spacing'}"`}${g.emph ? ' data-emph-span=""' : ''}>${escapeHtml(g.s)}</tspan>`).join('');
 }
+// AC-667 (i): ステップの間の矢印は、前と次のステップの番号（stepIndex）を data-between に持つ
+const betweenAttr = (el) => (el.between ? ` data-between="${el.between.join(',')}"` : '');
+// AC-667 (h): 強調の要素に強調語と、その text の文字列の中での強調語の最初の文字の位置（UTF-16）
+const emphAttrs = (e) => ` data-emph-word="${escapeHtml(e.word)}" data-emph-start="${e.i}"`;
 const arrowSvg = (el, C) => (el.dir === 'down'
-  ? `<g data-board-part="arrow"><path d="M${el.x + 6} ${el.y}v${el.h - 6}M${el.x + 14} ${el.y}v${el.h - 6}M${el.x + 2} ${el.y + el.h - 8}l8 8 8-8" fill="none" stroke="${C.line}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></g>`
-  : `<g data-board-part="arrow"><path d="M${el.x} ${el.y + 5}h${el.w - 6}M${el.x} ${el.y + 11}h${el.w - 6}M${el.x + el.w - 8} ${el.y}l8 8-8 8" fill="none" stroke="${C.line}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></g>`);
+  ? `<g data-board-part="arrow"${betweenAttr(el)}><path d="M${el.x + 6} ${el.y}v${el.h - 6}M${el.x + 14} ${el.y}v${el.h - 6}M${el.x + 2} ${el.y + el.h - 8}l8 8 8-8" fill="none" stroke="${C.line}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></g>`
+  : `<g data-board-part="arrow"${betweenAttr(el)}><path d="M${el.x} ${el.y + 5}h${el.w - 6}M${el.x} ${el.y + 11}h${el.w - 6}M${el.x + el.w - 8} ${el.y}l8 8-8 8" fill="none" stroke="${C.line}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></g>`);
 // AC-670: 配色を限る定義（paletteOnly）では、人物の線画も配色の線の色と白だけで描く（暗い塗りと線は線の色、それ以外の塗りは白）
 const paletteOnlyPerson = (svg, C) => svg.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, (_, a, col) => `${a}="${a === 'stroke' || contrastRatio(col, '#000000') < 4 ? C.line : C.bg}"`);
 const personSvg = (id, x, y, size, C) => `<g data-board-part="person" transform="translate(${r1(x)} ${r1(y)}) scale(${r1(size / 48 * 100) / 100})">${C?.paletteOnly ? paletteOnlyPerson(personGroupFor(id), C) : personGroupFor(id)}</g>`;
@@ -390,7 +394,8 @@ export function appearSvg(inner, a, cx, cy) {
 }
 function elementSvg(el, C, tx) {
   const pid = el.pointId ? ` data-point-id="${escapeHtml(el.pointId)}"` : '';
-  const g = (inner) => `<g data-board-el="${escapeHtml(el.id)}"${pid}>${inner}</g>`;
+  const step = el.stepIndex != null ? ` data-board-step="${el.stepIndex}"` : '';
+  const g = (inner) => `<g data-board-el="${escapeHtml(el.id)}"${pid}${step}>${inner}</g>`;
   switch (el.part) {
     case 'check': case 'question': case 'icon': {
       if (el.word) { // 目指す姿の「現状」「目指す姿」の箱
@@ -418,7 +423,7 @@ function elementSvg(el, C, tx) {
       const body = C.card // AC-670: 白いカード（角の丸み card.radius）の吹き出し
         ? `<rect data-board-part="bubble" data-board-card x="${el.x + 10}" y="${el.y}" width="${el.w - 10}" height="${el.h}" rx="${C.card}" fill="${C.bg}" stroke="${C.line}" stroke-width="2"/><path d="M${el.x + 10} ${el.y + 10}L${el.x} ${el.y + 16}L${el.x + 10} ${el.y + 22}" fill="${C.bg}" stroke="${C.line}" stroke-width="2" stroke-linejoin="round"/>`
         : `<path data-board-part="bubble" d="${d}" fill="${C.bg}" stroke="${C.line}" stroke-width="2" stroke-linejoin="round"/>`;
-      return `<g data-board-el="${escapeHtml(el.id)}" data-board-step="${el.step}">${body}${lines}</g>`;
+      return `<g data-board-el="${escapeHtml(el.id)}"${step} data-board-step-no="${el.step}">${body}${lines}</g>`;
     }
     case 'arrow': return g(arrowSvg(el, C));
     case 'table': {
