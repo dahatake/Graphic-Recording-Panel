@@ -39,22 +39,27 @@ test('UI toolbar builds all command groups and translated labels without interru
     });
     assert.equal(toolbar.children.length, GROUPS.length + 1);
     let buttonCount = 0;
-    GROUPS.forEach(([groupLabel, commands], i) => {
+    const barGroups = Object.fromEntries(app.getCommandBar().groups.map((g) => [g.id, g.commands]));
+    GROUPS.forEach(([groupLabel, baseCommands, groupId], i) => {
+      const commands = groupId === 'drawStyle' ? barGroups.drawStyle : baseCommands; // FR-077: 画風グループは登録簿から
+      assert.ok(groupId !== 'drawStyle' || commands.length >= 13);
       const group = toolbar.children[i];
       assert.equal(group.children[0].textContent, app.t(groupLabel));
       assert.equal(group.children.length, commands.length + 1);
       commands.forEach((command, j) => {
         const [button, tooltip] = group.children[j + 1].children;
         assert.equal(button.dataset.command, command);
-        assert.equal(button.children[1].textContent, app.t(labelKey(command)));
+        const label = groupId === 'drawStyle' ? app.getDrawStyles().find((s) => `drawStyle.set:${s.id}` === command).label : app.t(labelKey(command));
+        assert.equal(button.children[1].textContent, label);
         assert.notEqual(button.children[1].textContent, labelKey(command));
         assert.equal(button.attributes['aria-describedby'], tooltip.id);
         assert.equal(tooltip.attributes.role, 'tooltip');
         assert.equal(typeof button.listeners.click, 'function');
+        if (groupId === 'drawStyle') assert.equal(button.attributes['aria-pressed'], String(command === 'drawStyle.set:handwritten'), 'FR-077: 通常のボタン + aria-pressed');
         buttonCount++;
       });
     });
-    assert.equal(buttonCount, GROUPS.flatMap(([, commands]) => commands).length);
+    assert.equal(buttonCount, GROUPS.flatMap(([, commands]) => commands).length + barGroups.drawStyle.length);
     assert.equal(toolbar.children.at(-1).dataset.role, 'panel-show');
     assert.equal(tooltipSyncs, 1);
   }

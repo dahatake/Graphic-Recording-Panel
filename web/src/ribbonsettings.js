@@ -2,7 +2,7 @@
 // アイコンと簡略な説明つきでリボンにも出し、操作は［設定］と同じ保存・同じ状態に届ける（値は常に一致）。
 // 契約: tests/system/CONTRACT-RIBBON-SETTINGS.md。DOM に依存しない（描画は ui.js）。
 // - 決め方（settings.layoutMode）・ミュート（sound.toggleMute）・音量（sound.setVolume）・再配置の周期（arrange.setInterval）は新しい項目。
-//   型のチェックは既存の layoutType.<id>、描画スタイルは既存の drawStyle.pick に settingsField を付けて 1 つにまとめる（重複させない）。
+//   型のチェックは既存の layoutType.<id> に settingsField を付ける。描画スタイルはリボンの「画風」グループ（drawStyle.set:<id>。stylepicker.js）が受け持ち、［設定］の項目にしない。
 // - app.operateBarItem(command, value?) はリボンの項目の操作（クリック・値の入力）。不正な値は受け付けず、理由をメッセージで示す。
 import { LAYOUT_TYPE_IDS } from './layouttypes.js';
 
@@ -10,7 +10,7 @@ const MODES = ['auto', 'fixed'];
 const INTERVAL_PRESETS = [0, 10, 30, 60]; // 値なしで呼ばれたとき（コマンドの検索）に順に切り替える
 const VOLUME_STEP = 10;
 const FIELDS = {
-  'settings.layoutMode': 'layout.mode', 'sound.toggleMute': 'sound.muted', 'sound.setVolume': 'sound.volume', 'arrange.setInterval': 'arrange.interval', 'drawStyle.pick': 'drawStyle',
+  'settings.layoutMode': 'layout.mode', 'sound.toggleMute': 'sound.muted', 'sound.setVolume': 'sound.volume', 'arrange.setInterval': 'arrange.interval',
   ...Object.fromEntries(LAYOUT_TYPE_IDS.map((id) => [`layoutType.${id}`, 'layout.types'])),
 };
 
@@ -78,7 +78,7 @@ export function ribbonSettingsModule(ctx) {
   // ---- 操作の効果の判定（状態・図・表示・ダイアログのどれが変わったか） ----
   const safe = (fn) => { try { return fn(); } catch { return null; } };
   const snapshot = () => ({
-    dialogs: JSON.stringify([!!safe(() => api.getSettingsDialog()), !!safe(() => api.getDialog()), safe(() => api.getDrawStylePicker().open), !!safe(() => api.getApiKeysDialog()), !!safe(() => api.getScenePopup?.())]),
+    dialogs: JSON.stringify([!!safe(() => api.getSettingsDialog()), !!safe(() => api.getDialog()), !!safe(() => api.getApiKeysDialog()), !!safe(() => api.getScenePopup?.())]),
     display: JSON.stringify([safe(() => api.getTheme()), safe(() => api.getLayout()), safe(() => { const s = api.getState(); return [s.viewMode, s.displayMode, s.lang]; })]),
     figure: safe(() => api.renderSvg()),
     state: JSON.stringify(safe(() => api.getState())),
@@ -97,15 +97,12 @@ export function ribbonSettingsModule(ctx) {
     uiEffect = null;
     let r;
     if (OPS[command] && value !== undefined) r = OPS[command](value);
-    else if (command === 'drawStyle.pick' && value !== undefined) {
-      r = typeof value === 'string' ? api.setSettings({ drawStyle: value }) : { ok: false };
-      if (!r.ok) say('ribbon.invalid.drawStyle');
-    } else if (typeof api.commands[command] === 'function') r = api.commands[command]();
+    else if (typeof api.commands[command] === 'function') r = api.commands[command]();
     else return { ok: false, effect: 'none' };
     if (r && typeof r.then === 'function') return { ok: true, effect: 'state' }; // 非同期の操作（ファイルの選択・読込など）は開始した時点で効果あり
     if (r && r.ok === false) return { ok: false, effect: 'none' };
     // 値のある項目で受け付けた入力は、同じ値でも状態の操作として扱う
-    if ((OPS[command] && value !== undefined) || command === 'drawStyle.pick' && value !== undefined) return { ok: true, effect: 'state' };
+    if (OPS[command] && value !== undefined) return { ok: true, effect: 'state' };
     const effect = uiEffect ?? effectOf(before, snapshot());
     if (effect !== 'none') return { ok: true, effect };
     // 変える状態がない（すでにその状態・今は実行できない）ときは、無反応にせず理由を読み上げ対象のメッセージで示す
@@ -129,7 +126,6 @@ export function ribbonSettingsModule(ctx) {
           case 'sound.toggleMute': Object.assign(out, { kind: 'toggle', value: audio().muted, pressed: audio().muted }); break;
           case 'sound.setVolume': Object.assign(out, { kind: 'slider', value: audio().volume, min: 0, max: 100, step: 1 }); break;
           case 'arrange.setInterval': Object.assign(out, { kind: 'number', value: interval(), min: 0, max: 300, step: 1 }); break;
-          case 'drawStyle.pick': Object.assign(out, { kind: 'select', value: api.getSettings().drawStyle, options: api.getDrawStyles().map((s) => ({ value: s.id, label: s.label })) }); break;
           default: Object.assign(out, { kind: 'toggle', value: it.selected === true }); // layoutType.<id>
         }
         if (it.command in { 'settings.layoutMode': 1, 'sound.toggleMute': 1, 'sound.setVolume': 1, 'arrange.setInterval': 1 }) { out.description = t(`description.${it.command}`); out.descriptionVisible = true; }

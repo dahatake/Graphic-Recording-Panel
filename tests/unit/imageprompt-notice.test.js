@@ -160,18 +160,15 @@ test('FR-078 AC-473: 注意が開いている間はほかのショートカッ�
   assert.equal(app.getFocus(), 'other');
 });
 
-// FR-078 AC-470: 注意を開くと、前回の手でコピーする表示と画風の一覧は閉じる。閉じた後の操作は 'closed'
-test('FR-078 AC-470: 注意を開くと手でコピーする表示と画風の一覧を閉じ、閉じた注意への操作は何もしない', async () => {
+// FR-078 AC-470: 注意を開くと、前回の手でコピーする表示は閉じる。閉じた後の操作は 'closed'（画風は常時表示のボタンで、開閉する一覧はない）
+test('FR-078 AC-470: 注意を開くと手でコピーする表示を閉じ、閉じた注意への操作は何もしない', async () => {
   const c = clip(true);
   const { app } = await seeded({ clipboard: c });
   await app.commands['prompt.copy']();
   await app.promptNoticeAction('copy');
   assert.ok(app.getPromptFallback());
-  app.commands['drawStyle.pick']();
-  assert.equal(app.getDrawStylePicker().open, true);
   await app.commands['prompt.copy']();
   assert.equal(app.getPromptFallback(), null);
-  assert.equal(app.getDrawStylePicker().open, false);
   assert.deepEqual(await app.promptNoticeAction('other'), { ok: false, reason: 'invalid' });
   await app.promptNoticeAction('cancel');
   assert.deepEqual(await app.promptNoticeAction('copy'), { ok: false, reason: 'closed' });

@@ -5,9 +5,9 @@ import { coalesceFrame } from './frame.js';
 import { patchHtml } from './morph.js';
 import { GROUPS, ICONS, PRIMARY, tooltipId, labelKey } from './commandbar.js';
 
-function icon(doc, command) {
+function icon(doc, command, path) {
   const t = doc.createElement('template');
-  t.innerHTML = `<svg viewBox="0 0 20 20" class="icon" aria-hidden="true" focusable="false"><path d="${ICONS[command] ?? ICONS['session.start']}"></path></svg>`;
+  t.innerHTML = `<svg viewBox="0 0 20 20" class="icon" aria-hidden="true" focusable="false"><path d="${path || ICONS[command] || ICONS['session.start']}"></path></svg>`;
   return t.content.firstChild;
 }
 // FR-072 AC-647: 記録グループの押下の表示は、その操作が実際に有効なときだけ（準備中・停止は全部 false）。終了・次シーン・入力は状態を持たない
@@ -18,9 +18,7 @@ export function mountUI(app, doc = document) {
   const toolbar = $('#toolbar');
   const workspace = $('#workspace');
   const draft = $('#draft');
-  let builtLang = null;
-  const consentBox = $('#speech-consent');
-  if (consentBox) consentBox.addEventListener('change', () => app.setSpeechConsent(consentBox.checked));
+  let builtLang = null; let builtStyles = null;
 
   const keyLabel = (name) => {
     const k = app.keymap.find((e) => e.command === name);
@@ -34,8 +32,11 @@ export function mountUI(app, doc = document) {
 
   function buildToolbar() {
     toolbar.textContent = '';
-    const barItems = Object.fromEntries(app.getCommandBar().items.map((i) => [i.command, i]));
-    for (const [groupLabelKey, names, groupId] of GROUPS) {
+    const bar0 = app.getCommandBar();
+    const barItems = Object.fromEntries(bar0.items.map((i) => [i.command, i]));
+    for (const [groupLabelKey, baseNames, groupId] of GROUPS) {
+      // FR-077: 「画風」グループの項目は描画スタイルの登録簿から（getCommandBar のグループ）。ほかは GROUPS の固定の並び
+      const names = groupId === 'drawStyle' ? (bar0.groups.find((g) => g.id === 'drawStyle')?.commands ?? []) : baseNames;
       // NFR-UX-011 AC-460: 見出し（常に表示）と、グループ要素のアクセシブルな名前（aria-label）は同じ文言
       const fs = doc.createElement('div');
       fs.className = 'toolbar-group'; fs.setAttribute('role', 'group'); fs.dataset.group = groupId;
@@ -46,12 +47,12 @@ export function mountUI(app, doc = document) {
       fs.append(lg);
       for (const name of names) {
         const bi = barItems[name];
-        const field = bi && ['select', 'slider', 'number'].includes(bi.kind) && name !== 'drawStyle.pick' ? bi.kind : null;
+        const field = bi && ['select', 'slider', 'number'].includes(bi.kind) ? bi.kind : null;
         const b = doc.createElement(field ? 'div' : 'button'); // 値を入れる部品を持つ項目は、ボタンの中に部品を入れない（div）
         if (!field) b.type = 'button';
         b.className = PRIMARY.has(name) ? 'btn btn-primary' : 'btn btn-subtle'; b.dataset.command = name;
-        const lab = doc.createElement('span'); lab.className = 'btn-label'; lab.textContent = app.t(labelKey(name));
-        b.append(icon(doc, name), lab);
+        const lab = doc.createElement('span'); lab.className = 'btn-label'; lab.textContent = bi?.label ?? app.t(labelKey(name));
+        b.append(icon(doc, name, name.startsWith('drawStyle.set:') ? bi?.icon : ''), lab);
         // FR-073 AC-388: 取り込みは、取り込めるファイルの説明を常に文字で見せる（アイコンだけに頼らない）
         if (name === 'import.file') {
           const d = doc.createElement('span'); d.className = 'btn-desc'; d.textContent = app.t('import.description'); b.append(d);
@@ -70,17 +71,14 @@ export function mountUI(app, doc = document) {
         if (bi?.settingsField && bi.descriptionVisible && bi.description) {
           const d = doc.createElement('span'); d.className = 'btn-desc'; d.textContent = bi.description; b.append(d);
         }
-        // FR-077 AC-414: 画風のボタンは、ラベルの下に現在の画風の名前を常に出し、一覧（listbox）を開くことを示す
-        if (name === 'drawStyle.pick') {
-          const v = doc.createElement('span'); v.className = 'btn-value'; v.dataset.role = 'drawstyle-value'; b.append(v);
-          b.setAttribute('aria-haspopup', 'listbox'); b.setAttribute('aria-controls', 'drawstyle-list'); b.setAttribute('aria-expanded', 'false');
-          b.className += ' btn-drawstyle';
-        }
+        // FR-077: 画風の項目は、通常のボタン（aria-pressed。押下は render が当てる）。現在の画風だけ pressed
+        if (name.startsWith('drawStyle.set:')) { b.className += ' btn-drawstyle'; b.setAttribute('aria-pressed', String(!!bi?.pressed)); }
         const kl = keyLabel(name);
         // NFR-UX-002: ツールチップ（role=tooltip）を aria-describedby で関連付ける。ホバー・フォーカスで表示
         const tip = doc.createElement('span');
         tip.className = 'tooltip'; tip.id = tooltipId(name); tip.setAttribute('role', 'tooltip'); tip.hidden = true;
-        tip.textContent = kl ? `${app.t(`tooltip.${name}`)} (${kl})` : app.t(`tooltip.${name}`);
+        const tipText = bi?.tooltip?.text ?? app.t(`tooltip.${name}`);
+        tip.textContent = kl ? `${tipText} (${kl})` : tipText;
         const fe = ctl ?? b; // フォーカス・説明の対象（値の部品があればその部品）
         b.setAttribute('aria-describedby', tip.id);
         if (ctl) ctl.setAttribute('aria-describedby', tip.id);
@@ -141,10 +139,26 @@ export function mountUI(app, doc = document) {
   }
 
   let dragging = false; // ドラッグ中は文字列・アウトラインの再構築を止め、位置の更新だけにする（終了時に 1 回描く）
+  // FR-077: 画風の項目の押下（現在の画風だけ aria-pressed=true と ✓）。描画スタイルの切替は描画データの版数を進めず、描画も次のフレームまで待つので、
+  // 変更の通知（change）で同期的に更新する（値が変わったときだけ書き込む）。
+  function syncStyleButtons() {
+    const cur = app.getDrawStyle?.();
+    for (const b of toolbar.querySelectorAll('[data-command^="drawStyle.set:"]')) {
+      const on = b.dataset.command === `drawStyle.set:${cur}`;
+      if (b.getAttribute('aria-pressed') !== String(on)) b.setAttribute('aria-pressed', String(on));
+      if (on) { if (b.dataset.selectedMark !== 'check') b.dataset.selectedMark = 'check'; } else if ('selectedMark' in b.dataset) delete b.dataset.selectedMark;
+      let mk = b.querySelector('.sel-mark');
+      if (!mk) { mk = doc.createElement('span'); mk.className = 'sel-mark'; mk.setAttribute('aria-hidden', 'true'); b.append(mk); }
+      const mark = on ? '✓' : '';
+      if (mk.textContent !== mark) mk.textContent = mark;
+    }
+  }
+  app.on('change', syncStyleButtons);
   let lastDataVer; // 前回の描画のデータの版数
   function render() {
     const st = app.getUiState?.() ?? app.getState(); // NFR-PERF-003: 発話・シーンの全件を複製しない
-    if (builtLang !== st.lang) { applyStatic(); buildToolbar(); buildPanelMenus(); builtLang = st.lang; lastDataVer = undefined; }
+    const dsSig = (app.getDrawStyles?.() ?? []).map((s) => s.id).join(',');
+    if (builtLang !== st.lang || builtStyles !== dsSig) { applyStatic(); buildToolbar(); buildPanelMenus(); builtLang = st.lang; builtStyles = dsSig; lastDataVer = undefined; }
     // NFR-PERF-003 AC-536・AC-538: データの版数が前回と同じ（パネルの移動・大きさ変更・タブ・図のスクロールだけ）なら、
     // コマンドバー・状態・文字列・アウトラインの更新を省き、配置だけを当てる（DOM への無駄な書き込みでスタイルの再計算を起こさない）
     // ドラッグ中は文字列・アウトラインを描かないので、その版数は描き終えたことにしない（ドラッグの後に 1 回描く）
@@ -183,15 +197,8 @@ export function mountUI(app, doc = document) {
       if (!mk) { mk = doc.createElement('span'); mk.className = 'sel-mark'; mk.setAttribute('aria-hidden', 'true'); b.append(mk); }
       setText(mk, it.selectedMark ? '✓' : '');
     }
-    // FR-077: 画風のボタンの現在値と、一覧の開閉
-    for (const it of app.getCommandBar().items) {
-      if (!('valueLabel' in it)) continue;
-      const b = toolbar.querySelector(`[data-command="${it.command}"]`);
-      if (!b) continue;
-      setText(b.querySelector('.btn-value'), it.valueLabel);
-      if ('expanded' in it) setAttr(b, 'aria-expanded', String(!!it.expanded));
-    }
     } // if (!viewOnly)
+    syncStyleButtons();
     // FR-074 AC-391: 狭い画面ではパネルをタブにまとめ、見える位置（選択中のタブ）のパネルだけを出す
     const pres = app.getPanelPresentation();
     const tabsEl = $('#panel-tabs');
@@ -234,15 +241,9 @@ export function mountUI(app, doc = document) {
       if (actEl.hidden !== (acts.length === 0)) actEl.hidden = acts.length === 0;
     }
     const cu = app.getConsentUi();
-    const box = $('#speech-consent');
-    if (box) {
-      setProp($('#speech-consent-box'), 'hidden', !cu.visible);
-      setProp(box, 'checked', cu.checked);
-      if (box.disabled !== !!cu.disabled) box.disabled = !!cu.disabled; // FR-081 AC-442: 送信先のホスト名が未取得の間は選べない
-      setText($('#speech-consent-label'), cu.label);
-      setText($('#speech-consent-notice'), cu.notice);
-      setText($('#speech-consent-state'), cu.stateText);
-    }
+    // FR-072 AC-385: 注意文だけを表示する（同意の操作・状態表示は持たない）
+    setProp($('#speech-consent-box'), 'hidden', !cu.visible);
+    setText($('#speech-consent-notice'), cu.visible ? cu.notice : '');
     // FR-013/FR-014: 認識文字列。過去を読んでいる間はスクロール位置を奪わない（AC-051）
     // NFR-PERF-003 AC-540: 全置換せず、キー（発話 ID）で既存のノードを残して差分だけを当てる。
     // AC-538: データの版（app.getRenderVersion があるとき）が前回と同じなら、文字列の再生成も呼ばない
@@ -642,54 +643,6 @@ export function mountUI(app, doc = document) {
   const clearAzureKey = () => { app.setAzureSpeechKeyInput?.(''); };
   globalThis.addEventListener?.('pagehide', clearAzureKey);
   globalThis.addEventListener?.('pageshow', clearAzureKey);
-  // FR-077: 画風の一覧（role=listbox。ボタンの下に出す）。状態（開閉・候補・現在値）は app が持ち、ここは描くだけ。
-  // キー（↑↓ Home End Enter Space Esc）は document の keydown → app.handleKey が扱う。項目のクリックは pickDrawStyle。
-  let dsEl = null; let dsWasOpen = false;
-  function syncStylePicker() {
-    const p = app.getDrawStylePicker?.();
-    if (!p) return;
-    const btn = toolbar.querySelector('[data-command="drawStyle.pick"]');
-    if (!p.open) {
-      if (dsEl) { dsEl.remove(); dsEl = null; }
-      if (dsWasOpen && p.focus === 'button' && btn && doc.activeElement !== btn) btn.focus();
-      dsWasOpen = false;
-      return;
-    }
-    if (!dsEl) {
-      dsEl = doc.createElement('ul'); dsEl.id = 'drawstyle-list'; dsEl.className = 'drawstyle-list'; dsEl.tabIndex = -1;
-      dsEl.addEventListener('click', (e) => { const li = e.target.closest?.('[data-style-id]'); if (li) app.pickDrawStyle(li.dataset.styleId); });
-      dsEl.addEventListener('focusout', (e) => { if (!e.relatedTarget || (!dsEl?.contains(e.relatedTarget) && e.relatedTarget !== btn)) app.closeDrawStylePicker(null); });
-      doc.body.append(dsEl);
-    }
-    dsEl.setAttribute('role', p.role); dsEl.setAttribute('aria-label', p.label);
-    const vw = doc.documentElement.clientWidth || 1280; const vh = doc.defaultView?.innerHeight || doc.documentElement.clientHeight || 720;
-    const r = btn?.getBoundingClientRect?.();
-    // AC-417: 位置・高さの上限・上下どちらに開くかは app が画面の大きさとボタンの位置から決める（下に入りきらなければ上に開く）
-    const view = app.getDrawStylePickerView({ viewportWidth: vw, viewportHeight: vh, anchor: r ? { x: r.left, y: r.top, w: r.width, h: r.height } : undefined });
-    dsEl.dataset.placement = view.placement;
-    dsEl.style.cssText = `left:${view.left}px;top:${view.top}px;width:${view.width}px;max-height:${view.maxHeight}px;`;
-    const key = JSON.stringify(p.options);
-    if (dsEl.dataset.key !== key) {
-      dsEl.dataset.key = key; dsEl.textContent = '';
-      for (const o of p.options) {
-        const li = doc.createElement('li'); li.id = `drawstyle-opt-${o.id}`; li.setAttribute('role', 'option'); li.dataset.styleId = o.id;
-        li.setAttribute('aria-selected', String(o.selected)); li.className = 'drawstyle-option';
-        if (o.selectedMark) li.dataset.selectedMark = o.selectedMark;
-        const mk = doc.createElement('span'); mk.className = 'drawstyle-mark'; mk.setAttribute('aria-hidden', 'true'); mk.textContent = o.selected ? '✓' : '';
-        const nm = doc.createElement('span'); nm.className = 'drawstyle-name'; nm.textContent = o.label;
-        const ds = doc.createElement('span'); ds.className = 'drawstyle-desc'; ds.textContent = o.description;
-        li.append(mk, nm, ds); dsEl.append(li);
-      }
-    }
-    for (const li of dsEl.children) li.classList.toggle('is-active', li.dataset.styleId === p.activeId);
-    if (p.activeId) { dsEl.setAttribute('aria-activedescendant', `drawstyle-opt-${p.activeId}`); dsEl.querySelector(`[data-style-id="${p.activeId}"]`)?.scrollIntoView?.({ block: 'nearest' }); }
-    if (p.focus === 'list' && doc.activeElement !== dsEl) dsEl.focus();
-    dsWasOpen = true;
-  }
-  app.on('change', syncStylePicker);
-  for (const ev of ['resize', 'scroll']) doc.defaultView?.addEventListener?.(ev, () => { if (dsEl) syncStylePicker(); }, { passive: true, capture: true }); // 画面の大きさ・スクロールが変わったら置き直す
-  doc.addEventListener('pointerdown', (e) => { if (dsEl && !e.target.closest?.('#drawstyle-list, [data-command="drawStyle.pick"]')) app.closeDrawStylePicker(null); });
-
   // FR-098・FR-091: テキスト一覧の中の議題タイマーのボタン・進行の段階のボタン（キーボードでも Enter・Space で押せる）
   doc.addEventListener('click', (e) => {
     // FR-104 AC-605: テキスト一覧・ポップアップの要点を選ぶ／機密の印を付け外す（キーボードは point.confidential）

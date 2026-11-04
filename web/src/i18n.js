@@ -58,8 +58,7 @@ const BASE = {
     'cmd.layoutType.clear': 'レイアウト型の手動選択を解除', 'cmd.settings.open': '設定を開く', 'cmd.settings.close': '設定を閉じる', 'cmd.llm.toggle': 'LLM 連携の有効/無効を切り替え', 'cmd.llm.test': 'LLM 連携の接続テスト',
     'cmd.azureSpeech.save': 'Azure Speech の設定を保存', 'cmd.azureSpeech.deleteKey': 'Azure Speech のキーを削除', 'cmd.azureSpeech.test': 'Azure Speech の接続テスト',
     'cmd.apiKeys.open': '接続キー画面を開く', 'cmd.apiKeys.close': '接続キー画面を閉じる', 'cmd.foundry.deleteKey': 'Microsoft Foundry のキーを削除', 'cmd.foundry.deleteConfig': 'Microsoft Foundry の接続設定を削除', 'cmd.copilot.delete': 'GitHub Copilot の設定を削除', 'cmd.copilot.signout': 'このアプリで GitHub Copilot からサインアウト',
-    // FR-077: 画風（描画スタイル）の一覧を開く。個々の画風を選ぶコマンド（drawStyle.select.<id>）の名称は登録簿の名前から作る（stylepicker.js）
-    'cmd.drawStyle.pick': '画風（描画スタイル）を選ぶ一覧を開く',
+    // FR-077: 個々の画風を選ぶコマンド（drawStyle.set:<id>）の名称は登録簿の名前から作る（stylepicker.js）
     'cmd.detail.major': '詳細度: 大項目', 'cmd.detail.middle': '詳細度: 中項目', 'cmd.detail.detail': '詳細度: 詳細', 'cmd.detail.next': '詳細度を次へ切り替え',
     'cmd.topic.movePrev': '選択中のシーンを前のトピックへ移す', 'cmd.topic.moveNext': '選択中のシーンを次のトピックへ移す', 'cmd.topic.moveNew': '選択中のシーンを新しいトピックにする',
     'cmd.topic.next': '次のトピックを選ぶ', 'cmd.topic.prev': '前のトピックを選ぶ',
@@ -71,7 +70,6 @@ const BASE = {
     'layout.kind.maximized': '最大化',
     'layout.kind.free': '自由配置',
     'panel.focus': 'メインにする',
-    'cmd.speech.consent': '外部送信の同意を切り替え',
     'cmd.speech.retryAzure': 'Azure Speech で再試行', 'cmd.speech.useBrowser': '音声認識をブラウザ標準に切り替え',
     'cmd.scene.next': '次のシーンを選択', 'cmd.scene.prev': '前のシーンを選択',
     'cmd.popup.open': 'シーンのポップアップを開く', 'cmd.glossary.open': '用語集を開く', 'cmd.agenda.open': '議題を開く', 'cmd.vote.open': '投票と評価を開く', 'cmd.vote.tally': '投票を集計する', 'cmd.draw.toggle': '描画のモードの切り替え', 'cmd.draw.color.next': '手描きの色を次へ', 'cmd.draw.erase': '消しゴムの切り替え', 'cmd.draw.undo': '手描きの取り消し', 'cmd.draw.redo': '手描きのやり直し', 'cmd.draw.clear': '手描きの全消去（確認つき）', 'cmd.draw.visibility': '手描きの表示・非表示の切り替え', 'cmd.cinematic.next': '演出の強さを次へ（なし・控えめ・標準）', 'cmd.roles.open': '役割の設定を開く', 'cmd.question.open': '確認の問いかけを開く', 'cmd.preview.show': 'フォーカス中の要素のプレビューを出す', 'cmd.map.focusNext': '地図の次の要素へ移る', 'cmd.map.focusPrev': '地図の前の要素へ戻る', 'cmd.map.activate': '地図の要素の詳細を開く', 'cmd.popup.focusContent': 'ポップアップの内容へ移る', 'cmd.popup.close': 'ポップアップを閉じる',
@@ -168,7 +166,6 @@ const BASE = {
     'cmd.layoutType.clear': 'Clear the manual layout choice', 'cmd.settings.open': 'Open settings', 'cmd.settings.close': 'Close settings', 'cmd.llm.toggle': 'Toggle LLM integration', 'cmd.llm.test': 'Test the LLM connection',
     'cmd.azureSpeech.save': 'Save the Azure Speech settings', 'cmd.azureSpeech.deleteKey': 'Delete the Azure Speech key', 'cmd.azureSpeech.test': 'Test the Azure Speech connection',
     'cmd.apiKeys.open': 'Open the API Keys dialog', 'cmd.apiKeys.close': 'Close the API Keys dialog', 'cmd.foundry.deleteKey': 'Delete the Microsoft Foundry key', 'cmd.foundry.deleteConfig': 'Delete the Microsoft Foundry connection settings', 'cmd.copilot.delete': 'Delete the GitHub Copilot settings', 'cmd.copilot.signout': 'Sign out of GitHub Copilot in this app',
-    'cmd.drawStyle.pick': 'Open the art style (draw style) list',
     'cmd.detail.major': 'Detail: topics', 'cmd.detail.middle': 'Detail: scenes', 'cmd.detail.detail': 'Detail: full', 'cmd.detail.next': 'Switch to the next detail level',
     'cmd.topic.movePrev': 'Move the selected scene to the previous topic', 'cmd.topic.moveNext': 'Move the selected scene to the next topic', 'cmd.topic.moveNew': 'Make the selected scene a new topic',
     'cmd.topic.next': 'Select the next topic', 'cmd.topic.prev': 'Select the previous topic',
@@ -180,7 +177,6 @@ const BASE = {
     'layout.kind.maximized': 'Maximized',
     'layout.kind.free': 'Free',
     'panel.focus': 'Make main',
-    'cmd.speech.consent': 'Toggle consent to external transmission',
     'cmd.speech.retryAzure': 'Retry Azure Speech', 'cmd.speech.useBrowser': 'Switch speech recognition to the browser',
     'cmd.scene.next': 'Select next scene', 'cmd.scene.prev': 'Select previous scene',
     'cmd.popup.open': 'Open scene popup', 'cmd.glossary.open': 'Open the glossary', 'cmd.agenda.open': 'Open the agenda', 'cmd.vote.open': 'Open the vote and evaluation', 'cmd.vote.tally': 'Tally the vote', 'cmd.draw.toggle': 'Toggle draw mode', 'cmd.draw.color.next': 'Next drawing color', 'cmd.draw.erase': 'Toggle the eraser', 'cmd.draw.undo': 'Undo drawing', 'cmd.draw.redo': 'Redo drawing', 'cmd.draw.clear': 'Clear all drawing (with confirmation)', 'cmd.draw.visibility': 'Show or hide the drawing', 'cmd.cinematic.next': 'Next effect strength (none, subtle, standard)', 'cmd.roles.open': 'Open the roles settings', 'cmd.question.open': 'Open the confirmation questions', 'cmd.preview.show': 'Show preview of the focused element', 'cmd.map.focusNext': 'Move to the next map element', 'cmd.map.focusPrev': 'Move to the previous map element', 'cmd.map.activate': 'Open details of the map element', 'cmd.popup.focusContent': 'Move to popup content', 'cmd.popup.close': 'Close popup',
