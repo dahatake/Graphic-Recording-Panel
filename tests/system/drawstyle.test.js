@@ -1,26 +1,26 @@
-// FR-029 AC-146（System Test。契約: tests/system/CONTRACT.md「レイアウト型・描画スタイル・設定画面」、FR-076 の追加後の 13 択は CONTRACT-STYLE-PRESET.md）
+// FR-029 AC-146（System Test。契約: tests/system/CONTRACT.md「レイアウト型・描画スタイル・設定画面」、FR-076 の追加後の 15 択（AC-670 の 2 つの風を含む）は CONTRACT-STYLE-PRESET.md）
 // 期待値は受入基準だけから決める。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp, seedThreeScenes, toDetail } from './helpers.js';
 
 const LEGACY = ['anime', 'handwritten', 'simple', 'rpg'];
-// FR-076 の 9 つの画風プリセット（3.6 の表の日本語名）
-const PRESET_LABELS = ['黄黒手書き風', '黒板風', '付箋ボード風', '色鉛筆風', 'ミント風', 'ビジネス風', 'ミニマル風', 'ポップ風', 'クラフト紙風'];
+// FR-076 の 11 の画風プリセット（3.6 の表の日本語名。AC-670 の暖色カード風・青見出し風を含む）
+const PRESET_LABELS = ['黄黒手書き風', '黒板風', '付箋ボード風', '色鉛筆風', 'ミント風', 'ビジネス風', 'ミニマル風', 'ポップ風', 'クラフト紙風', '暖色カード風', '青見出し風'];
 const allIds = (app) => app.getDrawStyles().map((s) => s.id);
 const svgTexts = (svg) => [...new Set([...svg.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((m) => m[1]))].sort();
 const snap = (app) => { const s = app.getState(); return JSON.stringify([s.utterances.map((u) => u.text), s.scenes, s.selectedSceneId, s.session, s.input.draft, app.getDetailLevel(), s.viewMode, app.getDisplayMode()]); };
 
 // FR-029 AC-146
-test('FR-029 AC-146: 描画スタイルとしてアニメ調・手書き調・シンプル・RPG風の 4 つに 9 つの画風プリセットを加えた 13 が選べ、初期は手書き調', async () => {
+test('FR-029 AC-146: 描画スタイルとしてアニメ調・手書き調・シンプル・RPG風の 4 つに 11 の画風プリセットを加えた 15 が選べ、初期は手書き調', async () => {
   const { app } = await newApp();
   app.setLang('ja');
   const list = app.getDrawStyles();
-  assert.equal(list.length, 13);
+  assert.equal(list.length, 15);
   for (const id of LEGACY) assert.ok(list.some((s) => s.id === id), id);
   assert.deepEqual(list.filter((s) => !LEGACY.includes(s.id)).map((s) => s.label).sort(), [...PRESET_LABELS].sort());
   assert.ok(list.every((s) => s.label.trim()));
-  assert.equal(new Set(list.map((s) => s.label)).size, 13);
+  assert.equal(new Set(list.map((s) => s.label)).size, 15);
   assert.equal(app.getDrawStyle(), 'handwritten');
 });
 
@@ -33,7 +33,7 @@ test('FR-029 AC-146: 切り替えると図の見た目だけが変わり、文�
   const base = { svg: app.renderSvg(), layout: JSON.stringify(app.getDiagramLayout()), out: app.renderOutline(), snap: snap(app) };
   const seen = new Set([base.svg]);
   const order = [...allIds(app).filter((id) => id !== 'handwritten'), 'handwritten'];
-  assert.equal(order.length, 13);
+  assert.equal(order.length, 15);
   for (const id of order) {
     assert.ok(app.setDrawStyle(id).ok, id);
     assert.equal(app.getDrawStyle(), id);
@@ -45,7 +45,7 @@ test('FR-029 AC-146: 切り替えると図の見た目だけが変わり、文�
     assert.equal(snap(app), base.snap, `${id}: 内容・選択・記録中の状態は保たれる`);
     seen.add(svg);
   }
-  assert.equal(seen.size, 13, '13 のスタイルで図の見た目（SVG）が異なる');
+  assert.equal(seen.size, 15, '15 のスタイルで図の見た目（SVG）が異なる');
   assert.equal(app.renderSvg(), base.svg, '手書き調に戻すと元の図');
 });
 
