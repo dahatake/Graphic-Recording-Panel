@@ -1131,10 +1131,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-053\" tests/system/rightpanel.test.js",
       "canary": false,
-      "status": "not_run",
-      "last_commit": "a349c56",
-      "last_run_at": "2026-11-05T00:37:59+09:00",
-      "evidence": "work/runs/202611042246/logs/system-test/E2E-028-202611050036.log",
+      "status": "pass",
+      "last_commit": "2330656",
+      "last_run_at": "2026-11-05T03:30:18+09:00",
+      "evidence": "work/runs/202611050120/logs/system-test/E2E-028-202611050330.log",
       "history": [
         {
           "at": "2026-10-14T04:54:49+09:00",
@@ -8382,8 +8382,8 @@
       "command": "node --test --test-name-pattern=\"AC-521\" tests/system/live.test.js",
       "canary": true,
       "status": "pass",
-      "last_commit": "70e2a0b",
-      "last_run_at": "2026-11-05T03:30:04+09:00",
+      "last_commit": "2330656",
+      "last_run_at": "2026-11-05T03:30:18+09:00",
       "evidence": "work/runs/202611050120/logs/system-test/E2E-259-202611050330.log",
       "history": [
         {
@@ -8419,10 +8419,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-523|AC-671\" tests/system/live.test.js",
       "canary": false,
-      "status": "not_run",
-      "last_commit": "a349c56",
-      "last_run_at": "2026-11-05T00:37:59+09:00",
-      "evidence": "work/runs/202611042246/logs/system-test/E2E-260-202611050037.log",
+      "status": "pass",
+      "last_commit": "2330656",
+      "last_run_at": "2026-11-05T03:30:18+09:00",
+      "evidence": "work/runs/202611050120/logs/system-test/E2E-260-202611050330.log",
       "history": [
         {
           "at": "2026-10-26T11:35:21+09:00",
@@ -9412,10 +9412,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-676|AC-679\" tests/system/showaudio.test.js",
       "canary": false,
-      "status": "not_run",
-      "last_commit": null,
-      "last_run_at": null,
-      "evidence": null,
+      "status": "pass",
+      "last_commit": "2330656",
+      "last_run_at": "2026-11-05T03:30:18+09:00",
+      "evidence": "work/runs/202611050120/logs/system-test/E2E-291-202611050330.log",
       "history": [
         {
           "at": "2026-11-05T01:45:32+09:00",
