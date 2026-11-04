@@ -190,6 +190,7 @@ export function boardNamesOutline(html, board, t) {
     const [o, c] = t.paren ?? ['（', '）'];
     out = `${out.slice(0, end)} <span class="outline-speaker" data-speaker-of="${escapeHtml(pid)}">${o}${escapeHtml(t.said)}: ${escapeHtml(name)}${c}</span>${out.slice(end)}`;
   }
-  const line = members.length ? `<p class="outline-members" data-board-members>${escapeHtml(t.members)}: ${members.map(escapeHtml).join('、')}</p>` : '';
+  // AC-529: 行単位で読んでも「参加メンバー: 名前、…」が 1 行になるよう、改行で前後と区切る（Markdown の行と同じ文字）
+  const line = members.length ? `<p class="outline-members" data-board-members>\n${escapeHtml(t.members)}: ${members.map(escapeHtml).join('、')}\n</p>\n` : '';
   return line + out;
 }

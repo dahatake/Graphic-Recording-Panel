@@ -61,7 +61,7 @@ test('FR-114 AC-668 AC-630: boardLayout は名前を参加メンバーの人物�
 test('FR-114 AC-668 (d): テキスト一覧に「参加メンバー: 名前、…」の 1 行と、ステップの最初の要点の行に「（発言: 名前）」を足す', () => {
   const board = { sections: [{ elements: [{ part: 'person', member: true, name: 'A' }, { part: 'person', member: true, name: 'B' }] }, { elements: [{ part: 'person', speaker: true, name: '山田', firstPointId: 'p1' }] }] };
   const html = boardNamesOutline('<ol><li data-point-id="p1" tabindex="0">x</li><li data-point-id="p2" tabindex="0">y</li></ol>', board, { members: '参加メンバー', said: '発言' });
-  assert.match(html, /^<p class="outline-members" data-board-members>参加メンバー: A、B<\/p>/);
+  assert.match(html, /^<p class="outline-members" data-board-members>\n参加メンバー: A、B\n<\/p>\n/); // AC-529: 行単位で Markdown と比べられる 1 行
   assert.match(html, /<li data-point-id="p1" tabindex="0">x <span class="outline-speaker" data-speaker-of="p1">（発言: 山田）<\/span><\/li><li data-point-id="p2" tabindex="0">y<\/li>/);
 });
 
@@ -207,7 +207,17 @@ test('FR-114 AC-668 (d) AC-680: Markdown の保存はテキスト一覧と同じ
   const shown = await md();
   assert.match(app.renderOutline(), /参加メンバー: 鈴木一郎、山田太郎、佐藤花子/);
   assert.match(shown, /\n参加メンバー: 鈴木一郎、山田太郎、佐藤花子\n/);
-  assert.match(shown, /画面の色について話しました （発言: 山田太郎）/);
+  assert.match(shown, /\n- 画面の色について話しました （発言: 山田太郎）\n/); // AC-529: 冒頭の「- 要点 （発言: 名前）」の行
+  // AC-529: 名前の行はテキスト一覧の行と同じ文字（行単位）で、「（発言: 名前）」は一覧と同じ順・同じ数（要点の行への添え書きはしない）
+  const memberLine = (s) => s.split(/\r?\n/).map((l) => l.replace(/^[\s>*\-#]+/, '').trim()).find((l) => /^参加メンバー\s*[:：]/.test(l)) ?? null;
+  const said = (s) => [...s.matchAll(/[（(]発言\s*[:：]\s*([^）)]+)[）)]/g)].map((m) => m[1].trim());
+  assert.equal(memberLine(shown), memberLine(app.renderOutline()));
+  assert.deepEqual(said(shown), said(app.renderOutline()));
+  assert.equal(app.setDetailLevel('major').ok ?? true, true); // 詳細度によらず載る
+  const brief = await md();
+  assert.equal(memberLine(brief), memberLine(app.renderOutline()));
+  assert.deepEqual(said(brief), said(app.renderOutline()));
+  app.setDetailLevel('detail');
   assert.equal(app.setHideNames(true).ok, true);
   const hidden = await md();
   for (const n of ['鈴木一郎', '山田太郎', '佐藤花子']) { assert.ok(!hidden.includes(n), `隠す: Markdown に「${n}」なし`); assert.ok(!app.renderOutline().includes(n)); }

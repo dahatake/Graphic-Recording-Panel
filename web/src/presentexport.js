@@ -169,19 +169,21 @@ export function presentExportModule(ctx) {
     const texts = ctx.state.scenes.flatMap((s) => s.points).filter((p) => ids.has(p.id)).map((p) => p.text);
     return m ? { minutes: m, reviewTexts: texts, review } : { review };
   };
-  // FR-114 AC-668 (d)（決定 2026-11-05）: Markdown はテキスト一覧と同じ名前を載せる（参加メンバーの行と、ステップの最初の要点の「（発言: 名前）」）。名前を隠すときは載せない
-  const withBoardNames = (scenes) => {
+  // FR-114 AC-668 (d)・AC-529（決定 2026-11-05。最終監査 202611050444 C-02）: Markdown はテキスト一覧と同じ名前を載せる。
+  // 詳細度によらず、見出しの直後に「参加メンバー: 名前、…」の行と、「- 要点 （発言: 名前）」の行（要点の順）を置く。要点の行には添え書きしない。名前を隠すときは載せない
+  const boardNamesBlock = (scenes) => {
     const nn = api.getBoardNameNotes?.() ?? null;
-    if (!nn) return { scenes, line: '' };
-    return { scenes: scenes.map((s) => ({ ...s, points: s.points.map((p) => (nn.saidOf.has(p.id) ? { ...p, text: `${p.text} ${nn.saidOf.get(p.id)}` } : p)) })), line: nn.membersLine };
+    if (!nn) return '';
+    const said = scenes.flatMap((s) => s.points).filter((p) => nn.saidOf.has(p.id)).map((p) => `- ${String(p.text ?? '').replace(/\s+/g, ' ').trim()} ${nn.saidOf.get(p.id)}`);
+    return [nn.membersLine, ...said].filter(Boolean).join('\n');
   };
-  const addMembersLine = (md, line) => (line ? String(md).replace(/^(# [^\n]*\n)/, (m) => `${m}\n${line}\n`) : md);
-  ctx.registerCommand('save.markdown', () => run('md', 'text/markdown', () => { const bn = withBoardNames(ctx.state.scenes); return addMembersLine(buildMarkdown({
-    scenes: bn.scenes, topics: api.getTopics?.() ?? [], relations: api.getOutlineRelations?.() ?? [],
+  const addNamesBlock = (md, block) => (block ? String(md).replace(/^(# [^\n]*\n)/, (m) => `${m}\n${block}\n`) : md);
+  ctx.registerCommand('save.markdown', () => run('md', 'text/markdown', () => addNamesBlock(buildMarkdown({
+    scenes: ctx.state.scenes, topics: api.getTopics?.() ?? [], relations: api.getOutlineRelations?.() ?? [],
     level: api.getDetailLevel?.() ?? 'detail', title: meetingTitle(), meta: meetingMeta(), lang: ctx.state.lang,
     kindOf: classifyPoint, noneLabel: ctx.t('present.none'), ...minutesArgs(), gauges: api.getGaugeLines?.() ?? null,
     labels: { decisions: ctx.t('present.decisions'), actions: ctx.t('present.actions'), untitled: ctx.t('present.untitled'), review: ctx.t('minutes.review'), gauges: ctx.t('gauge.heading') },
-  }), bn.line); }));
+  }), boardNamesBlock(ctx.state.scenes))));
   ctx.registerCommand('save.html', () => run('html', 'text/html', () => buildHtml({
     scenes: ctx.state.scenes, topics: api.getTopics?.() ?? [], lang: ctx.state.lang, title: meetingTitle(), meta: meetingMeta(), ...minutesArgs(), gauges: api.getGaugeLines?.() ?? null,
     labels: { auto: ctx.t('present.auto'), hint: ctx.t('present.hint'), untitled: ctx.t('present.untitled'), none: ctx.t('present.none'), review: ctx.t('minutes.review'), gauges: ctx.t('gauge.heading') },
