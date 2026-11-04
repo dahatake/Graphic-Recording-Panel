@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { newApp, seedThreeScenes, toDetail, WEB } from './helpers.js';
 import { LEGACY, PRESETS, FONTS, parseSvg, fontList, presetIds, stateTexts } from './stylepreset-util.js';
-import { YU, PARAM_093, TRADITIONAL, expectedStack, expectedFamilyStack, allowedFamilyNames, assertJpOrder, familiesOfFont, makeRecordingCanvas, withNetSpy, cssFontStacks } from './jpfont-util.js';
+import { YU, PARAM_093, PARAM_185, JP_HEAD, TRADITIONAL, expectedStack, expectedFamilyStack, allowedFamilyNames, assertJpOrder, familiesOfFont, makeRecordingCanvas, withNetSpy, cssFontStacks } from './jpfont-util.js';
 
 const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
 const read = (f) => fs.readFileSync(f, 'utf8');
@@ -102,17 +102,17 @@ const REG = (id, font, balloon) => ({
 });
 
 // NFR-UX-012 AC-466
-test('NFR-UX-012 AC-466: 書体の系統の並びは 欧文専用の書体（従来の順）→ Yu Gothic UI → 従来の並びの残り（従来の順）', async () => {
+test('NFR-UX-012 AC-466: 書体の系統の並びは 欧文専用の書体（従来の順）→ Yu Gothic UI → 従来の並びの残り（従来の順）（手書き風の系統は欧文専用の書体の直後・Yu Gothic UI の直前に PARAM-185）', async () => {
   const { app } = await newApp();
   const st = app.getFontStacks();
   for (const k of FONTS) {
     const names = st[k].map((f) => f.name);
-    assertJpOrder(names, k);
+    assertJpOrder(names, k, JP_HEAD[k] || []);
     assert.deepEqual(names, expectedFamilyStack(k), `${k}: ${names.join(', ')}`);
   }
-  // 例: ゴシックの系統は Yu Gothic UI が先頭、手書き風の系統は欧文専用の書体の次に Yu Gothic UI
+  // 例: ゴシックの系統は Yu Gothic UI が先頭、手書き風の系統は欧文専用の書体の次に PARAM-185（Q-046 B）、その次に Yu Gothic UI
   assert.equal(st.gothic[0].name, YU);
-  assert.deepEqual(st.handwriting.slice(0, 4).map((f) => f.name), ['Segoe Print', 'Ink Free', 'Arial Rounded MT Bold', YU]);
+  assert.deepEqual(st.handwriting.slice(0, 7).map((f) => f.name), ['Segoe Print', 'Ink Free', 'Arial Rounded MT Bold', ...PARAM_185, YU]);
   assert.deepEqual(st.roundGothic.slice(0, 2).map((f) => f.name), ['Arial Rounded MT Bold', YU]);
   for (const k of FONTS) assert.ok(st[k].every((f) => f.name === YU || PARAM_093.includes(f.name) || allowedFamilyNames(k).includes(f.name)), `${k}: 書体を足さない（AC-670 の 3 書体を除く）`);
 });
@@ -131,7 +131,7 @@ test('NFR-UX-012 AC-466: 15 の描画スタイルと拡張点で追加した画�
     const lists = ffAll(svg);
     assert.ok(lists.length >= 1, `${s.id}: 図に書体の指定がある`);
     assert.deepEqual(fontList(parseSvg(svg).root.attrs['font-family']), want, `${s.id}: ルートの書体の指定`);
-    for (const l of lists) { assertJpOrder(l, `${s.id} の図`); assert.deepEqual(l, want, `${s.id}: 図の中の書体の指定も同じ並び`); }
+    for (const l of lists) { assertJpOrder(l, `${s.id} の図`, spec && spec.preset ? (JP_HEAD[spec.font] || []) : []); assert.deepEqual(l, want, `${s.id}: 図の中の書体の指定も同じ並び`); }
     if (spec && spec.preset) assert.deepEqual(st[spec.font].map((f) => f.name), want);
   }
   for (const id of LEGACY) assert.equal(fontList(parseSvg((app.setDrawStyle(id), app.renderSvg())).root.attrs['font-family'])[0], YU, `${id}: 既存の 4 つは Yu Gothic UI が先頭`);
@@ -153,7 +153,7 @@ test('NFR-UX-012 AC-466: PNG・SVG・PDF の保存と RPG風の地図など Canv
     for (const l of ffAll(String(dl[1].data))) assert.deepEqual(l, want, `${id}: 保存した SVG の書体の指定`);
     const fonts = canvas.log.fonts.slice(nFonts);
     assert.ok(fonts.length >= 1, `${id}: PNG・PDF の文字に書体の指定がある`);
-    for (const f of fonts) { const l = familiesOfFont(f); assertJpOrder(l, `${id} の Canvas の書体「${f}」`); assert.deepEqual(l, want, `${id}: Canvas の書体の並び`); }
+    for (const f of fonts) { const l = familiesOfFont(f); assertJpOrder(l, `${id} の Canvas の書体「${f}」`, spec && spec.preset ? (JP_HEAD[spec.font] || []) : []); assert.deepEqual(l, want, `${id}: Canvas の書体の並び`); }
   }
   // RPG風の地図（キャンバスに描く文字）
   assert.equal(app.setDrawStyle('rpg').ok, true);
@@ -202,7 +202,8 @@ test('NFR-UX-012 AC-466: 図・Canvas（RPG風の地図を含む）を描くス�
       const list = familiesOfFont(v);
       if (!list.some((n) => /sans-serif|serif|system-ui|monospace|cursive/.test(n))) continue;
       found.push(path.relative(WEB, f));
-      assertJpOrder(list, `${path.relative(WEB, f)}「${raw}」`);
+      // 手書き風の系統の並び（PARAM-185 を含む）は AC-466 の例外の形（欧文専用の書体の直後・Yu Gothic UI の直前）を求める
+      assertJpOrder(list, `${path.relative(WEB, f)}「${raw}」`, list.some((n) => PARAM_185.includes(n)) ? PARAM_185 : []);
     }
   }
   assert.ok(found.length >= 1, '図・Canvas の書体の指定が見つかる');
