@@ -41,8 +41,8 @@ const LABELS = {
 };
 export const labelKey = (command) => `label.${command}`;
 
-// 主要コマンド（Fluent の primary ボタン）。それ以外は subtle。
-export const PRIMARY = new Set(['session.start', 'session.resume']);
+// FR-072 AC-647: 塗りつぶしの主要コマンドは持たない。全コマンドが未押下は同じ見た目（btn-subtle）で、
+// 押下の視覚は aria-pressed="true" のときだけ付く。
 
 const P = {
   rec: 'M10 4a6 6 0 1 0 0 12 6 6 0 0 0 0-12Z',
