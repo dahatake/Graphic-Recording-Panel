@@ -6,7 +6,7 @@ import { assignSection, actionFields, boardLayout, boardSvg, boardColors, partKi
 import { parseSections } from '../../web/src/llmdraw.js';
 import { selectLayoutTypes } from '../../web/src/autolayout.js';
 import { createDrawStyleRegistry } from '../../web/src/drawstyles.js';
-import { contrastRatio } from '../../web/src/stylepresets.js';
+import { contrastRatio, boardFrameLook } from '../../web/src/stylepresets.js';
 import { LAYOUT_TYPE_IDS, LAYOUT_TYPE_META } from '../../web/src/layouttypes.js';
 
 const sec = (text, llm) => assignSection({ text }, { llm }).section;
@@ -169,11 +169,15 @@ test('FR-114 AC-666: どの描画スタイルでも見出し・ラベル・表�
     assert.ok(contrastRatio(C.badgeInk, C.line) >= 4.5, `${id}: 番号バッジ`);
     if (C.marker) assert.ok(contrastRatio(C.ink, C.marker) >= 4.5, `${id}: マーカー`);
     const svg = boardSvg(L, { style: spec, drawStyle: id });
-    assert.match(svg, /data-board-frame="rounded"/);
+    // FR-076 AC-670: boardFrame: 'cloud' の組み込みの描画スタイル（青見出し風など）は雲形、それ以外は角丸
+    const look = boardFrameLook(spec);
+    assert.match(svg, new RegExp(`data-board-frame="${look ? 'cloud' : 'rounded'}"`), `${id}: 区画の枠の形`);
+    if (look) assert.ok(contrastRatio(look.text, look.fill) >= 4.5, `${id}: 雲形の枠の上の文字`);
   }
+  assert.ok(reg.ids().some((id) => boardFrameLook(reg.spec(id))), '雲形の枠を持つ組み込みの描画スタイルがある（AC-670）');
   const cloud = boardSvg(L, { style: { ...reg.spec('stickyNotes'), boardFrame: 'cloud' } });
   assert.match(cloud, /data-board-frame="cloud"/);
-  assert.ok((cloud.match(/<path d="M[^"]*Q[^"]*Z" fill=/g) || []).length >= 9, '9 つの区画が雲形の枠');
+  assert.ok((cloud.match(/<path d="M[^"]*A[^"]*Z" fill=/g) || []).length >= 9, '9 つの区画が雲形の枠');
 });
 
 // FR-114 AC-664 / FR-027 AC-139 / FR-028: 7 つ目の型として他の型と同じ扱いで選べ、自動選択では選ばれない
