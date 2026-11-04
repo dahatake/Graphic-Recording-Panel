@@ -48,4 +48,4 @@ System Test（台帳）に入れるのは system の AC の AC-560（全出力�
 - 保存・復元・初期化（AC-559・AC-659 d）: `grp.session`・`file.save` / `loadSessionFile` に `titleInfo.speaker` が含まれ、再読込・読込の後に復元され、`data.reset`（確認 `confirm`）で `''` に戻る。
 - 生成 AI・画像プロンプト（AC-358・AC-659 e）: `/api/llm/extract` ほかの中継への要求の本文（`relay` の `calls` の `body` 全体）に名前を含めない。`app.getImagePrompt({ mask: true|false }).text` に名前を含めない（伏せ字の対象外）。名前の入力・表示・保存の間、`fetch`・`XMLHttpRequest`・`WebSocket`・`EventSource`・`sendBeacon` の呼び出しは 0 件。
 - 機密の要点を除く保存（AC-606・AC-659 f）: `setExcludeConfidential(true)` でも名前は 5 形式の出力にそのまま残り、`getSaveWarnings()`（文字の配列）に「登壇者名」を含む警告が 1 つ以上ある（自由入力は機密の判定の対象外。名前を入力しているとき）。
-- 話者名を含まない出力（AC-529）: 取込んだ話者名（AC-117）は Markdown に載らないが、手入力の登壇者名は載る（別のもの）。
+- 話者名を含まない出力（AC-529）: 取込んだ話者名（AC-117）は Markdown に載らないが、手入力の登壇者名は載る（別のもの）。例外（2026-11-05 最終監査 202611050444 C-02）: 会議ボード型で名前を表示する設定（`getHideNames() === false`）の間は、参加者名簿と .vtt の話者タグの名前（AC-668）がテキスト一覧と同じ「参加メンバー: 名前、…」の行と「（発言: 名前）」として Markdown に載る（テキスト一覧と一致。CONTRACT-BOARD.md「人物の名前」）。`setHideNames(true)` のときと会議ボード型以外の型では載らない。画像生成プロンプト（`getImagePrompt`）には、名前を表示する設定・伏せ字の選択によらず名前は入らない。
