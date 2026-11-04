@@ -11,7 +11,7 @@ import {
   rgb, lum, contrast, isYellow, isBlack, isGray, isBlackOrGray, isWhite, isNeutral,
   parseSvg, box, overlapArea, descendants, median, fontList, svgTextSet, presetIds, seededApp, usePreset, pointsOf, stateTexts,
 } from './stylepreset-util.js';
-import { YU, TRADITIONAL, expectedStack, assertJpOrder } from './jpfont-util.js';
+import { YU, TRADITIONAL, expectedStack, expectedFamilyStack, assertJpOrder } from './jpfont-util.js';
 
 const YB = '黄黒手書き風';
 // 感情語を含むトピックの吹き出し（data-balloon-kind="emotion"。AC-467 で詳しく確かめる。Q-026 A の data-emotional="true" も同じ扱い）と通常の吹き出し
@@ -25,12 +25,12 @@ function assertKindOrder(stack, family, where) {
   const jp = stack.slice(i + 1).map((f) => f.kind).join(' ');
   if (family === 'handwriting') {
     assert.match(latin, /^(handwriting )*(roundGothic )*$/, `${where}: 欧文専用の書体の中で手書き風→丸ゴシック: ${latin}`);
-    assert.match(jp, /^(handwriting )+(roundGothic )+generic$/, `${where}: 手書き風→丸ゴシック→標準: ${jp}`);
+    assert.match(jp, /^(handwriting )+(roundGothic )+generic$/, `${where}: 手書き風（Yomogi・Zen Kurenaido・Kaisei Decol が先頭。AC-670）→丸ゴシック→標準: ${jp}`);
   } else if (family === 'roundGothic') {
     assert.match(latin, /^(roundGothic )*$/, `${where}: 欧文専用の書体は丸ゴシック: ${latin}`);
     assert.match(jp, /^(roundGothic )+generic$/, `${where}: 丸ゴシック→標準: ${jp}`);
   }
-  assert.deepEqual(stack.map((f) => f.name), expectedStack(TRADITIONAL[family]), `${where}: 従来の並びの欧文専用の書体→Yu Gothic UI→残り（NFR-UX-012）`);
+  assert.deepEqual(stack.map((f) => f.name), expectedFamilyStack(family), `${where}: 従来の並びの欧文専用の書体→Yu Gothic UI→残り（NFR-UX-012）`);
 }
 const GOLDEN = path.join(ROOT, 'tests', 'system', 'golden', 'fr075-legacy');
 const nl = (s) => String(s).replace(/\r\n/g, '\n');

@@ -80,7 +80,7 @@ test('FR-077 AC-414: 項目をクリックすると描画スタイルが切り�
     assert.match(app.renderSvg(), new RegExp(`data-draw-style="${target}"`));
     assert.deepEqual(pressedIds(app), [target], '印は選んだ項目へ移る');
     assert.ok(setItem(app, target).selectedMark);
-    assert.equal(styleItems(app).filter((i) => i.pressed === false && i.selectedMark === null).length, 12);
+    assert.equal(styleItems(app).filter((i) => i.pressed === false && i.selectedMark === null).length, styleItems(app).length - 1, '押されていない項目は登録数 - 1（15 なら 14）');
     assert.ok(app.getState().message.text.includes(labelOf(app, target)), '選んだ結果が読み上げ対象のメッセージで示される');
     assert.equal(app.getCommandBar().status.role, 'status');
   }
