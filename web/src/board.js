@@ -41,6 +41,8 @@ const L10N = (lang) => (lang === 'en' ? 'en' : 'ja');
 export const DECISION_WORDS = ['決まりました', '決めました', '決定', '確定', '承認', '合意', '採用する', 'に決めた', 'agreed', 'decided'];
 export const ACTION_WORDS = ['お願いします', 'してください', '対応する', 'やります', '確認します', '共有します', '調整します', '対応します', '連絡します', 'までに', '担当', 'TODO', 'action item'];
 export const PENDING_WORDS = ['保留', '未定', '持ち帰り', '次回', '検討中', 'pending', 'TBD'];
+// 否定・先送りの言い回し（決定・行動の語より先に判定する。部分一致・大文字小文字を区別しない）
+export const NEGATION_WORDS = ['未決定', '未決', '未定', '保留', '決まらない', '決まらなかった', '決まっていない', '決められない', '決めかね', '次回まで', '持ち帰り', '先送り', '検討中', '未確認', 'pending', 'TBD', 'undecided', 'not decided'];
 // PARAM-131（質問）: 日本語は部分一致、英語の語は単語単位
 const QUESTION_RE = /[?？]|でしょうか|ですか|ますか|ませんか|でしょう|(?<![a-z0-9])(why|how|what)(?![a-z0-9])/i;
 // PARAM-178（区画ごとの言い回し）: 日本語は部分一致、英語は単語単位。判定の順は 目的・背景→最終的に目指す姿→参加メンバー→主要テーマ→メモ・補足
@@ -56,7 +58,7 @@ const esc = (w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const isAscii = (w) => /^[\x20-\x7e]+$/.test(w);
 const reOf = (words, wordBoundary) => new RegExp(words.map((w) => (wordBoundary && isAscii(w) ? `(?<![a-z0-9])${esc(w)}(?![a-z0-9])` : esc(w))).join('|'), 'gi');
 const RE = {
-  decision: reOf(DECISION_WORDS, false), action: reOf(ACTION_WORDS, false), pending: reOf(PENDING_WORDS, false),
+  decision: reOf(DECISION_WORDS, false), action: reOf(ACTION_WORDS, false), pending: reOf(PENDING_WORDS, false), negation: reOf(NEGATION_WORDS, false),
   ...Object.fromEntries(Object.entries(SECTION_WORDS).map(([k, ws]) => [k, reOf(ws, true)])),
 };
 const matches = (re, text) => [...String(text ?? '').matchAll(re)].map((m) => m[0]);
@@ -80,6 +82,8 @@ export function assignSection(point, opts = {}) {
   const out = (section, rule) => ({ section, rule, emphasis, kind });
   const llm = normalizeSection(opts.llm?.section);
   if (llm) return out(llm, 1);
+  // 否定・先送りの言い回しは「決定」「確認」などの部分一致より先に判定して未決事項へ（「決定は次回まで保留」「未決定」）
+  if (matches(RE.negation, text).length) return out('open', 4);
   if (kind === 'conclusion' || matches(RE.decision, text).length) return out('decisions', 2);
   if (kind === 'action' || matches(RE.action, text).length) return out('actions', 3);
   if (kind === 'undecided' || kind === 'question' || matches(RE.pending, text).length || QUESTION_RE.test(text)) return out('open', 4);
@@ -133,6 +137,9 @@ const GRID = [
   [['themes', 0, 2], ['open', 2, 1]],
   [['actions', 0, 2], ['memo', 2, 1]],
 ];
+// FR-079 AC-669: 区画の容量の刻み（行 3 つ分）。容量は中身の高さだけで決まる（決定的・冪等。AC-434・AC-432 (c)）。空の区画は EMPTY_BODY のまま
+export const SLACK = ROW * 3;
+export const capacity = (h) => (h <= EMPTY_BODY ? EMPTY_BODY : Math.ceil(h / SLACK) * SLACK);
 const chunk = (arr, n) => { const out = []; for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; };
 const label = (e, maxPx) => { const shown = fit(e.label, maxPx, FS); return { text: shown, full: e.label, emph: emphOf(shown, e.emphasis, FS) }; };
 
@@ -255,7 +262,8 @@ export function boardLayout(input, opts = {}) {
       const c = content(id, x + PAD, top + HEAD + 8, w - PAD * 2);
       return { id, x, w, c };
     });
-    const h = Math.max(...cells.map((cl) => HEAD + 8 + cl.c.h + PAD));
+    // AC-669: 枠の中身の高さは SLACK 刻みの容量に切り上げる。中身が容量に収まる間は枠もほかの区画も動かず、あふれたときだけ大きくなる
+    const h = Math.max(...cells.map((cl) => HEAD + 8 + capacity(cl.c.h) + PAD));
     for (const cl of cells) {
       const def = SECTIONS.find((s) => s.id === cl.id);
       sections.push({ id: cl.id, name: def[lang], icon: def.icon, frame: { x: cl.x, y: top, w: cl.w, h }, headingRect: { x: cl.x + 8, y: top + 6, w: cl.w - 16, h: HEAD - 10 }, count: by[cl.id].length, elements: cl.c.els, subgroups: cl.c.subs });
@@ -286,11 +294,21 @@ export function boardColors(spec) {
   const bandInk = pickOn(line, [bg, ink, '#ffffff', '#111111']);
   const bandFill = contrastRatio(bandInk, line) >= MIN_CONTRAST ? line : ink;
   // マーカー: アクセントを背景に混ぜた面で、文字とのコントラスト比が PARAM-007 以上のときだけ。足りなければ下線
+  // AC-670: 配色を限る定義（paletteOnly）では混ぜず、配色の黄（文字と 4.5 以上）をそのまま使う。なければ下線
   let marker = null;
-  for (const t of [0.5, 0.35, 0.25, 0.15]) { const c = mix(accent, bg, t); if (contrastRatio(ink, c) >= MIN_CONTRAST) { marker = c; break; } }
+  if (spec?.paletteOnly) marker = (p?.accent ?? []).filter((c) => isYellow(c)).find((c) => contrastRatio(ink, c) >= MIN_CONTRAST) ?? null;
+  else for (const t of [0.5, 0.35, 0.25, 0.15]) { const c = mix(accent, bg, t); if (contrastRatio(ink, c) >= MIN_CONTRAST) { marker = c; break; } }
   const under = contrastRatio(accent, bg) >= 3 ? accent : line;
-  return { bg, ink, line, accent, bandFill, bandInk: pickOn(bandFill, [bg, ink, '#ffffff', '#111111']), marker, under, badgeInk: pickOn(line, [bg, ink, '#ffffff', '#111111']) };
+  // AC-670: 見出しの帯のグラデーション（headingBand）。白抜きの文字と絵記号が、帯のどの色（最も明るい位置を含む）とも PARAM-007 以上のときだけ
+  const grad = spec?.headingBand?.gradient ?? null;
+  const gradInk = grad ? pickOn(grad.reduce((a, c) => (lum(c) > lum(a) ? c : a), grad[0]), ['#ffffff', bg, ink, '#111111']) : null;
+  const headBand = grad && grad.every((c) => contrastRatio(gradInk, c) >= MIN_CONTRAST) ? { stops: [...grad], ink: gradInk } : null;
+  const card = spec?.card?.radius > 0 ? spec.card.radius : null; // AC-670: 要点の行・吹き出しを白いカード（角の丸み）で描く
+  return { bg, ink, line, accent, bandFill, bandInk: pickOn(bandFill, [bg, ink, '#ffffff', '#111111']), marker, under, badgeInk: pickOn(line, [bg, ink, '#ffffff', '#111111']), headBand, card, paletteOnly: spec?.paletteOnly === true };
 }
+const hex = (c) => { const s = String(c).replace('#', ''); const f = s.length === 3 ? [...s].map((x) => x + x).join('') : s; return [0, 2, 4].map((i) => parseInt(f.slice(i, i + 2), 16)); };
+const lum = (c) => contrastRatio(c, '#000000'); // 黒との比は明るさの順と同じ
+const isYellow = (c) => { const [r, g, b] = hex(c); return r >= 200 && g >= 170 && b <= 120; };
 
 // ---- 描画（SVG だけ） ----
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -332,35 +350,48 @@ function labelSvg(l, x, y, C, attrs = '') {
 const arrowSvg = (el, C) => (el.dir === 'down'
   ? `<g data-board-part="arrow"><path d="M${el.x + 6} ${el.y}v${el.h - 6}M${el.x + 14} ${el.y}v${el.h - 6}M${el.x + 2} ${el.y + el.h - 8}l8 8 8-8" fill="none" stroke="${C.line}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></g>`
   : `<g data-board-part="arrow"><path d="M${el.x} ${el.y + 5}h${el.w - 6}M${el.x} ${el.y + 11}h${el.w - 6}M${el.x + el.w - 8} ${el.y}l8 8-8 8" fill="none" stroke="${C.line}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></g>`);
-const personSvg = (id, x, y, size) => `<g data-board-part="person" transform="translate(${r1(x)} ${r1(y)}) scale(${r1(size / 48 * 100) / 100})">${personGroupFor(id)}</g>`;
+// AC-670: 配色を限る定義（paletteOnly）では、人物の線画も配色の線の色と白だけで描く（暗い塗りと線は線の色、それ以外の塗りは白）
+const paletteOnlyPerson = (svg, C) => svg.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, (_, a, col) => `${a}="${a === 'stroke' || contrastRatio(col, '#000000') < 4 ? C.line : C.bg}"`);
+const personSvg = (id, x, y, size, C) => `<g data-board-part="person" transform="translate(${r1(x)} ${r1(y)}) scale(${r1(size / 48 * 100) / 100})">${C?.paletteOnly ? paletteOnlyPerson(personGroupFor(id), C) : personGroupFor(id)}</g>`;
 
+// AC-669: 出現の演出の途中（a は 0〜1）は、中心 (cx, cy) を基準にフェードと拡大（縮小した状態から 1 倍へ。外枠を越えない）
+const APPEAR_SCALE = 0.6;
+export function appearSvg(inner, a, cx, cy) {
+  if (a == null || a >= 1) return inner;
+  const s = Math.round((APPEAR_SCALE + (1 - APPEAR_SCALE) * a) * 1000) / 1000;
+  return `<g data-board-appear opacity="${Math.round(a * 1000) / 1000}" transform="translate(${r1(cx)} ${r1(cy)}) scale(${s}) translate(${r1(-cx)} ${r1(-cy)})">${inner}</g>`;
+}
 function elementSvg(el, C, tx) {
   const pid = el.pointId ? ` data-point-id="${escapeHtml(el.pointId)}"` : '';
-  const g = (inner) => `<g data-board-el="${el.id}"${pid}>${inner}</g>`;
+  const g = (inner) => `<g data-board-el="${escapeHtml(el.id)}"${pid}>${inner}</g>`;
   switch (el.part) {
     case 'check': case 'question': case 'icon': {
       if (el.word) { // 目指す姿の「現状」「目指す姿」の箱
         return g(`<rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" rx="8" fill="${C.bg}" stroke="${C.line}" stroke-width="2"/>${icon(el.icon, el.x + 8, el.y + 10, C.line)}<text x="${el.x + 34}" y="${el.y + 26}" font-size="15" font-weight="700" fill="${C.ink}">${escapeHtml(tx[el.word])}</text>`);
       }
       const ic = el.part === 'icon' ? icon(el.icon ?? 'dot', el.x, el.y + 2, C.line, 0.9) : `<g data-board-part="${el.part}" transform="translate(${el.x} ${el.y + 2}) scale(0.9)">${ICONS[el.part](C.line)}</g>`;
-      const box = el.h > ROW ? `<rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" rx="6" fill="${C.bg}" stroke="${C.line}" stroke-width="1.5"/>` : '';
+      const box = el.h > ROW ? `<rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" rx="${C.card ?? 6}" fill="${C.bg}" stroke="${C.line}" stroke-width="1.5"/>`
+        : C.card ? `<rect data-board-card x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" rx="${C.card}" fill="${C.bg}" stroke="${C.line}" stroke-width="1.2"/>` : '';
       const ix = el.h > ROW ? el.x + 6 : el.x; const iy = el.h > ROW ? el.y + 6 : el.y;
-      const ic2 = el.h > ROW ? icon(el.icon ?? 'dot', ix, iy + 2, C.line, 0.9) : ic;
+      const ic2 = el.h > ROW ? icon(el.icon ?? 'dot', ix, iy + 2, C.line, 0.9) : C.card ? (el.part === 'icon' ? icon(el.icon ?? 'dot', el.x + 3, el.y + 2, C.line, 0.9) : `<g data-board-part="${el.part}" transform="translate(${el.x + 3} ${el.y + 2}) scale(0.9)">${ICONS[el.part](C.line)}</g>`) : ic;
       return g(`${box}${ic2}${labelSvg(el, ix + 24, iy + 16, C)}`);
     }
     case 'person': {
       if (el.text != null) { // 参加メンバー: 人物の絵記号の並びと、要点の文字
-        const ps = Array.from({ length: el.persons }, (_, i) => personSvg(`${el.pointId}:${i}`, el.x + i * 44, el.y, 40)).join('');
+        const ps = Array.from({ length: el.persons }, (_, i) => personSvg(`${el.pointId}:${i}`, el.x + i * 44, el.y, 40, C)).join('');
         return g(`${ps}${labelSvg(el, el.x, el.y + 58, C)}`);
       }
-      return g(personSvg(String(el.seed), el.x, el.y, el.w));
+      return g(personSvg(String(el.seed), el.x, el.y, el.w, C));
     }
     case 'badge':
       return g(`<g data-board-part="badge"><circle cx="${el.x + 14}" cy="${el.y + 14}" r="13" fill="${C.line}"/><text x="${el.x + 14}" y="${el.y + 19}" font-size="15" font-weight="800" text-anchor="middle" fill="${C.badgeInk}">${el.n}</text></g>`);
     case 'bubble': {
       const d = `M${el.x + 10} ${el.y}H${el.x + el.w}V${el.y + el.h}H${el.x + 10}V${el.y + 22}L${el.x} ${el.y + 16}L${el.x + 10} ${el.y + 10}Z`;
-      const lines = el.lines.map((l, i) => `<g data-point-id="${escapeHtml(l.pointId)}">${labelSvg(l, el.x + 20, el.y + 22 + i * 20, C)}</g>`).join('');
-      return `<g data-board-el="${el.id}" data-board-step="${el.step}"><path data-board-part="bubble" d="${d}" fill="${C.bg}" stroke="${C.line}" stroke-width="2" stroke-linejoin="round"/>${lines}</g>`;
+      const lines = el.lines.map((l, i) => appearSvg(`<g data-point-id="${escapeHtml(l.pointId)}">${labelSvg(l, el.x + 20, el.y + 22 + i * 20, C)}</g>`, l.appear, el.x + 20, el.y + 16 + i * 20)).join('');
+      const body = C.card // AC-670: 白いカード（角の丸み card.radius）の吹き出し
+        ? `<rect data-board-part="bubble" data-board-card x="${el.x + 10}" y="${el.y}" width="${el.w - 10}" height="${el.h}" rx="${C.card}" fill="${C.bg}" stroke="${C.line}" stroke-width="2"/><path d="M${el.x + 10} ${el.y + 10}L${el.x} ${el.y + 16}L${el.x + 10} ${el.y + 22}" fill="${C.bg}" stroke="${C.line}" stroke-width="2" stroke-linejoin="round"/>`
+        : `<path data-board-part="bubble" d="${d}" fill="${C.bg}" stroke="${C.line}" stroke-width="2" stroke-linejoin="round"/>`;
+      return `<g data-board-el="${escapeHtml(el.id)}" data-board-step="${el.step}">${body}${lines}</g>`;
     }
     case 'arrow': return g(arrowSvg(el, C));
     case 'table': {
@@ -368,10 +399,10 @@ function elementSvg(el, C, tx) {
       const head = [tx.no, tx.content, tx.owner, tx.due].map((h, i) => `<text x="${xs[i] + 6}" y="${el.y + 18}" font-size="${FS}" font-weight="800" fill="${C.ink}">${escapeHtml(h)}</text>`).join('');
       const rows = el.rows.map((r, i) => {
         const y = el.y + ROW * (i + 1);
-        return `<g data-point-id="${escapeHtml(r.pointId)}" data-board-row="${r.no}"><path d="M${el.x} ${y}h${el.w}" stroke="${C.line}" stroke-width="1"/>`
+        return appearSvg(`<g data-point-id="${escapeHtml(r.pointId)}" data-board-row="${r.no}"><path d="M${el.x} ${y}h${el.w}" stroke="${C.line}" stroke-width="1"/>`
           + `<text x="${xs[0] + 6}" y="${y + 18}" font-size="${FS}" fill="${C.ink}">${r.no}</text>${labelSvg(r, xs[1] + 6, y + 18, C)}`
           + `<text x="${xs[2] + 6}" y="${y + 18}" font-size="${FS}" fill="${C.ink}">${escapeHtml(fit(r.owner ?? tx.tbd, c2 - 10, FS))}</text>`
-          + `<text x="${xs[3] + 6}" y="${y + 18}" font-size="${FS}" fill="${C.ink}">${escapeHtml(fit(r.due ?? tx.tbd, el.cols[3] - 10, FS))}</text></g>`;
+          + `<text x="${xs[3] + 6}" y="${y + 18}" font-size="${FS}" fill="${C.ink}">${escapeHtml(fit(r.due ?? tx.tbd, el.cols[3] - 10, FS))}</text></g>`, r.appear, el.x + el.w / 2, y + ROW / 2);
       }).join('');
       const vlines = xs.slice(1).map((x) => `<path d="M${x} ${el.y}v${el.h}" stroke="${C.line}" stroke-width="1"/>`).join('');
       return g(`<g data-board-part="table"><rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="${C.bg}" stroke="${C.line}" stroke-width="1.6"/><path d="M${el.x} ${el.y + ROW}h${el.w}" stroke="${C.line}" stroke-width="2"/>${vlines}${head}${rows}</g>`);
@@ -390,12 +421,16 @@ export function boardSvg(L, opts = {}) {
   const attrs = [`data-draw-style="${escapeHtml(opts.drawStyle ?? 'handwritten')}"`, `data-board-frame="${shape}"`];
   if (opts.types) attrs.push(`data-layout-types="${escapeHtml(opts.types.join(' '))}"`, `data-layout-head="${BOARD_TYPE_ID}"`);
   const out = [`<rect data-board-paper x="0" y="0" width="${m.canvas.w}" height="${m.canvas.h}" fill="${C.bg}"/>`];
+  // AC-670: 見出しの帯のグラデーション（headingBand）。タイトル帯と区画の見出しを帯で塗り、文字と絵記号は白抜き
+  const HB = C.headBand;
+  if (HB) out.push(`<defs><linearGradient id="board-head-band" x1="0" y1="0" x2="1" y2="0">${HB.stops.map((c, i) => `<stop offset="${r1(i / (HB.stops.length - 1))}" stop-color="${c}"/>`).join('')}</linearGradient></defs>`);
+  const bandFill = HB ? 'url(#board-head-band)' : C.bandFill; const bandInk = HB ? HB.ink : C.bandInk;
   if (m.band) {
     const b = m.band;
-    out.push(`<g data-board-part="title"><rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="12" fill="${C.bandFill}"/>`
-      + (b.title ? `<text x="${b.x + 20}" y="${b.y + 36}" font-size="26" font-weight="800" fill="${C.bandInk}">${escapeHtml(b.title)}</text>` : '')
-      + (b.subtitle ? `<text x="${b.x + 20}" y="${b.y + 62}" font-size="15" fill="${C.bandInk}">${escapeHtml(b.subtitle)}</text>` : '')
-      + (b.date ? `<text x="${b.x + b.w - 20}" y="${b.y + 36}" font-size="15" font-weight="700" text-anchor="end" fill="${C.bandInk}">${escapeHtml(b.date)}</text>` : '')
+    out.push(`<g data-board-part="title"><rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="12" fill="${bandFill}"/>`
+      + (b.title ? `<text x="${b.x + 20}" y="${b.y + 36}" font-size="26" font-weight="800" fill="${bandInk}">${escapeHtml(b.title)}</text>` : '')
+      + (b.subtitle ? `<text x="${b.x + 20}" y="${b.y + 62}" font-size="15" fill="${bandInk}">${escapeHtml(b.subtitle)}</text>` : '')
+      + (b.date ? `<text x="${b.x + b.w - 20}" y="${b.y + 36}" font-size="15" font-weight="700" text-anchor="end" fill="${bandInk}">${escapeHtml(b.date)}</text>` : '')
       + '</g>');
   }
   for (const s of m.sections) {
@@ -404,10 +439,12 @@ export function boardSvg(L, opts = {}) {
     // 雲形の枠（黄の面）の上の文字は、枠の配色の文字の色（黄の面と白い面の両方で PARAM-007 以上のときだけ）
     const SC = look && contrastRatio(look.text, look.fill) >= MIN_CONTRAST && contrastRatio(look.text, C.bg) >= MIN_CONTRAST ? { ...C, ink: look.text } : C;
     // 見出しの絵記号は枠と見出しの一部（部品「絵記号」は要点のある区画にだけ現れる）
-    const head = `<g data-board-heading-icon="${s.icon}" transform="translate(${f.x + 12} ${f.y + 8})">${ICONS[s.icon](C.line)}</g><text data-board-heading x="${f.x + 40}" y="${f.y + 25}" font-size="16" font-weight="800" fill="${SC.ink}">${escapeHtml(s.name)}</text>`
+    const head = HB
+      ? `<rect data-board-heading-band x="${f.x + 8}" y="${f.y + 6}" width="${f.w - 16}" height="${HEAD - 10}" rx="6" fill="${bandFill}"/><g data-board-heading-icon="${s.icon}" transform="translate(${f.x + 12} ${f.y + 8})">${ICONS[s.icon](bandInk)}</g><text data-board-heading x="${f.x + 40}" y="${f.y + 25}" font-size="16" font-weight="800" fill="${bandInk}">${escapeHtml(s.name)}</text>`
+      : `<g data-board-heading-icon="${s.icon}" transform="translate(${f.x + 12} ${f.y + 8})">${ICONS[s.icon](C.line)}</g><text data-board-heading x="${f.x + 40}" y="${f.y + 25}" font-size="16" font-weight="800" fill="${SC.ink}">${escapeHtml(s.name)}</text>`
       + `<path d="M${f.x + 40} ${f.y + 31}h${r1(Math.min(f.w - 52, textW(s.name, 16)))}" stroke="${C.under}" stroke-width="2.5" stroke-linecap="round"/>`;
     const subs = s.subgroups.map((sg) => `<rect data-board-subgroup x="${sg.x}" y="${sg.y}" width="${sg.w}" height="${sg.h}" rx="8" fill="none" stroke="${C.line}" stroke-width="1" stroke-dasharray="5 4"/>`).join('');
-    out.push(`<g data-board-section="${s.id}" data-board-part="frame" data-count="${s.count}">${frame}${head}${subs}${s.elements.map((el) => { const g = elementSvg(el, SC, tx); return el.dx || el.dy ? `<g transform="translate(${r1(el.dx ?? 0)} ${r1(el.dy ?? 0)})">${g}</g>` : g; }).join('')}</g>`);
+    out.push(`<g data-board-section="${s.id}" data-board-part="frame" data-count="${s.count}">${frame}${head}${subs}${s.elements.map((el) => { const g = appearSvg(elementSvg(el, SC, tx), el.appear, el.x + el.w / 2, el.y + el.h / 2); return el.dx || el.dy ? `<g transform="translate(${r1(el.dx ?? 0)} ${r1(el.dy ?? 0)})">${g}</g>` : g; }).join('')}</g>`);
   }
   const { w, h } = m.canvas;
   const title = opts.title ?? tx.aria;
@@ -440,6 +477,16 @@ export function createBoardMotion() {
     last.set(key, target);
     return at(key, t) ?? target;
   };
+  // AC-669: 新しく現れた要素（行・吹き出しの 1 行を含む）は MOVE_MS かけてフェードと拡大で現れる。最初の描画と動きを減らす設定では演出なし
+  const seen = new Set(); const appearing = new Map(); let seeded = false;
+  const appear = (key, t, reduced) => {
+    if (!seen.has(key)) { seen.add(key); if (seeded && !reduced) appearing.set(key, t); }
+    const t0 = appearing.get(key); if (t0 == null) return null;
+    if (reduced) { appearing.delete(key); return null; }
+    const k = Math.min(1, Math.max(0, (t - t0) / MOVE_MS));
+    if (k >= 1) { appearing.delete(key); return null; }
+    return ease(k);
+  };
   return {
     apply(board, t, reduced) {
       for (const s of board.sections) {
@@ -449,11 +496,14 @@ export function createBoardMotion() {
         for (const el of s.elements) {
           const p = step(el.id, { x: el.x, y: el.y }, t, reduced);
           el.dx = p.x - el.x; el.dy = p.y - el.y; el.x = p.x; el.y = p.y;
+          const a = appear(el.id, t, reduced); if (a != null) el.appear = a;
+          for (const r of [...(el.lines ?? []), ...(el.rows ?? [])]) { const b = appear(`${el.id}|${r.pointId}`, t, reduced); if (b != null && a == null) r.appear = b; }
         }
       }
-      return moving.size > 0;
+      seeded = true;
+      return moving.size > 0 || appearing.size > 0;
     },
-    moving: () => moving.size > 0,
+    moving: () => moving.size > 0 || appearing.size > 0,
   };
 }
 
