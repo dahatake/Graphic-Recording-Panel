@@ -219,18 +219,24 @@ test('FR-001 AC-068 異常系: 同意状態は保存されず（AC-067。常に�
 });
 
 // FR-001 AC-069
-test('FR-001 AC-069: 状態表示が 3 状態（デバイス内／要同意・外部送信の可能性／使えません）を区別する（同意待ちの理由は生じない）', async () => {
+test('FR-001 AC-069: 状態表示が 3 状態（デバイス内／外部送信の可能性／使えません）を区別し、「要同意」「同意待ち」は出さない', async () => {
   const a = await boot({ availability: { 'ja-JP': 'local' } }); rec(a.app);
   const b = await boot(REMOTE); rec(b.app);
   const c = await boot({ supported: false }); rec(c.app);
   const sa = a.app.getSpeechStatus(), sb = b.app.getSpeechStatus(), sc = c.app.getSpeechStatus();
-  assert.deepEqual([sa.state, sb.state, sc.state], ['local', 'consent', 'unavailable']);
+  assert.equal(new Set([sa.state, sb.state, sc.state]).size, 3, '3 状態を区別する');
+  assert.equal(sc.state, 'unavailable');
   assert.ok(sa.text.includes('使えます（デバイス内）'), sa.text);
-  assert.ok(sb.text.includes('使えます（要同意・外部送信の可能性）'), sb.text);
+  assert.ok(sb.text.includes('使えます（外部送信の可能性）'), sb.text);
   assert.ok(sc.text.includes('使えません'), sc.text);
   assert.equal(new Set([sa.text, sb.text, sc.text]).size, 3);
-  assert.deepEqual([a, b, c].map((x) => x.app.getCommandBar().status.speech), ['available', 'consent', 'unavailable']);
-  for (const x of [a, b, c]) assert.ok(x.app.getCommandBar().status.text.includes(x.app.getSpeechStatus().text));
+  for (const s of [sa, sb, sc]) assert.doesNotMatch(s.text, /要同意|同意待ち/, `状態表示に同意の語を出さない: ${s.text}`);
+  assert.equal(new Set([a, b, c].map((x) => x.app.getCommandBar().status.speech)).size, 3);
+  for (const x of [a, b, c]) {
+    const bar = x.app.getCommandBar().status;
+    assert.ok(bar.text.includes(x.app.getSpeechStatus().text));
+    assert.doesNotMatch(bar.text, /要同意|同意待ち/);
+  }
   assert.equal(sb.reason, null, '同意は口頭で得たものとして扱うので「同意待ち」の理由は生じない');
   assert.equal(sb.startEnabled, true);
   b.app.setLang('en');
