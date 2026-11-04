@@ -52,7 +52,8 @@ function assertFills(g, label) {
 }
 
 async function seedUtterance(page, text) {
-  await page.evaluate((t) => { globalThis.__app.setDraft(t); return globalThis.__app.submitDraft(); }, text);
+  // AC-647: 起動直後は記録中でないため、入力欄の送信ではなくファイル取り込みで種をまく（記録を開始しない）。
+  await page.evaluate((t) => globalThis.__app.importTextFile({ name: 'seed.txt', type: 'text/plain', size: t.length, text: t }), text);
   await page.waitForFunction((t) => globalThis.__app.getState().utterances.some((u) => u.text.includes(t)), text);
 }
 
@@ -161,8 +162,23 @@ test(`AC-663: 窓を 1280×720 → 1920×1080 → 1280×720 に変えると、�
       // 図の描画は新しい領域に合わせて再計算され、領域の外へはみ出して切れない。
       const box = await page.evaluate(() => { const s = document.querySelector('#diagram svg')?.getBoundingClientRect(); const d = document.querySelector('#diagram').getBoundingClientRect(); return s ? { s: { l: s.left, t: s.top, r: s.right, b: s.bottom, w: s.width, h: s.height }, d: { l: d.left, t: d.top, r: d.right, b: d.bottom } } : null; });
       assert.ok(box, `${w}×${h}: 図（svg）が描画されている`);
-      assert.ok(box.s.l >= box.d.l - 1 && box.s.t >= box.d.t - 1 && box.s.r <= box.d.r + 1 && box.s.b <= box.d.b + 1, `${w}×${h}: 図が領域の外へはみ出さない`);
-      assert.ok(box.s.w >= (box.d.r - box.d.l) * 0.5 || box.s.h >= (box.d.b - box.d.t) * 0.5, `${w}×${h}: 図は新しい領域に合わせた大きさに再計算されている`);
+      // AC-663: 領域に収まる縮尺でフィットする。ただしフィットすると文字が PARAM-163（10px）未満になる場合は AC-646 を優先し、
+      // 文字を 10px 以上に保って、領域内のスクロール・パンで見渡せる（領域自体は窓からはみ出さない）。
+      const fits = box.s.l >= box.d.l - 1 && box.s.t >= box.d.t - 1 && box.s.r <= box.d.r + 1 && box.s.b <= box.d.b + 1;
+      if (fits) {
+        assert.ok(box.s.w >= (box.d.r - box.d.l) * 0.5 || box.s.h >= (box.d.b - box.d.t) * 0.5, `${w}×${h}: 図は新しい領域に合わせた大きさに再計算されている`);
+      } else {
+        const alt = await page.evaluate(() => {
+          const d = document.querySelector('#diagram');
+          const ov = (el) => /auto|scroll/.test(getComputedStyle(el).overflowX + getComputedStyle(el).overflowY);
+          const scrollable = [d, d.parentElement, document.querySelector('[data-panel="diagram"]')].some((el) => el && ov(el) && (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1));
+          const px = [...d.querySelectorAll('svg text')].filter((t) => (t.textContent ?? '').trim() && getComputedStyle(t).display !== 'none').map((t) => { const m = t.getScreenCTM(); return (parseFloat(getComputedStyle(t).fontSize) || 0) * (m ? Math.hypot(m.a, m.b) : 1); });
+          return { scrollable, minPx: px.length ? Math.min(...px) : 0 };
+        });
+        assert.ok(alt.minPx >= 10 - 0.01, `${w}×${h}: 領域から出るのは文字を 10px（PARAM-163）以上に保つためのときだけ（最小 ${alt.minPx}px）`);
+        assert.ok(alt.scrollable, `${w}×${h}: 領域より大きい図は領域内のスクロール・パンで見渡せる`);
+      }
+      assert.ok(g.diagram.right <= g.W + 1 && g.diagram.bottom <= g.H + 1, `${w}×${h}: 図の領域自体は窓からはみ出さない`);
     }
   } finally { await ctx.close(); }
 });

@@ -82,7 +82,7 @@ for (const base of cases) {
   // NFR-UX-011 AC-660 正常系: 既定の窓でリボンは縦 1 段（上端がそろい、高さは窓の PARAM-173 % 以下）。折り返しも横あふれもない。
   test(`AC-660: 窓 ${name} でリボンの全グループは縦 1 段に収まり（上端が同じ帯・高さ ≤ ${PARAM_173_PCT}%）、折り返さず横にあふれず、折りたたみ機能が維持される`, async () => {
     assert.ok(base.w > PARAM_006_PX);
-    const { ctx, page } = await open(base);
+    const { ctx, page } = await open({ width: base.w, height: base.h });
     try {
       const s = await snap(page);
       assert.ok(s.groupTops.length >= 2, 'リボンに複数のグループがある');

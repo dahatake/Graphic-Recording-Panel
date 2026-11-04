@@ -1,4 +1,6 @@
 // NFR-UX-003 AC-090 AC-091（System Test。契約: CONTRACT.md「コマンドバーの常時ラベル」）
+// AC-090 の改訂（2026-11-04）: 例外は折りたたみ中と AC-660 の縮退中（ラベルはドロップダウン内で表示。実ブラウザでの縮退の測定は ribbon-onerow.test.js の AC-660）。
+// ここ（モデル）は、ラベルの内容（非空・ボタンごとに異なる・6 文字以内・1 行）がすべてのボタンで満たされること＝縮退してもドロップダウン内で表示されるラベルの条件を検証する。
 // 期待値は受入基準だけから決める（PARAM-011=6 全角/半角12、PARAM-012=1280px）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
