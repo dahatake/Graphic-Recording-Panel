@@ -25,7 +25,7 @@ function runScript(r, until, onStep, dt = 20) {
 const silent = (fa) => fa.count() === 0 || (fa.outputLevel() === 0 && fa.startedLevel(0) === 0);
 
 // FR-116 AC-676
-test('FR-116 AC-676: 起動から利用者の最初の操作までは、ショーが ON でも AudioContext は 0 個で音は鳴らない。操作の後はショーが ON のときだけ鳴り、OFF・ミュートでは鳴らない。外部へのリクエスト（音のファイルを含む）は 0 件', async () => {
+test('FR-116 AC-676: 起動から利用者の最初の操作までは、ショーが ON でも AudioContext は 0 個で音は鳴らない。操作の後はショーが ON のときだけこの要求の音が鳴り、OFF・ミュートではこの要求の音は鳴らない。RPG風の BGM はショーの ON/OFF にかかわらず鳴り、RPG風ではこの要求の BGM は鳴らさない。外部へのリクエスト（音のファイルを含む）は 0 件', async () => {
   const net = spyNetwork();
   try {
     const first = await showApp();
@@ -46,11 +46,13 @@ test('FR-116 AC-676: 起動から利用者の最初の操作までは、ショ�
     assert.ok(fa.startedLevel(from) > 0, '操作の後、ショーが ON のときは音が鳴る');
     assert.ok((audio(r.app).sfx ?? []).length > 0, '効果音を鳴らした');
 
-    // ショーが OFF のときは鳴らない
+    // ショーが OFF のときは、この要求の音（FR-116 の BGM・効果音）は鳴らない（依頼 2026-11-05: 止めるのはこの要求の音だけ）
     const off = await showApp();
     off.app.notifyUserGesture(); startRec(off.app);
     runScript(off, 3 * ITV);
-    assert.ok(silent(off.audio), 'ショーが OFF のときは AudioContext を作らないか、音は鳴らない');
+    assert.deepEqual(audio(off.app).sfx ?? [], [], 'ショーが OFF のときは、この要求の効果音を鳴らさない');
+    assert.equal(audio(off.app).bgmPlaying, false, 'ショーが OFF のときは、この要求の BGM を鳴らさない');
+    assert.ok(silent(off.audio), '既定の画風（RPG風でない）・ショー OFF では AudioContext を作らないか、音は鳴らない');
     // ミュートのときは鳴らない（AC-228 のミュートと共通）
     const mu = await showApp();
     assert.equal(mu.app.setLiveShow(true).ok, true);
@@ -58,6 +60,20 @@ test('FR-116 AC-676: 起動から利用者の最初の操作までは、ショ�
     mu.app.notifyUserGesture(); startRec(mu.app);
     runScript(mu, 3 * ITV);
     assert.ok(silent(mu.audio), 'ミュートのときは AudioContext を作らないか停止していて、音は鳴らない');
+    assert.deepEqual(audio(mu.app).sfx ?? [], [], 'ミュートのときは、この要求の効果音を鳴らさない');
+    // RPG風の BGM（FR-049。AC-219）は、ショーの ON/OFF にかかわらず AC のとおりに鳴る。RPG風ではこの要求の BGM は鳴らさない（AC-678）
+    for (const on of [false, true]) {
+      const g = await showApp();
+      assert.equal(g.app.setLiveShow(on).ok, true);
+      g.app.notifyUserGesture(); startRec(g.app);
+      g.app.setDraft('勇者の話題'); g.app.submitDraft();
+      assert.equal(g.app.setDrawStyle('rpg').ok, true);
+      g.scheduler.advance(2 * SEC);
+      assert.equal(g.app.getRpgAudio().audible, true, `ショー ${on ? 'ON' : 'OFF'}: 操作の後、RPG風の BGM は AC-219 のとおり鳴る`);
+      assert.ok(g.app.getRpgAudio().bgm, `ショー ${on ? 'ON' : 'OFF'}: RPG風の BGM が選ばれている`);
+      assert.equal(audio(g.app).bgmPlaying, false, `ショー ${on ? 'ON' : 'OFF'}: RPG風ではこの要求の BGM を鳴らさない（FR-049 の BGM を優先）`);
+      assert.equal(g.audio.log.decodeCalls, 0, '音のファイルを読み込まない');
+    }
     for (const x of [fa, off.audio, mu.audio]) assert.equal(x.log.decodeCalls, 0, '音のファイルを読み込まない');
     assert.deepEqual(net.calls, [], '外部へのリクエストは 0 件');
   } finally { net.restore(); }

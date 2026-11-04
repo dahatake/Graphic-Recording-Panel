@@ -102,7 +102,7 @@ test('FR-115 AC-672: 同じ発話列・同じ時計で、ON と OFF の最後の
 });
 
 // FR-115 AC-673
-test('FR-115 AC-673: ON のとき、更新の時点で加わった新しい要素は、ペン先が輪郭をなぞる描線（途中まで描かれた状態を経る）と 1 字ずつの書き込みで、読み順に 1 つずつ現れ（描線 1200 ms・1 字 80 ms 以内）、終わりにはすべての要素と文字が揃う', async () => {
+test('FR-115 AC-673: ON のとき、更新の時点で加わった新しい要素は、ペン先が輪郭をなぞる描線（途中まで描かれた状態を経る）と 1 字ずつの書き込みで、読み順に 1 つずつ現れ（描線 1200 ms・1 字 80 ms 以内）、終わりにはすべての要素と文字が揃う。会議ボード型でも AC-669 のアニメーションに置き換わり両方は出ない', async () => {
   const r = await showApp();
   const { app, env, scheduler } = r;
   assert.equal(app.setLiveShow(true).ok, true);
@@ -151,6 +151,37 @@ test('FR-115 AC-673: ON のとき、更新の時点で加わった新しい要�
   for (const x of s.items) { assert.equal(x.phase, 'done'); assert.equal(x.shown, x.text, 'すべての文字が揃う'); }
   assert.deepEqual(overlays(app), [], '終わりにペン先は残らない');
   for (const w of [T.plain1, T.plain2, T.plain4]) assert.ok(app.renderSvg().includes(w), `「${w}」が図にある`);
+
+  // 会議ボード型（FR-114）でも、ショーの描線・書き込み（と運ぶ動き）が AC-669 の出現・移動のアニメーションに置き換わり、両方は出ない（依頼 2026-11-05）
+  const boardRun = async (on) => {
+    const b = await showApp();
+    assert.equal(b.app.setLayoutTypes(['board']).ok, true, '会議ボード型を選べる');
+    assert.equal(b.app.setLiveShow(on).ok, true);
+    startRec(b.app);
+    b.scheduler.advanceTo(b.scheduler.t + 1000); say(b.env, T.plain1); say(b.env, T.plain2);
+    const next = Math.ceil(b.scheduler.t / ITV) * ITV; // 記録の開始（t=0）からの次の更新の時点
+    b.scheduler.advanceTo(next);
+    const seen = { anim: 0, partialStroke: false, wrote: false };
+    sample(b.scheduler, Math.floor((ITV * SHOW.TOTAL_PCT) / 100), () => {
+      const m = b.app.getBoardModel();
+      assert.ok(m && Array.isArray(m.animations), 'getBoardModel().animations がある（契約 CONTRACT-BOARD.md）');
+      seen.anim += m.animations.length;
+      for (const x of show(b.app).items ?? []) {
+        if (x.phase === 'stroke' && x.stroke > 0 && x.stroke < 1) seen.partialStroke = true;
+        if (x.phase === 'write') seen.wrote = true;
+      }
+    }, 10);
+    return { b, seen };
+  };
+  const bOff = await boardRun(false);
+  assert.ok(bOff.seen.anim > 0, '会議ボード型・ショー OFF: AC-669 の出現のアニメーションが観測できる（観測の手段の確認）');
+  assert.equal(bOff.seen.partialStroke, false, 'ショー OFF ではショーの描線はない');
+  const bOn = await boardRun(true);
+  assert.ok(bOn.seen.partialStroke, '会議ボード型・ショー ON: 輪郭が途中まで描かれた要素を観測できる');
+  assert.ok(bOn.seen.wrote, '会議ボード型・ショー ON: 1 字ずつの書き込みを経る');
+  assert.equal(bOn.seen.anim, 0, '会議ボード型・ショー ON: AC-669 の出現・移動のアニメーションは出ない（両方は出ない）');
+  assert.equal(show(bOn.b.app).running, false, '演出が終わる');
+  assert.deepEqual(els(bOn.b.app), els(bOff.b.app), '演出の後の図は OFF のときと同じ');
 });
 
 // FR-115 AC-674
