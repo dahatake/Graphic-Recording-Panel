@@ -170,8 +170,15 @@ test('FR-063 AC-323 LLM の要求が失敗しても要点は 3 秒（PARAM-158�
 
 // FR-063 AC-323（ライブ描画ショー（FR-115）が ON のとき。1c4bd9d: ライブの上限は描画の開始に当てはめ、演出の完了は AC-675。手入力は単発の反映で即時）
 test('FR-063 AC-323 ライブ描画ショー ON: LLM の応答を待たずに、手入力では PARAM-158 秒以内に要点が図に表示され（演出で待たせない）、ライブでは描画の開始（最初の要素の描線の開始）が PARAM-001＋PARAM-104 秒以内で、演出の終わりに要点が揃い、応答の到着後に絵が加わる', async () => {
-  const probe = await newApp();
-  const key = probe.app.getPartKeys()[0];
+  // LLM 由来の絵だけを判定する: 同じ設定（詳細度「詳細」）・LLM なしで同じ発話から規則で描かれる部品（例: 「会議」→ 規則の部品）を除いたキーを応答に使う
+  const probe = await showApp();
+  probe.app.commands['session.start']();
+  probe.app.setDraft(UTTERANCE); assert.equal(probe.app.submitDraft().ok, true);
+  probe.scheduler.advance(PARAM.SINGLE_SEC * 1000);
+  const ruleKeys = new Set([...probe.app.renderSvg().matchAll(/data-part-key="([^"]+)"/g)].map((m) => m[1]));
+  const key = probe.app.getPartKeys().find((k) => !ruleKeys.has(k));
+  assert.ok(key, '規則の部品に当たらない同梱部品がある');
+  const llmPart = `data-part-key="${key}"`;
   const boot = async () => {
     const h = makeRelay({ extract: answerWith(key), deferExtract: true });
     const r = await showApp({ options: { relay: h.relay } });
@@ -189,32 +196,35 @@ test('FR-063 AC-323 ライブ描画ショー ON: LLM の応答を待たずに、
     scheduler.advance(PARAM.SINGLE_SEC * 1000);
     assert.ok(app.renderSvg().includes(UTTERANCE), '手入力: 応答が未着でも PARAM-158 秒以内にルールベースの要点が表示済み');
     assert.equal(show(app).running, false, '手入力: ショー ON でも PARAM-158 秒の時点で演出の途中ではない（要点が表示し終わっている）');
-    assert.ok(!app.renderSvg().includes('data-part-key'), '手入力: まだ絵は加わっていない');
+    assert.ok(!app.renderSvg().includes(llmPart), '手入力: まだ LLM の絵は加わっていない');
     h.release(); await app.flushLlm();
-    assert.ok(app.renderSvg().includes(`data-part-key="${key}"`), '手入力: 応答の到着後に絵が加わる');
+    assert.ok(app.renderSvg().includes(llmPart), '手入力: 応答の到着後に絵が加わる');
   }
-  // ライブ（音声入力）: 更新間隔を設定できる最大（PARAM-099。PARAM-001 はその別名）にして、上限の境界で描画の開始を測る
+  // ライブ（音声入力）: 上限は PARAM-001＋PARAM-104 秒のまま判定する。応答の保留が LLM の要求のタイムアウト（PARAM-069）を超えて
+  // 失敗扱いにならないよう、更新間隔は既定（PARAM-100）にし、描画の開始を見つけた時点で時計を止める（保留は合計 2 間隔＝20 秒）
   {
     const { app, env, scheduler, clock, h } = await boot();
     startRec(app);
-    assert.equal(app.setLiveInterval(PARAM.LIVE_MAX_SEC).ok, true);
+    const ITV = PARAM.LIVE_DEFAULT_SEC;
+    assert.equal(app.setLiveInterval(ITV).ok, true);
     scheduler.advance(10);
     const t0 = clock.t;
     env.speech.emit(UTTERANCE, true);
     const LIMIT = (PARAM.UPPER_SEC + PARAM.RENDER_SEC) * 1000;
     let startAt = null;
-    sample(scheduler, LIMIT, () => {
-      if (startAt === null) startAt = (show(app).log ?? []).find((e) => e.type === 'stroke' && e.at >= t0)?.at ?? null;
-    }, 100);
+    for (let el = 0; startAt === null && el < LIMIT; el += 100) {
+      scheduler.advance(100);
+      startAt = (show(app).log ?? []).find((e) => e.type === 'stroke' && e.at >= t0)?.at ?? null;
+    }
     assert.ok(startAt !== null, `ライブ: ${LIMIT / 1000} 秒以内に描画（最初の要素の描線）が始まる`);
     assert.ok(startAt - t0 <= LIMIT, `ライブ: 描画の開始は受付から ${startAt - t0} ms ≤ ${LIMIT} ms（PARAM-001＋PARAM-104）`);
-    assert.ok(!app.renderSvg().includes('data-part-key'), 'ライブ: LLM の応答を待たずに描画が始まる（応答は未着）');
-    sample(scheduler, PARAM.LIVE_MAX_SEC * 1000 - PARAM.RENDER_SEC * 1000, () => {}, 100); // 更新の時点から 1 間隔ぶん（演出は間隔の PARAM-182 の割合以内に終わる。完了の時間そのものは AC-675）
+    assert.ok(!app.renderSvg().includes(llmPart), 'ライブ: LLM の応答を待たずに描画が始まる（応答は未着）');
+    sample(scheduler, ITV * 1000, () => {}, 100); // 更新の時点から 1 間隔ぶん（演出は間隔の PARAM-182 の割合以内に終わる。完了の時間そのものは AC-675）
     assert.equal(show(app).running, false, 'ライブ: 演出が終わっている');
     assert.ok(app.renderSvg().includes(UTTERANCE), 'ライブ: 演出の終わりにルールベースの要点が図に揃う');
     h.release(); await app.flushLlm();
     scheduler.advance(PARAM.SINGLE_SEC * 1000);
-    assert.ok(app.renderSvg().includes(`data-part-key="${key}"`), 'ライブ: 応答の到着後に絵が加わる');
+    assert.ok(app.renderSvg().includes(llmPart), 'ライブ: 応答の到着後に絵が加わる');
     assert.ok(app.renderSvg().includes(UTTERANCE), 'ライブ: ルールベースの要点は残る');
   }
 });

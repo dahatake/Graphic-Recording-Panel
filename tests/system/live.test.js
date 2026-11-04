@@ -276,7 +276,8 @@ test('FR-022 AC-671: 再生取込では cue が受付時刻の差を速さで割
       const arrive = REPLAY_OFF.map((d) => Math.ceil(d / s));
       const expectedRefresh = [...new Set(arrive.map((x) => (Math.floor(x / (REPLAY_ITV * SEC)) + 1) * REPLAY_ITV * SEC))];
       const nAt = (t) => arrive.filter((x) => x <= t).length;
-      const checkpoints = [...new Set(arrive.flatMap((x) => (x > 0 ? [x - 1, x] : [0])))].sort((x, y) => x - y);
+      const firstRefresh = REPLAY_ITV * SEC; // 最初の更新の時点（この直前を時計を進める途中で検査する。時計は戻らない）
+      const checkpoints = [...new Set([...arrive.flatMap((x) => (x > 0 ? [x - 1, x] : [0])), firstRefresh - 1])].sort((x, y) => x - y);
       const refreshAt = []; let last = c0;
       const stepTo = (target) => {
         while (scheduler.t - ts0 < target) {
@@ -292,9 +293,11 @@ test('FR-022 AC-671: 再生取込では cue が受付時刻の差を速さで割
         assert.equal(p.total, REPLAY_TEXTS.length, `${s} 倍: 全体の数`);
         assert.equal(p.done, nAt(t), `${s} 倍: 取り込んだ数`);
         assert.ok(p.text.includes(String(p.done)) && p.text.includes(String(p.total)), `${s} 倍: 進み具合の文字「${p.text}」`);
+        if (t === firstRefresh - 1) {
+          assert.equal(count(app), c0, `${s} 倍: 最初の更新の時点より前は図の要素が増えない`);
+          for (const w of REPLAY_TEXTS) assert.ok(!app.renderSvg().includes(w), `${s} 倍: 最初の更新の時点より前は図に描き足さない（一括のように待たずには描かない）`);
+        }
       }
-      stepTo(REPLAY_ITV * SEC - 1);
-      for (const w of REPLAY_TEXTS) assert.ok(!app.renderSvg().includes(w), `${s} 倍: 最初の更新の時点より前は図に描き足さない（一括のように待たずには描かない）`);
       stepTo(expectedRefresh.at(-1) + PARAM.RENDER_SEC * SEC);
       assert.deepEqual(refreshAt.map((t) => Math.ceil(t / 50) * 50), expectedRefresh, `${s} 倍: 更新間隔の時点にだけまとめて描き足す`);
       for (const w of REPLAY_TEXTS) assert.ok(app.renderSvg().includes(w), `${s} 倍: ${w} が図にある`);
