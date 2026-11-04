@@ -30,6 +30,8 @@ PARAM: PARAM-001＝60 秒、PARAM-098＝5 秒、PARAM-099＝60 秒、PARAM-100�
   - `log:[{ type:'stroke'|'appear'|'move'|'decision'|'celebrate', id, at:now() }]` … 起きた出来事（描線の開始・要素が現れた・運ぶ動きの開始・決定事項の追加・お祝いの開始）。
 - 演出が終わった後の `renderSvg()`・`renderOutline()`・`getDiagramElements()`・`save.svg` の `data` は OFF のときと同じ。OFF のときは `overlays` は常に `[]`。
 - 動きを減らす設定（`options.env.reducedMotion:true`）では、ON でも `overlays` は `[]`、`items` は `stroke`／`write` を経ずに `done`、要素は更新の時点で即時に現れ・移る。`getState().message.text` に `lastAddedCount` の数字を含め、`getCommandBar().status.role==='status'`。
+- 演出の対象はライブ（音声入力・.vtt の再生取込）の更新の時点の描き足しだけ（AC-673・FR-115。1c4bd9d）。手入力・ファイルの一括取込（`.vtt` の `mode:'bulk'`・`.txt`）では ON でも `items` に `stroke`／`write` の要素はなく、`overlays` は `[]`、`running:false` のまま、要素は PARAM-158（3 秒）以内（AC-054・AC-523）に図へ即時に現れる。ライブの描画の開始は、`log` の `type:'stroke'` の最初の `at`（受付から AC-053 の上限以内。AC-323・AC-442・AC-667 (g)）。
+- テストは、LLM 連携の中継のモックなどを `showApp({ options: { relay } })` で `createApp` のオプションに足し、`showApp` を使えない起動（`bootAzure`・会議ボード型）では `linkedClock()` を `newApp` の over に渡して同じ時計にする。
 - 強制カラー（`options.env.forcedColors:true`）では、出す `overlays` はすべて `systemColor:true`（出さなくてもよい）。
 
 ## 演出の音（FR-116 AC-676〜AC-679）

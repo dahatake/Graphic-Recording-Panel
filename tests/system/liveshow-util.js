@@ -134,7 +134,15 @@ export function spyNetwork() {
 }
 
 // ---- テスト用の時計（タイマーの発火の時刻に now() を合わせる）で作るアプリ ----
-export async function showApp({ storage, reducedMotion = false, forcedColors = false, lang, audio, detail = true } = {}) {
+// テスト用の時計（タイマーの発火の時刻に now() を合わせる）を newApp の over に渡す形で作る（showApp を使えない起動の仕方のテスト用）
+export function linkedClock(env = {}) {
+  const clock = { t: 1_700_000_000_000 };
+  const scheduler = new LinkedScheduler(clock);
+  return { clock, scheduler, now: () => clock.t, tick: (sec) => scheduler.advance(sec * 1000), options: { env: { webgl: true, reducedMotion: false, viewportWidth: 1280, ...env } } };
+}
+
+// options: createApp に足すオプション（例: LLM 連携の中継のモック relay。AC-323 のショー ON の確認で使う）
+export async function showApp({ storage, reducedMotion = false, forcedColors = false, lang, audio, detail = true, options = {} } = {}) {
   const clock = { t: 1_700_000_000_000 };
   const scheduler = new LinkedScheduler(clock);
   const fa = audio === undefined ? makeFakeAudio(() => clock.t) : audio;
@@ -143,6 +151,7 @@ export async function showApp({ storage, reducedMotion = false, forcedColors = f
     options: {
       env: { webgl: true, reducedMotion, forcedColors, viewportWidth: 1280 },
       ...(fa ? { audioFactory: fa.factory ?? fa } : {}),
+      ...options,
     },
   };
   if (storage) over.storage = storage;

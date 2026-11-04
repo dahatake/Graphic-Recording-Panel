@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp, bytesToLatin1, pdfTexts, PARAM } from './helpers.js';
+import { showApp, show, startRec, sample } from './liveshow-util.js';
 
 const CONFIGURED = { configured: { endpoint: true, deployment: true, credential: true }, endpointHost: 'example.invalid' };
 const UTTERANCE = '会議室の机と椅子を片付ける';
@@ -165,6 +166,57 @@ test('FR-063 AC-323 LLM の要求が失敗しても要点は 3 秒（PARAM-158�
   await app.flushLlm();
   assert.ok(app.renderSvg().includes(UTTERANCE));
   assert.ok(!app.renderSvg().includes('data-part-key'));
+});
+
+// FR-063 AC-323（ライブ描画ショー（FR-115）が ON のとき。1c4bd9d: ライブの上限は描画の開始に当てはめ、演出の完了は AC-675。手入力は単発の反映で即時）
+test('FR-063 AC-323 ライブ描画ショー ON: LLM の応答を待たずに、手入力では PARAM-158 秒以内に要点が図に表示され（演出で待たせない）、ライブでは描画の開始（最初の要素の描線の開始）が PARAM-001＋PARAM-104 秒以内で、演出の終わりに要点が揃い、応答の到着後に絵が加わる', async () => {
+  const probe = await newApp();
+  const key = probe.app.getPartKeys()[0];
+  const boot = async () => {
+    const h = makeRelay({ extract: answerWith(key), deferExtract: true });
+    const r = await showApp({ options: { relay: h.relay } });
+    assert.equal((await r.app.requestLlmEnable()).ok, true, '設定済みなら同意の表示へ進む');
+    await r.app.answerLlmConsent(true);
+    assert.equal(r.app.getLlmState().enabled, true, 'LLM 連携が有効');
+    assert.equal(r.app.setLiveShow(true).ok, true, 'ライブ描画ショー ON');
+    return { ...r, h };
+  };
+  // 手入力（単発の反映）: ショー ON でも PARAM-158 秒以内に要点が図に表示され、演出の途中で止まっていない
+  {
+    const { app, scheduler, h } = await boot();
+    app.commands['session.start']();
+    app.setDraft(UTTERANCE); assert.equal(app.submitDraft().ok, true);
+    scheduler.advance(PARAM.SINGLE_SEC * 1000);
+    assert.ok(app.renderSvg().includes(UTTERANCE), '手入力: 応答が未着でも PARAM-158 秒以内にルールベースの要点が表示済み');
+    assert.equal(show(app).running, false, '手入力: ショー ON でも PARAM-158 秒の時点で演出の途中ではない（要点が表示し終わっている）');
+    assert.ok(!app.renderSvg().includes('data-part-key'), '手入力: まだ絵は加わっていない');
+    h.release(); await app.flushLlm();
+    assert.ok(app.renderSvg().includes(`data-part-key="${key}"`), '手入力: 応答の到着後に絵が加わる');
+  }
+  // ライブ（音声入力）: 更新間隔を設定できる最大（PARAM-099。PARAM-001 はその別名）にして、上限の境界で描画の開始を測る
+  {
+    const { app, env, scheduler, clock, h } = await boot();
+    startRec(app);
+    assert.equal(app.setLiveInterval(PARAM.LIVE_MAX_SEC).ok, true);
+    scheduler.advance(10);
+    const t0 = clock.t;
+    env.speech.emit(UTTERANCE, true);
+    const LIMIT = (PARAM.UPPER_SEC + PARAM.RENDER_SEC) * 1000;
+    let startAt = null;
+    sample(scheduler, LIMIT, () => {
+      if (startAt === null) startAt = (show(app).log ?? []).find((e) => e.type === 'stroke' && e.at >= t0)?.at ?? null;
+    }, 100);
+    assert.ok(startAt !== null, `ライブ: ${LIMIT / 1000} 秒以内に描画（最初の要素の描線）が始まる`);
+    assert.ok(startAt - t0 <= LIMIT, `ライブ: 描画の開始は受付から ${startAt - t0} ms ≤ ${LIMIT} ms（PARAM-001＋PARAM-104）`);
+    assert.ok(!app.renderSvg().includes('data-part-key'), 'ライブ: LLM の応答を待たずに描画が始まる（応答は未着）');
+    sample(scheduler, PARAM.LIVE_MAX_SEC * 1000 - PARAM.RENDER_SEC * 1000, () => {}, 100); // 更新の時点から 1 間隔ぶん（演出は間隔の PARAM-182 の割合以内に終わる。完了の時間そのものは AC-675）
+    assert.equal(show(app).running, false, 'ライブ: 演出が終わっている');
+    assert.ok(app.renderSvg().includes(UTTERANCE), 'ライブ: 演出の終わりにルールベースの要点が図に揃う');
+    h.release(); await app.flushLlm();
+    scheduler.advance(PARAM.SINGLE_SEC * 1000);
+    assert.ok(app.renderSvg().includes(`data-part-key="${key}"`), 'ライブ: 応答の到着後に絵が加わる');
+    assert.ok(app.renderSvg().includes(UTTERANCE), 'ライブ: ルールベースの要点は残る');
+  }
 });
 
 // FR-065 AC-330

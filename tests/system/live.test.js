@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp, PARAM, toDetail, CJK } from './helpers.js';
-import { showApp, reload, sfield, assertOps, weight, SHOW } from './liveshow-util.js';
+import { showApp, reload, sfield, assertOps, weight, SHOW, show, overlays, sample } from './liveshow-util.js';
 
 const SEC = 1000;
 const startRec = (app) => { app.commands['session.start'](); app.startSpeech(); };
@@ -161,6 +161,35 @@ test('FR-022 AC-523: 録画済み会議の .vtt／.txt の取込は、更新間�
   assert.equal((await app.importTextFile(file('m.txt', lines.join('\n'), 'text/plain'))).ok, true);
   env.scheduler.advance(PARAM.SINGLE_SEC * SEC); // PARAM-158（単発の反映）。PARAM-001 ではない
   for (const l of lines) assert.ok(app.renderSvg().includes(l), l);
+});
+
+// FR-022 AC-523（1c4bd9d: 対象は取込の方法「一括」（既定）だけ。ライブ描画ショー ON でも単発の反映で、取込んだ全体が一度に描画される。FR-115）
+test('FR-022 AC-523: 取込の方法「一括」（既定。再生取込から戻した場合も）では、ライブ描画ショー ON・更新間隔 60 秒でも更新間隔を待たず、取込の完了から PARAM-158 秒以内に全シーンが 1 回の描画で一度に図へ反映され、描線・書き込みの演出を経ない', async () => {
+  for (const pre of ['default', 'back-from-replay']) {
+    const { app, scheduler } = await showApp();
+    assert.equal(app.getVttImportMode().mode, 'bulk', `${pre}: 既定は一括`);
+    if (pre === 'back-from-replay') {
+      assert.equal(app.setVttImportMode({ mode: 'replay', speed: 1 }).ok, true);
+      assert.equal(app.setVttImportMode({ mode: 'bulk' }).ok, true, '一括に戻せる');
+      assert.equal(app.getVttImportMode().mode, 'bulk');
+    }
+    assert.equal(app.setLiveShow(true).ok, true, 'ライブ描画ショー ON');
+    startRec(app);
+    assert.equal(app.setLiveInterval(PARAM.LIVE_MAX_SEC).ok, true, '更新間隔を最大にして、待っていないことを区別する');
+    const c0 = count(app);
+    assert.equal((await app.importTextFile(file('meeting.vtt', vtt(8)))).ok, true, `${pre}: 取込`);
+    let animated = false;
+    sample(scheduler, PARAM.SINGLE_SEC * SEC, () => {
+      if ((show(app).items ?? []).some((x) => x.phase === 'stroke' || x.phase === 'write') || overlays(app).length > 0) animated = true;
+    }, 50);
+    assert.equal(animated, false, `${pre}: 一括の取込は ON でも描線・書き込みの演出を経ない（全体が一度に描画される）`);
+    assert.equal(show(app).running, false, `${pre}: 演出は走っていない`);
+    assert.equal(count(app), c0 + 1, `${pre}: 取込全体が 1 回の描画`);
+    assert.equal(app.getVttReplay()?.running ?? false, false, `${pre}: 再生取込は始まらない`);
+    const svg = app.renderSvg();
+    for (let i = 0; i < 8; i++) assert.ok(svg.includes(`バッチの話題その${i}を確認`), `${pre}: cue ${i} が PARAM-158 秒以内に図にある`);
+    for (const s of app.getState().scenes) assert.ok(svg.includes(`data-scene-id="${s.id}"`), `${pre}: 全シーンが反映`);
+  }
 });
 
 test('FR-022 AC-523 異常系: 取り込めない（テキストでない・空の）ファイルでは描画も図の変化も起きない', async () => {

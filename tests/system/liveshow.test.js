@@ -184,6 +184,66 @@ test('FR-115 AC-673: ON のとき、更新の時点で加わった新しい要�
   assert.deepEqual(els(bOn.b.app), els(bOff.b.app), '演出の後の図は OFF のときと同じ');
 });
 
+// FR-115 AC-673（1c4bd9d: 演出はライブ（音声入力・.vtt の再生取込）の更新の時点の描き足しだけ。手入力・ファイルの一括取込は ON でも演出せず即時。FR-115）
+test('FR-115 AC-673: ON のとき、.vtt の再生取込でも更新の時点に加わった要素は描線（途中まで描かれた状態）と 1 字ずつの書き込みで読み順に 1 つずつ現れ、終わりに揃う。手入力・ファイルの一括取込では ON でも描線・書き込みを経ず、PARAM-158 秒以内に図に現れる', async () => {
+  const W = ['再生ショーの話題その一', '再生ショーの話題その二', '再生ショーの話題その三'];
+  const vttFile = (ws) => {
+    const text = ['WEBVTT', '', ...ws.flatMap((w, i) => [`c${i}`, `00:00:0${i}.000 --> 00:00:0${i}.500`, w, ''])].join('\n');
+    return { name: 'replay.vtt', type: 'text/vtt', size: Buffer.byteLength(text), text };
+  };
+  // 再生取込（ライブ）
+  {
+    const { app, scheduler } = await showApp();
+    assert.equal(app.setLiveShow(true).ok, true);
+    app.commands['session.start']();
+    const t0 = scheduler.t;
+    assert.equal(app.setVttImportMode({ mode: 'replay', speed: 8 }).ok, true);
+    assert.equal((await app.importTextFile(vttFile(W))).ok, true, '再生取込を受け付ける');
+    let early = false; let partialStroke = false; let partialText = false; const order = [];
+    sample(scheduler, ITV - 1, () => { if ((show(app).items ?? []).some((x) => ACTIVE.has(x.phase)) || overlays(app).length) early = true; }, 20);
+    assert.equal(early, false, '再生取込: 更新の時点の前は演出しない');
+    scheduler.advanceTo(t0 + ITV);
+    sample(scheduler, Math.floor((ITV * SHOW.TOTAL_PCT) / 100), (t) => {
+      const items = show(app).items ?? [];
+      const active = items.filter((x) => ACTIVE.has(x.phase));
+      assert.ok(active.length <= 1, `再生取込 ${t} ms: 1 つずつ現れる`);
+      for (const x of items) {
+        if (x.phase === 'stroke' && x.stroke > 0 && x.stroke < 1) { partialStroke = true; if (!order.includes(x.id)) order.push(x.id); }
+        if (x.phase === 'write' && x.shown.length > 0 && x.shown.length < x.text.length) partialText = true;
+      }
+    }, 10);
+    assert.ok(partialStroke, '再生取込: 輪郭が一部だけ描かれた要素を観測できる');
+    assert.ok(partialText, '再生取込: 文字の一部だけが書かれた要素を観測できる');
+    const ids = (show(app).items ?? []).map((x) => x.id);
+    assert.deepEqual(order, ids.filter((id) => order.includes(id)), '再生取込: 読み順に 1 つずつ');
+    assert.equal(show(app).running, false, '再生取込: 演出が終わる');
+    for (const w of W) assert.ok(app.renderSvg().includes(w), `再生取込: 「${w}」が図に揃う`);
+  }
+  // 単発の反映（手入力・ファイルの一括取込）: ON でも描線・書き込みを経ず、PARAM-158 秒以内に図に現れる
+  const single = async (label, act, words) => {
+    const { app, scheduler } = await showApp();
+    assert.equal(app.setLiveShow(true).ok, true);
+    app.commands['session.start']();
+    await act(app);
+    let animated = false;
+    sample(scheduler, PARAM.SINGLE_SEC * SEC, () => {
+      if ((show(app).items ?? []).some((x) => ACTIVE.has(x.phase)) || overlays(app).length > 0) animated = true;
+    }, 20);
+    assert.equal(animated, false, `${label}: ON でも描線・書き込み・ペン先は出ない`);
+    assert.equal(show(app).running, false, `${label}: 演出は走っていない`);
+    for (const w of words) assert.ok(app.renderSvg().includes(w), `${label}: 「${w}」が PARAM-158 秒以内に図にある`);
+  };
+  await single('手入力', (app) => { app.setDraft(T.plain1); assert.equal(app.submitDraft().ok, true); }, [T.plain1]);
+  await single('一括取込（.vtt）', async (app) => {
+    assert.equal(app.getVttImportMode().mode, 'bulk', '既定は一括');
+    assert.equal((await app.importTextFile(vttFile(W))).ok, true);
+  }, W);
+  await single('一括取込（.txt）', async (app) => {
+    const text = W.join('\n');
+    assert.equal((await app.importTextFile({ name: 'm.txt', type: 'text/plain', size: Buffer.byteLength(text), text })).ok, true);
+  }, W);
+});
+
 // FR-115 AC-674
 test('FR-115 AC-674: ON のとき、再配置で位置が変わる既存の要素は、手（またはペン先）の絵がつかんで途中の位置を経て新しい位置まで運ばれ（1 回 800 ms 以内）、運ぶ間も選択・入力中の文字列・記録中が保たれる', async () => {
   const off = await showApp();
