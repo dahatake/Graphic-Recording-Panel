@@ -163,7 +163,8 @@ export function llmDrawModule(ctx) {
   async function generate(sceneId, labels, n) {
     for (const label of labels) {
       if ((generated.get(sceneId) ?? []).some((g) => g.label === label)) continue;
-      const res = await api.llmCall(SVG_PATH, { key: 'generated', label, input: label, instructions: `Draw "${label}" as one simple flat icon SVG (viewBox 0 0 48 48). Use only svg, g, path, circle, ellipse, rect, line, polyline, polygon, text. No script, no external references. Reply with the <svg> only.` });
+      const sent = api.maskPersonNames ? api.maskPersonNames(label) : label; // AC-358・AC-668: 名前は常に伏せる
+      const res = await api.llmCall(SVG_PATH, { key: 'generated', label: sent, input: sent, instructions: `Draw "${sent}" as one simple flat icon SVG (viewBox 0 0 48 48). Use only svg, g, path, circle, ellipse, rect, line, polyline, polygon, text. No script, no external references. Reply with the <svg> only.` });
       if (!res?.ok || latest.get(sceneId) !== n || !svgGeneration || !active()) continue;
       const svg = norm(findSvg(res.body));
       generated.set(sceneId, [...(generated.get(sceneId) ?? []), { label, svg }]);
@@ -198,7 +199,8 @@ export function llmDrawModule(ctx) {
   function requestFor(scene) {
     const [safe] = withoutConfidential([scene], state.lang === 'en' ? 'en' : 'ja'); // 機密の要点は公開範囲に関わらず LLM へ送らない（監査 S-1）
     const raw = [safe.heading, ...safe.points.map((p) => p.text)].join('\n');
-    const masked = masking ? maskText(raw, allMaskWords()) : raw;
+    const named = api.maskPersonNames ? api.maskPersonNames(raw) : raw; // AC-358・AC-668: 参加者名簿・話者タグの名前は簡易マスキングの設定に関わらず常に伏せる（決定 2026-11-05）
+    const masked = masking ? maskText(named, allMaskWords()) : named;
     return clampText(masked, MAX_SEND_CHARS);
   }
   async function extract(sceneId) {

@@ -561,7 +561,7 @@ export function mountUI(app, doc = document) {
       if (app.getHideNames) {
         const hn = doc.createElement('input'); hn.type = 'checkbox'; hn.setAttribute('role', 'switch'); hn.dataset.namesField = 'hide';
         hn.addEventListener('change', () => app.setHideNames(hn.checked));
-        row('names.hide', app.getBoardNamesLabels().hide, hn);
+        row('board.hideNames', app.getBoardNamesLabels().hide, hn);
       }
       const mute = doc.createElement('input'); mute.type = 'checkbox';
       mute.addEventListener('change', () => app.setRpgMuted(mute.checked));

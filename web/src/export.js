@@ -526,9 +526,11 @@ export function exportModule(ctx) {
   };
   // FR-095・FR-096: 会議の文脈（表題・日付・議題）と図の説明。meeting.js が api に置く（なければ従来の表題だけ）
   const meetingOut = () => ctx.api.getMeetingOutput?.() ?? null;
+  // FR-114 AC-668 (d)・AC-680: 会議ボード型の図に載る人物の名前を、PNG・PDF の見出しの行にも同じく載せる（名前を表示しないときは行がない）
+  const withNames = (h) => { const extra = ctx.api.getExportNameLines?.() ?? []; return extra.length ? { ...(h ?? { title: '', lines: [], speaker: '' }), lines: [...(h?.lines ?? []), ...extra] } : h; };
   const pdfMeeting = () => {
     const mo = meetingOut(); const fd = ctx.api.getFigureDescription?.() ?? null;
-    return { title: mo?.title || ctx.t('app.title'), header: headerModel(mo, ctx.state.lang), desc: fd?.text ?? '', descLabel: meetingLabels(ctx.state.lang).desc, infoTitle: mo?.title || ctx.t('app.title') };
+    return { title: mo?.title || ctx.t('app.title'), header: withNames(headerModel(mo, ctx.state.lang)), desc: fd?.text ?? '', descLabel: meetingLabels(ctx.state.lang).desc, infoTitle: mo?.title || ctx.t('app.title') };
   };
   ctx.registerCommand('save.pdf', () => run('pdf', 'application/pdf', () => buildPdf(arranged() ? ctx.state.scenes : scenes(), { ...pdfMeeting(), arrange: arranged(), parts: drawn(), look: look(), emotion: emotion(), strokes: ctx.api.getDrawExportStrokes?.() ?? null })));
   ctx.registerCommand('save.png', () => run('png', 'image/png', async () => {
@@ -536,6 +538,6 @@ export function exportModule(ctx) {
     if (!factory) throw new Error('no canvas');
     const mo = meetingOut(); const fd = ctx.api.getFigureDescription?.() ?? null;
     const strokes = ctx.api.getDrawExportStrokes?.() ?? null; // 保存の作成中の線（機密を除くときは重なる線を除いたもの）。状態が差し替わる前に同期で取る
-    return renderPng(arranged() ? ctx.state.scenes : scenes(), factory, { strokes, arrange: arranged(), rpg: ctx.api.getRpgMap?.() ?? null, parts: drawn(), imageFactory: ctx.options.imageFactory ?? null, look: look(), emotion: emotion(), header: mo ? headerModel(mo, ctx.state.lang) : null, meta: fd ? { title: fd.title || mo?.title || ctx.t('app.title'), description: fd.text } : null });
+    return renderPng(arranged() ? ctx.state.scenes : scenes(), factory, { strokes, arrange: arranged(), rpg: ctx.api.getRpgMap?.() ?? null, parts: drawn(), imageFactory: ctx.options.imageFactory ?? null, look: look(), emotion: emotion(), header: withNames(mo ? headerModel(mo, ctx.state.lang) : null), meta: fd ? { title: fd.title || mo?.title || ctx.t('app.title'), description: fd.text } : null });
   }));
 }

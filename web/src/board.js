@@ -223,7 +223,7 @@ export function boardLayout(input, opts = {}) {
   const info = input.titleInfo ?? {};
   // AC-668: 人物に添える名前（参加者名簿・.vtt の話者タグ）。opts.names: { members: [名前], speakerOf(発話 id) } | null（名前を表示しない・名前なし）
   const names = opts.names ?? null;
-  const memberUnits = (names?.members ?? []).map((n) => clipLabel(n)).filter(Boolean).map((n, i) => ({ memberName: n, i }));
+  const memberUnits = (names?.members ?? []).map((n) => clipLabel(n)).filter(Boolean).map((n, i) => ({ memberName: names.anonymous === true ? '' : n, i })); // anonymous: 名前を表示しない（AC-680。人物だけ）
   const title = { title: String(info.theme ?? '').trim(), subtitle: [info.series, info.venue].map((v) => String(v ?? '').trim()).filter(Boolean).join(' ・ '), date: String(info.date ?? '').trim() };
   const band = title.title || title.subtitle || title.date ? { x: M, y: M, w: W - M * 2, h: BAND, title: fit(title.title || title.subtitle, W - M * 2 - 220, 26), subtitle: title.title ? fit(title.subtitle, W - M * 2 - 40, 15) : '', date: fit(title.date, 180, 15), full: title } : null;
   // 要点 → 区画
@@ -394,9 +394,9 @@ function elementSvg(el, C, tx) {
         return g(`${ps}${labelSvg(el, el.x, el.y + 58, C)}`);
       }
       if (el.member) { // AC-668 (b): 参加メンバーの名前（人物の絵記号と名前の組）
-        return g(`${personSvg(String(el.seed), el.x, el.y + 2, 28, C)}<text data-board-name x="${r1(el.x + 32)}" y="${r1(el.y + 22)}" font-size="${FS}" fill="${C.ink}">${escapeHtml(el.nameShown)}</text>`);
+        return g(`${personSvg(String(el.seed), el.x, el.y + 2, 28, C)}${el.nameShown ? `<text data-board-name="participant" x="${r1(el.x + 32)}" y="${r1(el.y + 22)}" font-size="${FS}" fill="${C.ink}">${escapeHtml(el.nameShown)}</text>` : ''}`);
       }
-      const said = el.name ? `<text data-board-name x="${r1(el.x - 34)}" y="${r1(el.y + 56)}" font-size="12" fill="${C.ink}">${escapeHtml(el.nameShown)}</text>` : ''; // AC-668 (c): 話者タグの名前
+      const said = el.name ? `<text data-board-name="speaker" x="${r1(el.x - 34)}" y="${r1(el.y + 56)}" font-size="12" fill="${C.ink}">${escapeHtml(el.nameShown)}</text>` : ''; // AC-668 (c): 話者タグの名前
       return g(personSvg(String(el.seed), el.x, el.y, el.w, C) + said);
     }
     case 'badge':

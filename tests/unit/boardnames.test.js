@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { newApp } from '../system/helpers.js';
 import { parseVttCues, cueSpeaker } from '../../web/src/vtt.js';
 import { boardLayout, boardSvg } from '../../web/src/board.js';
-import { clipName, parseRoster, memberNames, textHash, NAME_MAX, boardNamesOutline } from '../../web/src/boardnames.js';
+import { clipName, parseRoster, memberNames, textHash, NAME_MAX, boardNamesOutline, maskNames } from '../../web/src/boardnames.js';
 
 const VTT = 'WEBVTT\n\n00:00:01.000 --> 00:00:02.000\n<v 山田太郎>画面の色について話しました</v>\n\n00:00:02.500 --> 00:00:03.000\n<v.loud 佐藤花子>文字の大きさも話しました</v>\n\n00:00:03.200 --> 00:00:03.500\n説明の順番も話しました\n';
 const file = (text) => ({ name: 'm.vtt', type: 'text/vtt', size: Buffer.byteLength(text), text });
@@ -73,7 +73,7 @@ test('FR-114 AC-668 AC-680 AC-117 AC-359: 名簿と .vtt の話者タグの名�
   assert.deepEqual(app.setTitleInfo({ participants: '鈴木一郎\n田中次郎' }), { ok: true });
   assert.deepEqual(app.getParticipants(), ['鈴木一郎', '田中次郎']);
   assert.equal(app.getMeetingFormValues().participants, '鈴木一郎\n田中次郎');
-  assert.equal('participants' in app.getTitleInfo(), false, 'タイトル情報（セッションファイルに入る）には含めない');
+  assert.equal(app.getTitleInfo().participants, '鈴木一郎\n田中次郎', '契約: getTitleInfo().participants は入力した文字列（セッションファイルには入れない。下で確認）');
   const r = await app.importTextFile(file(VTT));
   assert.equal(r.ok, true);
   const m = app.getBoardModel();
@@ -109,7 +109,7 @@ test('FR-114 AC-668 AC-680 AC-117 AC-359: 名簿と .vtt の話者タグの名�
   await app.commands['save.svg']();
   assert.ok(!env.downloads.at(-1).data.includes('山田太郎'));
   assert.deepEqual(app.getParticipants(), ['鈴木一郎', '田中次郎']);
-  assert.equal(app.getSettingsField?.('names.hide') ?? app.getHideNames(), true);
+  assert.equal(app.getHideNames(), true);
   const app3 = await createApp(env.options);
   assert.equal(app3.getShowNames(), false, '端末ごとの設定として保たれる');
   assert.equal(app.setShowNames('x').ok, false);
@@ -147,4 +147,71 @@ test('FR-022 AC-671 AC-668: 再生取込でも話者タグの名前が保持さ�
   for (let i = 0; i < 20 && app.getVttReplay()?.running; i++) { env.tick(5); env.scheduler.advance(5000); }
   assert.equal(app.getVttReplay().running, false);
   assert.deepEqual(app.getPersonNames(), ['山田太郎', '佐藤花子']);
+});
+
+// 決定 2026-11-05（最終監査）(1): 名前は簡易マスキングの設定に関わらず LLM へ送る前に必ず伏せる（AC-358・AC-359・AC-668 (e)）
+test('FR-114 AC-358 AC-668: maskNames は長い名前から伏せ字にし、名前のない文字は変えない', () => {
+  assert.equal(maskNames('山田太郎と山田が話す', ['山田', '山田太郎']), '●●●と●●●が話す');
+  assert.equal(maskNames('名前なし', []), '名前なし');
+  assert.equal(maskNames('a.b*c', ['.b*']), 'a●●●c');
+});
+
+const llmRelay = (calls) => async ({ method = 'GET', path: p, body }) => {
+  calls.push({ method, path: p, body });
+  if (p === '/api/llm/status') return { status: 200, body: { configured: { endpoint: true, deployment: true, credential: true }, endpointHost: 'foundry.example.test' } };
+  if (p === '/api/llm/extract') return { status: 200, body: { objects: [], people: [], emotions: [], metaphors: [] } };
+  return { status: 200, body: {} };
+};
+test('FR-114 AC-358 AC-668 (e): 簡易マスキングを無効にしても、参加者名簿と話者タグの名前は LLM への送信の前に伏せる', async () => {
+  const calls = [];
+  const { app, env } = await newApp({ options: { relay: llmRelay(calls) } });
+  app.setLayoutTypes(['board']);
+  app.setTitleInfo({ participants: '鈴木一郎' });
+  app.commands['session.start']();
+  assert.equal((await app.importTextFile(file(VTT))).ok, true);
+  assert.equal((await app.requestLlmEnable()).ok, true); await app.answerLlmConsent(true);
+  app.setLlmMasking(false);
+  app.setDraft('鈴木一郎と山田太郎の案を比べました'); app.submitDraft(); env.tick(1);
+  await app.flushLlm();
+  const sent = calls.filter((c) => c.path === '/api/llm/extract');
+  assert.ok(sent.length >= 1, 'LLM への送信が行われた');
+  const body = JSON.stringify(sent);
+  for (const n of ['鈴木一郎', '山田太郎', '佐藤花子']) assert.ok(!body.includes(n), `送信に「${n}」を含まない`);
+  assert.ok(body.includes('●●●'), '名前は伏せ字になる');
+});
+
+// 決定 (2): 画像生成プロンプト（FR-078）には名前を常に含めない（伏せ字の選択によらない）
+test('FR-078 AC-420 AC-668 (e): 画像生成プロンプトには参加者名簿と話者タグの名前を含めない（伏せ字の選択がオフでも）', async () => {
+  const { app, env } = await newApp();
+  app.setLayoutTypes(['board']);
+  app.setTitleInfo({ participants: '鈴木一郎' });
+  app.commands['session.start']();
+  assert.equal((await app.importTextFile(file(VTT))).ok, true);
+  app.setDraft('鈴木一郎と山田太郎の案を比べました'); app.submitDraft(); env.tick(1);
+  for (const mask of [false, true]) {
+    const text = app.getImagePrompt({ mask }).text;
+    for (const n of ['鈴木一郎', '山田太郎']) assert.ok(!text.includes(n), `mask=${mask}: 「${n}」を含まない`);
+    assert.ok(text.includes('案を比べました'), `mask=${mask}: 名前以外の要点の文字は残る`);
+  }
+});
+
+// 決定 (3): Markdown の保存はテキスト一覧と一致（名前を表示するときは載り、名前を隠すときは載らない）
+test('FR-114 AC-668 (d) AC-680: Markdown の保存はテキスト一覧と同じ名前を載せ、名前を隠すときは載せない', async () => {
+  const { app, env } = await newApp();
+  app.setLayoutTypes(['board']);
+  app.setTitleInfo({ participants: '鈴木一郎' });
+  app.commands['session.start']();
+  assert.equal((await app.importTextFile(file(VTT))).ok, true);
+  assert.equal(app.setDetailLevel('detail').ok ?? true, true); // Markdown は詳細度に従う（要点の行は「詳細」で出る）
+  const md = async () => { await app.commands['save.markdown'](); return String(env.downloads.at(-1).data); };
+  const shown = await md();
+  assert.match(app.renderOutline(), /参加メンバー: 鈴木一郎、山田太郎、佐藤花子/);
+  assert.match(shown, /\n参加メンバー: 鈴木一郎、山田太郎、佐藤花子\n/);
+  assert.match(shown, /画面の色について話しました （発言: 山田太郎）/);
+  assert.equal(app.setHideNames(true).ok, true);
+  const hidden = await md();
+  for (const n of ['鈴木一郎', '山田太郎', '佐藤花子']) { assert.ok(!hidden.includes(n), `隠す: Markdown に「${n}」なし`); assert.ok(!app.renderOutline().includes(n)); }
+  // 会議ボード以外の型ではテキスト一覧にも Markdown にも名前は載らない
+  app.setHideNames(false); app.setLayoutTypes(['timeline']);
+  assert.ok(!(await md()).includes('山田太郎'));
 });
