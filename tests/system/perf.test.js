@@ -2,6 +2,7 @@
 // integration の AC（AC-400・AC-403・AC-538〜540）はここでは扱わない。
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { PARAM } from './helpers.js';
 import { PERF, serveWeb, launch, openApp, p95, measureStart, measureStop, settle, clickHoverRounds, dragAndScroll, startRecording, emit, emitMany, growTo, sessionOf, command } from './perf-util.js';
 
 let srv; let browser;
@@ -72,11 +73,20 @@ test('NFR-PERF-003 AC-398: 記録中に発話を連続して追加している�
     await startRecording(page);
     await page.waitForFunction(() => globalThis.__app.getState().session === 'recording');
     await warm(page);
-    const feeder = page.evaluate(async () => { for (let i = 0; i < 120; i++) { window.__emit(`連続発話${i} 来月のリリース計画を決める`, true); await new Promise((r) => setTimeout(r, 40)); } });
+    // FR-014 AC-521（依頼 2026-11-05）: ライブの確定結果は更新間隔の時点にまとめて図へ描き足される。連続追加の間の負荷
+    // （図の更新の描画）が計測の区間に必ず入るよう、更新間隔を設定できる最小（PARAM-098）にし、計測の区間に更新の時点
+    // （getLiveRefresh().count の増加）が少なくとも 1 回入るまで、発話の追加とクリック・ホバーを続ける。
+    const itvSec = await page.evaluate(() => { const i = globalThis.__app.getLiveInterval(); globalThis.__app.setLiveInterval(i.min); return globalThis.__app.getLiveInterval().sec; });
+    const c0 = await page.evaluate(() => globalThis.__app.getLiveRefresh().count);
+    const feeder = page.evaluate(async (limitMs) => { const t = Date.now(); for (let i = 0; !globalThis.__stopFeed && Date.now() - t < limitMs; i++) { window.__emit(`連続発話${i} 来月のリリース計画を決める`, true); await new Promise((r) => setTimeout(r, 40)); } }, (itvSec + 30) * 1000);
     await measureStart(page);
-    await clickHoverRounds(page, 20);
+    const tm = Date.now();
+    do { await clickHoverRounds(page, 20); } while (await page.evaluate((c) => globalThis.__app.getLiveRefresh().count <= c, c0) && Date.now() - tm < (itvSec + 10) * 1000);
+    await clickHoverRounds(page, 5); // 更新の時点の直後の入力も含める
     const r = await measureStop(page);
+    await page.evaluate(() => { globalThis.__stopFeed = true; });
     await feeder;
+    assert.ok(await page.evaluate((c) => globalThis.__app.getLiveRefresh().count > c, c0), `計測の区間に図の更新（更新間隔 ${itvSec} 秒の時点の描き足し）が入っていない`);
     assertResponsive(r, '記録中のクリック・ホバー');
     const n = await page.evaluate(() => globalThis.__app.getState().utterances.length);
     assert.ok(n > 20, `記録中に発話が追加され続けていない（${n} 件）`);
@@ -118,11 +128,16 @@ test('NFR-PERF-003 AC-401: 記録中・500 件でも、単発（手入力）の�
     const itvSec = await page.evaluate(() => { const i = globalThis.__app.getLiveInterval(); const r = globalThis.__app.setLiveInterval(i.min); return r.ok ? globalThis.__app.getLiveInterval().sec : i.sec; });
     assert.ok(itvSec > 0 && itvSec <= PERF.UPPER_SEC, `設定した更新間隔 ${itvSec} 秒は PARAM-001（${PERF.UPPER_SEC} 秒）以下`);
     const text = '最後に追加する検証用の発言です';
+    // 描画の開始は「図の更新の描画が始まった回数」getLiveRefresh().count の増加で判定する（契約 CONTRACT-LIVE-EXPORT.md・AC-053）。
+    // 反映は描画の開始から PARAM-104 以内に図（SVG）またはアウトラインに現れること（詳細度が既定の「大項目」だと SVG に要点の文字は出ないため）。
+    const c0 = await page.evaluate(() => globalThis.__app.getLiveRefresh().count);
     const t0 = Date.now();
     await emit(page, text);
-    // 描画の開始は図（SVG）への出現で判定する（状態の要点だけでは描画とみなさない）
-    await page.waitForFunction((t) => globalThis.__app.renderSvg().includes(t), text, { timeout: itvSec * 1000 + 500 });
-    assert.ok(Date.now() - t0 <= itvSec * 1000 + 500, `ライブの描画の開始に ${(Date.now() - t0)}ms（上限 設定した更新間隔 ${itvSec} 秒）`);
+    await page.waitForFunction((c) => globalThis.__app.getLiveRefresh().count > c, c0, { timeout: itvSec * 1000 + 500 });
+    const tStart = Date.now();
+    assert.ok(tStart - t0 <= itvSec * 1000 + 500, `ライブの描画の開始に ${(tStart - t0)}ms（上限 設定した更新間隔 ${itvSec} 秒）`);
+    await page.waitForFunction((t) => globalThis.__app.renderSvg().includes(t) || globalThis.__app.renderOutline().includes(t), text, { timeout: PARAM.RENDER_SEC * 1000 + 500 });
+    assert.ok(Date.now() - tStart <= PARAM.RENDER_SEC * 1000 + 500, `描画の開始から反映まで ${(Date.now() - tStart)}ms（上限 PARAM-104＝${PARAM.RENDER_SEC} 秒）`);
   });
 });
 

@@ -1,11 +1,11 @@
 # 契約: ライブ更新の間隔・バッチ描画・構造化 Markdown／HTML プレゼン出力（FR-014 AC-521、FR-022 AC-523、FR-090 AC-528・AC-530。2026-10-26）
 
-System Test（live.test.js・present-export.test.js）が前提にする観察点。要求定義書にない名前はこの契約で定める（実装役はこれに合わせる）。PARAM は PARAM-098（10 秒）・PARAM-099（15 秒）・PARAM-100（10 秒）・PARAM-001（15 秒）・PARAM-004（8 秒）。
+System Test（live.test.js・present-export.test.js）が前提にする観察点。要求定義書にない名前はこの契約で定める（実装役はこれに合わせる）。PARAM は PARAM-098（5 秒）・PARAM-099（60 秒）・PARAM-100（10 秒）・PARAM-001（60 秒）・PARAM-004（8 秒）（2026-11-05 に PARAM-098 10→5、PARAM-099 15→60、PARAM-001 15→60。依頼 2026-11-05）。
 
 ## ライブ更新（FR-014 AC-521、AC-522 は integration）
-- `app.getLiveInterval()` → `{ sec:number（現在値。初期値 10）, min:10, max:15, default:10 }`。`app.setLiveInterval(sec)` → `{ ok, reason? }`（10〜15 の整数だけ受け付け、範囲外・非整数は `ok:false` で値を変えない）。
+- `app.getLiveInterval()` → `{ sec:number（現在値。初期値 10）, min:5, max:60, default:10 }`。`app.setLiveInterval(sec)` → `{ ok, reason? }`（5〜60 の整数だけ受け付け、範囲外・非整数は `ok:false` で値を変えない。理由・設定画面・数え方の起点は CONTRACT-LIVE-SHOW.md）。
 - `app.getLiveRefresh()` → `{ count:number }`。`count` は「記録中の定期更新で図を再描画した回数」。記録中、更新間隔（`scheduler.setTimeout`。`setInterval` は禁止）ごとに、前回の更新以降に確定した発話が 1 件以上あるときだけ 1 回増える（複数の発話は 1 回にまとまる）。発話がなかった間隔では増えない。
-- 発話は確定した時点で `getState().utterances`・`getTranscript().finals` に入る（FR-014 の既存）。図（`renderSvg()`・`renderOutline()`）への反映は、確定の受付から PARAM-001（15 秒）以内。
+- 発話は確定した時点で `getState().utterances`・`getTranscript().finals` に入る（FR-014 の既存）。図（`renderSvg()`・`renderOutline()`・`getDiagramElements()`）への反映は、確定の受付の後の最初の更新の時点（受付から設定した更新間隔以内。上限 PARAM-001＝60 秒）にまとめて行い、**その時点より前には加わらない**（AC-521・AC-435。依頼 2026-11-05）。シーン・要点（`getState().scenes`）も更新の時点で加わる。手入力・ファイルの一括取込は更新間隔を待たない（AC-054・AC-523）。.vtt の再生取込（AC-671）はライブと同じく更新の時点に描き足す。
 
 ## バッチ描画（FR-022 AC-523）
 - `importTextFile`（.vtt／.txt）が `ok:true` を返したとき、取込んだ全発話の図への反映は 1 回の再描画（`getLiveRefresh().count` が取込の前後でちょうど 1 増える）で行い、記録中・準備中・停止のどの状態でも、定期更新の到来を待たない（`scheduler.advance(1000)` の後に全シーンが `renderSvg()` に現れる）。`ok:false` の取込は `count` を変えない。

@@ -15,6 +15,8 @@ const LOCAL = { availability: { 'ja-JP': 'local', 'en-US': 'local' } };
 const REMOTE = { processLocally: false, availability: { 'ja-JP': 'remote', 'en-US': 'remote' } };
 const PARAM_074_MS = 10_000; // PARAM-074 接続テストの待機上限
 const PARAM_008_MS = 2_000; // PARAM-008 音声認識の自動再開までの上限
+// FR-014 AC-521（依頼 2026-11-05）: ライブ（音声の確定結果）は受付の後の最初の更新間隔の時点に図へまとめて加わる。既定の更新間隔 PARAM-100。
+const LIVE_MS = PARAM.LIVE_DEFAULT_SEC * 1000;
 const weight = (s) => [...String(s)].reduce((n, ch) => n + (CJK.test(ch) ? 1 : 0.5), 0);
 const type = (app, env, ...texts) => { for (const t of texts) { app.setDraft(t); app.submitDraft(); env.tick(1); } };
 const texts = (app) => app.getState().utterances.map((u) => u.text);
@@ -264,9 +266,10 @@ for (const code of ['unconfigured', 'auth', 'network']) {
     await startAzureRecording(app);
     type(app, env, '予算の見直しが必要です');
     azure.emit('コストが高くて困った'); await flush();
-    env.scheduler.advance(3000);
+    env.scheduler.advance(LIVE_MS); // ライブの確定結果は受付の後の最初の更新間隔の時点に図へ加わる（AC-521）
     app.setDraft('入力中の文字');
     const svg = app.renderSvg(); const before = texts(app);
+    assert.ok(app.renderOutline().includes('コストが高くて困った'), '失敗の前に、ライブの確定結果が更新の時点で図（アウトライン）にある');
     azure.fail(code); await flush();
     const s = app.getSpeechStatus();
     assert.equal(s.method, 'azure');
@@ -382,8 +385,9 @@ test('FR-081 AC-446: Azure Speech でも音声はブラウザ内の保存・セ�
   await startAzureRecording(app);
   const MARK = 'AUDIO-BYTES-MARK-7781';
   azure.emit('音声の確認の発話', true, { audio: new Uint8Array(Buffer.from(MARK)), audioBase64: Buffer.from(MARK).toString('base64') });
-  await flush(); env.scheduler.advance(3000);
+  await flush(); env.scheduler.advance(LIVE_MS); // 受付の後の最初の更新間隔の時点を越える（AC-521）
   assert.deepEqual(texts(app), ['音声の確認の発話']);
+  assert.ok(app.renderOutline().includes('音声の確認の発話'), '更新の時点で図（アウトライン）に描き足されている（保存物の検査の前提）');
   await app.commands['file.save'](); await app.commands['save.png'](); await app.commands['save.svg'](); await app.commands['save.pdf']();
   const blobs = [JSON.stringify(env.storage.dump()), ...env.downloads.map((d) => (typeof d.data === 'string' ? d.data : bytesToLatin1(d.data))), env.canvasFactory.log.texts.join('\n')];
   for (const b of blobs) {
@@ -406,6 +410,7 @@ test('FR-081 AC-446: 画面が非表示でも記録中かつ同意済みなら A
   assert.deepEqual(texts(app), ['非表示の間の発話'], '非表示の間も取り込む');
   azure.end('upstream_end'); env.scheduler.advance(PARAM_008_MS);
   assert.equal(azure.startCalls.length, 2, '非表示の間の上流の終了でも再開する');
+  env.scheduler.advance(LIVE_MS); // 非表示のまま、受付の後の最初の更新間隔の時点を越える（AC-521）
   visibility.set(false); env.scheduler.advance(2000);
   assert.ok(app.renderSvg().includes('非表示の間の発話'));
 });
@@ -427,8 +432,9 @@ for (const reason of ['upstream_end', 'token_expired']) {
   test(`FR-081 AC-458 (a): 上流の正常な終了・トークンの期限切れ（${reason}）では停止の表示をせず、PARAM-008 秒以内に自動で再開し、発話・図・記録中は失われない`, async () => {
     const { app, env, azure } = await bootAzure({ configured: true });
     await startAzureRecording(app);
-    azure.emit('予算の見直しが必要です'); await flush(); env.scheduler.advance(3000);
+    azure.emit('予算の見直しが必要です'); await flush(); env.scheduler.advance(LIVE_MS); // 更新の時点を越える（AC-521）
     const svg = app.renderSvg(); const before = texts(app);
+    assert.ok(app.renderOutline().includes('予算の見直しが必要です'), '終了の前に、ライブの確定結果が更新の時点で図（アウトライン）にある');
     azure.end(reason); await flush();
     assert.notEqual(app.getSpeechStatus().state, 'unavailable', '停止（失敗）の表示をしない');
     env.scheduler.advance(PARAM_008_MS);
@@ -673,7 +679,8 @@ test('NFR-SEC-005 AC-452: ダミーのキーを保存し、Azure Speech での�
     assert.equal(r.ok, true);
     assert.equal(app.getSpeechMethod(), 'azure');
     app.commands['session.start'](); await flush();
-    azure.emit('予算の見直しが必要です'); azure.emit('次のリリース計画'); await flush(); env.scheduler.advance(3000);
+    azure.emit('予算の見直しが必要です'); azure.emit('次のリリース計画'); await flush(); env.scheduler.advance(LIVE_MS); // 更新の時点を越える（AC-521）
+    assert.ok(app.renderOutline().includes('次のリリース計画'), '更新の時点で図（アウトライン）に描き足されている（保存物の検査の前提）');
     assert.equal((await app.testAzureSpeech()).result, 'success');
     await app.commands['file.save'](); await app.commands['save.png'](); await app.commands['save.svg'](); await app.commands['save.pdf']();
     await flush();
