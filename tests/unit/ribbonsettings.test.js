@@ -33,7 +33,11 @@ test('FR-030 AC-520 / NFR-UX-011 AC-459: 10 グループ（画風は表示の直
   const app = await mk();
   const groups = app.getCommandBar().groups;
   assert.deepEqual(groups.map((g) => g.id), ['import', 'session', 'view', 'drawStyle', 'layoutType', 'settings', 'presentation', 'export', 'data', 'environment']);
-  assert.ok(groups.every((g) => g.commands.length <= 13));
+  // PARAM-092（13）は画風以外のグループに適用する。画風グループは AC-414（FR-076 AC-409・AC-670）のとおり登録された 15 の描画スタイルをすべて常時表示する
+  // （PARAM-092 の値 13 と AC-414 の 15 の食い違いは CONFLICTS で rd-author に回した）
+  assert.ok(groups.filter((g) => g.id !== 'drawStyle').every((g) => g.commands.length <= 13));
+  assert.equal(groups.find((g) => g.id === 'drawStyle').commands.length, app.getDrawStyles().length);
+  assert.equal(app.getDrawStyles().length, 15);
   assert.deepEqual(groups.find((g) => g.id === 'settings').commands, ['settings.open', 'settings.layoutMode', 'sound.toggleMute', 'sound.setVolume', 'arrange.setInterval', 'settings.talkPreset']);
   assert.ok(!app.getCommandBar().items.some((i) => /^apiKeys\./.test(i.command)));
   const icons = app.getCommandBar().items.map((i) => i.icon);

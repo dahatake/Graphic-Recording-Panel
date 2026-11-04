@@ -181,6 +181,7 @@ export function commandBarModule(ctx) {
     return { role: 'status', live: 'polite', session: st.session, speech, text };
   };
   const DS = 'drawStyle.set:'; // FR-077: 画風のコマンド（登録簿から動的に作る。名前・説明は登録簿の値）
+  const r1i = (n) => Math.round(n * 10) / 10; // 画風の項目のアイコン: 登録の数によらず 20 の枠に収まる印の位置（AC-414 の 15 項目）
   const dsOf = (c) => (typeof c === 'string' && c.startsWith(DS) ? api.getDrawStyles?.().find((s) => s.id === c.slice(DS.length)) ?? null : null);
   const labelOfCmd = (c) => dsOf(c)?.label ?? ctx.t(labelKey(c));
   const tipText = (c) => { const s = dsOf(c); return s ? (api.getDrawStyleShortText?.(s.id) || s.label) : ctx.t(`tooltip.${c}`); };
@@ -208,7 +209,7 @@ export function commandBarModule(ctx) {
     const groupOfCommand = new Map(groups.flatMap((g) => g.commands.map((c) => [c, g.id])));
     const items = groups.flatMap((g) => g.commands).map((command) => {
       const label = labelOfCmd(command);
-      const it = { command, group: groupOfCommand.get(command), label, labelVisible: true, accessibleName: label, tabbable: true, tabIndex: 0, tooltip: tip(command), describedBy: tooltipId(command), icon: dsOf(command) ? `${P.palette}M${1 + 1.4 * api.getDrawStyles().findIndex((s) => `${DS}${s.id}` === command)} 19h1` : (ICONS[command] ?? '') };
+      const it = { command, group: groupOfCommand.get(command), label, labelVisible: true, accessibleName: label, tabbable: true, tabIndex: 0, tooltip: tip(command), describedBy: tooltipId(command), icon: dsOf(command) ? `${P.palette}M${r1i(1 + 17 * api.getDrawStyles().findIndex((s) => `${DS}${s.id}` === command) / Math.max(1, api.getDrawStyles().length - 1))} 19h1` : (ICONS[command] ?? '') };
       if (dsOf(command)) it.description = it.tooltip.text; // FR-077: 画風の短い説明（tooltip.text と同じ）
       // FR-073 AC-388: 取り込みは、何を取り込めるかの説明を常時表示する（ホバー・フォーカスを待たない）
       if (command === 'import.file') { it.description = ctx.t('import.description'); it.descriptionVisible = true; }
