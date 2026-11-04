@@ -37,30 +37,40 @@ export function buildLook(spec) {
     return contrastRatio(BLACK, fill) >= contrastRatio(WHITE, fill) ? BLACK : WHITE;
   };
   const frame = contrastRatio(P.primary, bg) >= MIN_OUTLINE_CONTRAST ? P.primary : ink;
-  // 黄の面の輪郭線（黒かグレーで、紙面と 3:1 以上）
-  const neutral = isBlackish(frame) ? frame
-    : contrastRatio(DARK_LINE, bg) >= MIN_OUTLINE_CONTRAST ? DARK_LINE
-      : contrastRatio(LIGHT_LINE, bg) >= MIN_OUTLINE_CONTRAST ? LIGHT_LINE
-        : (contrastRatio(DARK_LINE, bg) >= contrastRatio(LIGHT_LINE, bg) ? DARK_LINE : LIGHT_LINE);
+  // 黄の面の輪郭線（黒かグレーで、紙面と 3:1 以上）。定義が palette.outline を持てばそれ（AC-670 の暖色カード風は黒）
+  const neutral = parseColor(P.outline) && isNeutralColor(P.outline) && contrastRatio(P.outline, bg) >= MIN_OUTLINE_CONTRAST ? P.outline
+    : isBlackish(frame) ? frame
+      : contrastRatio(DARK_LINE, bg) >= MIN_OUTLINE_CONTRAST ? DARK_LINE
+        : contrastRatio(LIGHT_LINE, bg) >= MIN_OUTLINE_CONTRAST ? LIGHT_LINE
+          : (contrastRatio(DARK_LINE, bg) >= contrastRatio(LIGHT_LINE, bg) ? DARK_LINE : LIGHT_LINE);
   const outlineOf = (fill) => (isYellowish(fill) ? neutral : frame);
   const accents = P.accent;
   const mono = [bg, P.primary, ink, P.secondary, ...accents].every(isNeutralColor);
   const yellow = accents.find(isYellowish);
   const tint = (c, t) => mix(c, WHITE, t);
   const stickyFills = pr.balloon === 'sticky' ? accents : null;
+  // AC-670: 白いカードの風は、吹き出しも白いカード（紙面の色）
   const balloonFill = pr.paper === 'chalkboard' ? 'none'
-    : pr.balloon === 'sticky' ? accents[1 % accents.length]
-      : (yellow ?? tint(accents[0], mono ? 0.1 : 0.2));
+    : pr.card ? bg
+      : pr.balloon === 'sticky' ? accents[1 % accents.length]
+        : (yellow ?? tint(accents[0], mono ? 0.1 : 0.2));
   // 強調の塗り: 黄があれば黄。付箋に載せる風は付箋と同じ色を避けて紙面の色にする
   const emph = stickyFills ? bg : (yellow ?? tint(accents[0], mono ? 0.14 : 0.28));
   const band = P.primary;
+  // AC-670: グラデーションの帯。帯の文字は、グラデーションのどの位置でも 4.5:1 以上になる白か黒（最も明るい位置 bandBack で測る）
+  const stops = pr.headingBand?.gradient ?? null;
+  const bandBack = stops ? [...stops].sort((p, q) => luminance(q) - luminance(p))[0] : band;
+  const allOk = (c) => (stops ?? [band]).every((s) => okText(c, s));
+  const bandText = allOk(WHITE) ? WHITE : allOk(BLACK) ? BLACK : textOn(band);
   const frameFill = pr.paper === 'grid' && okText(ink, P.secondary) ? P.secondary : bg;
-  const shadow = isNeutralColor(P.secondary) ? P.secondary : mix(bg, BLACK, 0.78);
+  const shadow = pr.card ? P.primary : isNeutralColor(P.secondary) ? P.secondary : mix(bg, BLACK, 0.78);
   const texture = pr.paper === 'kraft' ? mix(bg, BLACK, 0.68) : P.secondary;
   const base = pr.font === 'handwriting' ? 600 : pr.font === 'roundGothic' ? 500 : 400;
+  // AC-670: 配色を定義の色と白・黒に限る風（paletteOnly）。後処理（finishPresetSvg）がそれ以外の色を寄せる
+  const allowed = pr.paletteOnly ? new Set([bg, P.primary, ink, P.secondary, ...accents, P.outline, WHITE, BLACK].filter((c) => parseColor(c)).map((c) => c.toLowerCase())) : null;
   return {
-    forced: false, pr, bg, ink, frame, neutral, outlineOf, textOn, mono,
-    band, bandText: okText(WHITE, band) ? WHITE : textOn(band),
+    forced: false, pr, bg, ink, frame, neutral, outlineOf, textOn, mono, allowed,
+    band, bandText, bandStops: stops, bandBack, card: pr.card,
     marker: accents[0], stickyFills, headSticky: accents[0],
     balloonFill, balloonText: textOn(balloonFill), balloonStroke: balloonFill === 'none' ? frame : outlineOf(balloonFill),
     iconFill: (i) => (mono ? bg : accents[i % accents.length]),
@@ -75,8 +85,8 @@ export function forcedLook(spec) {
   const textOn = (fill) => (fill === 'CanvasText' ? 'Canvas' : 'CanvasText');
   const base = pr.font === 'handwriting' ? 600 : pr.font === 'roundGothic' ? 500 : 400;
   return {
-    forced: true, pr, bg: 'Canvas', ink: 'CanvasText', frame: 'CanvasText', neutral: 'CanvasText', outlineOf: () => 'CanvasText', textOn, mono: false,
-    band: 'CanvasText', bandText: 'Canvas', marker: 'CanvasText', stickyFills: pr.balloon === 'sticky' ? ['Canvas'] : null, headSticky: 'Canvas',
+    forced: true, pr, bg: 'Canvas', ink: 'CanvasText', frame: 'CanvasText', neutral: 'CanvasText', outlineOf: () => 'CanvasText', textOn, mono: false, allowed: null,
+    band: 'CanvasText', bandText: 'Canvas', bandStops: null, bandBack: 'CanvasText', card: pr.card, marker: 'CanvasText', stickyFills: pr.balloon === 'sticky' ? ['Canvas'] : null, headSticky: 'Canvas',
     balloonFill: 'Canvas', balloonText: 'CanvasText', balloonStroke: 'CanvasText', iconFill: () => 'Canvas',
     emph: 'Canvas', emphText: 'CanvasText', frameFill: 'Canvas', divider: 'GrayText', shadow: 'GrayText', texture: 'GrayText', figure: 'CanvasText', headFill: 'Canvas',
     weight: base, headWeight: pr.headingDecoration === 'classic' ? 900 : 800, labelWeight: Math.max(700, base),
@@ -235,14 +245,24 @@ function paperSvg(look, W, H) {
 }
 
 // ---- 見出しの飾り（band・marker・sticky・classic） ----
-function headingSvg(look, id, x, y, w, status, heading, selected, boxes) {
+function headingSvg(look, id, x, y, w, status, heading, selected, boxes, glyph = 'note') {
   const pr = look.pr; const out = [];
   const head = (fill, back) => textEl(x + 14, y + 29, status, { size: FS_HEAD, weight: look.headWeight, fill, back, boxes, extra: ' data-role="status"' })
     + textEl(x + (status ? 44 : 14), y + 29, heading, { size: FS_HEAD, weight: look.headWeight, fill, back, boxes, extra: ' data-role="heading"' });
   const sw = r1(pr.stroke.width * (selected ? 1.8 : 1));
   if (pr.headingDecoration === 'band') {
-    out.push(shapeEl(look, `data-style-role="heading-band" data-box="${box(x, y, w, HEAD_H)}" fill="${look.band}" stroke="${selected ? look.ink : look.band}" stroke-width="${sw}"`, x, y, w, HEAD_H, 'rect', `${id}:hb`, 4));
-    out.push(head(look.bandText, look.band));
+    // AC-670: グラデーションの帯（defs の preset-band-grad）。文字の直下の背景（data-back）は最も明るい位置の色で測る
+    const grad = !!look.bandStops;
+    const fill = grad ? 'url(#preset-band-grad)' : look.band;
+    // グラデーションを描けない描画系（PDF・一部の SVG ビューアー）向けの下地: 最も明るい位置の色の単色の帯（文字の data-back と同じ色）
+    if (grad) out.push(`<rect data-style-role="heading-band-base" x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${HEAD_H}" rx="4" fill="${look.bandBack}" stroke="none" aria-hidden="true"/>`);
+    out.push(shapeEl(look, `data-style-role="heading-band" data-box="${box(x, y, w, HEAD_H)}"${grad ? ` data-gradient="${look.bandStops.join(' ')}"` : ''} fill="${fill}" stroke="${selected ? look.ink : look.band}" stroke-width="${sw}"`, x, y, w, HEAD_H, 'rect', `${id}:hb`, 4));
+    out.push(head(look.bandText, grad ? look.bandBack : look.band));
+    // 帯の右端に白抜きの絵記号（文字の外接矩形と重ならない。幅は見出しの文字の幅＋余白から決まっている）
+    if (grad && pr.headingBand.icons) {
+      const gx = x + w - 25; const gy = y + (HEAD_H - 18) / 2;
+      out.push(`<g data-style-role="heading-icon" data-box="${box(gx, gy, 18, 18)}" fill="none" stroke="${look.bandText}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" data-back="${look.bandBack}" transform="translate(${r1(gx)} ${r1(gy)}) scale(0.75)" aria-hidden="true">${iconGlyph(glyph)}</g>`);
+    }
   } else if (pr.headingDecoration === 'sticky') {
     const fill = look.headSticky;
     out.push(`<rect data-style-role="shadow" x="${x + 4}" y="${y + 4}" width="${w}" height="${HEAD_H}" fill="${look.shadow}" stroke="none" fill-opacity="0.55"/>`);
@@ -290,7 +310,7 @@ export function renderPresetDiagram(scenes, opts, look) {
       ...s.points.map((p, i) => 42 + textWidth(p.text, FS) + 16 + textWidth(kindLabelOf(kinds[i], opts.lang), FS_LABEL) + 14),
       figX + bw + 28 + jagPad * 2));
     const sb = [];
-    sb.push(headingSvg(look, s.id, x, MARGIN, w, status, s.heading, isSel, boxes));
+    sb.push(headingSvg(look, s.id, x, MARGIN, w, status, s.heading, isSel, boxes, main ? KINDS[main].icon : 'note'));
     sb.push(`<line data-style-role="divider" x1="${x + 6}" y1="${MARGIN + HEAD_H + 11}" x2="${x + w - 6}" y2="${MARGIN + HEAD_H + 11}" fill="none" stroke="${look.divider}" stroke-width="${r1(Math.max(1, W0 * 0.5))}" stroke-dasharray="${amp > 0 ? '2 5' : '1 0'}" stroke-linecap="round"/>`);
     // 要点（種類ごとの形・絵記号・種類の文字。強調（結論）は太い枠と強調の塗り。選んだ要点は太い枠と星）
     let y = MARGIN + HEAD_H + 26; const top = new Map();
@@ -306,6 +326,12 @@ export function renderPresetDiagram(scenes, opts, look) {
         g.push(stickyEl(lk, `data-style-role="sticky" data-box="${box(x, y, w, PT_H)}" fill="${surface}" stroke="${lk.outlineOf(surface)}" stroke-width="${r1(Math.max(1, W0p * 0.6))}"`, x, y, w, PT_H, `${p.id}:st`));
       }
       const sw = r1(W0p * (hl ? 1.8 : concl ? 1.3 : 1));
+      // AC-670: 白いカード（角の丸み）に載せる。種類の外形の枠（AC-580・AC-411）はカードの中にそのまま描く
+      if (lk.card && !lk.stickyFills) {
+        const cr = lk.card.radius;
+        g.push(`<rect data-style-role="shadow" x="${x - 1}" y="${y - 1}" width="${w + 8}" height="${PT_H + 8}" rx="${cr}" fill="${lk.shadow}" fill-opacity="0.12" stroke="none"/>`);
+        g.push(`<rect data-style-role="card" data-box="${box(x - 4, y - 4, w + 8, PT_H + 8)}" x="${x - 4}" y="${y - 4}" width="${w + 8}" height="${PT_H + 8}" rx="${cr}" fill="${surface}" stroke="${lk.frame}" stroke-width="${r1(Math.max(1, W0p * 0.5))}"/>`);
+      }
       g.push(shapeEl(lk, `data-style-role="point-frame" data-box="${box(x, y, w, PT_H)}" fill="${lk.stickyFills ? 'none' : surface}" stroke="${lk.frame}" stroke-width="${sw}" stroke-linejoin="round"${dash}`, x, y, w, PT_H, k.shape, p.id));
       { const ex = kindExtraSvg(k.shape, x, y, w, PT_H, lk.frame, sw); if (ex) g.push(ex.replace('<rect ', '<rect data-style-role="kind-extra" ')); } // AC-580: 外形の二重枠・太い縦線はスタイルによらず保つ
       if (hl) g.push(`<path data-role="highlight-frame" d="${wobD(outline(k.shape, x - 6, y - 6, w + 12, PT_H + 12), `${p.id}:f`, true, 0.8)}" fill="none" stroke="${lk.frame}" stroke-width="2" stroke-dasharray="3 3"/>`);
@@ -355,8 +381,10 @@ export function renderPresetDiagram(scenes, opts, look) {
       const jag = emoBalloon ? jaggedPoints(bx, by, bw, bh, JAG) : null;
       const ptsAttr = (pts, dx = 0) => pts.map(([px, py]) => `${r1(px + dx)},${r1(py + dx)}`).join(' ');
       if (look.pr.paper !== 'chalkboard' && fill !== 'none') {
-        if (jag) sb.push(`<polygon data-style-role="shadow" points="${ptsAttr(jag, 4)}" fill="${look.shadow}" fill-opacity="0.5" stroke="none"/>`);
-        else sb.push(`<path data-style-role="shadow" d="${cloudy ? cloud(bx + 4, by + 4, bw, bh, `${s.id}:bl`).d : `M${bx + 4} ${by + 4}h${bw}v${bh}h${-bw}Z`}" fill="${look.shadow}" fill-opacity="0.5" stroke="none"/>`);
+        const so = look.card ? '0.12' : '0.5';
+        if (jag) sb.push(`<polygon data-style-role="shadow" points="${ptsAttr(jag, 4)}" fill="${look.shadow}" fill-opacity="${so}" stroke="none"/>`);
+        else if (look.card && !cloudy && pr.balloon !== 'sticky') sb.push(`<rect data-style-role="shadow" x="${bx + 3}" y="${by + 3}" width="${bw}" height="${bh}" rx="${look.card.radius}" fill="${look.shadow}" fill-opacity="${so}" stroke="none"/>`);
+        else sb.push(`<path data-style-role="shadow" d="${cloudy ? cloud(bx + 4, by + 4, bw, bh, `${s.id}:bl`).d : `M${bx + 4} ${by + 4}h${bw}v${bh}h${-bw}Z`}" fill="${look.shadow}" fill-opacity="${so}" stroke="none"/>`);
       }
       if (jag) {
         sb.push(`<polygon data-style-role="balloon" data-shape="jagged" data-balloon-kind="emotion" data-box="${box(bx - JAG, by - JAG, bw + JAG * 2, bh + JAG * 2)}" points="${ptsAttr(jag)}" fill="${fill}" stroke="${stroke}" stroke-width="${bsw}" stroke-linejoin="miter"${dashB}/>`);
@@ -367,6 +395,9 @@ export function renderPresetDiagram(scenes, opts, look) {
         if (pr.figures) sb.push(`<circle data-style-role="balloon-tail" cx="${r1(bx - 6)}" cy="${r1(by + bh * 0.72)}" r="4" fill="${fill}" stroke="${stroke}" stroke-width="${r1(bsw * 0.8)}"/><circle data-style-role="balloon-tail" cx="${r1(bx - 13)}" cy="${r1(by + bh * 0.9)}" r="2.4" fill="${fill}" stroke="${stroke}" stroke-width="${r1(bsw * 0.8)}"/>`);
       } else if (pr.balloon === 'sticky') {
         sb.push(stickyEl(look, `data-style-role="balloon" data-shape="sticky" data-box="${box(bx, by, bw, bh)}" fill="${fill}" stroke="${stroke}" stroke-width="${bsw}"`, bx, by, bw, bh, `${s.id}:bl`));
+      } else if (look.card) { // AC-670: 吹き出しは白いカード（角の丸み）
+        sb.push(`<rect data-style-role="balloon" data-shape="rounded" data-card="1" data-box="${box(bx, by, bw, bh)}" x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="${look.card.radius}" fill="${fill}" stroke="${stroke}" stroke-width="${bsw}" stroke-linejoin="round"${dashB}/>`);
+        if (pr.figures) sb.push(`<path data-style-role="balloon-tail" d="M${bx + 1} ${r1(by + bh * 0.55)}L${bx - 9} ${r1(by + bh * 0.8)}L${bx + 1} ${r1(by + bh * 0.75)}" fill="${fill}" stroke="${stroke}" stroke-width="${r1(bsw * 0.8)}" stroke-linejoin="round"/>`);
       } else {
         sb.push(shapeEl(look, `data-style-role="balloon" data-shape="rounded" data-box="${box(bx, by, bw, bh)}" fill="${fill}" stroke="${stroke}" stroke-width="${bsw}" stroke-linejoin="round"${dashB}`, bx, by, bw, bh, 'rect', `${s.id}:bl`, 12));
         if (pr.figures) sb.push(`<path data-style-role="balloon-tail" d="M${bx + 1} ${r1(by + bh * 0.55)}L${bx - 9} ${r1(by + bh * 0.8)}L${bx + 1} ${r1(by + bh * 0.75)}" fill="${fill}" stroke="${stroke}" stroke-width="${r1(bsw * 0.8)}" stroke-linejoin="round"/>`);
@@ -455,8 +486,10 @@ export function renderPresetTopics(topics, relations, scenes, opts, look) {
     }
     if (pr.figures) { g.push(figureEl(look, tp.id, x + w - FIG_W - 8, Math.max(y - 10, top + HEAD_H + 8), blocked, 'data-figure-topic')); y = Math.max(y, top + HEAD_H + 8 + FIG_H + 10); }
     // 中身（選択中の印・見出しの一覧・線画人物）があるときだけ囲みを描く
-    if (y > top + HEAD_H + 24) g.unshift(shapeEl(look, `data-role="topic-frame" fill="${look.frameFill}" stroke="${look.frame}" stroke-width="${r1(pr.stroke.width)}"`, x, top + HEAD_H + 4, w, y - top - HEAD_H - 4, 'rect', `${tp.id}:e`, 8));
-    else y = top + HEAD_H + 8;
+    if (y > top + HEAD_H + 24) {
+      const fa = `data-role="topic-frame" fill="${look.frameFill}" stroke="${look.frame}" stroke-width="${r1(pr.stroke.width)}"`; const fy = top + HEAD_H + 4; const fh = y - top - HEAD_H - 4;
+      g.unshift(look.card ? `<rect ${fa} data-card="1" x="${x}" y="${fy}" width="${w}" height="${fh}" rx="${look.card.radius}"/>` : shapeEl(look, fa, x, fy, w, fh, 'rect', `${tp.id}:e`, 8));
+    } else y = top + HEAD_H + 8;
     groups.push(`<g data-topic-id="${attr(tp.id)}"${tp.containsSelected ? ' aria-current="true"' : ''}>${g.join('')}</g>`);
     pos.set(tp.id, { x, w });
     maxH = Math.max(maxH, y + MARGIN);
@@ -541,7 +574,7 @@ export function renderPresetPlacement(L, look, dy) {
       const pts = []; const n = 14; const cx = u.x + u.w / 2; const cy = u.y + u.h / 2;
       for (let i = 0; i < n * 2; i++) { const a = (Math.PI * i) / n; const k = i % 2 ? 0.88 : 1; pts.push(`${r1(cx + Math.cos(a) * (u.w / 2) * k)} ${r1(cy + Math.sin(a) * (u.h / 2) * k)}`); }
       frame = `<path data-role="unit-frame" d="M${pts.join('L')}Z" fill="${card}" stroke="${look.frame}" stroke-width="${emph}"/>`;
-    } else frame = `<rect data-role="unit-frame" x="${u.x}" y="${u.y}" width="${u.w}" height="${u.h}" rx="${u.shape === 'round' || u.shape === 'cloud' ? Math.min(u.h / 2, 24) : 6}" fill="${card}" stroke="${look.frame}" stroke-width="${emph}"/>`;
+    } else frame = `<rect data-role="unit-frame" x="${u.x}" y="${u.y}" width="${u.w}" height="${u.h}" rx="${u.shape === 'round' || u.shape === 'cloud' ? Math.min(u.h / 2, 24) : look.card ? look.card.radius : 6}" fill="${card}" stroke="${look.frame}" stroke-width="${emph}"/>`;
     const inner = u.emphasis ? `<rect data-role="emphasis-frame" x="${u.x + 4}" y="${u.y + 4}" width="${u.w - 8}" height="${u.h - 8}" rx="4" fill="none" stroke="${look.frame}" stroke-width="1"/>` : '';
     const lines = wrapLines(u.text, u.w - 28, fs, Math.max(1, Math.floor((u.h - 8) / (fs + 3))));
     const text = lines.map((ln, i) => T(u.x + 14, u.y + 6 + fs + i * (fs + 3), ln, { size: fs, weight: u.emphasis ? 800 : look.weight, fill: onCard, back: card })).join('');
@@ -569,11 +602,24 @@ const TAG_RE = /<([A-Za-z][\w:.-]*)((?:\s+[^\s=>/]+(?:\s*=\s*(?:"[^"]*"|'[^']*')
 const getAttr = (a, n) => { const m = new RegExp(`\\s${n}="([^"]*)"`).exec(a); return m ? m[1] : null; };
 const setAttr = (a, n, v) => (getAttr(a, n) != null ? a.replace(new RegExp(`(\\s${n}=)"[^"]*"`), `$1"${v}"`) : `${a} ${n}="${v}"`);
 // 黄の面には黒かグレーの輪郭線を付ける（同梱部品など、風の部品以外の黄の塗りも含む。AC-410・AC-411）。単色の風は無彩色に寄せる。
+// 配色を限る風（AC-670 の暖色カード風。look.allowed）は、定義の色と白・黒以外の色（同梱部品の色など）を、近い許可の色に寄せる
+// （文字は文字色、線は枠の色、塗りは明るければ白か黄、ほかは RGB の距離が最も近い色）。
+const hex6 = (c) => { const v = parseColor(c); return v ? `#${v.map((x) => x.toString(16).padStart(2, '0')).join('')}` : String(c).toLowerCase(); };
+function nearestAllowed(look, prop, tag, c) {
+  if (prop === 'stroke') return look.frame;
+  if (tag === 'text' || prop === 'color') return look.ink;
+  const v = parseColor(c);
+  const cands = [...look.allowed];
+  if (luminance(c) > 0.6) return isYellowish(c) ? (cands.find(isYellowish) ?? look.bg) : look.bg;
+  const dist = (h) => { const w = parseColor(h); return w.reduce((n, x, i) => n + (x - v[i]) ** 2, 0); };
+  return cands.sort((a, b) => dist(a) - dist(b))[0];
+}
 export function finishPresetSvg(svg, look) {
   if (look.forced) return svg;
   return svg.replace(TAG_RE, (all, tag, a, self) => {
     let out = a;
     if (look.mono) out = out.replace(/(\s(?:fill|stroke|stop-color|color)=)"(#[0-9a-fA-F]{3,6})"/g, (m, k, c) => `${k}"${grayOf(c)}"`);
+    if (look.allowed) out = out.replace(/(\s)(fill|stroke|stop-color|color)="(#[0-9a-fA-F]{3,6})"/g, (m, sp, k, c) => (look.allowed.has(hex6(c)) ? m : `${sp}${k}="${nearestAllowed(look, k, tag, c)}"`));
     const fill = getAttr(out, 'fill');
     if (fill && isYellowish(fill)) {
       const st = getAttr(out, 'stroke');
@@ -635,8 +681,11 @@ function restyleLegacy(svg, look, spec) {
 }
 
 function markers(look) {
+  const grad = look.bandStops
+    ? `<linearGradient id="preset-band-grad" x1="0" y1="0" x2="1" y2="0">${look.bandStops.map((c, i, a) => `<stop offset="${r1((i / (a.length - 1)) * 100)}%" stop-color="${c}"/>`).join('')}</linearGradient>`
+    : '';
   return `<marker id="preset-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="${look.frame}" stroke="none"/></marker>`
-    + `<marker id="preset-arrow-ink" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${look.ink}" stroke="none"/></marker>`;
+    + `<marker id="preset-arrow-ink" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${look.ink}" stroke="none"/></marker>${grad}`;
 }
 
 // アプリの描画（renderBaseSvg）の画風プリセット版。ctx は diagramModule と同じ。
