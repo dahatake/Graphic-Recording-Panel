@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp, keyFor } from '../system/helpers.js';
-import { assignSection, actionFields, boardLayout, boardSvg, boardColors, boardFontKind, partKindsOf, normalizeSection, SECTIONS, SECTION_IDS, PART_KINDS, LABEL_MAX, GROUP_MAX, MOVE_MS, createBoardMotion } from '../../web/src/board.js';
+import { assignSection, actionFields, boardLayout, boardSvg, boardColors, boardFontKind, partKindsOf, normalizeSection, SECTIONS, SECTION_IDS, BOARD_ORDER, PART_KINDS, LABEL_MAX, GROUP_MAX, MOVE_MS, createBoardMotion } from '../../web/src/board.js';
 import { glyphWidth } from '../../web/src/glyphwidth.js';
 import { parseSections } from '../../web/src/llmdraw.js';
 import { selectLayoutTypes } from '../../web/src/autolayout.js';
@@ -306,11 +306,11 @@ function checkBoard(L, where) {
 // FR-079 AC-669 AC-432: 区画の中身が枠に収まる間はほかの区画の枠・要素は動かず、あふれたときだけ枠を決め直して詰め直し、図の領域は縦に伸びる
 // （PARAM-186: 並びの中で最も中身の高い区画の空きは 1 行以下なので、収まる追加は並びの中で中身の低い区画への追加で起きる）
 test('FR-079 AC-669 AC-432: 収まる間はほかの区画は不動、あふれたときだけ詰め直し、重なり 0・はみ出し 0・図の領域を縦に伸ばす', () => {
-  // 議論の流れ（同じ並びの決定事項より高い）を先に作り、決定事項に 1 件ずつ足す
-  const groups = ['まず市場の状況を整理しました', '次に顧客の声を共有しました', '続いて試作を見せました', '最後に費用を話しました', 'さらに体制を話しました', 'そして日程を話しました'].map((t) => [t]);
+  // 議論の流れ（初期の並びで同じ並びの決定事項より高い）を先に作り、決定事項に 1 件ずつ足す（直前の並びを渡して配置する）
+  const groups = ['まず市場の状況を整理しました', '次に顧客の声を共有しました', '続いて試作を見せました'].map((t) => [t]);
   let prev = boardLayout({ scenes: scenesOf(groups), topics: [] });
   checkBoard(prev, '最初');
-  let overflowed = 0; let stayed = 0;
+  let moved = 0; let stayed = 0;
   for (let k = 1; k <= 24; k++) {
     groups.push([`案その${k}に決めました`]);
     const L = boardLayout({ scenes: scenesOf(groups), topics: [] });
@@ -319,20 +319,21 @@ test('FR-079 AC-669 AC-432: 収まる間はほかの区画は不動、あふれ�
     const dec = (m) => m.get('decisions');
     assert.equal(dec(b).els.at(-1)[0], `p:s${groups.length}p0`, `追加 ${k}: 末尾に加わる`);
     assert.equal(dec(b).els.length, k, `追加 ${k}: 全要点が図にある`);
-    const grew = dec(b).frame.h !== dec(a).frame.h;
-    const others = [...b.keys()].filter((id) => id !== 'decisions');
-    if (!grew) {
+    // 案 A: 枠の高さは自分の中身の高さ（HEAD + 8 + ceil(中身) + PAD。刻みなし）
+    const ds = L.board.sections.find((s) => s.id === 'decisions');
+    assert.equal(ds.frame.h, 36 + 8 + Math.ceil(Math.max(...ds.elements.map((e) => e.y + e.h)) - ds.contentTop) + 12, `追加 ${k}: 枠は自分の中身の高さ`);
+    // 並びを決め直さない間、動くのは決定事項と、その下に積まれる区画（同じ帯 C の open・memo）だけ。同じ帯の上の区画とつながらない帯は動かない
+    if (!L.board.reflowed && !prev.board.reflowed) {
       stayed++;
-      for (const id of others) assert.deepEqual(b.get(id), a.get(id), `追加 ${k}: 収まる間は ${id} の枠と要素は動かない`);
-      assert.equal(L.canvas.h, prev.canvas.h, `追加 ${k}: 図の領域も変わらない`);
-    } else {
-      overflowed++;
-      assert.ok(L.canvas.h > prev.canvas.h, `追加 ${k}: あふれたら図の領域を縦に伸ばす`);
-      assert.ok(others.some((id) => b.get(id).frame.y !== a.get(id).frame.y), `追加 ${k}: ほかの区画を詰め直す`);
-    }
+      for (const id of ['purpose', 'members', 'vision', 'flow', 'themes', 'actions']) assert.deepEqual(b.get(id), a.get(id), `追加 ${k}: ${id} は動かない`);
+      if (k > 1) assert.ok(dec(b).frame.h > dec(a).frame.h, `追加 ${k}: 高さが増える`);
+      assert.ok(L.canvas.h >= prev.canvas.h, `追加 ${k}: 図の領域は縮まない`);
+    } else moved++;
+    // AC-669 (5) 冪等: 契機のない再配置（同じ入力）ではすべての枠と要素の位置が変わらない
+    assert.deepEqual(secsOf(boardLayout({ scenes: scenesOf(groups), topics: [] })), secsOf(L), `追加 ${k}: 契機がなければ動かない`);
     prev = L;
   }
-  assert.ok(stayed >= 3 && overflowed >= 3, `収まる追加（${stayed}）とあふれ（${overflowed}）の両方を確かめた`);
+  assert.ok(stayed >= 3, `並びを決め直さない追加（${stayed}）を確かめた（決め直し ${moved}）`);
   // AC-434・AC-432 (c): 同じ入力からは毎回同じ配置、新しい要素がなければ配置は変わらない
   const again = boardLayout({ scenes: scenesOf(groups), topics: [] });
   assert.deepEqual(secsOf(again), secsOf(prev));
@@ -352,13 +353,13 @@ test('FR-079 AC-669 PARAM-186: 各並びの最も中身の高い区画の空き�
       const rows = new Map();
       for (const s of L.board.sections) (rows.get(s.frame.y) ?? rows.set(s.frame.y, []).get(s.frame.y)).push(s);
       for (const [y, secs] of rows) {
-        assert.equal(new Set(secs.map((s) => s.frame.h)).size, 1, `${ci}/${n}: 同じ並びの枠の高さは揃う`);
+        // 案 A: 横並びでも枠の高さは揃えない。要点のある区画は自分の中身の高さ（下の空きは枠の内側の余白だけ）、0 件の区画は見出しと 1 行分
         const body = (s) => s.frame.h - HEAD_AND_GAP - PAD;
         const bottom = (s) => (s.elements.length ? Math.max(...s.elements.map((e) => e.y + e.h)) - (s.frame.y + HEAD_AND_GAP) : 0);
-        const tallest = secs.reduce((m, s) => (bottom(s) > bottom(m) ? s : m), secs[0]);
-        const spare = body(tallest) - bottom(tallest);
-        assert.ok(spare >= 0 && spare <= line, `${ci}/${n} y=${y}: ${tallest.id} の空き ${spare} は 1 行（${line}）以下`);
-        for (const s of secs) if (!s.count && secs.every((t) => !t.count)) assert.equal(body(s), line, `${ci}/${n}: 0 件の並びは見出しと 1 行分`);
+        for (const s of secs) {
+          if (s.elements.length) assert.ok(Math.abs(body(s) - Math.ceil(bottom(s))) <= 1e-6, `${ci}/${n} y=${y}: ${s.id} の下の空きは枠の内側の余白だけ`);
+          else assert.equal(body(s), line, `${ci}/${n}: ${s.id} は 0 件で見出しと 1 行分`);
+        }
       }
     }
   }
@@ -598,28 +599,63 @@ test('FR-114 AC-666 PARAM-190: シーンなしの会議は無音 10 秒以上・
   assert.deepEqual(stepsOf(SAME, [0, 10000, 1000, 10000]), b);
 });
 
-// FR-079 AC-669 PARAM-188 PARAM-189: 同じ並びの区画の枠の高さは揃えたまま、最も高い区画以外の要点のある区画の最後の要素の下の空き（枠の下端まで）は枠の高さの 20% 以下。
-// 要素の間隔と表の行の高さを広げて埋め（倍率 2 まで）、広げても超えるときだけ自分の中身の高さにする。位置は決定的で重ならない・はみ出さない
-test('FR-079 AC-669 PARAM-188 PARAM-189: 低い区画は間隔・表の行の高さを広げて空きを 20% 以下にし、重ならず、同じ入力から同じ配置', () => {
+// FR-079 AC-669 PARAM-188: 要点の量が偏った会議（決定事項・主要テーマ・メモが少なく、議論の流れ・次アクションが多い）でも、
+// 中身は見出しの下から上に詰まり（上の空き ≤ 下の空き）、空きは枠の高さの 20% 以下で、並びの決め直しは入力だけで決まり、重ならない
+test('FR-079 AC-669 PARAM-188: 偏った会議でも上詰め・空き 20% 以下・重なり 0、並びの決め直しは決定的で区画の順と幅を保つ', () => {
+  const groups = [
+    ...Array.from({ length: 8 }, (_, i) => [`議論その${i + 1}として顧客の声を整理しました`]),
+    ['料金は月額制で合意しました'], ['主要な論点は価格です'], ['ちなみに競合は秋に新製品を出すそうです'],
+    ...Array.from({ length: 5 }, (_, i) => [`${i + 1}件目の資料は佐藤さんがお願いします`]),
+  ];
+  for (const fontKind of [null, 'handwriting', 'roundGothic', 'gothic']) {
+    const input = { scenes: scenesOf(groups), topics: [] };
+    const L = boardLayout(input, { fontKind });
+    checkBoard(L, `書体 ${fontKind}`);
+    assert.deepEqual(boardLayout(input, { fontKind }).board.bands, L.board.bands, '決め直しは入力だけで決まる');
+    assert.deepEqual(L.board.sections.map((s) => s.id), BOARD_ORDER, '区画の順（PARAM-192）は変わらない');
+    for (const s of L.board.sections) assert.ok(s.band >= 0 && s.band + s.cols <= L.board.columns, `${s.id}: 帯と幅は列数以内`);
+    assert.ok(L.board.initialHeight > 0 && L.canvas.h <= L.board.initialHeight + 1e-6, '図の高さは初期の並びの高さ以下');
+    if (!L.board.reflowed) assert.ok(Math.abs(L.canvas.h - L.board.initialHeight) < 1e-6 && L.board.initialHeight <= 913, '決め直さないときは初期の並びのまま（PARAM-194）');
+    else assert.ok(L.board.initialHeight > 913, '決め直すのは初期の並びが 913 を超えるときだけ');
+    // 各帯の最初の区画の上端は揃う（下端は揃えない）
+    const firstTops = [0, 1, 2].map((b) => L.board.sections.find((s) => s.band <= b && b < s.band + s.cols).frame.y);
+    assert.ok(firstTops.every((t) => t === firstTops[0]), `各帯の最初の区画の上端が揃う ${firstTops}`);
+    // AC-669 (4) (a) / AC-666: 次アクションの幅は 2 列以上で、担当 150・期限 180 の列に全文が入る
+    const act = L.board.sections.find((s) => s.id === 'actions');
+    assert.ok(act.cols >= 2, '次アクションの幅は 2 列以上');
+    for (const el of act.elements.filter((e) => e.part === 'table')) {
+      assert.deepEqual(el.cols.slice(2), [150, 180], '担当 150・期限 180');
+      for (const r of el.rows) assert.equal(r.text, r.full, `次アクションの内容が全文で入る: ${r.full}`);
+    }
+    const live = L.board.sections.filter((s) => s.count);
+    for (const s of live) {
+      const bottom = Math.max(...s.elements.map((e) => e.y + e.h));
+      const topGap = Math.min(...s.elements.map((e) => e.y)) - (s.frame.y + 36 + 8);
+      const gap = s.frame.y + s.frame.h - bottom;
+      assert.ok(topGap >= 0 && topGap <= gap, `${fontKind}/${s.id}: 上の空き ${topGap} ≤ 下の空き ${gap}`);
+      assert.ok(topGap === 0, `${fontKind}/${s.id}: 最初の要素は見出しの下に詰まる`);
+      assert.ok(gap <= 0.2 * s.frame.h + 0.01, `${fontKind}/${s.id}: 下の空き ${gap} は枠 ${s.frame.h} の 20% 以下（枠の内側の余白だけ）`);
+    }
+  }
+});
+
+// FR-079 AC-669 PARAM-188 PARAM-189: 区画の枠は自分の中身の高さで、要素の間隔・表の行の高さは広げない。
+// 初期の並びが 913 以下なら初期の並びのまま、超えるときだけ図の高さが最小の割り当て（初期の並び以下）。位置は決定的で重ならない・はみ出さない
+test('FR-079 AC-669 PARAM-188 PARAM-189: 枠は自分の中身の高さ、間隔は広げず、決め直しは 913 超のときだけで初期以下の高さ、同じ入力から同じ配置', () => {
   for (let n = 1; n <= MEETING.length; n++) {
     const input = { scenes: scenesOf(MEETING.slice(0, n)), topics: [] };
     const L = boardLayout(input);
     checkBoard(L, `${n} 件`);
     assert.deepEqual(boardLayout(input).board.sections, L.board.sections, '決定的');
-    const rows = new Map();
-    for (const s of L.board.sections) (rows.get(s.frame.y) ?? rows.set(s.frame.y, []).get(s.frame.y)).push(s);
-    for (const secs of rows.values()) {
-      const live = secs.filter((s) => s.count && s.elements.length);
-      const bottom = (s) => Math.max(...s.elements.map((e) => e.y + e.h));
-      const tallest = live.reduce((m, s) => (m && bottom(s) - s.frame.y <= bottom(m) - m.frame.y ? m : s), null);
-      for (const s of live) {
-        if (s === tallest) continue;
-        const gap = s.frame.y + s.frame.h - bottom(s);
-        assert.ok(gap >= 0 && gap <= 0.2 * s.frame.h + 0.01, `${n} 件: ${s.id} の空き ${gap} は枠 ${s.frame.h} の 20% 以下`);
-      }
+    assert.ok(L.canvas.h <= L.board.initialHeight + 1e-6, `${n} 件: 図の高さは初期の並び以下`);
+    for (const s of L.board.sections.filter((t) => t.count && t.elements.length)) {
+      const gap = s.frame.y + s.frame.h - Math.max(...s.elements.map((e) => e.y + e.h));
+      assert.ok(gap >= 0 && gap <= 0.2 * s.frame.h + 0.01, `${n} 件: ${s.id} の空き ${gap} は枠 ${s.frame.h} の 20% 以下`);
     }
   }
-  // 次アクションの表は行の高さを広げる（rowH ≤ 倍率 2 × 行の高さ）。広げた表は枠からはみ出さない
+  // 次アクションの表の行の高さは広げない
   const L = boardLayout({ scenes: scenesOf(MEETING), topics: [] });
-  for (const s of L.board.sections) for (const e of s.elements) if (e.part === 'table' && e.rowH) assert.ok(e.rowH <= 26 * 2 + 0.01 && e.rowH >= 26);
+  for (const s of L.board.sections) for (const e of s.elements) if (e.part === 'table') assert.ok(e.rowH == null || e.rowH === 26);
+  // 初期の並びの 3 帯（PARAM-192）: 913 以下なら決め直さない
+  if (!L.board.reflowed) assert.deepEqual(L.board.bands, [['purpose', 'flow', 'themes', 'actions'], ['members', 'flow', 'themes', 'actions'], ['vision', 'decisions', 'open', 'memo']]);
 });
