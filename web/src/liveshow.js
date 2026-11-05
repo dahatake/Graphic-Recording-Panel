@@ -667,7 +667,8 @@ export function liveShowModule(ctx) {
     return { on, label: t('show.title'), stateText: label(), reducedMotion: reduced(), running: isRunning(), surface: surface(), lastAddedCount: lastCount, ...viewOf(), log: eventLog.map((e) => ({ ...e })) };
   };
   // 会議ボード型の出現・移動の演出（AC-669）を置き換えるか（決定 C-01）。動きを減らす設定では、どちらも動きなし
-  api.isLiveShowDriving = () => on && !reduced();
+  // AC-667 (f): 置き換えるのはライブの更新間隔ごとの描き足しの最中だけ。手入力・一括取込の単発の反映は ON でも board.js の出現・移動（PARAM-181 以内）を通る
+  api.isLiveShowDriving = () => on && !reduced() && ctx.liveRefreshing === true;
   api.getLiveShowStatus = () => ({
     on, running: isRunning(), instantCount, lastCount, refreshCount, lastRefresh: lastRefresh ? { ...lastRefresh } : null,
     plan: plan ? { total: plan.total, budget: plan.budget, scale: plan.scale, fresh: plan.fresh, moved: plan.moved, refresh: plan.refresh ?? null, units: plan.units.map((u) => ({ ...u })), carries: plan.carries.map((c) => ({ ...c })), celebrations: plan.celebrations.map((c) => ({ ...c })), elapsed: now() - plan.t0 } : null,

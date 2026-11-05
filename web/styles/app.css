@@ -24,8 +24,9 @@ h1 { font-size: var(--font-size-title); } h2 { font-size: var(--font-size-subtit
 .tooltip[hidden] { display: none; }
 .toolbar-group:empty, .toolbar-group[hidden] { display: none; }
 .commandbar .btn-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.statusbar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--space-4); padding: 2px var(--space-4); background: var(--color-surface-2); border-bottom: var(--stroke) solid var(--color-border-subtle); font-size: var(--font-size-caption); }
-.statusbar .message { margin: 0; min-height: 0; }
+.statusbar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--space-4); padding: 2px var(--space-4); background: var(--color-surface-2); border-bottom: var(--stroke) solid var(--color-border-subtle); font-size: var(--font-size-caption); line-height: 1.4; box-sizing: border-box; height: 3.2rem; overflow: hidden; }
+/* FR-017 AC-661（PARAM-177）: 状態欄のメッセージは折り返さず 1 行。はみ出す分は省略記号（全文は title と aria-live の領域）。過渡の 2 行を作らない */
+.statusbar .message { margin: 0; min-height: 0; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.4; }
 .statusbar .message:empty { display: none; }
 .status-chip { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); color: var(--color-text); font-weight: var(--font-weight-semibold); }
 /* 状態は色だけでなく、形（記号）と文言でも示す */

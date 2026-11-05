@@ -87,6 +87,13 @@
 - 名前は LLM への送信（`options.relay` に渡す要求の全体）と `getImagePrompt()` の文字に含めない。`getImagePrompt({ mask })` は `mask` の値・名前を表示する設定（`getHideNames()`）・簡易マスキングの設定（`getLlmMasking()`）のどれによらず、「参加メンバー」の行・「（発言: 名前）」の添え書きを入れない（FR-078・AC-420）。
 - 要点・見出しの文字の中に現れる参加者名簿と話者タグの名前は、簡易マスキングの設定（`setLlmMasking(false)` でも）と注意の伏せ字の選択（`mask:false` でも）によらず、LLM へ送る前（`/api/llm/extract` の `body.input`）と `getImagePrompt()`（内容と文字の部分の列挙）で、常に AC-359 と同じ伏せ字に置き換える（要点ごと除くのではない。AC-358・AC-359・AC-471・AC-668 (e)。最終監査 202611050444 C-03）。
 
+## 参加者名簿の入力欄（AC-681。2026-11-05 追加）
+- 入力欄は `app.getMeetingFormSpec().fields` の `{ id:'participants', label, kind:'participants' }`（ラベルは ja「参加者名簿」・en "Participants"。PARAM-011 以内で `setLang` に従う）。値は `getMeetingFormValues().participants`（既定は空文字）。入力・編集・削除は `app.setTitleInfo({ participants })`（上の「人物の名前」。全行を渡し直す方式。空文字で全削除）。
+- 空行と前後の空白は無視し、同じ名前は 1 名として数える（入力順）。保持する名前は PARAM-197（20 文字）以内（超えるときは先頭 19 文字＋「…」）で、`getTitleInfo().participants` は保持した名前を `\n` で結んだ文字列。名前の数は PARAM-196（20 名）まで。超える行は取り込まない（先頭の 20 名だけ）。
+- `setTitleInfo({ participants })` の戻り値は `{ ok }`。上限を超える行を落としたときだけ `{ ok:true, notice:{ text, role:'status' } }` と `notice` を足す（ja「参加者は 20 名までです」／en "Up to 20 participants"。画面の読み上げ対象のメッセージにもなる）。上限を超えないときは `notice` を持たない（`{ ok:true }` のまま）。文字列・文字列の配列以外は `{ ok:false }` で、直前の名簿を保つ。
+- 名簿は `options.storage` にだけ保存され、再生成（再読込）で復元され、`data.reset` で消え、セッションファイル（`file.save`）に含まれない。「名前を隠す」のオン・オフで名簿は消えず、オンでも入力・編集できる。入力・編集・削除・表示の間、外部へのリクエストは 0 件で、LLM への送信の内容に名前の値は含まれない。
+- ステップの人物の名前（AC-668 (c)・AC-666）: `flow` の区画の `<g data-board-step>` の人物に `<text data-board-name="speaker">` を置くのは、そのステップの最初の要点の元の発話に話者タグ（`<v 名前>`）があるときだけ（名簿の名前は発話に結びつけない）。PARAM-088（7）を超えて分けた続きのステップは分ける前と同じ名前。名前は PARAM-197（20 文字）以内（超えるときは先頭 19 文字＋「…」。PARAM-165 は使わない）。参加メンバーの区画の名前の並びは、名簿（入力順）→名簿にない話者タグ（最初に現れた順）。
+
 ## 名前を表示しない（AC-680。2026-11-05 追加）
 - `app.getHideNames()` → 真偽値（既定 `false`＝名前を表示する）。`app.setHideNames(on)` → `{ ok }`。`on` が真偽値でないときは `{ ok:false }` で、直前の値を保つ。
 - ［設定］の項目 `board.hideNames`（`getSettingsDialog().fields` の `{ id:'board.hideNames', value:<真偽値>, label, description }`。ラベルは ja「名前を隠す」・en "Hide names"（AC-680）で PARAM-011 以内。`description`・`accessibleName`・`tooltip.text` のいずれかに「名前を表示しない」を含む）。コマンド `settings.hideNames` は［設定］を開いてこの項目にフォーカスし（`getSettingsDialog().focusedField === 'board.hideNames'`）、`handleKey({ key: ' ' })` で切り替わる。

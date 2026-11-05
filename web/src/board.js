@@ -217,10 +217,12 @@ const BUILD = {
       if (st.idx > 1) { els.push({ id: `arrow:${st.uid}`, part: 'arrow', dir: 'down', x: x + 4, y: cy, w: 20, h: 16, between: [st.idx - 1, st.idx] }); cy += 20; }
       const bh = 10 + st.lines.length * 20;
       const h = Math.max(st.name ? 60 : 40, bh); // AC-668 (c): 話者タグの名前は人物の下に添える
+      const nameDy = Math.max(bh, 40) + 14; // 名前（PARAM-197 の 20 文字まで）は吹き出しの下の 1 行に全幅で置く（吹き出しと重ねない）
+      const hh = st.name ? Math.max(h, nameDy + 4) : h;
       els.push({ id: `badge:${st.uid}`, part: 'badge', x, y: cy, w: 28, h: 28, n: st.n, stepIndex: st.idx });
-      els.push({ id: `person:${st.uid}`, part: 'person', x: x + 34, y: cy, w: 40, h: 40, seed: st.key, persons: 1, stepIndex: st.idx, ...(st.name ? { name: st.name, nameShown: fit(st.name, 78, 12), speaker: true, firstPointId: st.lines[0].pointId } : {}) });
+      els.push({ id: `person:${st.uid}`, part: 'person', x: x + 34, y: cy, w: 40, h: 40, seed: st.key, persons: 1, stepIndex: st.idx, ...(st.name ? { name: st.name, nameShown: fit(st.name, w - 8, 12), nameDy, speaker: true, firstPointId: st.lines[0].pointId } : {}) });
       els.push({ id: `bubble:${st.uid}`, part: 'bubble', x: x + 82, y: cy, w: w - 82, h: bh, step: st.n, stepIndex: st.idx, sceneIds: st.sceneIds, pointIds: st.lines.map((l) => l.pointId), lines: st.lines.map((l) => ({ pointId: l.pointId, ...label(l, w - 82 - 30) })) });
-      cy += h + 6;
+      cy += hh + 6;
     });
     return { els, h: cy - y - 6 };
   },
@@ -283,7 +285,8 @@ export function boardLayout(input, opts = {}) {
       const e = { pointId: p.id, sceneId: s.id, uid: p.uid ?? null, at: opts.receivedAtOf?.(p.uid ?? null) ?? null, text: String(p.text ?? ''), label: clipLabel(p.text), emphasis: a.emphasis, section: a.section, rule: a.rule, topic: topicOf.get(s.id)?.key ?? `scene:${s.id}` };
       if (a.section === 'actions') {
         const f = actionFields(e.text);
-        e.owner = f.owner; e.due = f.due; e.no = by.actions.length + 1;
+        // AC-668 (h): 担当の列の文字が名簿・話者タグの名前と一致するとき、「名前を隠す」のオンの間は「未定」と同じ扱いで伏せる（一致しない文字は変えない）
+        e.owner = f.owner && names?.anonymous === true && (names.matchWords ?? []).includes(f.owner.trim()) ? null : f.owner; e.due = f.due; e.no = by.actions.length + 1;
       }
       by[a.section].push(e);
       assigned.push({ pointId: p.id, sceneId: s.id, section: a.section, rule: a.rule });
@@ -306,7 +309,7 @@ export function boardLayout(input, opts = {}) {
     if (!same || st.lines.length >= GROUP_MAX) {
       const k = same ? st.k + 1 : 0;
       const g = !sameTS ? 0 : same ? st.g : st.g + 1; // 同じトピック・シーンの中の話題の変わり目の通し番号
-      st = { idx: steps.length + 1, key: e.topic, sceneId: e.sceneId, k, g, uid: `${e.topic}#${e.sceneId}#${k}${g ? `@${g}` : ''}`, n: stepN, cont: same, lines: [], sceneIds: [], name: names?.speakerOf?.(e.uid) ?? null }; steps.push(st);
+      st = { idx: steps.length + 1, key: e.topic, sceneId: e.sceneId, k, g, uid: `${e.topic}#${e.sceneId}#${k}${g ? `@${g}` : ''}`, n: stepN, cont: same, lines: [], sceneIds: [], name: same ? st.name : (names?.speakerOf?.(e.uid) ?? null) }; steps.push(st); // AC-668 (c)・AC-666: 続きのステップは分ける前のステップと同じ名前（続きの最初の要点では決め直さない）
     }
     st.lines.push(e); if (!st.sceneIds.includes(e.sceneId)) st.sceneIds.push(e.sceneId);
     for (const w of words) stepWords.add(w);
@@ -482,7 +485,7 @@ function elementSvg(el, C, tx) {
       if (el.member) { // AC-668 (b): 参加メンバーの名前（人物の絵記号と名前の組）
         return g(`${personSvg(String(el.seed), el.x, el.y + 2, 28, C)}${el.nameShown ? `<text data-board-name="participant" x="${r1(el.x + 32)}" y="${r1(el.y + 22)}" font-size="${FS}" fill="${C.ink}">${escapeHtml(el.nameShown)}</text>` : ''}`);
       }
-      const said = el.name ? `<text data-board-name="speaker" x="${r1(el.x - 34)}" y="${r1(el.y + 56)}" font-size="12" fill="${C.ink}">${escapeHtml(el.nameShown)}</text>` : ''; // AC-668 (c): 話者タグの名前
+      const said = el.name ? `<text data-board-name="speaker" x="${r1(el.x - 34)}" y="${r1(el.y + (el.nameDy ?? 56))}" font-size="12" fill="${C.ink}">${escapeHtml(el.nameShown)}</text>` : ''; // AC-668 (c): 話者タグの名前
       return g(personSvg(String(el.seed), el.x, el.y, el.w, C) + said);
     }
     case 'badge':

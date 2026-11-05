@@ -336,10 +336,10 @@ export function mountUI(app, doc = document) {
       tr._ver = ver;
     }
     if (doc.activeElement !== draft && draft.value !== st.input.draft) draft.value = st.input.draft;
-    setText($('#message'), st.message ? st.message.text : '');
+    { const me = $('#message'); const mt = st.message ? st.message.text : ''; setText(me, mt); if (me && me.title !== mt) me.title = mt; } // AC-661: 全文はツールチップ（title）にも
     const is = app.getImportStatus?.(); const ise = $('#import-status');
     if (is && ise) {
-      setText(ise, is.text); setAttr(ise, 'role', is.role); setAttr(ise, 'aria-live', is.live);
+      setText(ise, is.text); if (ise.title !== is.text) ise.title = is.text; setAttr(ise, 'role', is.role); setAttr(ise, 'aria-live', is.live);
       if (ise.dataset.state !== is.state) ise.dataset.state = is.state;
     }
     // NFR-PERF-003 AC-540: アウトラインもキー（シーン ID・要点 ID）で差分だけを当てる
@@ -532,12 +532,16 @@ export function mountUI(app, doc = document) {
           const c = doc.createElement(f.kind === 'agenda' || f.kind === 'participants' ? 'textarea' : 'input');
           if (f.kind === 'agenda' || f.kind === 'participants') c.rows = 4; else c.type = 'text';
           c.dataset.meetingField = f.id;
+          let note = null; // AC-681 (b): 名簿の上限で落としたときの理由（読み上げ対象の status）
+          if (f.kind === 'participants') { note = doc.createElement('p'); note.className = 'settings-status'; note.dataset.meetingNote = f.id; note.setAttribute('role', 'status'); }
           c.addEventListener('change', () => {
-            if (f.kind === 'title' || f.kind === 'participants') app.setTitleInfo({ [f.id]: c.value }); // AC-668: 参加者名簿（1 行に 1 名）
+            if (f.kind === 'participants') { const r = app.setTitleInfo({ [f.id]: c.value }); if (note) note.textContent = r?.notice?.text ?? ''; } // AC-668・AC-681: 参加者名簿（1 行に 1 名）
+            else if (f.kind === 'title') app.setTitleInfo({ [f.id]: c.value });
             else if (f.kind === 'context') app.setMeetingContext({ [f.id]: c.value });
             else app.setMeetingAgendaText(c.value);
           });
           row(`meeting.${f.id}`, f.label, c);
+          if (note) form.append(note);
         }
       }
       // FR-104 AC-603・AC-606: 公開範囲（社内・参加者のみ・公開）と、保存で機密の要点を除く選択。記録中・一時停止でも変えられる

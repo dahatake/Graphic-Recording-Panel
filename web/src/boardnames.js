@@ -8,21 +8,33 @@ import { escapeHtml } from './outline.js';
 
 export const NAMES_KEY = 'grp.boardNames';
 export const HIDE_KEY = 'grp.boardNames.hide';
-export const NAME_MAX = 24; // PARAM-165: 名前の最大の長さ（文字）
-export const ROSTER_MAX = 100; // 名簿の最大の人数（保存の大きさを限る）
+export const NAME_MAX = 20; // PARAM-197: 名前 1 件の最大の長さ（文字。超えるときは先頭の 19 文字に「…」。PARAM-165 は名前には使わない）
+export const ROSTER_MAX = 20; // PARAM-196: 参加者名簿・話者タグの名前の数の上限（それぞれ先頭から。重複は 1 名と数える）
 
-// 名前の正規化: 制御文字・連続空白を 1 つの空白に、前後の空白を除き、PARAM-165 文字に切り詰める（文字としてだけ扱う）
+// 名前の正規化（切り詰める前の全文。伏せ字の辞書にはこれを使う。AC-681 (a)）: 制御文字・連続空白を 1 つの空白に、前後の空白を除く
+export function normName(s) {
+  return String(s ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+// 名前の長さの切り詰め（AC-668 (c) と同じ規則）: PARAM-197 文字を超えるときは先頭の PARAM-197−1 文字に「…」を付ける（文字としてだけ扱う）
 export function clipName(s) {
-  return [...String(s ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim()].slice(0, NAME_MAX).join('');
+  const a = [...normName(s)];
+  return a.length <= NAME_MAX ? a.join('') : `${a.slice(0, NAME_MAX - 1).join('')}…`;
 }
 
-// 参加者名簿（文字列は 1 行に 1 名、配列は 1 要素 1 名）→ 名前の配列（入力順、空・重複を除く）
-export function parseRoster(v) {
+// 参加者名簿（文字列は 1 行に 1 名、配列は 1 要素 1 名）→ { names: 切り詰めた名前（入力順）, fulls: 同じ並びの切り詰める前の全文, over: 件数の上限で落とした名前があるか }
+// 順序（AC-681 (a)(b)）: 長さの切り詰め → 重複の除去（切り詰め後の文字列で判定）→ 件数の上限
+export function parseRosterDetail(v) {
   const list = Array.isArray(v) ? v : String(v ?? '').split(/\r\n|\r|\n/);
-  const out = [];
-  for (const x of list) { const n = clipName(x); if (n && !out.includes(n)) out.push(n); if (out.length >= ROSTER_MAX) break; }
-  return out;
+  const names = []; const fulls = []; let over = false;
+  for (const x of list) {
+    const f = normName(x); const n = clipName(f);
+    if (!n || names.includes(n)) continue;
+    if (names.length >= ROSTER_MAX) { over = true; continue; }
+    names.push(n); fulls.push(f);
+  }
+  return { names, fulls, over };
 }
+export const parseRoster = (v) => parseRosterDetail(v).names;
 
 // AC-668 (b): 参加メンバーの並び（名簿の入力順、続けて名簿にない話者タグの名前を最初に現れた順）
 export function memberNames(roster, speakers) {
@@ -39,8 +51,8 @@ export function textHash(s) {
 }
 
 const STR = {
-  ja: { roster: '参加者名簿（1 行に 1 名）', hide: '名前を隠す', hideTip: '名前を表示しない', members: '参加メンバー', said: '発言' },
-  en: { roster: 'Participants (one per line)', hide: 'Hide names', hideTip: 'Do not show names', members: 'Members', said: 'Speaker', paren: ['(', ')'] },
+  ja: { roster: '参加者名簿', hide: '名前を隠す', hideTip: '名前を表示しない', members: '参加メンバー', said: '発言', over: `参加者は ${ROSTER_MAX} 名までです` },
+  en: { roster: 'Participants', hide: 'Hide names', hideTip: 'Do not show names', members: 'Members', said: 'Speaker', paren: ['(', ')'], over: `Up to ${ROSTER_MAX} participants` },
 };
 
 export function boardNamesModule(ctx) {
@@ -48,18 +60,29 @@ export function boardNamesModule(ctx) {
   const lang = () => (state.lang === 'en' ? 'en' : 'ja');
   const tx = () => STR[lang()];
   // ---- 保存（ブラウザ内だけ） ----
-  let roster = []; let speakers = {}; // speakers: 発話 id → { n: 名前, h: 文字の指紋 }
-  { const raw = readJson(ctx.storage, NAMES_KEY); if (raw && typeof raw === 'object') { roster = parseRoster(Array.isArray(raw.roster) ? raw.roster : []); if (raw.speakers && typeof raw.speakers === 'object') for (const [k, v] of Object.entries(raw.speakers)) { const n = clipName(v?.n); if (n && typeof v?.h === 'string') speakers[k] = { n, h: v.h }; } } }
+  let roster = []; let rosterFull = []; let speakers = {}; // speakers: 発話 id → { n: 切り詰めた名前, f: 全文（切り詰めたものと違うときだけ）, h: 文字の指紋 }
+  { const raw = readJson(ctx.storage, NAMES_KEY); if (raw && typeof raw === 'object') {
+    const d = parseRosterDetail(Array.isArray(raw.roster) ? raw.roster : []); roster = d.names;
+    rosterFull = d.names.map((n, i) => { const f = Array.isArray(raw.rosterFull) ? normName(raw.rosterFull[i]) : ''; return f && clipName(f) === n ? f : n; });
+    if (raw.speakers && typeof raw.speakers === 'object') for (const [k, v] of Object.entries(raw.speakers)) { const n = clipName(v?.n); if (n && typeof v?.h === 'string') { const f = normName(v?.f); speakers[k] = { n, h: v.h, ...(f && f !== n && clipName(f) === n ? { f } : {}) }; } }
+  } }
   let hidden = readJson(ctx.storage, HIDE_KEY) === true;
-  const save = () => { if (roster.length || Object.keys(speakers).length) writeJson(ctx.storage, NAMES_KEY, { roster, speakers }); else remove(ctx.storage, NAMES_KEY); };
+  const save = () => { if (roster.length || Object.keys(speakers).length) writeJson(ctx.storage, NAMES_KEY, { roster, rosterFull, speakers }); else remove(ctx.storage, NAMES_KEY); };
   // データの初期化（FR-018）で名簿と話者タグの名前を消す。export は常に undefined（grp.session・セッションファイルに含めない）
-  ctx.registerPersist?.('boardNames', { export: () => undefined, reset: () => { roster = []; speakers = {}; remove(ctx.storage, NAMES_KEY); } });
+  ctx.registerPersist?.('boardNames', { export: () => undefined, reset: () => { roster = []; rosterFull = []; speakers = {}; remove(ctx.storage, NAMES_KEY); } });
 
   const textOf = (u) => (typeof u.rawText === 'string' ? u.rawText : u.text);
   // .vtt の取込（一括・再生取込）が、追加した発話と cue の話者タグを渡す
+  // AC-668 (g): 話者タグの名前も PARAM-196 の名数まで（取込の順に先頭から。重複は 1 名。超えた分は保持せず、その発話は名前なし）。長さ → 重複 → 件数の順
   api.recordSpeakers = (utterances, names) => {
     let changed = false;
-    (utterances ?? []).forEach((u, i) => { const n = clipName(names?.[i]); if (u?.id && n) { speakers[u.id] = { n, h: textHash(textOf(u)) }; changed = true; } });
+    const kept = new Set(Object.values(speakers).map((s) => s.n));
+    (utterances ?? []).forEach((u, i) => {
+      const f = normName(names?.[i]); const n = clipName(f);
+      if (!u?.id || !n) return;
+      if (!kept.has(n) && kept.size >= ROSTER_MAX) return;
+      kept.add(n); speakers[u.id] = { n, h: textHash(textOf(u)), ...(f !== n ? { f } : {}) }; changed = true;
+    });
     if (changed) save();
     return changed;
   };
@@ -73,8 +96,9 @@ export function boardNamesModule(ctx) {
   api.getParticipants = () => [...roster];
   api.setParticipants = (v) => {
     if (typeof v !== 'string' && !(Array.isArray(v) && v.every((x) => typeof x === 'string'))) return { ok: false, reason: 'invalid' };
-    roster = parseRoster(v); save(); ctx.change(() => {});
-    return { ok: true, participants: [...roster] };
+    const d = parseRosterDetail(v); roster = d.names; rosterFull = d.fulls; save(); ctx.change(() => {});
+    // AC-681 (b): 上限で落としたときだけ理由を文字で示す（読み上げ対象の status）
+    return { ok: true, participants: [...roster], ...(d.over ? { notice: { text: tx().over, role: 'status' } } : {}) };
   };
   const baseSetTitle = api.setTitleInfo;
   // 契約: getTitleInfo().participants は入力した文字列（未入力のときは項目を足さない。タイトル情報の保存・セッションファイルには入れない）
@@ -86,7 +110,8 @@ export function boardNamesModule(ctx) {
       const { participants, ...rest } = info;
       const r = api.setParticipants(participants);
       if (!r.ok) return r;
-      return Object.keys(rest).length ? baseSetTitle(rest) : { ok: true };
+      const base = Object.keys(rest).length ? baseSetTitle(rest) : { ok: true };
+      return r.notice && base?.ok ? { ...base, notice: r.notice } : base;
     };
   }
   // AC-680: 名前を表示しない（端末ごと。既定はオフ＝表示する）
@@ -97,8 +122,14 @@ export function boardNamesModule(ctx) {
   // 名前の全体（表示の切り替えによらない。簡易マスキングの対象語）。図にまだ取り込んでいないライブの発話（held）の話者は含めない（AC-671）
   const allNames = () => memberNames(roster, state.utterances.filter((u) => !u.held).map((u) => speakerOf(u.id)));
   api.getPersonNames = () => memberNames(roster, state.utterances.map((u) => speakerOf(u.id)));
-  // 会議ボードの配置（board.js）が使う名前。名前を表示しないときは名前のない汎用の人物だけ（人数は同じ。AC-680）
-  api.getBoardNames = () => (hidden ? { members: allNames(), speakerOf: () => null, anonymous: true } : { members: allNames(), speakerOf });
+  // 伏せ字の辞書（AC-359・AC-471・AC-681 (a)）: 切り詰める前の全文と切り詰めた形の両方（長い名前から伏せる。画面・書き出しでは伏せず、LLM へ送る前・コピーの前だけに使う）
+  api.getPersonMaskWords = () => {
+    const out = [...roster, ...rosterFull];
+    for (const u of state.utterances) { const s = speakers[u.id]; if (s && speakerOf(u.id)) out.push(s.n, s.f ?? s.n); }
+    return [...new Set(out.filter(Boolean))];
+  };
+  // 会議ボードの配置（board.js）が使う名前。名前を表示しないときは名前のない汎用の人物だけ（人数は同じ。AC-680）。matchWords: AC-665 の担当の列を伏せる照合の語（AC-668 (h)）
+  api.getBoardNames = () => (hidden ? { members: allNames(), speakerOf: () => null, anonymous: true, matchWords: api.getPersonMaskWords() } : { members: allNames(), speakerOf });
   // PNG・PDF の保存（export.js）に載せる名前の行。会議ボード型の図に名前が載っている間だけ（AC-668 (d)・AC-680）
   api.getExportNameLines = () => {
     if (hidden || !api.isBoardActive?.()) return [];
@@ -106,7 +137,7 @@ export function boardNamesModule(ctx) {
     return names.length ? [`${tx().members}:`, ...names.map((n) => `・${n}`)] : []; // 名前が折り返しで分かれないよう 1 行に 1 名
   };
   // 名前を伏せる（AC-358・AC-359・FR-078 の決定 2026-11-05）: LLM へ送る文字と画像生成プロンプトでは、簡易マスキングの設定に関わらず常に伏せる。長い名前から
-  api.maskPersonNames = (text) => maskNames(text, api.getPersonNames());
+  api.maskPersonNames = (text) => maskNames(text, api.getPersonMaskWords());
   // Markdown の保存（presentexport.js）: テキスト一覧と同じ名前（図に名前が載っている間だけ）。{ membersLine, saidOf: Map(要点 id → 「（発言: 名前）」) } | null
   api.getBoardNameNotes = () => {
     const m = api.isBoardActive?.() && !hidden ? api.getDiagramLayout?.()?.board : null;

@@ -1,4 +1,4 @@
-// FR-114 AC-667 AC-680 AC-669 AC-666（System Test。契約: tests/system/CONTRACT-BOARD.md）
+// FR-114 AC-667 AC-680 AC-669 AC-666 AC-681 AC-668 AC-665（System Test。契約: tests/system/CONTRACT-BOARD.md）
 // 期待値は要求定義書の受入基準と PARAM だけから決める。web/ の実装の値は使わない（実装がなければ失敗するのが正常）。
 // 1 ケースで (a)〜(i) と外部へのリクエスト 0 件、AC-680（名前を表示しない）を確かめる: node --test --test-name-pattern="AC-667|AC-680" tests/system/board.test.js
 // (h) は実ブラウザ（perf-util の launch。Chromium 系）で描いた文字の範囲を getExtentOfChar で測る。
@@ -566,6 +566,66 @@ test('FR-114 AC-667: 固定の文字起こし（TeamA との会議）を会議�
       checkGeometry(sl.app.getBoardModel(), `ショー ON・ライブ「${t}」の後`);
     }
 
+    // ---- (f) ライブ描画ショー ON の例外（AC-667 (f)。別のケースは作らず E2E-289 の中で測る。A-933 2026-11-05） ----
+    //   単発の反映（手入力）は ON でも (f) のまま: 位置が変わる既存の要素は途中の位置を経て PARAM-181 以内に着く。
+    //   ライブの更新間隔ごとの描き足し 1 回は (f) に代えて AC-674 の運ぶ動き（800 ms 以内・途中の位置を経る）・AC-673 の描線（1200 ms）と書き込み（1 字 80 ms）の上限に従う。
+    {
+      const so = await boardShowApp();
+      assert.equal(so.app.setLiveShow(true).ok, true);
+      so.app.commands['session.start']();
+      let movedOn = 0;
+      const feedOn = (text, where) => {
+        const before = positions(so.app.getBoardModel());
+        so.app.setDraft(text); assert.equal(so.app.submitDraft().ok, true, `${where}: 取込`);
+        const samples = [];
+        for (let dt = 0; dt <= 1600; dt += 50) { if (dt) so.advance(50); samples.push({ dt, pos: positions(so.app.getBoardModel()) }); }
+        const final = samples.at(-1).pos;
+        for (const [id, p0] of before) {
+          const pf = final.get(id); if (!pf) continue;
+          const dx = pf.x - p0.x; const dy = pf.y - p0.y;
+          if (Math.max(Math.abs(dx), Math.abs(dy)) < 4) continue;
+          movedOn++;
+          const axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
+          const [lo, hi] = [Math.min(p0[axis], pf[axis]), Math.max(p0[axis], pf[axis])];
+          const mid = samples.filter((s) => s.dt <= PARAM.P181_MS).map((s) => s.pos.get(id)?.[axis]).filter((v) => Number.isFinite(v) && v > lo + 0.5 && v < hi - 0.5);
+          assert.ok(mid.length >= 1, `${where} (f) ショー ON・単発の反映: ${id} は途中の位置を経由して移る（${p0[axis]}→${pf[axis]}）`);
+          for (const s of samples.filter((q) => q.dt >= PARAM.P181_MS)) {
+            const q = s.pos.get(id);
+            assert.ok(Math.abs(q.x - pf.x) <= 0.5 && Math.abs(q.y - pf.y) <= 0.5, `${where} (f) ショー ON・単発の反映: ${id} は ${PARAM.P181_MS}ms 以内に新しい位置に着く（${s.dt}ms）`);
+          }
+        }
+        checkGeometry(so.app.getBoardModel(), `ショー ON・単発 ${where}`);
+      };
+      LINES.forEach((t, i) => { if (EXPECTED[i].section === 'flow') so.app.commands['session.nextScene'](); feedOn(t, `ショー ON ${i + 1} 行目`); });
+      for (let k = 1; movedOn === 0 && k <= 12; k++) feedOn(`目的その${k}は品質の底上げ`, `ショー ON 追加 ${k}`);
+      assert.ok(movedOn >= 1, '(f) ショー ON・単発の反映: 位置が変わる要素が観察できる');
+      // ライブの更新間隔ごとの描き足し（AC-673・AC-674）
+      const lo = await boardShowApp({ speech: new FakeSpeech() });
+      assert.equal(lo.app.setLiveShow(true).ok, true);
+      lo.app.commands['session.start']();
+      const DT = 20; const carry = new Map(); const strokes = new Map(); let midway = false; let live = 0;
+      for (let g = 0; g < LINES.length; g += 3) {
+        for (const t of LINES.slice(g, g + 3)) lo.env.speech.emit(t, true);
+        for (let t = 0; t <= PARAM.P001_SEC * 1000 / 6; t += DT) { // 更新間隔（PARAM-100 = 10 秒）の間を細かく観測する
+          lo.advance(DT);
+          const s = lo.app.getLiveShow();
+          for (const m of s.moves ?? []) {
+            if (m.phase !== 'carry') continue;
+            const k = `${g}:${m.id}`; const c = carry.get(k);
+            if (c && t - c.last <= DT * 2.5) { c.end = t; c.last = t; } else { carry.set(`${k}@${t}`, { start: t, end: t, last: t }); carry.set(k, carry.get(`${k}@${t}`)); } // 途切れずに続いた 1 回の運ぶ動き
+            const between = (k) => Math.min(m.from[k], m.to[k]) - 0.5 <= m.at[k] && m.at[k] <= Math.max(m.from[k], m.to[k]) + 0.5;
+            if (between('x') && between('y') && (m.at.x !== m.from.x || m.at.y !== m.from.y) && (m.at.x !== m.to.x || m.at.y !== m.to.y)) midway = true;
+          }
+          for (const x of s.items ?? []) if (x.phase === 'stroke') { const c = strokes.get(`${g}:${x.id}`) ?? { start: t, end: t }; c.end = t; strokes.set(`${g}:${x.id}`, c); live++; }
+        }
+      }
+      assert.ok(live >= 1, '(f) ショー ON・ライブ: 描き足しの描線が観測できる（AC-673）');
+      assert.ok(carry.size >= 1 && midway, '(f) ショー ON・ライブ: 位置が変わる既存の要素は、途中の位置を経て運ばれる（AC-674）');
+      for (const [id, c] of carry) assert.ok(c.end - c.start <= 800 + DT, `(f) ショー ON・ライブ: ${id} の運ぶ動き ${c.end - c.start} ms は 800 ms（AC-674）以内`);
+      for (const [id, c] of strokes) assert.ok(c.end - c.start <= 1200 + DT, `(f) ショー ON・ライブ: ${id} の描線 ${c.end - c.start} ms は 1200 ms（AC-673）以内`);
+      checkGeometry(lo.app.getBoardModel(), 'ショー ON・ライブ描き足しの後');
+    }
+
     // 外部へのリクエストは 0 件（LLM 連携は既定のまま無効）
     assert.deepEqual(net.calls, [], '外部へのリクエストは 0 件');
   } finally {
@@ -928,6 +988,139 @@ test('FR-114 AC-669 AC-666: 要点の量が偏った会議を 15 の描画スタ
     checkReflow(empty.app.getBoardModel(), '要点 0 件');
     checkGeometry(empty.app.getBoardModel(), '要点 0 件');
     assert.deepEqual(net.calls, [], '外部へのリクエスト 0 件');
+  } finally {
+    net.restore();
+  }
+});
+
+// FR-114 AC-681 AC-680 AC-668 AC-666 AC-665（契約: CONTRACT-BOARD.md「参加者名簿の入力欄（AC-681）」「人物の名前」）
+// 期待値は受入基準と PARAM-196（20 名）・PARAM-197（20 文字）・PARAM-011 だけから決める。AC-668・AC-666・AC-665 は integration（台帳の AC には載せず、同じケースで測る）。
+test('FR-114 AC-681 AC-680: 参加者名簿の入力欄（ラベル・既定は空・1 行 1 名の入力・編集・削除・空行と前後の空白と重複の扱い）、名前の数は 20 名まで（超えると理由を status で示す）、1 件は 20 文字（先頭 19 文字＋「…」）、ブラウザ内の保存だけ（再読込で復元・初期化で消え・セッションファイルと LLM への送信に載らない）、「名前を隠す」の切り替えで消えず、外部へのリクエスト 0 件。AC-668 (b)(c) AC-666 AC-665: 名前の並びと、ステップの最初の発話の話者・続きのステップの名前・長さの上限', async () => {
+  const P196 = 20; const P197 = 20; // 名前の数・長さの上限
+  const clip = (s) => ([...s].length <= P197 ? s : `${[...s].slice(0, P197 - 1).join('')}…`);
+  const net = spyNetwork();
+  try {
+    const relayCalls = [];
+    const relay = async ({ method = 'GET', path: p, body }) => {
+      relayCalls.push({ method, path: p, body });
+      if (p === '/api/llm/status') return { status: 200, body: { configured: { endpoint: true, deployment: true, credential: true }, endpointHost: 'foundry.example.test' } };
+      if (p === '/api/llm/extract') return { status: 200, body: { objects: [], people: [], emotions: [], metaphors: [] } };
+      return { status: 200, body: {} };
+    };
+    const { app, env, createApp, advance } = await boardApp({ options: { relay } });
+    const roster = () => String(app.getTitleInfo().participants ?? '').split('\n').filter((x) => x !== '');
+    const members = () => parseSvg(app.renderSvg()).all.filter((n) => n.attrs['data-board-name'] === 'participant').map((n) => n.text.trim());
+    const speakersOf = (a) => parseSvg(a.renderSvg()).all.filter((n) => n.attrs['data-board-name'] === 'speaker').map((n) => n.text.trim());
+
+    // ---- 入力欄: ラベル（PARAM-011 以内・表示言語に従う）・既定は空 ----
+    const field = () => app.getMeetingFormSpec().fields.find((f) => f.id === 'participants');
+    assert.ok(field(), '入力欄（getMeetingFormSpec().fields の id: participants）がある');
+    assert.equal(field().label.trim(), '参加者名簿', `ja のラベル（${field().label}）`);
+    assert.ok(weight(field().label) <= PARAM.P011, `ラベルは PARAM-011 以内（${field().label}）`);
+    app.setLang('en');
+    assert.equal(field().label.trim(), 'Participants', `en のラベル（${field().label}）`);
+    assert.ok(!CJK.test(field().label) && weight(field().label) <= PARAM.P011, `en: ${field().label}`);
+    app.setLang('ja');
+    assert.deepEqual(roster(), [], '既定は空');
+    assert.equal(String(app.getMeetingFormValues().participants ?? ''), '', '入力欄の既定値は空');
+
+    // ---- 入力・編集・削除（1 行に 1 名）。空行・前後の空白は無視、同じ名前は 1 名 ----
+    assert.equal(app.setTitleInfo({ participants: '名簿甲\n\n  名簿乙  \n名簿甲\n   \n名簿丙' }).ok, true);
+    assert.deepEqual(roster(), ['名簿甲', '名簿乙', '名簿丙'], '空行・前後の空白は無視、同じ名前は 1 名（入力順）');
+    assert.deepEqual(members(), ['名簿甲', '名簿乙', '名簿丙'], '参加メンバーの区画に入力順で載る');
+    assert.equal(app.setTitleInfo({ participants: '名簿甲\n名簿乙改\n名簿丙' }).ok, true, '編集');
+    assert.deepEqual(roster(), ['名簿甲', '名簿乙改', '名簿丙']);
+    assert.equal(app.setTitleInfo({ participants: '名簿甲\n名簿丙' }).ok, true, '行の削除');
+    assert.deepEqual(members(), ['名簿甲', '名簿丙']);
+    // 異常系: 文字列・文字列の配列以外は受け付けず、直前の名簿が保たれる
+    for (const bad of [1, null, {}, true]) { let r; try { r = app.setTitleInfo({ participants: bad }); } catch { r = { ok: false }; } assert.equal(r?.ok, false, `${JSON.stringify(bad)} は受け付けない`); assert.deepEqual(roster(), ['名簿甲', '名簿丙'], '直前の名簿が保たれる'); }
+    // 渡さなかった項目は変えない（タイトル欄の既存の項目と同じ呼び出し）
+    assert.equal(app.setTitleInfo({ theme: '定例' }).ok, true); assert.deepEqual(roster(), ['名簿甲', '名簿丙'], '名簿は変わらない');
+    assert.equal(app.setTitleInfo({ participants: '' }).ok, true, '全部削除'); assert.deepEqual(roster(), []);
+    assert.deepEqual(members(), [], '名前がないときは従来どおり汎用の人物だけ');
+
+    // ---- (b) 名前の数の上限 PARAM-196（重複は数えない）と理由のメッセージ（読み上げ対象 status） ----
+    const names = (n) => Array.from({ length: n }, (_, i) => `名簿N${String(i + 1).padStart(2, '0')}`);
+    const dup = [...names(P196), ...names(3)]; // 20 名＋重複 3 行 = 20 名（上限を超えない）
+    let r = app.setTitleInfo({ participants: dup.join('\n') });
+    assert.equal(r.ok, true); assert.equal(roster().length, P196, '20 名ちょうど（重複は数えない）');
+    assert.ok(!r.notice, `上限を超えていないので理由は出ない（${JSON.stringify(r.notice)}）`);
+    r = app.setTitleInfo({ participants: names(P196 + 5).join('\n') });
+    assert.equal(r.ok, true);
+    assert.deepEqual(roster(), names(P196), '超える行は名簿に取り込まず、先頭の 20 名だけ');
+    assert.equal(r.notice?.text, `参加者は ${P196} 名までです`, `理由を文字で示す（${JSON.stringify(r.notice)}）`);
+    assert.ok(['status', 'alert'].includes(r.notice?.role), '画面の読み上げ対象のメッセージ（status）');
+    app.setLang('en');
+    r = app.setTitleInfo({ participants: names(P196 + 1).join('\n') });
+    assert.equal(r.notice?.text, `Up to ${P196} participants`, `en の理由（${JSON.stringify(r.notice)}）`);
+    app.setLang('ja');
+    assert.equal(members().length, P196, '図の参加メンバーも 20 名');
+
+    // ---- 1 件の長さの上限 PARAM-197（先頭 19 文字＋「…」＝ 20 文字。ちょうど 20 文字はそのまま。PARAM-165 の 24 は使わない） ----
+    const exact = '一二三四五六七八九十一二三四五六七八九十'; // 20 文字
+    const over = `${exact}超過`; // 22 文字
+    const mid = '甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸甲乙丙丁'; // 24 文字（PARAM-165 の水準。先頭 19 文字が over と異なる＝切り詰め後も別の名前（重複除去で 1 名にならない））
+    assert.equal(app.setTitleInfo({ participants: [exact, over, mid].join('\n') }).ok, true);
+    assert.deepEqual(roster(), [exact, clip(over), clip(mid)], '20 文字以内はそのまま、超えるときは先頭 19 文字＋「…」で保持');
+    assert.ok(roster().every((x) => [...x].length <= P197), '保持する名前は 20 文字以内');
+    assert.deepEqual(members(), [exact, clip(over), clip(mid)], '図にも切り詰めた名前が載る');
+    assert.ok(app.renderOutline().includes(clip(over)), 'テキスト一覧にも同じ名前');
+
+    // ---- (c) ブラウザ内の保存だけ: 再読込で復元・セッションファイルに含まれない・初期化で消える ----
+    const ROSTER = ['名簿保存甲', '名簿保存乙'];
+    assert.equal(app.setTitleInfo({ participants: ROSTER.join('\n') }).ok, true);
+    assert.ok(env.storage.dump().some(([, v]) => ROSTER.every((n) => String(v).includes(n))), 'ブラウザ内の保存（options.storage）に保存される');
+    app.commands['session.start'](); app.setDraft('現行の受付の流れを振り返りました'); assert.equal(app.submitDraft().ok, true); advance(1600); // 保存できる内容（要点）を用意する
+    assert.equal((await app.commands['file.save']()).ok, true);
+    const file = env.downloads.at(-1);
+    for (const n of ROSTER) assert.ok(!String(file.data).includes(n), `セッションファイルに「${n}」を含めない`);
+    const app2 = await createApp(env.options);
+    assert.deepEqual(String(app2.getTitleInfo().participants ?? '').split('\n'), ROSTER, '再読込後も復元される');
+    // (e) 「名前を隠す」の切り替えで名簿は消えず、入力・編集も使える
+    assert.equal(app.setHideNames(true).ok, true);
+    assert.deepEqual(roster(), ROSTER, '名前を隠すオンでも名簿は消えない');
+    assert.deepEqual(members(), [], '名前を隠すオンでは図に名前が出ない（AC-680）');
+    assert.equal(app.setTitleInfo({ participants: [...ROSTER, '名簿保存丙'].join('\n') }).ok, true, 'オンでも名簿を編集できる');
+    assert.equal(app.setHideNames(false).ok, true);
+    assert.deepEqual(members(), [...ROSTER, '名簿保存丙'], 'オフに戻すと編集した名簿が図に載る');
+    // (d) LLM への送信に名前の値は含まれない
+    assert.equal((await app.requestLlmEnable()).ok, true); await app.answerLlmConsent(true);
+    app.setDraft('名簿保存甲と名簿保存乙が現行の流れを確認'); app.submitDraft(); env.tick(1); await app.flushLlm();
+    assert.ok(relayCalls.some((c) => c.path === '/api/llm/extract'), 'LLM への送信が行われた');
+    for (const c of relayCalls) for (const n of [...ROSTER, '名簿保存丙']) assert.ok(!JSON.stringify(c).includes(n), `LLM への送信に「${n}」を含まない`);
+    app.commands['data.reset'](); app.dialogAction('confirm');
+    assert.deepEqual(roster(), [], 'データの初期化で名簿が消える');
+    assert.ok(!env.storage.dump().some(([, v]) => ROSTER.some((n) => String(v).includes(n))), '初期化後はブラウザ内の保存にも残らない');
+
+    // ---- AC-668 (b)(c)・AC-666・AC-665: 名前の並びと、ステップの人物の名前 ----
+    const LONG = 'SpeakerLongNameAAAAAAAAAA'; // 25 文字
+    assert.ok([...LONG].length > P197);
+    const ts = (sec, ms = 0) => `00:00:${String(sec).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+    const cue = (i, who, text) => `${ts(i)} --> ${ts(i, 500)}\n${who ? `<v ${who}>${text}</v>` : text}`;
+    const FRUIT = ['kiwi', 'mango', 'pear', 'plum', 'lime', 'fig', 'date', 'peach', 'melon']; const NUM = ['one', 'two', 'six', 'ten', 'nine', 'four', 'five', 'seven', 'eight'];
+    const A9 = Array.from({ length: 9 }, (_, i) => cue(i + 1, i === 0 ? LONG : 'Other', `alpha beta ${FRUIT[i]} ${NUM[i]}`)); // 同じ話題（共有する語句 alpha・beta）の 9 発言（PARAM-088=7 を超えて続きのステップに分かれる。最初の発話の話者は LONG）
+    const B1 = [cue(12, '名簿甲', 'omega sigma tau kappa first'), cue(13, 'Other', 'omega sigma tau kappa second')]; // 話題が替わる（共有する語句 0）。最初の発話の話者は名簿の「名簿甲」
+    const C1 = [cue(15, null, 'rho zeta lambda mu third')]; // 話者タグなし
+    const vtt = ['WEBVTT', '', ...[...A9, ...B1, ...C1].flatMap((c) => [c, ''])].join('\n');
+    const b = await boardApp();
+    assert.equal(b.app.setTitleInfo({ participants: '名簿甲\n名簿乙' }).ok, true);
+    assert.equal((await b.app.importTextFile({ name: 'names.vtt', type: 'text/vtt', size: Buffer.byteLength(vtt), text: vtt })).ok, true, '.vtt を取り込める');
+    b.advance(1600);
+    const mem = parseSvg(b.app.renderSvg()).all.filter((n) => n.attrs['data-board-name'] === 'participant').map((n) => n.text.trim());
+    assert.deepEqual(mem, ['名簿甲', '名簿乙', clip(LONG), 'Other'], '(b) 参加メンバー: 名簿の名前（入力順）→名簿にない話者タグの名前（最初に現れた順。20 文字以内）');
+    // (c) ステップの人物の名前: そのステップの最初の要点の元の発話の話者（タグがなければ名前なし）。続きのステップは分ける前と同じ名前（続きの最初の要点では決め直さない）。名簿の名前は発話に結びつけない
+    const sp = speakersOf(b.app);
+    assert.deepEqual(sp, [clip(LONG), clip(LONG), '名簿甲'], `(c) 議論の流れのステップの名前: 最初の発話の話者（20 文字以内）・続きのステップは同じ名前・タグのないステップは名前なし（${JSON.stringify(sp)}）`);
+    assert.ok(!sp.includes('Other') && !sp.includes('名簿乙'), '最初の発話でない話者・名簿だけの名前はステップに添えない');
+    const personsInFlow = parseSvg(b.app.renderSvg()).all.filter((n) => n.attrs['data-board-part'] === 'person' && ancestorAttr(n, 'data-board-section') === 'flow').length;
+    assert.ok(personsInFlow >= 4, `議論の流れの各ステップ（続きのステップを含む 4 つ以上）に人物が 1 組ずつ（${personsInFlow}）`);
+    assert.ok(sp.every((x) => [...x].length <= P197), 'ステップの名前は 20 文字以内');
+    const outline = b.app.renderOutline();
+    assert.ok(outline.includes(`（発言: ${clip(LONG)}）`) && outline.includes('（発言: 名簿甲）'), 'テキスト一覧にも同じ名前（各ステップの最初の要点の行）');
+    assert.ok(!outline.includes('（発言: Other）'), '最初の要点でない話者は添えない');
+    // 外部へのリクエストは 0 件（入力・編集・削除・表示・保存の間）
+    advance(0);
+    assert.deepEqual(net.calls, [], '外部へのリクエストは 0 件');
   } finally {
     net.restore();
   }
