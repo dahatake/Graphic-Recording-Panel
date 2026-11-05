@@ -493,62 +493,6 @@ def allowed_outside(ap: Path) -> bool:
     return any(s.startswith(os.path.normcase(str(x))) for x in homes)
 
 
-def _diag_parts(ctx: Ctx, ap: Path) -> str:
-    """Read-only facts for a G-5 'outside the working directory' denial. Never changes state or the verdict."""
-    raw = str(g(ctx.data, "sessionId", "session_id", default=""))
-    parts = [f"sid={ctx.sid or '-'} raw_sid={raw or '-'} agent_id={ctx.agent_id or '-'} "
-             f"parent_resolved={bool(ctx.parent_sid)} parent_sid={ctx.parent_sid or '-'}"]
-    nap = os.path.normcase(str(ap))
-    sib_found = None
-    for sib in ctx.sibling_runs():
-        if nap.startswith(os.path.normcase(str(sib)) + os.sep):
-            sib_found = sib
-            break
-    state_dirs = [ctx.agents_path()]
-    if sib_found is None:
-        parts.append("sibling=none")
-    else:
-        rid = h.current_run(sib_found, ctx.cfg)
-        meta = h.load_meta(sib_found, ctx.cfg, rid) if rid else {}
-        status, owner = meta.get("status"), meta.get("session_id")
-        owned_by_other = bool(rid and status == "active" and owner and ctx.sid and owner != ctx.sid)
-        if not (rid and status == "active"):
-            authorized = True
-        else:
-            authorized = bool(ctx.sid and owner == ctx.sid)
-        parts.append(f"sibling={sib_found.name} is_croot={sib_found == ctx.croot} run={rid or '-'} "
-                     f"status={status or '-'} meta_session={owner or '-'} owner_eq_sid={bool(owner) and owner == ctx.sid} "
-                     f"owned_by_other={owned_by_other} authorized={authorized}")
-        state_dirs.append(h.work_dir(sib_found, ctx.cfg) / ".ebak" / "active-agents.json")
-    now = time.time()
-    ids = {x for x in (raw, ctx.sid, ctx.agent_id) if x}
-    for f in state_dirs:
-        try:
-            entries = h.read_json(f, default=[]) or []
-        except Exception:
-            entries = None
-        if entries is None:
-            parts.append(f"agents[{f.parent.parent.parent.name}]=unreadable")
-            continue
-        hit = [a for a in entries if a.get("agent_id") in ids]
-        if hit:
-            a = hit[0]
-            parts.append(f"agents[{f.parent.parent.parent.name}]=found parent={a.get('parent') or '-'} "
-                         f"age_s={int(now - a.get('t', 0))}")
-        else:
-            parts.append(f"agents[{f.parent.parent.parent.name}]=none n={len(entries)}")
-    parts.append(f"croot={ctx.croot} root={ctx.root} cwd={ctx.cwd}")
-    return " ".join(parts)
-
-
-def deny_diag(ctx: Ctx, ap: Path) -> str:
-    """Log suffix for a G-5 outside-the-work-directory denial. Any failure yields 'diag: unavailable'."""
-    try:
-        return " | diag: " + _diag_parts(ctx, ap)
-    except Exception:
-        return " | diag: unavailable"
-
-
 def is_work_branch(ctx: Ctx) -> bool:
     return bool(re.match(r"^work/[^/]+/[^/]+$", h.current_branch(ctx.root)))
 
@@ -873,7 +817,7 @@ def on_pre_tool(ctx: Ctx) -> None:
         rel, in_worker, ap = classify(ctx, p)
         res = check_write(ctx, rel, in_worker, ap)
         if res:
-            ctx.log(f"DENY {res[0]} {tool}: {p}" + (deny_diag(ctx, ap) if res[0] == "G-5" and rel is None else ""))
+            ctx.log(f"DENY {res[0]} {tool}: {p}")
             deny(res[1], res[0])
             return
 
