@@ -131,97 +131,60 @@ function emphOf(shown, words, size) {
 // ---- 配置（DOM に依存しない純粋関数） ----
 const W = 1280; const M = 24; const GAP = 16; const COL = (W - M * 2 - GAP * 2) / 3; // 400
 const HEAD = 36; const PAD = 12; const FS = 14; const ROW = 26; const EMPTY_BODY = ROW; const BAND = 76;
-// 区画の幅・並びは PARAM-192（BOARD_ORDER・WIDTHS・INITIAL_ROWS）と chooseRows。行の高さはその行の区画の中身の高さの最大
-// FR-079 AC-669: 区画の容量の刻み（半行）。容量は中身の高さだけで決まる（決定的・冪等。AC-434・AC-432 (c)）。
-// 並びの中で最も中身の高い区画の最後の要素の下の空きは刻み未満（PARAM-186 = 1 行以下）。要点が 0 件の区画は見出しと 1 行（ROW）分の空き
+// 区画の幅・初期の並びは PARAM-192（BOARD_ORDER・INITIAL）、並びの決め直しは chooseAssign。
+// FR-079 AC-669（案 A）: 区画の枠の高さは自分の中身の高さ（HEAD + 8 + ceil(中身) + PAD）。横並びでも揃えず、図は幅 1 列の帯 A・B・C に分けて帯ごとに積む。
+// 要点が 0 件の区画は見出しと 1 行（ROW）分の空き（PARAM-186）
 export const LINE = ROW; // PARAM-186 の「1 行」（区画のラベルの 1 行の高さ）
-export const SLACK = ROW / 2;
-export const capacity = (h) => (h <= EMPTY_BODY ? EMPTY_BODY : Math.ceil(h / SLACK) * SLACK);
+export const HEIGHT_LIMIT = 913; // PARAM-194: 初期の並びの図の高さがこれを超えるときだけ並びを決め直す
 export const SILENCE_MS = 10000; // PARAM-190: 同じシーン・トピックの中でステップを無音で区切る間隔（ミリ秒）
-export const SLACK_MAX = 0.2; // PARAM-188: 最も高い区画を除く、要点のある区画の最後の要素の下の空きの上限（枠の高さに対する比）
-export const STRETCH_MAX = 2; // PARAM-189: 余白を埋めるために広げる要素の間隔・表の行の高さの倍率の上限
-// AC-669: 区画の中の要素の間隔（上端からの位置）と表の行の高さを倍率 f で広げたときの、最後の要素の下端（本文の上端からの距離）
-const stretchBottom = (els, subs, y0, f) => Math.max(0, ...els.map((e) => (e.y - y0) * f + (e.part === 'table' ? e.h * f : e.h)), ...subs.map((s) => (s.y - y0 + s.h) * f));
-// 倍率を決めて要素の位置を動かす。広げても空きが上限を超えるときは null（動かさない）
-const stretchFactor = (c, y0, B) => {
-  let lo = 1; let hi = STRETCH_MAX;
-  if (stretchBottom(c.els, c.subs, y0, hi) <= B) lo = hi;
-  else for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (stretchBottom(c.els, c.subs, y0, mid) <= B) lo = mid; else hi = mid; }
-  return Math.floor(lo * 1000) / 1000;
-};
-function stretchCell(c, y0, B, H) {
-  const f = stretchFactor(c, y0, B);
-  // 広げきっても残る空きは区画の下に回す（上の空きは 0。中身を下へ寄せる配分はしない。AC-669）。
-  // 空きは枠の内側の余白 PAD を含めて測る（枠の下端までの距離。契約: CONTRACT-BOARD）。超えるときは広げず null（並びの決め直し・自分の高さの枠へ）
-  const rem = B - stretchBottom(c.els, c.subs, y0, f);
-  if (PAD + rem > SLACK_MAX * H) return null;
-  const at = (y) => Math.round((y0 + (y - y0) * f) * 100) / 100;
-  for (const e of c.els) { e.y = at(e.y); if (e.part === 'table') { e.h = Math.round(e.h * f * 100) / 100; e.rowH = ROW * f; } }
-  for (const s of c.subs) { s.y = at(s.y); s.h = Math.round(s.h * f * 100) / 100; }
-  c.h = stretchBottom(c.els, c.subs, y0, 1);
-  return f;
-}
 const chunk = (arr, n) => { const out = []; for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; };
 
-// ---- AC-669 並びの決め直し（PARAM-188・192）: 区画の数・見出し・順は変えず、どの区画を同じ並び（行）に置くか（とその幅）だけを決める ----
+// ---- AC-669 帯と割り当て（PARAM-191・192・194）: 図は幅 1 列の帯 A・B・C。区画ごとの（幅, 開始の帯）の割り当てを、初期の並びが高すぎるときだけ決め直す ----
 const COLS = 3;
-// PARAM-192: 区画の順（並びの順）と、横並びの数ごとの各区画の幅（3 つ並び＝1・1・1、2 つ並び＝2・1、1 つ並び＝3）
+// PARAM-192: 区画の順（並びの順）と初期の並び（区画, 開始の帯, 幅）
 export const BOARD_ORDER = ['purpose', 'members', 'vision', 'flow', 'decisions', 'themes', 'open', 'actions', 'memo'];
-const WIDTHS = { 1: [3], 2: [2, 1], 3: [1, 1, 1] };
-const rowsOfSizes = (sizes) => { let i = 0; return sizes.map((n) => { let col = 0; const row = BOARD_ORDER.slice(i, i + n).map((id, k) => { const r = [id, col, WIDTHS[n][k]]; col += WIDTHS[n][k]; return r; }); i += n; return row; }); };
-const INITIAL_ROWS = rowsOfSizes([3, 2, 2, 2]); // PARAM-192 の初期の並び
-// 候補: 並びの順を保ったまま隣り合う区画を 1〜3 つずつ横並びにする分け方のすべて（先頭の並びの区画数が少ないものから。AC-669 (4) (c) の順）
-export const ROW_CANDIDATES = (() => {
-  const out = [];
-  const go = (left, sizes) => { if (!left) { out.push(rowsOfSizes(sizes)); return; } for (let n = 1; n <= Math.min(3, left); n++) go(left - n, [...sizes, n]); };
-  go(BOARD_ORDER.length, []);
-  return out;
-})();
-const rowHeightOf = (cells) => Math.max(...cells.map((cl) => HEAD + 8 + capacity(cl.c.h) + PAD));
-// 並び rows の評価: 要点のある区画の空き（広げた後の、最後の要素の下から枠の下端まで ÷ 枠の高さ）の最大と、横並びの数。probeOf(id) は区画の中身（本文の上端が HEAD + 8）
-// 戻り値: { m: 空きの最大, H: 並びの高さの合計 }。次アクションの幅が 2 列未満の並びは null（AC-666: 表の全文が入らない）
-function evalRows(rows, probeOf, has) {
-  let max = 0; let total = 0;
-  if (rows.some((row) => row.some(([id, , span]) => id === 'actions' && span < 2))) return null;
-  for (const row of rows) {
-    const cells = row.map(([id, , span]) => ({ id, c: structuredClone(probeOf(id, span)) }));
-    const h = rowHeightOf(cells);
-    total += h;
-    for (const cl of cells) {
-      if (!has(cl.id)) continue;
-      const y0 = HEAD + 8; const B = h - HEAD - 8 - PAD;
-      let bottom = cl.c.h;
-      if (B + PAD - cl.c.h > SLACK_MAX * h) { // (3) の広げ方（PARAM-189 まで）を適用した後の空き（自分の中身の高さにする前の値）
-        if (stretchCell(cl.c, y0, B, h) != null) bottom = cl.c.h; else bottom = stretchBottom(cl.c.els, cl.c.subs, y0, stretchFactor(cl.c, y0, B));
-      }
-      max = Math.max(max, (h - HEAD - 8 - bottom) / h);
+const INITIAL = [['purpose', 0, 1], ['members', 1, 1], ['vision', 2, 1], ['flow', 0, 2], ['decisions', 2, 1], ['themes', 0, 2], ['open', 2, 1], ['actions', 0, 2], ['memo', 2, 1]];
+// 区画の割り当ての選択肢（開始の帯が左のもの、同じなら幅が大きいものの順。AC-669 (4) (b) の比べる順）
+const OPTIONS = (() => { const out = []; for (let b = 0; b < COLS; b++) for (let s = COLS - b; s >= 1; s--) out.push([b, s]); return out; })();
+// assign: 区画の順の [帯, 幅] の列。fh(id, 幅) は枠の高さ。各区画は置く先の帯の下端のうち最も下の直下（間隔 GAP）に上端をそろえて積む。top は最初の区画の上端
+function packBands(assign, fh, top) {
+  const bottoms = [top, top, top]; const out = [];
+  assign.forEach(([b, s], i) => {
+    let y = top; for (let k = b; k < b + s; k++) y = Math.max(y, bottoms[k]);
+    const h = fh(BOARD_ORDER[i], s);
+    for (let k = b; k < b + s; k++) bottoms[k] = y + h + GAP;
+    out.push({ y, h });
+  });
+  return { placed: out, height: Math.max(...bottoms) - GAP + M };
+}
+// 決め直し（AC-669 (4)）: 初期の並びの高さが PARAM-194 以下ならそのまま。超えるときだけ、次アクションの幅が 2 列未満でない全割り当てから
+// (a) 図の高さが最小、(b) 同じなら区画の順に先頭から、開始の帯が左、次に幅が大きい方を選ぶ（深さ優先で探索。枝は現在の高さが最小を超えたら打ち切る）。入力だけで決まる（決定的）
+function chooseAssign(fh, top) {
+  const init = INITIAL.map(([, b, s]) => [b, s]);
+  const initial = packBands(init, fh, top).height;
+  if (initial <= HEIGHT_LIMIT) return { assign: init, initial, reflowed: false };
+  let best = init; let bestH = initial; let bestKey = init.map(([b, s]) => OPTIONS.findIndex((o) => o[0] === b && o[1] === s));
+  const cur = []; const keys = [];
+  const go = (i, bottoms) => {
+    if (i === BOARD_ORDER.length) {
+      const h = Math.max(...bottoms) - GAP + M;
+      let better = h < bestH - 1e-9;
+      if (!better && Math.abs(h - bestH) <= 1e-9) for (let k = 0; k < keys.length; k++) if (keys[k] !== bestKey[k]) { better = keys[k] < bestKey[k]; break; }
+      if (better) { best = cur.map((a) => [...a]); bestH = h; bestKey = [...keys]; }
+      return;
     }
-  }
-  return { m: max, H: total };
-}
-// 決め直し（AC-669 (4)）: いまの並び（prev。なければ PARAM-192 の初期の並び）で空きが PARAM-188 以下の間は並びを変えない。超えるときだけ、
-// 次アクションの幅が 2 列未満になる候補を除いた候補のうち、(a) 空きの最大が PARAM-188 以下のものの中で図の高さが最小、なければ空きの最大が最小、
-// (b) 同じなら並びの本数が少ない、(c) 同じなら先頭の並びから区画数が少ない方（候補の列挙の順で先に見つかった方）を選ぶ。
-// 決め直しの結果は入力（中身の量と区画の順）だけで決まる。要点が 1 件もないときは初期の並びに戻す
-function chooseRows(prev, probeOf, has) {
-  const EPS = 1e-9;
-  if (!BOARD_ORDER.some(has)) return INITIAL_ROWS;
-  const cur = INITIAL_ROWS; // 決め直しは入力だけで決まる（前の並びには依存しない。前の並びに留まると高さが増えたまま戻らない）
-  const ce = evalRows(cur, probeOf, has);
-  if (ce && ce.m <= SLACK_MAX + EPS) return cur;
-  let best = null; let bk = null;
-  for (const rows of ROW_CANDIDATES) {
-    const e = evalRows(rows, probeOf, has);
-    if (!e) continue;
-    const ok = e.m <= SLACK_MAX + EPS;
-    const key = ok ? [0, e.H, rows.length] : [1, e.m, rows.length];
-    let better = !best;
-    if (best) for (let i = 0; i < 3; i++) { if (Math.abs(key[i] - bk[i]) > (i === 2 ? 0 : 1e-6)) { better = key[i] < bk[i]; break; } }
-    if (better) { best = rows; bk = key; }
-  }
-  return best ?? cur;
-}
-const label = (e, maxPx) => { const shown = fit(e.label, maxPx, FS); return { text: shown, full: e.label, emph: emphOf(shown, e.emphasis, FS) }; };
+    const id = BOARD_ORDER[i];
+    OPTIONS.forEach(([b, s], oi) => {
+      if (id === 'actions' && s < 2) return;
+      let y = top; for (let k = b; k < b + s; k++) y = Math.max(y, bottoms[k]);
+      const nb = [...bottoms]; const h = fh(id, s); for (let k = b; k < b + s; k++) nb[k] = y + h + GAP;
+      if (Math.max(...nb) - GAP + M > bestH + 1e-9) return;
+      cur[i] = [b, s]; keys[i] = oi; go(i + 1, nb);
+    });
+  };
+  go(0, [top, top, top]);
+  return { assign: best, initial, reflowed: true };
+}const label =  (e, maxPx) => { const shown = fit(e.label, maxPx, FS); return { text: shown, full: e.label, emph: emphOf(shown, e.emphasis, FS) }; };
 
 const OW = 150; const DU = 180; // 次アクションの表の担当（10 文字以内）・期限（12 文字以内）の列の幅（AC-666: 全文が入る）
 // 区画ごとの部品の組み立て。units を (x, y, w) から下へ並べ、{ els, h } を返す（els の外枠は重ならない）
@@ -355,47 +318,35 @@ export function boardLayout(input, opts = {}) {
     const units = unitsOf(id);
     if (!units.length) return { els: [], subs: [], h: EMPTY_BODY };
     if (units.length <= GROUP_MAX) { const r = BUILD[id](units, x, y, w, true); return { els: r.els, subs: [], h: r.h }; }
-    const els = []; const subs = []; let cy = y;
+    // 下位のまとまりの枠は要素より 6 外側（上は見出しの下の間に、下は枠の内側の余白に入る）。最初の要素の上の空きは 0、最後の要素の下の空きは枠の内側の余白だけ
+    const els = []; const subs = []; let cy = y - 6;
     chunk(units, GROUP_MAX).forEach((part, i) => {
       const r = BUILD[id](part, x + 6, cy + 6, w - 12, i === 0);
       subs.push({ x, y: cy, w, h: r.h + 12 });
       els.push(...r.els); cy += r.h + 12 + 8;
     });
-    return { els, subs, h: cy - y - 8 };
+    return { els, subs, h: cy - y - 14 };
   };
-  let top = band ? M + BAND + GAP : M;
+  const top = band ? M + BAND + GAP : M;
   const sections = [];
   const probes = new Map();
+  // 区画の枠の高さは自分の中身の高さ（中身は幅だけで決まる）。HEAD + 8 + ceil(中身) + PAD
   const probeOf = (id, sp) => { const k = `${id}:${sp}`; if (!probes.has(k)) probes.set(k, content(id, PAD, HEAD + 8, sp * COL + (sp - 1) * GAP - PAD * 2)); return probes.get(k); };
-    const rowsPlan = chooseRows(opts.prevRows ?? null, probeOf, (id) => unitsOf(id).length > 0);
-  for (const row of rowsPlan) {
-    const cells = row.map(([id, col, span]) => {
-      const x = M + col * (COL + GAP); const w = span * COL + (span - 1) * GAP;
-      const c = content(id, x + PAD, top + HEAD + 8, w - PAD * 2);
-      return { id, x, w, c, span };
-    });
-    // AC-669: 枠の中身の高さは SLACK 刻みの容量に切り上げる。中身が容量に収まる間は枠もほかの区画も動かず、あふれたときだけ大きくなる
-    const h = Math.max(...cells.map((cl) => HEAD + 8 + capacity(cl.c.h) + PAD));
-    // AC-669（PARAM-188・189）: 最も高い区画以外の要点のある区画は、空きが枠の高さの SLACK_MAX を超えるとき、要素の間隔と表の行の高さを広げて埋める。
-    // 広げても超えるときだけ、その区画の枠は並びの高さに揃えず自分の中身の高さにする
-    for (const cl of cells) {
-      cl.h = h; cl.stretch = 1;
-      if (!unitsOf(cl.id).length) continue;
-      const y0 = top + HEAD + 8; const B = h - HEAD - 8 - PAD;
-      if (B + PAD - cl.c.h <= SLACK_MAX * h) continue;
-      const f = stretchCell(cl.c, y0, B, h);
-      if (f == null) cl.h = HEAD + 8 + Math.ceil(cl.c.h) + PAD; else cl.stretch = f; // 自分の中身の高さ（空きは枠の内側の余白だけ）
-    }
-    for (const cl of cells) {
-      const def = SECTIONS.find((s) => s.id === cl.id);
-      sections.push({ id: cl.id, name: def[lang], title: def[lang], icon: def.icon, cols: cl.span, stretch: cl.stretch, contentTop: top + HEAD + 8, contentBottom: top + cl.h - PAD, frame: { x: cl.x, y: top, w: cl.w, h: cl.h }, headingRect: { x: cl.x + 8, y: top + 6, w: cl.w - 16, h: HEAD - 10 }, count: by[cl.id].length, elements: cl.c.els, subgroups: cl.c.subs });
-    }
-    top += h + GAP;
-  }
-  const H = top - GAP + M;
+  const frameH = (id, sp) => HEAD + 8 + Math.ceil(probeOf(id, sp).h) + PAD;
+  const plan = chooseAssign(frameH, top);
+  const packed = packBands(plan.assign, frameH, top);
+  BOARD_ORDER.forEach((id, i) => {
+    const [b, span] = plan.assign[i]; const { y, h } = packed.placed[i];
+    const x = M + b * (COL + GAP); const w = span * COL + (span - 1) * GAP;
+    const c = content(id, x + PAD, y + HEAD + 8, w - PAD * 2);
+    const def = SECTIONS.find((s) => s.id === id);
+    sections.push({ id, name: def[lang], title: def[lang], icon: def.icon, cols: span, band: b, contentTop: y + HEAD + 8, contentBottom: y + h - PAD, frame: { x, y, w, h }, headingRect: { x: x + 8, y: y + 6, w: w - 16, h: HEAD - 10 }, count: by[id].length, elements: c.els, subgroups: c.subs });
+  });
+  const H = packed.height;
+  const bands = [0, 1, 2].map((b) => BOARD_ORDER.filter((id, i) => b >= plan.assign[i][0] && b < plan.assign[i][0] + plan.assign[i][1]));
   let k = 0;
   for (const s of sections) for (const el of s.elements) { el.id ??= `${s.id}-${k++}`; el.section = s.id; } // id は要点・ステップから決める（取込の前後で同じ要素は同じ id。CONTRACT-BOARD）
-  const model = { lang, band, sections, assigned, text: tx, canvas: { w: W, h: H }, line: LINE, lineHeight: LINE, columns: COLS, rows: rowsPlan.map((r) => r.map(([id]) => id)), layoutRows: rowsPlan, fontKind: FONT_KIND };
+  const model = { lang, band, sections, assigned, text: tx, canvas: { w: W, h: H }, line: LINE, lineHeight: LINE, columns: COLS, bands, initialHeight: plan.initial, reflowed: plan.reflowed, fontKind: FONT_KIND };
   return {
     canvas: { w: W, h: H }, title: { x: M, y: M, w: W - M * 2, h: 0, visible: false }, body: { x: M, y: band ? M + BAND + GAP : M, w: W - M * 2, h: H - M * 2 },
     units: [], arrows: [], orderMark: 'number', centered: false, titleLines: [], board: model,
@@ -670,9 +621,7 @@ export function boardModule(ctx) {
   const llmOf = (sceneId, idx) => api.getLlmPointSection?.(sceneId, idx) ?? null;
   // AC-666 (PARAM-190): 要点の元の発話（uid）の受付時刻。疑似時計・.vtt・一括取込でも同じ（受付時刻 receivedAt）
   const receivedAtOf = () => { const m = new Map((ctx.state?.utterances ?? state.utterances ?? []).map((u) => [u.id, u.receivedAt])); return (uid) => (uid != null && typeof m.get(uid) === 'number' ? m.get(uid) : null); };
-  // AC-669 (4): 並びは、いまの並びで空きが PARAM-188 以下の間は変えない（直前の配置の並びを渡す。要点が 1 件もなければ初期の並びに戻る）
-  let prevRows = null;
-  api.registerLayoutType(BOARD_TYPE_ID, { layout: (input) => { const L = boardLayout(input, { llmOf, receivedAtOf: receivedAtOf(), names: api.getBoardNames?.() ?? null, fontKind: boardFontKind(api.getDrawStyleSpec?.()), prevRows }); prevRows = L.board.layoutRows; return L; } });
+  api.registerLayoutType(BOARD_TYPE_ID, { layout: (input) => boardLayout(input, { llmOf, receivedAtOf: receivedAtOf(), names: api.getBoardNames?.() ?? null, fontKind: boardFontKind(api.getDrawStyleSpec?.()) }) });
   const active = () => {
     const info = api.getLayoutInfo?.();
     return !!info && info.applied && info.head === BOARD_TYPE_ID && state.displayMode !== 'arrange';
