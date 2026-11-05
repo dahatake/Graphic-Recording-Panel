@@ -18,6 +18,7 @@ WIN = os.name == "nt"
 NODE = shutil.which("node")
 PWSH = shutil.which("pwsh") or shutil.which("powershell")
 SH = None if WIN else shutil.which("sh")
+LAUNCH_WAIT_SEC = 60  # PARAM-198（AC-654）: 検査を含めて起動から待ち受けまでの上限
 
 
 def _sandbox(tmp_path):
@@ -106,7 +107,7 @@ def test_ac653_ac654_ac658_launchers(tmp_path):
         p = subprocess.Popen(cmd + ["--port", str(port)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                              universal_newlines=True, encoding="utf-8", errors="replace")
         try:
-            end = time.time() + 30
+            end = time.time() + LAUNCH_WAIT_SEC
             while time.time() < end and not _listening(port):
                 assert p.poll() is None, name + ": 起動前に終了した"
                 time.sleep(0.2)
