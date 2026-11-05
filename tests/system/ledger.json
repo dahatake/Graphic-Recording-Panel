@@ -278,15 +278,16 @@
     "AC-658": "sha256:a7a919fc80691cdd",
     "AC-660": "sha256:b67719713d75faf6",
     "AC-663": "sha256:5d49ca9dc09bb3cd",
-    "AC-661": "sha256:caaf506d83d39242",
+    "AC-661": "sha256:a34b4aba4df15f8d",
     "AC-662": "sha256:68b7d01011ac26f5",
-    "AC-667": "sha256:73aab625d87a97b8",
+    "AC-667": "sha256:ccc3da05ebbd46e7",
     "AC-671": "sha256:c0ef5951beb00337",
     "AC-672": "sha256:08d68711c656463d",
     "AC-673": "sha256:dc573d1346fc5271",
     "AC-676": "sha256:3ec1900e10924ead",
     "AC-679": "sha256:aaf33bf0bacb220a",
-    "AC-680": "sha256:a46d7d3fa98dc43e"
+    "AC-680": "sha256:b0440488045c4055",
+    "AC-681": "sha256:80beb0aa04a5876d"
   },
   "cases": [
     {
@@ -9372,7 +9373,7 @@
       "layer": "e2e",
       "command": "node --test tests/system/diagram-fill.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "f62e780",
       "last_run_at": "2026-11-05T11:40:10+09:00",
       "evidence": "work/runs/202611051125/logs/system-test/E2E-288-202611051137.log",
@@ -9394,6 +9395,12 @@
           "by": "test-designer",
           "change": "ac_ids: ['AC-663'] -> ['AC-661', 'AC-662', 'AC-663']",
           "reason": "AC-661〜663 を 1 ケースで検証（--ac の複数指定が最後だけ残ったため補正）"
+        },
+        {
+          "at": "2026-11-05T12:30:15+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC-661 の状態欄の過渡の期待を追加（新要求 A-932）"
         }
       ]
     },
@@ -9404,13 +9411,14 @@
       ],
       "ac_ids": [
         "AC-667",
-        "AC-680"
+        "AC-680",
+        "AC-681"
       ],
       "title": "FR-114 AC-667 AC-680 会議ボード型: TeamA の会議の固定の文字起こしで (a)〜(g)、(h) 強調の左右端のずれ ≤0.5 文字（実ブラウザの getExtentOfChar・15 の描画スタイル）、(i) 議論の流れの 4 つ以上のステップ（番号バッジ・吹き出し・人物が 1 組ずつ・間ごとに矢印）。AC-680 名前を表示しない（既定オフ・キーボード・図/一覧/PNG/SVG/PDF/Markdown に名前なし・Markdown の名前の行は一覧と一致・端末ごとに保存・LLM 送信に名前なしで要点の中の名前は簡易マスキングによらず伏せ字・画像生成プロンプトに名前なし）。異常系: 不正な値・外部リクエスト 0 件",
       "layer": "e2e",
-      "command": "node --test --test-name-pattern=\"AC-667|AC-680|AC-669\" tests/system/board.test.js",
+      "command": "node --test --test-name-pattern=\"AC-667|AC-680|AC-669|AC-681\" tests/system/board.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "f62e780",
       "last_run_at": "2026-11-05T11:40:10+09:00",
       "evidence": "work/runs/202611051125/logs/system-test/E2E-289-202611051137.log",
@@ -9468,6 +9476,24 @@
           "by": "test-designer",
           "change": "command: 'node --test --test-name-pattern=\"AC-667|AC-680\" tests/system/board.test.js' -> 'node --test --test-name-pattern=\"AC-667|AC-680|AC-669\" tests/system/board.test.js'",
           "reason": "AC-669・AC-666（区画の余白: 上詰め・倍率・並びの決め直し・不変・決定的。15 スタイル×4 データ）のテストを board.test.js に追加。両 AC は検証レベル integration で台帳の AC に載せられない（CHK-10）ため、同じテストで測るだけにして --ac は変えない"
+        },
+        {
+          "at": "2026-11-05T12:23:11+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test --test-name-pattern=\"AC-667|AC-680|AC-669\" tests/system/board.test.js' -> 'node --test --test-name-pattern=\"AC-667|AC-680|AC-669|AC-681\" tests/system/board.test.js'; ac_ids: ['AC-667', 'AC-680'] -> ['AC-681']",
+          "reason": "AC-681 の名簿の入力欄・上限（PARAM-196/197）・保存、AC-667 (f) のショー ON の例外、AC-668/666/665 の名前の期待を同じケースで測る"
+        },
+        {
+          "at": "2026-11-05T12:23:29+09:00",
+          "by": "test-designer",
+          "change": "ac_ids: ['AC-681'] -> ['AC-667', 'AC-680', 'AC-681']",
+          "reason": "ac_ids を AC-667・AC-680・AC-681 に揃える（複数指定の補正）"
+        },
+        {
+          "at": "2026-11-05T12:30:17+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC-681・AC-667 (f) ON の例外・AC-668/666/665 の名前の期待を追加"
         }
       ]
     },

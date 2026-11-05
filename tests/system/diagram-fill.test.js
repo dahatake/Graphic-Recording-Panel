@@ -109,6 +109,62 @@ for (const size of [{ width: 1280, height: 720 }, { width: 1920, height: 1080 }]
   });
 }
 
+// FR-017 AC-661（A-932 2026-11-05）: 状態欄のメッセージは折り返さず 1 行（はみ出す分は省略記号。全文はツールチップと status の領域）。
+// メッセージが変わる瞬間（取り込みの完了メッセージの表示の直後など）も、どのフレームでも状態欄は窓の高さの PARAM-177（8%）以下で 2 行にならず、図の領域も一瞬も縮まない（過渡を許さない）。
+// settle() で待たずに、取り込みの前から連続フレーム（requestAnimationFrame）で測る。
+for (const size of [{ width: 1280, height: 720 }, { width: 1920, height: 1080 }]) {
+  test(`AC-661 過渡: 窓 ${size.width}×${size.height} で、取り込み直後の連続フレームでも状態欄は 1 行・窓の高さの ${PARAM_177_PCT}% 以下で、図の領域は縮まず、メッセージは折り返さず省略記号で全文はツールチップにある`, async () => {
+    const { ctx, page } = await openApp(browser, srv.url, size);
+    try {
+      await page.waitForFunction(() => document.querySelector('[data-panel="diagram"]')?.checkVisibility());
+      await settle(page); // 起動の安定だけは待つ（過渡の測定は取り込みの前から始める）
+      const longName = `${'とても長いファイル名'.repeat(12)}.txt`; // メッセージが状態欄の幅を超えるように長くする
+      const body = '来月のリリース計画を決めます\n担当は山田さんで金曜までに対応します';
+      const frames = await page.evaluate(({ name, text }) => new Promise((resolve, reject) => {
+        const out = []; let done = false; let tEnd = null;
+        const lineH = (el) => { const cs = getComputedStyle(el); const lh = parseFloat(cs.lineHeight); return Number.isFinite(lh) ? lh : parseFloat(cs.fontSize) * 1.5; };
+        const snap = () => {
+          const h = (s) => document.querySelector(s)?.getBoundingClientRect().height;
+          const msgs = [...document.querySelectorAll('.statusbar .message[role="status"]')].filter((e) => e.checkVisibility() && e.textContent.trim()).map((e) => {
+            const cs = getComputedStyle(e); const r = e.getBoundingClientRect();
+            return { id: e.id, text: e.textContent.trim(), tip: e.title || e.getAttribute('data-tooltip') || '', whiteSpace: cs.whiteSpace, textOverflow: cs.textOverflow, overflow: cs.overflowX, h: r.height, lineH: lineH(e), over: e.scrollWidth > e.clientWidth + 1, role: e.getAttribute('role') };
+          });
+          return { status: h('.statusbar'), diagram: h('[data-panel="diagram"]'), H: window.innerHeight, msgs };
+        };
+        const tick = () => {
+          out.push(snap());
+          if (!done && globalThis.__app.getImportStatus().state === 'done') { done = true; tEnd = performance.now(); }
+          if (done && performance.now() - tEnd > 600) return resolve(out);
+          if (out.length > 3000) return reject(new Error('取り込みが完了しない'));
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+        globalThis.__app.importTextFile({ name, type: 'text/plain', size: text.length, text });
+      }), { name: longName, text: body });
+      assert.ok(frames.length >= 5, `連続フレームで測れた（${frames.length}）`);
+      const H = frames[0].H;
+      const maxStatus = Math.max(...frames.map((f) => f.status));
+      assert.ok(frames.every((f) => f.status <= H * PARAM_177_PCT / 100), `どのフレームでも状態欄の高さは窓の高さの ${PARAM_177_PCT}% 以下（最大 ${maxStatus}px ＞ ${H * PARAM_177_PCT / 100}px）`);
+      const dMax = Math.max(...frames.map((f) => f.diagram)); const dMin = Math.min(...frames.map((f) => f.diagram));
+      assert.ok(dMax - dMin <= 1, `図の領域が一瞬も縮まない（${dMin}〜${dMax}px）`);
+      const shown = frames.flatMap((f) => f.msgs);
+      assert.ok(shown.some((m) => m.id === 'import-status'), '取り込みの完了メッセージが表示される');
+      for (const m of shown) {
+        assert.equal(m.whiteSpace, 'nowrap', `メッセージ（#${m.id}）は折り返さない（white-space: ${m.whiteSpace}）`);
+        assert.ok(m.h <= m.lineH * 1.5, `メッセージ（#${m.id}）は 1 行（高さ ${m.h}px・行の高さ ${m.lineH}px）`);
+        assert.equal(m.role, 'status', `メッセージ（#${m.id}）は読み上げ対象（status）のまま`);
+      }
+      const long = shown.filter((m) => m.over);
+      assert.ok(long.length >= 1, '状態欄の幅を超えるメッセージで、はみ出しを観測できる');
+      for (const m of long) {
+        assert.equal(m.textOverflow, 'ellipsis', `はみ出す分は省略記号（#${m.id}。text-overflow: ${m.textOverflow}）`);
+        assert.equal(m.overflow, 'hidden', `はみ出す分は隠す（#${m.id}。overflow-x: ${m.overflow}）`);
+        assert.equal(m.tip.trim(), m.text, `全文はツールチップにある（#${m.id}。tip: ${m.tip}）`);
+      }
+    } finally { await ctx.close(); }
+  });
+}
+
 // FR-017 AC-662: 展開ボタン（マウス・キーボード・状態の読み上げ）、保存・復元・「既定に戻す」。AC-661: 利用者が変えたレイアウトは上書きしない。
 test('AC-662 AC-661: 副次パネルの展開をマウス・キーボードで行え（aria-expanded が変わる）、展開は再読込後も復元され（上書きされない）、「既定に戻す」で初期（折りたたみ／≤20%）に戻り、展開中も図の領域は残りの全面を占める', async () => {
   const size = { width: 1280, height: 720 };
