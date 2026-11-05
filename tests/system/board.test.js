@@ -31,6 +31,10 @@ const PARAM = {
   P178: { purpose: '目的／ねらい／背景／経緯／趣旨／purpose／background', vision: '目指す／目指したい／あるべき姿／理想／将来像／to-be', members: '参加／出席／メンバー／attendee', themes: 'テーマ／論点／ポイント／課題／issue', memo: '補足／ちなみに／参考／メモ／note' },
 };
 const SECTIONS = ['purpose', 'members', 'flow', 'decisions', 'open', 'themes', 'vision', 'actions', 'memo'];
+// 区画の順（並びの順）は PARAM-192 の初期の並びを上から左から読んだ順（FR-114 の列挙の順ではない）。AC-669 (4)
+const ORDER192 = ['purpose', 'members', 'vision', 'flow', 'decisions', 'themes', 'open', 'actions', 'memo'];
+const INITIAL_ROWS = [['purpose', 'members', 'vision'], ['flow', 'decisions'], ['themes', 'open'], ['actions', 'memo']]; // PARAM-192 の初期の並び（3・2・2・2）
+const WIDTHS192 = { 1: [3], 2: [2, 1], 3: [1, 1, 1] }; // 横並びの数ごとの各区画の幅（列。左から）
 const PART_KINDS = ['title', 'frame', 'badge', 'bubble', 'check', 'question', 'table', 'arrow', 'person', 'icon', 'emphasis'];
 const FIX = path.join(ROOT, 'tests', 'system', 'fixtures');
 const LINES = fs.readFileSync(path.join(FIX, 'teama-meeting.txt'), 'utf8').split(/\r?\n/).filter((l) => l.trim());
@@ -725,9 +729,9 @@ test('FR-114 AC-667 測定器: コントラスト比は WCAG の既知値（#767
 
 // FR-114 AC-669 AC-666（区画の余白: 上詰め・均等に広げる・並びの決め直し。契約: CONTRACT-BOARD.md「区画の余白」「並びの決め直し」）
 // 15 の描画スタイル × 4 つのデータ（要点が少ない・多い × シーンの区切りなし・あり）。期待値は受入基準の測れる基準 (a)(b)(c) と、
-// 区画の数・見出し・幅の不変、入力が同じなら並び・枠・倍率が同じ（決定的）、追加がなければ動かない、だけから決める。
+// 区画の数・見出し・順の不変、入力が同じなら並び・枠・倍率が同じ（決定的）、追加がなければ動かない、だけから決める（幅 cols は並びの決め直しで変わるのが仕様）。
 // 要素の配置の細部や並びの選び方（比較規則）の内側は実装に依存するので、ここでは観測できる結果だけを確かめる。
-test('FR-114 AC-669 AC-666: 要点の量が偏った会議を 15 の描画スタイルで描くと、要点のある区画は最初の要素の上の空きが 0 で下の空き以下、下の空きは枠の高さの 20% 以下（最も高い区画は 1 行以下）、広げる倍率は 1〜2、外枠の重なり 0 件。取込の前後で区画の数・見出し・幅は不変で、同じ入力なら並び・枠・倍率は同じ（決定的）、追加がなければ動かない', async () => {
+test('FR-114 AC-669 AC-666: 要点の量が偏った会議を 15 の描画スタイルで描くと、要点のある区画は最初の要素の上の空きが 0 で下の空き以下、下の空きは枠の高さの 20% 以下（最も高い区画は 1 行以下）、広げる倍率は 1〜2、外枠の重なり 0 件。取込の前後で区画の数・見出し・順は不変（幅は問わない）で、同じ入力なら並び・枠・倍率は同じ（決定的）、追加がなければ動かない。teama-meeting では次アクションの表は 2 列幅以上で全文（…なし）、高さは約 830 を大きく超えない', async () => {
   const P189 = 2; // 広げる倍率の上限
   const EPS = 0.5;
   const secOf = (t) => classify(t);
@@ -744,16 +748,21 @@ test('FR-114 AC-669 AC-666: 要点の量が偏った会議を 15 の描画スタ
   assert.ok(MANY.filter((t) => secOf(t) === 'flow').length >= 4 && MANY.filter((t) => secOf(t) === 'actions').length >= 2, '多いデータは議論の流れ・次アクションが多い');
   const DATA = [['要点が少ない・シーン区切りなし', FEW, false], ['要点が少ない・シーン区切りあり', FEW, true], ['要点が多い・シーン区切りなし', MANY, false], ['要点が多い・シーン区切りあり', MANY, true]];
 
-  const skeleton = (m) => JSON.stringify({ n: m.sections.length, secs: m.sections.map((s) => [s.id, s.title, s.cols]), order: m.rows.flat(), columns: m.columns });
+  // 取込の前後で不変なのは区画の数・見出し・順だけ（並びの決め直しで幅 cols が変わるのは仕様。AC-669 (4)）
+  const skeleton = (m) => JSON.stringify({ n: m.sections.length, secs: m.sections.map((s) => [s.id, s.title]), order: (m.rows ?? []).flat(), columns: m.columns });
+  const figH = (m) => Math.max(...m.sections.map((s) => s.frame.y + s.frame.h));
+  const sameRows = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const layout = (m) => JSON.stringify({ rows: m.rows, secs: m.sections.map((s) => [s.id, s.frame, s.stretch, s.contentTop, s.contentBottom]), els: m.sections.flatMap((s) => s.elements.map((e) => [e.id, e.x, e.y, e.w, e.h])) });
   function checkRows(m, where) {
     assert.ok(Number.isInteger(m.columns) && m.columns >= 1, `${where}: columns（図の列数）`);
     assert.ok(Number.isFinite(m.lineHeight) && m.lineHeight > 0, `${where}: lineHeight（1 行の高さ）`);
     assert.ok(Array.isArray(m.rows) && m.rows.every((r) => Array.isArray(r) && r.length), `${where}: rows（並びの組み合わせ）`);
-    assert.deepEqual(m.rows.flat(), SECTIONS, `${where}: 区画の順は FR-114 の列挙の順のまま、隣り合う区画だけを横に並べる`);
+    assert.deepEqual(m.rows.flat(), ORDER192, `${where}: 区画の順は PARAM-192 の並びの順（目的→参加メンバー→目指す姿→議論の流れ→決定事項→主要テーマ→未決事項→次アクション→メモ）のまま、隣り合う区画だけを横に並べる`);
     const byId = new Map(m.sections.map((s) => [s.id, s]));
     let prevY = -Infinity;
     for (const r of m.rows) {
+      assert.ok(r.length >= 1 && r.length <= 3, `${where}: 1 つの並びは 1〜3 区画（${r}）`);
+      assert.deepEqual(r.map((id) => byId.get(id).cols), WIDTHS192[r.length], `${where}: 横並び ${r.length} 区画の各区画の幅は PARAM-192 のとおり（${r}）`);
       const w = r.reduce((a, id) => a + byId.get(id).cols, 0);
       assert.ok(w <= m.columns, `${where}: 並び ${r} の幅の合計 ${w} は図の列数 ${m.columns} 以内`);
       const ys = r.map((id) => byId.get(id).frame.y);
@@ -761,6 +770,7 @@ test('FR-114 AC-669 AC-666: 要点の量が偏った会議を 15 の描画スタ
       assert.ok(ys[0] > prevY + EPS, `${where}: 並びは上から順に置かれる`);
       prevY = ys[0];
     }
+    assert.ok(byId.get('actions').cols >= 2, `${where}: 次アクションの区画の幅は 2 列以上（AC-666。${byId.get('actions').cols}）`);
   }
   function checkSpacing(m, where) {
     checkGeometry(m, where); // (c) 区画どうし・要素どうしの外枠の重なり 0 件、はみ出しなし
@@ -833,6 +843,30 @@ test('FR-114 AC-669 AC-666: 要点の量が偏った会議を 15 の描画スタ
         measured += checkSpacing(m, `${name} / ${id}`);
       }
       assert.ok(measured >= styleIds.length, `${name}: 要点のある区画で空きを測れた（${measured}）`);
+    }
+    // teama-meeting（次アクション 5 行）: 次アクションの表は 2 列幅以上で、24 文字以内のセルは「…」で切り詰めず全文を描く（AC-666）。
+    // 図の高さは、初期の並びで空き 20% 以下なら決め直さず、決め直したときも以前の約 830 を大きく超えない（AC-669 (4)）
+    {
+      const tm = await boardApp();
+      tm.app.commands['session.start']();
+      const emptyBase = skeleton(tm.app.getBoardModel());
+      for (const t of LINES) { tm.app.setDraft(t); assert.equal(tm.app.submitDraft().ok, true, `teama-meeting: 取込 ${t}`); tm.advance(PARAM.P181_MS + 100); }
+      tm.advance(1600);
+      const m = tm.app.getBoardModel();
+      checkSpacing(m, 'teama-meeting');
+      assert.equal(skeleton(m), emptyBase, 'teama-meeting: 取込の前後で区画の数・見出し・順は不変（幅は問わない）');
+      const acts = allPoints(tm.app).filter((p) => classify(p.text) === 'actions');
+      assert.equal(acts.length, 5, 'teama-meeting の次アクションは 5 行');
+      for (const p of acts) assert.ok([...p.text].length <= 24, `各セルは PARAM-165（24 文字）以内（${p.text}）`);
+      const actSec = parseSvg(tm.app.renderSvg()).all.find((n) => n.attrs['data-board-section'] === 'actions');
+      assert.ok(actSec, '次アクションの区画が描かれる');
+      assert.ok(!/[…]|\.\.\./.test(actSec.text), `次アクションの表に「…」の切り詰めがない（${actSec.text}）`);
+      const count = (s) => { const c = new Map(); for (const ch of s) c.set(ch, (c.get(ch) ?? 0) + 1); return c; };
+      const have = count(actSec.text.replace(/\s/g, '')); const want = count(acts.map((p) => p.text).join('').replace(/[\s。．.、,]/g, ''));
+      for (const [ch, n] of want) assert.ok((have.get(ch) ?? 0) >= n, `次アクションの全文が描かれる: 「${ch}」が ${n} 個以上（${have.get(ch) ?? 0}）`);
+      const BASE_H = 830; // 依頼 2026-11-05: 以前の約 830。許容は +10%（AC に値がないので test-designer の補い。CONTRACT-BOARD.md）
+      if (sameRows(m.rows, INITIAL_ROWS)) assert.ok(figH(m) <= BASE_H * 1.1, `teama-meeting: 初期の並びのままなら高さ ${figH(m).toFixed(0)} は約 ${BASE_H} 以内`);
+      else assert.ok(figH(m) <= BASE_H * 1.1, `teama-meeting: 決め直した図の高さ ${figH(m).toFixed(0)} は初期の並びの高さ（約 ${BASE_H}）を大きく超えない（≤ ${BASE_H * 1.1}。並び ${JSON.stringify(m.rows)}）`);
     }
     // 異常系: 要点が 1 件もない（0 件）でも並びは作れ、倍率・重なりの条件を満たす
     const empty = await boardApp();
