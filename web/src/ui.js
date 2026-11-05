@@ -336,10 +336,10 @@ export function mountUI(app, doc = document) {
       tr._ver = ver;
     }
     if (doc.activeElement !== draft && draft.value !== st.input.draft) draft.value = st.input.draft;
-    setText($('#message'), st.message ? st.message.text : '');
+    { const me = $('#message'); const mt = st.message ? st.message.text : ''; setText(me, mt); if (me && me.title !== mt) me.title = mt; } // AC-661: 全文はツールチップ（title）にも
     const is = app.getImportStatus?.(); const ise = $('#import-status');
     if (is && ise) {
-      setText(ise, is.text); setAttr(ise, 'role', is.role); setAttr(ise, 'aria-live', is.live);
+      setText(ise, is.text); if (ise.title !== is.text) ise.title = is.text; setAttr(ise, 'role', is.role); setAttr(ise, 'aria-live', is.live);
       if (ise.dataset.state !== is.state) ise.dataset.state = is.state;
     }
     // NFR-PERF-003 AC-540: アウトラインもキー（シーン ID・要点 ID）で差分だけを当てる
