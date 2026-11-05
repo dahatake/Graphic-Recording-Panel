@@ -245,7 +245,7 @@ test('FR-115 AC-673: ON のとき、.vtt の再生取込でも更新の時点に
 });
 
 // FR-115 AC-674
-test('FR-115 AC-674: ON のとき、再配置で位置が変わる既存の要素は、手（またはペン先）の絵がつかんで途中の位置を経て新しい位置まで運ばれ（1 回 800 ms 以内）、運ぶ間も選択・入力中の文字列・記録中が保たれる', async () => {
+test('FR-115 AC-674: ON のとき、ライブの更新間隔ごとの描き足しで再配置により位置が変わる既存の要素は、手（またはペン先）の絵がつかんで途中の位置を経て新しい位置まで運ばれ（1 回 800 ms 以内）、運ぶ間も選択・入力中の文字列・記録中が保たれる。手入力・一括取込（単発の反映）では運ぶ演出に置き換えず即時', async () => {
   const off = await showApp();
   runScript(off);
   const r = await showApp();
@@ -285,6 +285,29 @@ test('FR-115 AC-674: ON のとき、再配置で位置が変わる既存の要�
   for (const [id, c] of carry) if (c.start !== null) assert.ok(c.end - c.start <= SHOW.MOVE_MS + DT, `${id}: 運ぶ動き ${c.end - c.start} ms ≤ ${SHOW.MOVE_MS}`);
   assert.equal(show(app).running, false);
   assert.deepEqual(els(app), els(off.app), '運び終えた位置は OFF のときの最終の配置と同じ');
+  // 異常系: 手入力・ファイルの一括取込（単発の反映）は ON でも運ぶ演出に置き換えず、再配置の位置の変化も即時（手・ペン先なし）。AC-674 は更新間隔ごとの描き足しのときだけ
+  const SINGLE_TEXTS = SCRIPT.map((s) => s[1]);
+  const noCarry = (a, sch, label) => {
+    let seen = false;
+    sample(sch, PARAM.SINGLE_SEC * SEC, () => {
+      if ((show(a).moves ?? []).some((m) => m.phase === 'carry') || overlays(a).some((o) => o.kind === 'hand' || o.kind === 'pen')) seen = true;
+    }, 20);
+    assert.equal(seen, false, `${label}: ON でも手・ペン先の運ぶ演出は出ない（即時）`);
+    assert.equal(show(a).running, false, `${label}: 演出は走っていない`);
+  };
+  {
+    const m = await showApp();
+    assert.equal(m.app.setLiveShow(true).ok, true);
+    m.app.commands['session.start']();
+    for (const t of SINGLE_TEXTS) { m.app.setDraft(t); assert.equal(m.app.submitDraft().ok, true); noCarry(m.app, m.scheduler, `手入力（${t.slice(0, 8)}）`); }
+    const f = await showApp();
+    assert.equal(f.app.setLiveShow(true).ok, true);
+    f.app.commands['session.start']();
+    const text = SINGLE_TEXTS.join('\n');
+    assert.equal((await f.app.importTextFile({ name: 'm.txt', type: 'text/plain', size: Buffer.byteLength(text), text })).ok, true);
+    noCarry(f.app, f.scheduler, '一括取込（.txt）');
+    for (const t of SINGLE_TEXTS) assert.ok(f.app.renderSvg().includes(t), `一括取込: 「${t.slice(0, 8)}」は即時に図にある`);
+  }
 });
 
 // FR-115 AC-675

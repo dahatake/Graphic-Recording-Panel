@@ -131,42 +131,62 @@ function emphOf(shown, words, size) {
 // ---- 配置（DOM に依存しない純粋関数） ----
 const W = 1280; const M = 24; const GAP = 16; const COL = (W - M * 2 - GAP * 2) / 3; // 400
 const HEAD = 36; const PAD = 12; const FS = 14; const ROW = 26; const EMPTY_BODY = ROW; const BAND = 76;
-// 区画の並び（行ごと。[id, 列, 幅の列数]）。重なりのない格子で、行の高さはその行の区画の中身の高さの最大
-const GRID = [
-  [['purpose', 0, 1], ['members', 1, 1], ['vision', 2, 1]],
-  [['flow', 0, 2], ['decisions', 2, 1]],
-  [['themes', 0, 2], ['open', 2, 1]],
-  [['actions', 0, 2], ['memo', 2, 1]],
-];
-// FR-079 AC-669: 区画の容量の刻み（半行）。容量は中身の高さだけで決まる（決定的・冪等。AC-434・AC-432 (c)）。
-// 並びの中で最も中身の高い区画の最後の要素の下の空きは刻み未満（PARAM-186 = 1 行以下）。要点が 0 件の区画は見出しと 1 行（ROW）分の空き
+// 区画の幅・初期の並びは PARAM-192（BOARD_ORDER・INITIAL）、並びの決め直しは chooseAssign。
+// FR-079 AC-669（案 A）: 区画の枠の高さは自分の中身の高さ（HEAD + 8 + ceil(中身) + PAD）。横並びでも揃えず、図は幅 1 列の帯 A・B・C に分けて帯ごとに積む。
+// 要点が 0 件の区画は見出しと 1 行（ROW）分の空き（PARAM-186）
 export const LINE = ROW; // PARAM-186 の「1 行」（区画のラベルの 1 行の高さ）
-export const SLACK = ROW / 2;
-export const capacity = (h) => (h <= EMPTY_BODY ? EMPTY_BODY : Math.ceil(h / SLACK) * SLACK);
+export const HEIGHT_LIMIT = 913; // PARAM-194: 初期の並びの図の高さがこれを超えるときだけ並びを決め直す
 export const SILENCE_MS = 10000; // PARAM-190: 同じシーン・トピックの中でステップを無音で区切る間隔（ミリ秒）
-export const SLACK_MAX = 0.2; // PARAM-188: 最も高い区画を除く、要点のある区画の最後の要素の下の空きの上限（枠の高さに対する比）
-export const STRETCH_MAX = 2; // PARAM-189: 余白を埋めるために広げる要素の間隔・表の行の高さの倍率の上限
-// AC-669: 区画の中の要素の間隔（上端からの位置）と表の行の高さを倍率 f で広げたときの、最後の要素の下端（本文の上端からの距離）
-const stretchBottom = (els, subs, y0, f) => Math.max(0, ...els.map((e) => (e.y - y0) * f + (e.part === 'table' ? e.h * f : e.h)), ...subs.map((s) => (s.y - y0 + s.h) * f));
-// 倍率を決めて要素の位置を動かす。広げても空きが上限を超えるときは null（動かさない）
-function stretchCell(c, y0, B, H) {
-  let lo = 1; let hi = STRETCH_MAX;
-  if (stretchBottom(c.els, c.subs, y0, hi) <= B) lo = hi;
-  else for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (stretchBottom(c.els, c.subs, y0, mid) <= B) lo = mid; else hi = mid; }
-  const f = Math.floor(lo * 1000) / 1000;
-  // 広げきっても残る空きは、中身を縦の中央に寄せて上下に等分する（中身が 1 つの区画など、間隔だけでは埋まらない場合）
-  const rem = B - stretchBottom(c.els, c.subs, y0, f); // 空きは枠の内側の余白 PAD を含めて測る（枠の下端までの距離。契約: CONTRACT-BOARD）
-  const sh = Math.min(rem, Math.max(rem / 2, rem - (SLACK_MAX * 0.95 * H - PAD)));
-  if (PAD + rem - sh > SLACK_MAX * H) return null;
-  const at = (y) => Math.round((y0 + (y - y0) * f + sh) * 100) / 100;
-  for (const e of c.els) { e.y = at(e.y); if (e.part === 'table') { e.h = Math.round(e.h * f * 100) / 100; e.rowH = ROW * f; } }
-  for (const s of c.subs) { s.y = at(s.y); s.h = Math.round(s.h * f * 100) / 100; }
-  c.h = stretchBottom(c.els, c.subs, y0, 1);
-  return f;
-}
 const chunk = (arr, n) => { const out = []; for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; };
-const label = (e, maxPx) => { const shown = fit(e.label, maxPx, FS); return { text: shown, full: e.label, emph: emphOf(shown, e.emphasis, FS) }; };
 
+// ---- AC-669 帯と割り当て（PARAM-191・192・194）: 図は幅 1 列の帯 A・B・C。区画ごとの（幅, 開始の帯）の割り当てを、初期の並びが高すぎるときだけ決め直す ----
+const COLS = 3;
+// PARAM-192: 区画の順（並びの順）と初期の並び（区画, 開始の帯, 幅）
+export const BOARD_ORDER = ['purpose', 'members', 'vision', 'flow', 'decisions', 'themes', 'open', 'actions', 'memo'];
+const INITIAL = [['purpose', 0, 1], ['members', 1, 1], ['vision', 2, 1], ['flow', 0, 2], ['decisions', 2, 1], ['themes', 0, 2], ['open', 2, 1], ['actions', 0, 2], ['memo', 2, 1]];
+// 区画の割り当ての選択肢（開始の帯が左のもの、同じなら幅が大きいものの順。AC-669 (4) (b) の比べる順）
+const OPTIONS = (() => { const out = []; for (let b = 0; b < COLS; b++) for (let s = COLS - b; s >= 1; s--) out.push([b, s]); return out; })();
+// assign: 区画の順の [帯, 幅] の列。fh(id, 幅) は枠の高さ。各区画は置く先の帯の下端のうち最も下の直下（間隔 GAP）に上端をそろえて積む。top は最初の区画の上端
+function packBands(assign, fh, top) {
+  const bottoms = [top, top, top]; const out = [];
+  assign.forEach(([b, s], i) => {
+    let y = top; for (let k = b; k < b + s; k++) y = Math.max(y, bottoms[k]);
+    const h = fh(BOARD_ORDER[i], s);
+    for (let k = b; k < b + s; k++) bottoms[k] = y + h + GAP;
+    out.push({ y, h });
+  });
+  return { placed: out, height: Math.max(...bottoms) - GAP + M };
+}
+// 決め直し（AC-669 (4)）: 初期の並びの高さが PARAM-194 以下ならそのまま。超えるときだけ、次アクションの幅が 2 列未満でない全割り当てから
+// (a) 図の高さが最小、(b) 同じなら区画の順に先頭から、開始の帯が左、次に幅が大きい方を選ぶ（深さ優先で探索。枝は現在の高さが最小を超えたら打ち切る）。入力だけで決まる（決定的）
+function chooseAssign(fh, top) {
+  const init = INITIAL.map(([, b, s]) => [b, s]);
+  const initial = packBands(init, fh, top).height;
+  if (initial <= HEIGHT_LIMIT) return { assign: init, initial, reflowed: false };
+  let best = init; let bestH = initial; let bestKey = init.map(([b, s]) => OPTIONS.findIndex((o) => o[0] === b && o[1] === s));
+  const cur = []; const keys = [];
+  const go = (i, bottoms) => {
+    if (i === BOARD_ORDER.length) {
+      const h = Math.max(...bottoms) - GAP + M;
+      let better = h < bestH - 1e-9;
+      if (!better && Math.abs(h - bestH) <= 1e-9) for (let k = 0; k < keys.length; k++) if (keys[k] !== bestKey[k]) { better = keys[k] < bestKey[k]; break; }
+      if (better) { best = cur.map((a) => [...a]); bestH = h; bestKey = [...keys]; }
+      return;
+    }
+    const id = BOARD_ORDER[i];
+    OPTIONS.forEach(([b, s], oi) => {
+      if (id === 'actions' && s < 2) return;
+      let y = top; for (let k = b; k < b + s; k++) y = Math.max(y, bottoms[k]);
+      const nb = [...bottoms]; const h = fh(id, s); for (let k = b; k < b + s; k++) nb[k] = y + h + GAP;
+      if (Math.max(...nb) - GAP + M > bestH + 1e-9) return;
+      cur[i] = [b, s]; keys[i] = oi; go(i + 1, nb);
+    });
+  };
+  go(0, [top, top, top]);
+  return { assign: best, initial, reflowed: true };
+}const label =  (e, maxPx) => { const shown = fit(e.label, maxPx, FS); return { text: shown, full: e.label, emph: emphOf(shown, e.emphasis, FS) }; };
+
+const OW = 150; const DU = 180; // 次アクションの表の担当（10 文字以内）・期限（12 文字以内）の列の幅（AC-666: 全文が入る）
 // 区画ごとの部品の組み立て。units を (x, y, w) から下へ並べ、{ els, h } を返す（els の外枠は重ならない）
 const BUILD = {
   purpose: (units, x, y, w) => listRows(units, x, y, w, 'icon'),
@@ -230,8 +250,8 @@ const BUILD = {
     return { els: [...els, ...r.els], h: cy - y + r.h };
   },
   actions: (units, x, y, w) => { // No・内容・担当・期限の 4 列の表
-    const rows = units.map((e) => ({ pointId: e.pointId, sceneId: e.sceneId, no: e.no, owner: e.owner, due: e.due, ...label(e, w - 36 - 120 - 120 - 16) }));
-    return { els: [{ id: `table:${units[0].pointId}`, part: 'table', x, y, w, h: ROW * (rows.length + 1), cols: [36, w - 36 - 240, 120, 120], rows }], h: ROW * (rows.length + 1) };
+    const rows = units.map((e) => ({ pointId: e.pointId, sceneId: e.sceneId, no: e.no, owner: e.owner, due: e.due, ...    label(e, w - 36 - OW - DU - 16) }));
+        return { els: [{ id: `table:${units[0].pointId}`, part: 'table', x, y, w, h: ROW * (rows.length + 1), cols: [36, w - 36 - OW - DU, OW, DU], rows }], h: ROW * (rows.length + 1) };
   },
 };
 function listRows(units, x, y, w, part, icon) {
@@ -298,43 +318,35 @@ export function boardLayout(input, opts = {}) {
     const units = unitsOf(id);
     if (!units.length) return { els: [], subs: [], h: EMPTY_BODY };
     if (units.length <= GROUP_MAX) { const r = BUILD[id](units, x, y, w, true); return { els: r.els, subs: [], h: r.h }; }
-    const els = []; const subs = []; let cy = y;
+    // 下位のまとまりの枠は要素より 6 外側（上は見出しの下の間に、下は枠の内側の余白に入る）。最初の要素の上の空きは 0、最後の要素の下の空きは枠の内側の余白だけ
+    const els = []; const subs = []; let cy = y - 6;
     chunk(units, GROUP_MAX).forEach((part, i) => {
       const r = BUILD[id](part, x + 6, cy + 6, w - 12, i === 0);
       subs.push({ x, y: cy, w, h: r.h + 12 });
       els.push(...r.els); cy += r.h + 12 + 8;
     });
-    return { els, subs, h: cy - y - 8 };
+    return { els, subs, h: cy - y - 14 };
   };
-  let top = band ? M + BAND + GAP : M;
+  const top = band ? M + BAND + GAP : M;
   const sections = [];
-  for (const row of GRID) {
-    const cells = row.map(([id, col, span]) => {
-      const x = M + col * (COL + GAP); const w = span * COL + (span - 1) * GAP;
-      const c = content(id, x + PAD, top + HEAD + 8, w - PAD * 2);
-      return { id, x, w, c };
-    });
-    // AC-669: 枠の中身の高さは SLACK 刻みの容量に切り上げる。中身が容量に収まる間は枠もほかの区画も動かず、あふれたときだけ大きくなる
-    const h = Math.max(...cells.map((cl) => HEAD + 8 + capacity(cl.c.h) + PAD));
-    // AC-669（PARAM-188・189）: 最も高い区画以外の要点のある区画は、空きが枠の高さの SLACK_MAX を超えるとき、要素の間隔と表の行の高さを広げて埋める。
-    // 広げても超えるときだけ、その区画の枠は並びの高さに揃えず自分の中身の高さにする
-    for (const cl of cells) {
-      cl.h = h;
-      if (!unitsOf(cl.id).length) continue;
-      const y0 = top + HEAD + 8; const B = h - HEAD - 8 - PAD;
-      if (B + PAD - cl.c.h <= SLACK_MAX * h) continue;
-      if (stretchCell(cl.c, y0, B, h) == null) cl.h = HEAD + 8 + capacity(cl.c.h) + PAD;
-    }
-    for (const cl of cells) {
-      const def = SECTIONS.find((s) => s.id === cl.id);
-      sections.push({ id: cl.id, name: def[lang], icon: def.icon, frame: { x: cl.x, y: top, w: cl.w, h: cl.h }, headingRect: { x: cl.x + 8, y: top + 6, w: cl.w - 16, h: HEAD - 10 }, count: by[cl.id].length, elements: cl.c.els, subgroups: cl.c.subs });
-    }
-    top += h + GAP;
-  }
-  const H = top - GAP + M;
+  const probes = new Map();
+  // 区画の枠の高さは自分の中身の高さ（中身は幅だけで決まる）。HEAD + 8 + ceil(中身) + PAD
+  const probeOf = (id, sp) => { const k = `${id}:${sp}`; if (!probes.has(k)) probes.set(k, content(id, PAD, HEAD + 8, sp * COL + (sp - 1) * GAP - PAD * 2)); return probes.get(k); };
+  const frameH = (id, sp) => HEAD + 8 + Math.ceil(probeOf(id, sp).h) + PAD;
+  const plan = chooseAssign(frameH, top);
+  const packed = packBands(plan.assign, frameH, top);
+  BOARD_ORDER.forEach((id, i) => {
+    const [b, span] = plan.assign[i]; const { y, h } = packed.placed[i];
+    const x = M + b * (COL + GAP); const w = span * COL + (span - 1) * GAP;
+    const c = content(id, x + PAD, y + HEAD + 8, w - PAD * 2);
+    const def = SECTIONS.find((s) => s.id === id);
+    sections.push({ id, name: def[lang], title: def[lang], icon: def.icon, cols: span, band: b, contentTop: y + HEAD + 8, contentBottom: y + h - PAD, frame: { x, y, w, h }, headingRect: { x: x + 8, y: y + 6, w: w - 16, h: HEAD - 10 }, count: by[id].length, elements: c.els, subgroups: c.subs });
+  });
+  const H = packed.height;
+  const bands = [0, 1, 2].map((b) => BOARD_ORDER.filter((id, i) => b >= plan.assign[i][0] && b < plan.assign[i][0] + plan.assign[i][1]));
   let k = 0;
   for (const s of sections) for (const el of s.elements) { el.id ??= `${s.id}-${k++}`; el.section = s.id; } // id は要点・ステップから決める（取込の前後で同じ要素は同じ id。CONTRACT-BOARD）
-  const model = { lang, band, sections, assigned, text: tx, canvas: { w: W, h: H }, line: LINE, fontKind: FONT_KIND };
+  const model = { lang, band, sections, assigned, text: tx, canvas: { w: W, h: H }, line: LINE, lineHeight: LINE, columns: COLS, bands, initialHeight: plan.initial, reflowed: plan.reflowed, fontKind: FONT_KIND };
   return {
     canvas: { w: W, h: H }, title: { x: M, y: M, w: W - M * 2, h: 0, visible: false }, body: { x: M, y: band ? M + BAND + GAP : M, w: W - M * 2, h: H - M * 2 },
     units: [], arrows: [], orderMark: 'number', centered: false, titleLines: [], board: model,
