@@ -192,7 +192,7 @@
     "AC-462": "sha256:788240e79830f31d",
     "AC-463": "sha256:fd00d0ec74e295fc",
     "AC-464": "sha256:ae269b4046bb3a27",
-    "AC-435": "sha256:91dec6216ba0c8eb",
+    "AC-435": "sha256:9bbaf06db079d1ed",
     "AC-436": "sha256:1d5cad323ac8017b",
     "AC-439": "sha256:afa998f8bed55a68",
     "AC-440": "sha256:cb8e709859fa53d9",
@@ -9408,9 +9408,9 @@
       ],
       "title": "FR-114 AC-667 AC-680 会議ボード型: TeamA の会議の固定の文字起こしで (a)〜(g)、(h) 強調の左右端のずれ ≤0.5 文字（実ブラウザの getExtentOfChar・15 の描画スタイル）、(i) 議論の流れの 4 つ以上のステップ（番号バッジ・吹き出し・人物が 1 組ずつ・間ごとに矢印）。AC-680 名前を表示しない（既定オフ・キーボード・図/一覧/PNG/SVG/PDF/Markdown に名前なし・Markdown の名前の行は一覧と一致・端末ごとに保存・LLM 送信に名前なしで要点の中の名前は簡易マスキングによらず伏せ字・画像生成プロンプトに名前なし）。異常系: 不正な値・外部リクエスト 0 件",
       "layer": "e2e",
-      "command": "node --test --test-name-pattern=\"AC-667|AC-680\" tests/system/board.test.js",
+      "command": "node --test --test-name-pattern=\"AC-667|AC-680|AC-669\" tests/system/board.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "9638423",
       "last_run_at": "2026-11-05T09:17:16+09:00",
       "evidence": "work/runs/202611050647/logs/system-test/E2E-289-202611050914.log",
@@ -9462,6 +9462,12 @@
           "by": "script",
           "change": "status -> not_run",
           "reason": "board.test.js を変更（AC-667 (i)・AC-669・AC-680 の期待）"
+        },
+        {
+          "at": "2026-11-05T09:45:13+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test --test-name-pattern=\"AC-667|AC-680\" tests/system/board.test.js' -> 'node --test --test-name-pattern=\"AC-667|AC-680|AC-669\" tests/system/board.test.js'",
+          "reason": "AC-669・AC-666（区画の余白: 上詰め・倍率・並びの決め直し・不変・決定的。15 スタイル×4 データ）のテストを board.test.js に追加。両 AC は検証レベル integration で台帳の AC に載せられない（CHK-10）ため、同じテストで測るだけにして --ac は変えない"
         }
       ]
     },
@@ -9476,9 +9482,9 @@
       ],
       "title": "ライブ描画ショー: 切替（バー・設定・検索・保存）、ON/OFF の結果一致と OFF で演出なし、描線・1字ずつの書き込みの途中観測（音声入力と .vtt の再生取込）、会議ボード型で AC-669 と置き換え（異常系: 手入力・ファイルの一括取込は ON でも演出なしで PARAM-158 以内、不正値）",
       "layer": "e2e",
-      "command": "node --test --test-name-pattern=\"AC-672|AC-673\" tests/system/liveshow.test.js",
+      "command": "node --test --test-name-pattern=\"AC-672|AC-673|AC-674\" tests/system/liveshow.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "9638423",
       "last_run_at": "2026-11-05T09:17:16+09:00",
       "evidence": "work/runs/202611050647/logs/system-test/E2E-290-202611050915.log",
@@ -9500,6 +9506,12 @@
           "by": "test-designer",
           "change": "title: 'ライブ描画ショー: 切替（バー・設定・検索・保存）、ON/OFF の結果一致と OFF で演出なし、描線・1字ずつの書き込みの途中観測、手で運ぶ途中観測、お祝い・80%以内・縮め（異常系: reduced motion で即時＋件数の読み上げ、強制カラー、不正値）' -> 'ライブ描画ショー: 切替（バー・設定・検索・保存）、ON/OFF の結果一致と OFF で演出なし、描線・1字ずつの書き込みの途中観測（音声入力と .vtt の再生取込）、会議ボード型で AC-669 と置き換え（異常系: 手入力・ファイルの一括取込は ON でも演出なしで PARAM-158 以内、不正値）'",
           "reason": "1c4bd9d の AC-673 の変更（演出はライブ（音声入力・.vtt の再生取込）の更新の時点だけ。手入力・一括取込は即時）に合わせ、再生取込での描線・書き込みと、手入力・一括取込（.vtt・.txt）で演出しないことを確かめるテストを liveshow.test.js に追加"
+        },
+        {
+          "at": "2026-11-05T09:45:14+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test --test-name-pattern=\"AC-672|AC-673\" tests/system/liveshow.test.js' -> 'node --test --test-name-pattern=\"AC-672|AC-673|AC-674\" tests/system/liveshow.test.js'",
+          "reason": "AC-674（ライブの更新間隔ごとの描き足しのときだけ運ぶ演出、手入力・一括取込は即時）を同じテストファイルで測る。AC-674 は integration で台帳の AC に載せない（CHK-10）"
         }
       ]
     },

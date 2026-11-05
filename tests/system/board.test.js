@@ -722,3 +722,125 @@ test('FR-114 AC-667 測定器: コントラスト比は WCAG の既知値（#767
   assert.equal(classify('補足ですが昨年度も同様の検討あり'), 'memo');
   assert.equal(classify('However we show it'), 'flow', 'how は however・show に当たらない（PARAM-131 は語単位）');
 });
+
+// FR-114 AC-669 AC-666（区画の余白: 上詰め・均等に広げる・並びの決め直し。契約: CONTRACT-BOARD.md「区画の余白」「並びの決め直し」）
+// 15 の描画スタイル × 4 つのデータ（要点が少ない・多い × シーンの区切りなし・あり）。期待値は受入基準の測れる基準 (a)(b)(c) と、
+// 区画の数・見出し・幅の不変、入力が同じなら並び・枠・倍率が同じ（決定的）、追加がなければ動かない、だけから決める。
+// 要素の配置の細部や並びの選び方（比較規則）の内側は実装に依存するので、ここでは観測できる結果だけを確かめる。
+test('FR-114 AC-669 AC-666: 要点の量が偏った会議を 15 の描画スタイルで描くと、要点のある区画は最初の要素の上の空きが 0 で下の空き以下、下の空きは枠の高さの 20% 以下（最も高い区画は 1 行以下）、広げる倍率は 1〜2、外枠の重なり 0 件。取込の前後で区画の数・見出し・幅は不変で、同じ入力なら並び・枠・倍率は同じ（決定的）、追加がなければ動かない', async () => {
+  const P189 = 2; // 広げる倍率の上限
+  const EPS = 0.5;
+  const secOf = (t) => classify(t);
+  // 偏った会議: 決定事項・主要テーマ・メモは 1〜2 件、議論の流れ・次アクションが多い
+  const skew = (lines, cap) => {
+    const n = {}; const out = [];
+    for (const t of lines) { const s = secOf(t); n[s] = (n[s] ?? 0) + 1; if (['decisions', 'themes', 'memo'].includes(s) && n[s] > cap) continue; out.push(t); }
+    return out;
+  };
+  const MANY = skew(LINES, 2);
+  const FEW = [];
+  for (const s of ['flow', 'flow', 'decisions', 'themes', 'memo', 'actions']) { const c = LINES.filter((t) => secOf(t) === s && !FEW.includes(t))[0]; if (c) FEW.push(c); }
+  assert.ok(MANY.length >= 12 && FEW.length >= 4 && FEW.length < MANY.length, `固定データ: 多い ${MANY.length}・少ない ${FEW.length}`);
+  assert.ok(MANY.filter((t) => secOf(t) === 'flow').length >= 4 && MANY.filter((t) => secOf(t) === 'actions').length >= 2, '多いデータは議論の流れ・次アクションが多い');
+  const DATA = [['要点が少ない・シーン区切りなし', FEW, false], ['要点が少ない・シーン区切りあり', FEW, true], ['要点が多い・シーン区切りなし', MANY, false], ['要点が多い・シーン区切りあり', MANY, true]];
+
+  const skeleton = (m) => JSON.stringify({ n: m.sections.length, secs: m.sections.map((s) => [s.id, s.title, s.cols]), order: m.rows.flat(), columns: m.columns });
+  const layout = (m) => JSON.stringify({ rows: m.rows, secs: m.sections.map((s) => [s.id, s.frame, s.stretch, s.contentTop, s.contentBottom]), els: m.sections.flatMap((s) => s.elements.map((e) => [e.id, e.x, e.y, e.w, e.h])) });
+  function checkRows(m, where) {
+    assert.ok(Number.isInteger(m.columns) && m.columns >= 1, `${where}: columns（図の列数）`);
+    assert.ok(Number.isFinite(m.lineHeight) && m.lineHeight > 0, `${where}: lineHeight（1 行の高さ）`);
+    assert.ok(Array.isArray(m.rows) && m.rows.every((r) => Array.isArray(r) && r.length), `${where}: rows（並びの組み合わせ）`);
+    assert.deepEqual(m.rows.flat(), SECTIONS, `${where}: 区画の順は FR-114 の列挙の順のまま、隣り合う区画だけを横に並べる`);
+    const byId = new Map(m.sections.map((s) => [s.id, s]));
+    let prevY = -Infinity;
+    for (const r of m.rows) {
+      const w = r.reduce((a, id) => a + byId.get(id).cols, 0);
+      assert.ok(w <= m.columns, `${where}: 並び ${r} の幅の合計 ${w} は図の列数 ${m.columns} 以内`);
+      const ys = r.map((id) => byId.get(id).frame.y);
+      assert.ok(Math.max(...ys) - Math.min(...ys) <= EPS, `${where}: 同じ並びの区画の上端は揃う（${ys}）`);
+      assert.ok(ys[0] > prevY + EPS, `${where}: 並びは上から順に置かれる`);
+      prevY = ys[0];
+    }
+  }
+  function checkSpacing(m, where) {
+    checkGeometry(m, where); // (c) 区画どうし・要素どうしの外枠の重なり 0 件、はみ出しなし
+    checkRows(m, where);
+    const withPts = new Set(m.assigned.map((a) => a.section));
+    let measured = 0;
+    for (const s of m.sections) {
+      assert.ok(Number.isFinite(s.stretch) && s.stretch >= 1 - 1e-6 && s.stretch <= P189 + 1e-6, `${where}: ${s.id} の広げる倍率 ${s.stretch} は 1〜${P189}`);
+      assert.ok(Number.isFinite(s.contentTop) && Number.isFinite(s.contentBottom) && s.contentBottom > s.contentTop, `${where}: ${s.id} の contentTop・contentBottom`);
+    }
+    for (const r of m.rows) {
+      const live = r.map((id) => m.sections.find((s) => s.id === id)).filter((s) => withPts.has(s.id) && s.elements.length);
+      if (!live.length) continue;
+      const bottom = (s) => Math.max(...s.elements.map((e) => e.y + e.h));
+      const tallest = live.reduce((a, b) => (bottom(b) - b.frame.y > bottom(a) - a.frame.y ? b : a));
+      for (const s of live) {
+        const top = Math.min(...s.elements.map((e) => e.y)) - s.contentTop;
+        const gapIn = s.contentBottom - bottom(s);
+        const gapFrame = s.frame.y + s.frame.h - bottom(s);
+        assert.ok(Math.abs(top) <= EPS, `${where} (a): ${s.id} の最初の要素の上の空きは 0（${top.toFixed(1)}）`);
+        assert.ok(top <= gapIn + EPS, `${where} (a): ${s.id} の上の空き ${top.toFixed(1)} ≤ 下の空き ${gapIn.toFixed(1)}`);
+        assert.ok(gapFrame >= -EPS, `${where}: ${s.id} の中身が枠に収まる`);
+        assert.ok(gapFrame / s.frame.h <= P188 + 0.005, `${where} (b): ${s.id} の下の空き ${gapFrame.toFixed(1)} は枠の高さ ${s.frame.h.toFixed(1)} の ${P188 * 100}% 以下`);
+        if (s === tallest) assert.ok(gapIn <= m.lineHeight + EPS, `${where} (b): 最も高い区画 ${s.id} の下の空き ${gapIn.toFixed(1)} は 1 行（${m.lineHeight}）以下`);
+        measured++;
+      }
+    }
+    return measured;
+  }
+
+  const net = spyNetwork();
+  try {
+    const styleIds = (await boardApp()).app.getDrawStyles().map((s) => s.id);
+    assert.equal(styleIds.length, 15, '描画スタイルは 15');
+    for (const [name, lines, withScene] of DATA) {
+      const run = async () => {
+        const r = await boardApp();
+        r.app.commands['session.start']();
+        let base = null; let prevRows = null;
+        for (const t of lines) {
+          if (withScene && secOf(t) === 'flow') r.app.commands['session.nextScene']();
+          r.app.setDraft(t);
+          assert.equal(r.app.submitDraft().ok, true, `${name}: 取込 ${t}`);
+          r.advance(PARAM.P181_MS + 100);
+          const m = r.app.getBoardModel();
+          // 取込の前後で区画の数・見出し・幅は変わらない（並びの組み合わせだけが変わりうる）
+          if (base == null) base = skeleton(m); else assert.equal(skeleton(m), base, `${name}: 取込の前後で区画の数・見出し・幅は不変（${t}）`);
+          checkSpacing(m, `${name}: ${t}`);
+          prevRows = m.rows;
+        }
+        r.advance(1600);
+        return { r, base, prevRows };
+      };
+      const a = await run();
+      const b = await run();
+      const m0 = a.r.app.getBoardModel();
+      // 同じ入力なら、並び・枠・倍率・要素の位置は同じ（決定的）。履歴に依存しない
+      assert.equal(layout(b.r.app.getBoardModel()), layout(m0), `${name}: 同じ入力なら並び・枠・倍率は毎回同じ`);
+      // 追加がなければ動かない
+      const snap = layout(m0);
+      a.r.advance(5000); a.r.app.renderSvg();
+      assert.equal(layout(a.r.app.getBoardModel()), snap, `${name}: 追加がなければ並び・枠・要素は動かない`);
+      // 15 の描画スタイル
+      let measured = 0;
+      for (const id of styleIds) {
+        assert.equal(a.r.app.setDrawStyle(id).ok, true, id);
+        a.r.advance(1600);
+        const m = a.r.app.getBoardModel();
+        assert.equal(skeleton(m), a.base, `${name} / ${id}: 描画スタイルを変えても区画の数・見出し・幅は不変`);
+        measured += checkSpacing(m, `${name} / ${id}`);
+      }
+      assert.ok(measured >= styleIds.length, `${name}: 要点のある区画で空きを測れた（${measured}）`);
+    }
+    // 異常系: 要点が 1 件もない（0 件）でも並びは作れ、倍率・重なりの条件を満たす
+    const empty = await boardApp();
+    empty.app.commands['session.start']();
+    checkRows(empty.app.getBoardModel(), '要点 0 件');
+    checkGeometry(empty.app.getBoardModel(), '要点 0 件');
+    assert.deepEqual(net.calls, [], '外部へのリクエスト 0 件');
+  } finally {
+    net.restore();
+  }
+});

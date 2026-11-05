@@ -31,12 +31,16 @@
 {
   canvas: { w, h },                       // 図の領域
   band: { x, y, w, h } | null,             // タイトル帯（タイトル・サブタイトル・日付がすべて未入力なら null 可）
-  sections: [{ id, frame: { x, y, w, h }, elements: [{ id, part, x, y, w, h, parent? }] }],
+  lineHeight,                             // 1 行の高さ（SVG の座標の単位。PARAM-186 の「1 行」。AC-669）
+  columns,                                // 図の列数（区画の幅 cols の合計の上限。AC-669）
+  rows: [[sectionId, ...], ...],          // 並びの組み合わせ（上から順の横の並び。各並びは左から順の区画の id）。flat() は FR-114 の列挙の順（AC-669）
+  sections: [{ id, title, cols, contentTop, contentBottom, stretch, frame: { x, y, w, h }, elements: [{ id, part, x, y, w, h, parent? }] }],
   assigned: [{ pointId, section }],       // 要点ごとの振り分け（AC-665）
   animations: [{ id, kind: 'appear' | 'move' }] // いま進行中の AC-669 のアニメーション（出現のフェードと拡大・詰め直しの移動）。ないときは []
 }
 ```
 - `animations`（2026-11-05 追加。AC-673）: AC-669 の出現・移動のアニメーションが進行中の要素。ライブ描画ショーが OFF・動きを減らす設定でないとき、新しい要点の出現の間（PARAM-181 以内）は `kind:'appear'` の項目が入る。ショーが ON のときは、AC-669 のアニメーションはショーの描線・書き込み（AC-673）と運ぶ動き（AC-674）に置き換わるので、常に `[]`。
+- 並びの決め直し・余白の配分（AC-669。2026-11-05 追加。System Test: board.test.js の AC-669 のテスト）: `title`＝区画の見出しの文字、`cols`＝図の列数のうち占める列数（取込の前後で `sections` の数・`title`・`cols` は変わらない）、`contentTop`＝見出しの下の内側の余白の直下の y（最初の要素の上端がここに一致する＝上の空き 0）、`contentBottom`＝枠の内側の下端の y（見出し・内側の余白を除く下の空きは `contentBottom − max(要素の y + h)`。最も高い区画で `lineHeight` 以下）、`stretch`＝要素の間隔・表の行の高さを広げた倍率（1〜2。広げないときは 1）。`rows` は決め直しの結果の並びで、入力（区画の中身の量と区画の順）が同じなら `rows`・`frame`・`stretch`・要素の位置は毎回同じ（決定的。履歴に依存しない）。追加がなければ（時間が進んでも）動かない。同じ並びの区画の `frame.y` は揃う。
 - 座標は SVG の座標と同じ単位。`elements` はその区画の中に置かれた要素（リストの行・吹き出し・人物・表・矢印・絵記号・番号バッジなど）の**現在の表示位置**の外枠。
 - `id` は図全体で一意で、同じ要素なら取込の前後で同じ（要点から作る要素は要点 id から決める）。
 - 表と行のような親子は、子に `parent: <親の id>` を付ける（親子の包含は AC-430 (c) の重なりに含めない）。それ以外の 2 つの要素の外枠は重ならない。
