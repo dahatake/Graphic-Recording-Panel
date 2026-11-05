@@ -131,13 +131,7 @@ function emphOf(shown, words, size) {
 // ---- 配置（DOM に依存しない純粋関数） ----
 const W = 1280; const M = 24; const GAP = 16; const COL = (W - M * 2 - GAP * 2) / 3; // 400
 const HEAD = 36; const PAD = 12; const FS = 14; const ROW = 26; const EMPTY_BODY = ROW; const BAND = 76;
-// 区画の並び（行ごと。[id, 列, 幅の列数]）。重なりのない格子で、行の高さはその行の区画の中身の高さの最大
-const GRID = [
-  [['purpose', 0, 1], ['members', 1, 1], ['vision', 2, 1]],
-  [['flow', 0, 2], ['decisions', 2, 1]],
-  [['themes', 0, 2], ['open', 2, 1]],
-  [['actions', 0, 2], ['memo', 2, 1]],
-];
+// 区画の幅・並びは PARAM-192（BOARD_ORDER・WIDTHS・INITIAL_ROWS）と chooseRows。行の高さはその行の区画の中身の高さの最大
 // FR-079 AC-669: 区画の容量の刻み（半行）。容量は中身の高さだけで決まる（決定的・冪等。AC-434・AC-432 (c)）。
 // 並びの中で最も中身の高い区画の最後の要素の下の空きは刻み未満（PARAM-186 = 1 行以下）。要点が 0 件の区画は見出しと 1 行（ROW）分の空き
 export const LINE = ROW; // PARAM-186 の「1 行」（区画のラベルの 1 行の高さ）
@@ -154,17 +148,64 @@ function stretchCell(c, y0, B, H) {
   if (stretchBottom(c.els, c.subs, y0, hi) <= B) lo = hi;
   else for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (stretchBottom(c.els, c.subs, y0, mid) <= B) lo = mid; else hi = mid; }
   const f = Math.floor(lo * 1000) / 1000;
-  // 広げきっても残る空きは、中身を縦の中央に寄せて上下に等分する（中身が 1 つの区画など、間隔だけでは埋まらない場合）
-  const rem = B - stretchBottom(c.els, c.subs, y0, f); // 空きは枠の内側の余白 PAD を含めて測る（枠の下端までの距離。契約: CONTRACT-BOARD）
-  const sh = Math.min(rem, Math.max(rem / 2, rem - (SLACK_MAX * 0.95 * H - PAD)));
-  if (PAD + rem - sh > SLACK_MAX * H) return null;
-  const at = (y) => Math.round((y0 + (y - y0) * f + sh) * 100) / 100;
+  // 広げきっても残る空きは区画の下に回す（上の空きは 0。中身を下へ寄せる配分はしない。AC-669）。
+  // 空きは枠の内側の余白 PAD を含めて測る（枠の下端までの距離。契約: CONTRACT-BOARD）。超えるときは広げず null（並びの決め直し・自分の高さの枠へ）
+  const rem = B - stretchBottom(c.els, c.subs, y0, f);
+  if (PAD + rem > SLACK_MAX * H) return null;
+  const at = (y) => Math.round((y0 + (y - y0) * f) * 100) / 100;
   for (const e of c.els) { e.y = at(e.y); if (e.part === 'table') { e.h = Math.round(e.h * f * 100) / 100; e.rowH = ROW * f; } }
   for (const s of c.subs) { s.y = at(s.y); s.h = Math.round(s.h * f * 100) / 100; }
   c.h = stretchBottom(c.els, c.subs, y0, 1);
   return f;
 }
 const chunk = (arr, n) => { const out = []; for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; };
+
+// ---- AC-669 並びの決め直し（PARAM-188・192）: 区画の数・見出し・順は変えず、どの区画を同じ並び（行）に置くか（とその幅）だけを決める ----
+const COLS = 3;
+// PARAM-192: 区画の順（並びの順）と、横並びの数ごとの各区画の幅（3 つ並び＝1・1・1、2 つ並び＝2・1、1 つ並び＝3）
+export const BOARD_ORDER = ['purpose', 'members', 'vision', 'flow', 'decisions', 'themes', 'open', 'actions', 'memo'];
+const WIDTHS = { 1: [3], 2: [2, 1], 3: [1, 1, 1] };
+const rowsOfSizes = (sizes) => { let i = 0; return sizes.map((n) => { let col = 0; const row = BOARD_ORDER.slice(i, i + n).map((id, k) => { const r = [id, col, WIDTHS[n][k]]; col += WIDTHS[n][k]; return r; }); i += n; return row; }); };
+const INITIAL_ROWS = rowsOfSizes([3, 2, 2, 2]); // PARAM-192 の初期の並び
+// 候補: 並びの順を保ったまま隣り合う区画を 1〜3 つずつ横並びにする分け方のすべて（先頭の並びの区画数が少ないものから。AC-669 (4) (c) の順）
+export const ROW_CANDIDATES = (() => {
+  const out = [];
+  const go = (left, sizes) => { if (!left) { out.push(rowsOfSizes(sizes)); return; } for (let n = 1; n <= Math.min(3, left); n++) go(left - n, [...sizes, n]); };
+  go(BOARD_ORDER.length, []);
+  return out;
+})();
+const rowHeightOf = (cells) => Math.max(...cells.map((cl) => HEAD + 8 + capacity(cl.c.h) + PAD));
+// 並び rows の評価: 要点のある区画の空き（広げた後の、最後の要素の下から枠の下端まで ÷ 枠の高さ）の最大と、横並びの数。probeOf(id) は区画の中身（本文の上端が HEAD + 8）
+function evalRows(rows, probeOf, has) {
+  let max = 0;
+  for (const row of rows) {
+    const cells = row.map(([id, , span]) => ({ id, c: structuredClone(probeOf(id, span)) }));
+    const h = rowHeightOf(cells);
+    for (const cl of cells) {
+      if (!has(cl.id)) continue;
+      const y0 = HEAD + 8; const B = h - HEAD - 8 - PAD;
+      let bottom = cl.c.h;
+      if (B + PAD - cl.c.h > SLACK_MAX * h && stretchCell(cl.c, y0, B, h) != null) bottom = cl.c.h; // 広げた後の空き（広げても超えるなら、並びの高さに揃えたときの空き）
+      max = Math.max(max, (h - HEAD - 8 - bottom) / h);
+    }
+  }
+  return max;
+}
+// 決め直し（AC-669 (4)）: いまの並び（prev。なければ PARAM-192 の初期の並び）で空きが PARAM-188 以下の間は並びを変えない。超えるときだけ、候補のすべてから
+// (a) 要点のある区画の空きの最大が小さい、(b) 同じなら並びの本数が少ない、(c) 同じなら先頭の並びから区画数が少ない方（候補の列挙の順で先に見つかった方）を選ぶ。
+// 決め直しの結果は入力（中身の量と区画の順）だけで決まる。要点が 1 件もないときは初期の並びに戻す
+function chooseRows(prev, probeOf, has) {
+  const EPS = 1e-9;
+  if (!BOARD_ORDER.some(has)) return INITIAL_ROWS;
+  const cur = prev ?? INITIAL_ROWS;
+  if (evalRows(cur, probeOf, has) <= SLACK_MAX + EPS) return cur;
+  let best = null; let bm = Infinity;
+  for (const rows of ROW_CANDIDATES) {
+    const m = evalRows(rows, probeOf, has);
+    if (m < bm - EPS || (Math.abs(m - bm) <= EPS && rows.length < best.length)) { best = rows; bm = m; }
+  }
+  return best;
+}
 const label = (e, maxPx) => { const shown = fit(e.label, maxPx, FS); return { text: shown, full: e.label, emph: emphOf(shown, e.emphasis, FS) }; };
 
 // 区画ごとの部品の組み立て。units を (x, y, w) から下へ並べ、{ els, h } を返す（els の外枠は重ならない）
@@ -308,33 +349,37 @@ export function boardLayout(input, opts = {}) {
   };
   let top = band ? M + BAND + GAP : M;
   const sections = [];
-  for (const row of GRID) {
+  const probes = new Map();
+  const probeOf = (id, sp) => { const k = `${id}:${sp}`; if (!probes.has(k)) probes.set(k, content(id, PAD, HEAD + 8, sp * COL + (sp - 1) * GAP - PAD * 2)); return probes.get(k); };
+    const rowsPlan = chooseRows(opts.prevRows ?? null, probeOf, (id) => unitsOf(id).length > 0);
+  for (const row of rowsPlan) {
     const cells = row.map(([id, col, span]) => {
       const x = M + col * (COL + GAP); const w = span * COL + (span - 1) * GAP;
       const c = content(id, x + PAD, top + HEAD + 8, w - PAD * 2);
-      return { id, x, w, c };
+      return { id, x, w, c, span };
     });
     // AC-669: 枠の中身の高さは SLACK 刻みの容量に切り上げる。中身が容量に収まる間は枠もほかの区画も動かず、あふれたときだけ大きくなる
     const h = Math.max(...cells.map((cl) => HEAD + 8 + capacity(cl.c.h) + PAD));
     // AC-669（PARAM-188・189）: 最も高い区画以外の要点のある区画は、空きが枠の高さの SLACK_MAX を超えるとき、要素の間隔と表の行の高さを広げて埋める。
     // 広げても超えるときだけ、その区画の枠は並びの高さに揃えず自分の中身の高さにする
     for (const cl of cells) {
-      cl.h = h;
+      cl.h = h; cl.stretch = 1;
       if (!unitsOf(cl.id).length) continue;
       const y0 = top + HEAD + 8; const B = h - HEAD - 8 - PAD;
       if (B + PAD - cl.c.h <= SLACK_MAX * h) continue;
-      if (stretchCell(cl.c, y0, B, h) == null) cl.h = HEAD + 8 + capacity(cl.c.h) + PAD;
+      const f = stretchCell(cl.c, y0, B, h);
+      if (f == null) cl.h = HEAD + 8 + Math.ceil(cl.c.h) + PAD; else cl.stretch = f; // 自分の中身の高さ（空きは枠の内側の余白だけ）
     }
     for (const cl of cells) {
       const def = SECTIONS.find((s) => s.id === cl.id);
-      sections.push({ id: cl.id, name: def[lang], icon: def.icon, frame: { x: cl.x, y: top, w: cl.w, h: cl.h }, headingRect: { x: cl.x + 8, y: top + 6, w: cl.w - 16, h: HEAD - 10 }, count: by[cl.id].length, elements: cl.c.els, subgroups: cl.c.subs });
+      sections.push({ id: cl.id, name: def[lang], title: def[lang], icon: def.icon, cols: cl.span, stretch: cl.stretch, contentTop: top + HEAD + 8, contentBottom: top + cl.h - PAD, frame: { x: cl.x, y: top, w: cl.w, h: cl.h }, headingRect: { x: cl.x + 8, y: top + 6, w: cl.w - 16, h: HEAD - 10 }, count: by[cl.id].length, elements: cl.c.els, subgroups: cl.c.subs });
     }
     top += h + GAP;
   }
   const H = top - GAP + M;
   let k = 0;
   for (const s of sections) for (const el of s.elements) { el.id ??= `${s.id}-${k++}`; el.section = s.id; } // id は要点・ステップから決める（取込の前後で同じ要素は同じ id。CONTRACT-BOARD）
-  const model = { lang, band, sections, assigned, text: tx, canvas: { w: W, h: H }, line: LINE, fontKind: FONT_KIND };
+  const model = { lang, band, sections, assigned, text: tx, canvas: { w: W, h: H }, line: LINE, lineHeight: LINE, columns: COLS, rows: rowsPlan.map((r) => r.map(([id]) => id)), layoutRows: rowsPlan, fontKind: FONT_KIND };
   return {
     canvas: { w: W, h: H }, title: { x: M, y: M, w: W - M * 2, h: 0, visible: false }, body: { x: M, y: band ? M + BAND + GAP : M, w: W - M * 2, h: H - M * 2 },
     units: [], arrows: [], orderMark: 'number', centered: false, titleLines: [], board: model,
@@ -609,7 +654,9 @@ export function boardModule(ctx) {
   const llmOf = (sceneId, idx) => api.getLlmPointSection?.(sceneId, idx) ?? null;
   // AC-666 (PARAM-190): 要点の元の発話（uid）の受付時刻。疑似時計・.vtt・一括取込でも同じ（受付時刻 receivedAt）
   const receivedAtOf = () => { const m = new Map((ctx.state?.utterances ?? state.utterances ?? []).map((u) => [u.id, u.receivedAt])); return (uid) => (uid != null && typeof m.get(uid) === 'number' ? m.get(uid) : null); };
-  api.registerLayoutType(BOARD_TYPE_ID, { layout: (input) => boardLayout(input, { llmOf, receivedAtOf: receivedAtOf(), names: api.getBoardNames?.() ?? null, fontKind: boardFontKind(api.getDrawStyleSpec?.()) }) });
+  // AC-669 (4): 並びは、いまの並びで空きが PARAM-188 以下の間は変えない（直前の配置の並びを渡す。要点が 1 件もなければ初期の並びに戻る）
+  let prevRows = null;
+  api.registerLayoutType(BOARD_TYPE_ID, { layout: (input) => { const L = boardLayout(input, { llmOf, receivedAtOf: receivedAtOf(), names: api.getBoardNames?.() ?? null, fontKind: boardFontKind(api.getDrawStyleSpec?.()), prevRows }); prevRows = L.board.layoutRows; return L; } });
   const active = () => {
     const info = api.getLayoutInfo?.();
     return !!info && info.applied && info.head === BOARD_TYPE_ID && state.displayMode !== 'arrange';

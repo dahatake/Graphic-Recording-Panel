@@ -135,6 +135,7 @@
 | app.getLiveShow()（on・running・lastAddedCount・items・moves・overlays・log）・setLiveShow(on)・setSettingsField(id, value)（契約 CONTRACT-LIVE-SHOW） | web/src/liveshow.js | FR-115 |
 | app.notifyUserGesture()・getShowAudio()（sfx・bgmLevel・track・tracks・sfxVolume）・setShowBgm・setShowBgmTrack・setShowBgmVolume・setShowSfxVolume、［設定］の showSound.*、コマンド settings.showBgmVolume・settings.showSfxVolume | web/src/showaudio.js, web/src/rpgaudio.js | FR-116, FR-049 |
 | app.getBoardModel().animations（AC-669 の出現・移動の進行中の要素。ショーが ON のときは常に空） | web/src/board.js | FR-114, FR-115 |
+| app.getBoardModel() の lineHeight・columns・rows（並びの決め直しの結果。区画 id の並び）・sections[].title/cols/contentTop/contentBottom/stretch（AC-669 の上詰め・広げる倍率） | web/src/board.js | FR-114, FR-079 |
 | app.setTitleInfo({ participants })・getTitleInfo().participants（参加者名簿。1 行に 1 名）・getShowNames()・setShowNames(bool)・getHideNames()・setHideNames(bool)・［設定］の board.hideNames（名前を隠す）とコマンド settings.hideNames（Ctrl+Shift+F7）・getPersonNames()・maskPersonNames(text)（LLM への送信・画像生成プロンプトで常に伏せる）・getBoardNameNotes()（Markdown）・getExportNameLines()（PNG・PDF の見出しの行）・getSpeakerName(発話 id)・recordSpeakers(発話, 名前)（.vtt の話者タグ）。保存は grp.boardNames（名簿・話者タグ。初期化で消える）と grp.boardNames.hide（端末ごと） | web/src/boardnames.js, web/src/vtt.js | FR-114, FR-022 |
 | GET /api/llm/status | server/relay.py, server/relay_copilot.py | FR-066, NFR-SEC-003, FR-086, FR-087 |
 | POST /api/llm/key | server/relay.py, server/relay_llmstore.py | FR-086, NFR-SEC-006 |
