@@ -618,6 +618,13 @@ test('FR-079 AC-669 PARAM-188: 偏った会議でも上詰め・空き 20% 以�
     assert.deepEqual(boardLayout(input, { fontKind }).board.rows, L.board.rows, '決め直しは入力だけで決まる');
     assert.deepEqual(L.board.rows.flat(), BOARD_ORDER, '区画の順（PARAM-192）は変わらない');
     for (const row of L.board.rows) assert.ok(row.reduce((w, id) => w + L.board.sections.find((s) => s.id === id).cols, 0) <= L.board.columns, '各並びの幅の合計は列数以内');
+    // AC-669 (4) (a) / AC-666: 次アクションの幅は 2 列以上で、担当 150・期限 180 の列に全文が入る
+    const act = L.board.sections.find((s) => s.id === 'actions');
+    assert.ok(act.cols >= 2, '次アクションの幅は 2 列以上');
+    for (const el of act.elements.filter((e) => e.part === 'table')) {
+      assert.deepEqual(el.cols.slice(2), [150, 180], '担当 150・期限 180');
+      for (const r of el.rows) assert.equal(r.text, r.full, `次アクションの内容が全文で入る: ${r.full}`);
+    }
     const live = L.board.sections.filter((s) => s.count);
     for (const s of live) {
       const bottom = Math.max(...s.elements.map((e) => e.y + e.h));

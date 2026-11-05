@@ -143,11 +143,14 @@ export const STRETCH_MAX = 2; // PARAM-189: 余白を埋めるために広げる
 // AC-669: 区画の中の要素の間隔（上端からの位置）と表の行の高さを倍率 f で広げたときの、最後の要素の下端（本文の上端からの距離）
 const stretchBottom = (els, subs, y0, f) => Math.max(0, ...els.map((e) => (e.y - y0) * f + (e.part === 'table' ? e.h * f : e.h)), ...subs.map((s) => (s.y - y0 + s.h) * f));
 // 倍率を決めて要素の位置を動かす。広げても空きが上限を超えるときは null（動かさない）
-function stretchCell(c, y0, B, H) {
+const stretchFactor = (c, y0, B) => {
   let lo = 1; let hi = STRETCH_MAX;
   if (stretchBottom(c.els, c.subs, y0, hi) <= B) lo = hi;
   else for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (stretchBottom(c.els, c.subs, y0, mid) <= B) lo = mid; else hi = mid; }
-  const f = Math.floor(lo * 1000) / 1000;
+  return Math.floor(lo * 1000) / 1000;
+};
+function stretchCell(c, y0, B, H) {
+  const f = stretchFactor(c, y0, B);
   // 広げきっても残る空きは区画の下に回す（上の空きは 0。中身を下へ寄せる配分はしない。AC-669）。
   // 空きは枠の内側の余白 PAD を含めて測る（枠の下端までの距離。契約: CONTRACT-BOARD）。超えるときは広げず null（並びの決め直し・自分の高さの枠へ）
   const rem = B - stretchBottom(c.els, c.subs, y0, f);
@@ -176,38 +179,51 @@ export const ROW_CANDIDATES = (() => {
 })();
 const rowHeightOf = (cells) => Math.max(...cells.map((cl) => HEAD + 8 + capacity(cl.c.h) + PAD));
 // 並び rows の評価: 要点のある区画の空き（広げた後の、最後の要素の下から枠の下端まで ÷ 枠の高さ）の最大と、横並びの数。probeOf(id) は区画の中身（本文の上端が HEAD + 8）
+// 戻り値: { m: 空きの最大, H: 並びの高さの合計 }。次アクションの幅が 2 列未満の並びは null（AC-666: 表の全文が入らない）
 function evalRows(rows, probeOf, has) {
-  let max = 0;
+  let max = 0; let total = 0;
+  if (rows.some((row) => row.some(([id, , span]) => id === 'actions' && span < 2))) return null;
   for (const row of rows) {
     const cells = row.map(([id, , span]) => ({ id, c: structuredClone(probeOf(id, span)) }));
     const h = rowHeightOf(cells);
+    total += h;
     for (const cl of cells) {
       if (!has(cl.id)) continue;
       const y0 = HEAD + 8; const B = h - HEAD - 8 - PAD;
       let bottom = cl.c.h;
-      if (B + PAD - cl.c.h > SLACK_MAX * h && stretchCell(cl.c, y0, B, h) != null) bottom = cl.c.h; // 広げた後の空き（広げても超えるなら、並びの高さに揃えたときの空き）
+      if (B + PAD - cl.c.h > SLACK_MAX * h) { // (3) の広げ方（PARAM-189 まで）を適用した後の空き（自分の中身の高さにする前の値）
+        if (stretchCell(cl.c, y0, B, h) != null) bottom = cl.c.h; else bottom = stretchBottom(cl.c.els, cl.c.subs, y0, stretchFactor(cl.c, y0, B));
+      }
       max = Math.max(max, (h - HEAD - 8 - bottom) / h);
     }
   }
-  return max;
+  return { m: max, H: total };
 }
-// 決め直し（AC-669 (4)）: いまの並び（prev。なければ PARAM-192 の初期の並び）で空きが PARAM-188 以下の間は並びを変えない。超えるときだけ、候補のすべてから
-// (a) 要点のある区画の空きの最大が小さい、(b) 同じなら並びの本数が少ない、(c) 同じなら先頭の並びから区画数が少ない方（候補の列挙の順で先に見つかった方）を選ぶ。
+// 決め直し（AC-669 (4)）: いまの並び（prev。なければ PARAM-192 の初期の並び）で空きが PARAM-188 以下の間は並びを変えない。超えるときだけ、
+// 次アクションの幅が 2 列未満になる候補を除いた候補のうち、(a) 空きの最大が PARAM-188 以下のものの中で図の高さが最小、なければ空きの最大が最小、
+// (b) 同じなら並びの本数が少ない、(c) 同じなら先頭の並びから区画数が少ない方（候補の列挙の順で先に見つかった方）を選ぶ。
 // 決め直しの結果は入力（中身の量と区画の順）だけで決まる。要点が 1 件もないときは初期の並びに戻す
 function chooseRows(prev, probeOf, has) {
   const EPS = 1e-9;
   if (!BOARD_ORDER.some(has)) return INITIAL_ROWS;
-  const cur = prev ?? INITIAL_ROWS;
-  if (evalRows(cur, probeOf, has) <= SLACK_MAX + EPS) return cur;
-  let best = null; let bm = Infinity;
+  const cur = INITIAL_ROWS; // 決め直しは入力だけで決まる（前の並びには依存しない。前の並びに留まると高さが増えたまま戻らない）
+  const ce = evalRows(cur, probeOf, has);
+  if (ce && ce.m <= SLACK_MAX + EPS) return cur;
+  let best = null; let bk = null;
   for (const rows of ROW_CANDIDATES) {
-    const m = evalRows(rows, probeOf, has);
-    if (m < bm - EPS || (Math.abs(m - bm) <= EPS && rows.length < best.length)) { best = rows; bm = m; }
+    const e = evalRows(rows, probeOf, has);
+    if (!e) continue;
+    const ok = e.m <= SLACK_MAX + EPS;
+    const key = ok ? [0, e.H, rows.length] : [1, e.m, rows.length];
+    let better = !best;
+    if (best) for (let i = 0; i < 3; i++) { if (Math.abs(key[i] - bk[i]) > (i === 2 ? 0 : 1e-6)) { better = key[i] < bk[i]; break; } }
+    if (better) { best = rows; bk = key; }
   }
-  return best;
+  return best ?? cur;
 }
 const label = (e, maxPx) => { const shown = fit(e.label, maxPx, FS); return { text: shown, full: e.label, emph: emphOf(shown, e.emphasis, FS) }; };
 
+const OW = 150; const DU = 180; // 次アクションの表の担当（10 文字以内）・期限（12 文字以内）の列の幅（AC-666: 全文が入る）
 // 区画ごとの部品の組み立て。units を (x, y, w) から下へ並べ、{ els, h } を返す（els の外枠は重ならない）
 const BUILD = {
   purpose: (units, x, y, w) => listRows(units, x, y, w, 'icon'),
@@ -271,8 +287,8 @@ const BUILD = {
     return { els: [...els, ...r.els], h: cy - y + r.h };
   },
   actions: (units, x, y, w) => { // No・内容・担当・期限の 4 列の表
-    const rows = units.map((e) => ({ pointId: e.pointId, sceneId: e.sceneId, no: e.no, owner: e.owner, due: e.due, ...label(e, w - 36 - 120 - 120 - 16) }));
-    return { els: [{ id: `table:${units[0].pointId}`, part: 'table', x, y, w, h: ROW * (rows.length + 1), cols: [36, w - 36 - 240, 120, 120], rows }], h: ROW * (rows.length + 1) };
+    const rows = units.map((e) => ({ pointId: e.pointId, sceneId: e.sceneId, no: e.no, owner: e.owner, due: e.due, ...    label(e, w - 36 - OW - DU - 16) }));
+        return { els: [{ id: `table:${units[0].pointId}`, part: 'table', x, y, w, h: ROW * (rows.length + 1), cols: [36, w - 36 - OW - DU, OW, DU], rows }], h: ROW * (rows.length + 1) };
   },
 };
 function listRows(units, x, y, w, part, icon) {
