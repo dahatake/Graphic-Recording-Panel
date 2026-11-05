@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { newApp } from '../system/helpers.js';
 import { parseVttCues, cueSpeaker } from '../../web/src/vtt.js';
 import { boardLayout, boardSvg } from '../../web/src/board.js';
-import { clipName, parseRoster, memberNames, textHash, NAME_MAX, boardNamesOutline, maskNames } from '../../web/src/boardnames.js';
+import { clipName, parseRoster, parseRosterDetail, memberNames, textHash, NAME_MAX, boardNamesOutline, maskNames } from '../../web/src/boardnames.js';
 
 const VTT = 'WEBVTT\n\n00:00:01.000 --> 00:00:02.000\n<v 山田太郎>画面の色について話しました</v>\n\n00:00:02.500 --> 00:00:03.000\n<v.loud 佐藤花子>文字の大きさも話しました</v>\n\n00:00:03.200 --> 00:00:03.500\n説明の順番も話しました\n';
 const file = (text) => ({ name: 'm.vtt', type: 'text/vtt', size: Buffer.byteLength(text), text });
@@ -20,16 +20,79 @@ test('FR-022 AC-668: parseVttCues は cue の話者タグ（<v 名前>・<v.clas
   assert.equal(cueSpeaker(['<c>x</c>']), null);
 });
 
-test('FR-114 AC-668 (b)(c): 名簿は 1 行に 1 名・空と重複を除き入力順、名前は PARAM-165 文字に切り詰め、並びは名簿→名簿にない話者タグ（最初に現れた順）', () => {
+test('FR-114 AC-668 (b)(c): 名簿は 1 行に 1 名・空と重複を除き入力順、名前は PARAM-197（20）文字に切り詰め、並びは名簿→名簿にない話者タグ（最初に現れた順）', () => {
   assert.deepEqual(parseRoster(' 鈴木 \n\n田中\r\n鈴木\n'), ['鈴木', '田中']);
   assert.deepEqual(parseRoster(['A', ' B ', '']), ['A', 'B']);
+  assert.equal(NAME_MAX, 20);
   assert.equal([...clipName('あ'.repeat(40))].length, NAME_MAX);
+  assert.equal(clipName('あ'.repeat(40)), `${'あ'.repeat(19)}…`);
+  assert.equal(clipName('あ'.repeat(20)), 'あ'.repeat(20));
   assert.equal(clipName('a\u0000<b>\n c'), 'a <b> c');
   assert.deepEqual(memberNames(['鈴木', '山田太郎'], [null, '佐藤花子', '山田太郎', '佐藤花子']), ['鈴木', '山田太郎', '佐藤花子']);
   assert.notEqual(textHash('a'), textHash('b'));
 });
 
+// AC-681 (a)(b): 長さ → 重複の除去（切り詰め後の文字列）→ 件数（PARAM-196 = 20）の順
+test('FR-114 AC-681 (a)(b): 名簿は 20 名まで・上限を超えた行は取り込まず over を立て、重複は切り詰め後の文字列で 1 名と数え、全文を別に返す', () => {
+  const n = (i) => `N${String(i).padStart(2, '0')}`;
+  const d20 = parseRosterDetail(Array.from({ length: 20 }, (_, i) => n(i)));
+  assert.equal(d20.names.length, 20); assert.equal(d20.over, false);
+  const d25 = parseRosterDetail(Array.from({ length: 25 }, (_, i) => n(i)).join('\n'));
+  assert.deepEqual(d25.names, Array.from({ length: 20 }, (_, i) => n(i))); assert.equal(d25.over, true);
+  assert.equal(parseRosterDetail([...Array.from({ length: 20 }, (_, i) => n(i)), n(3)]).over, false, '重複は件数に数えない');
+  // 先頭 19 文字が同じ別の名前は、切り詰め後に同じ文字列なので 1 名（全文は先に現れたほう）
+  const p = 'あ'.repeat(19); const d = parseRosterDetail([`${p}いい`, `${p}うう`, '短い']);
+  assert.deepEqual(d.names, [`${p}…`, '短い']); assert.deepEqual(d.fulls, [`${p}いい`, '短い']);
+});
+
+// AC-681 (b)・AC-668 (g)・(h): アプリ結合
+test('FR-114 AC-681 AC-668 (g)(h): 名簿の上限の理由（上限で落としたときだけ notice）・名簿は「名前を隠す」で消えない・話者タグも 20 名まで・担当の列の名前は隠す・伏せ字は全文を使う', async () => {
+  const { app } = await newApp();
+  const names = (k) => Array.from({ length: k }, (_, i) => `名簿${String(i + 1).padStart(2, '0')}`);
+  assert.equal(app.getMeetingFormSpec().fields.find((f) => f.id === 'participants').label, '参加者名簿');
+  assert.equal(app.setTitleInfo({ participants: names(20).join('\n') }).notice, undefined);
+  const r = app.setTitleInfo({ participants: names(21).join('\n') });
+  assert.equal(r.notice.text, '参加者は 20 名までです'); assert.equal(r.notice.role, 'status');
+  assert.equal(app.getParticipants().length, 20);
+  app.setLang('en'); assert.equal(app.setTitleInfo({ participants: names(21).join('\n') }).notice.text, 'Up to 20 participants'); app.setLang('ja');
+  assert.equal(app.setHideNames(true).ok, true);
+  assert.equal(app.getParticipants().length, 20, '名前を隠すでも名簿は消えない');
+  // 伏せ字の辞書は切り詰める前の全文（と切り詰めた形）
+  const long = 'あ'.repeat(25);
+  app.setTitleInfo({ participants: long });
+  assert.equal(app.maskPersonNames(`${long}と${'あ'.repeat(19)}…が来た`), '●●●と●●●が来た');
+});
+
+test('FR-114 AC-668 (g): .vtt の話者タグの名前の保持は 20 名まで（超えた分の発話は名前なし）・同じ名前は 1 名・先頭 19 文字が同じ名前は 1 名', async () => {
+  const { app } = await newApp();
+  const cues = Array.from({ length: 23 }, (_, i) => `00:00:${String(i).padStart(2, '0')}.000 --> 00:00:${String(i).padStart(2, '0')}.500\n<v S${String(i).padStart(2, '0')}>話者${i}の発言を足します</v>`);
+  const vtt = `WEBVTT\n\n${cues.join('\n\n')}\n\n00:00:30.000 --> 00:00:30.500\n<v S00>もう一度の発言です</v>\n`;
+  assert.equal((await app.importTextFile(file(vtt))).ok, true);
+  const named = app.getPersonNames();
+  assert.equal(named.length, 20, `話者タグの名前は 20 名まで（${named.length}）`);
+  assert.ok(named.includes('S00') && !named.includes('S20'));
+});
+
 // AC-668 (b)(c)・AC-630: 配置（純関数）。名前がないときは従来どおり。人物の絵記号の選び方は名前と結びつかない
+// AC-668 (c)・AC-666: 続きのステップの名前は最初のステップと同じ。AC-668 (h)・AC-665: 担当の列の名前は「名前を隠す」で伏せる
+test('FR-114 AC-668 (c) AC-666: PARAM-088 を超えて分けた続きのステップは分ける前と同じ名前を添える（続きの最初の要点の話者では決め直さない）', () => {
+  const points = Array.from({ length: 9 }, (_, i) => ({ id: `p${i}`, text: `alpha beta item${i} word${i}`, uid: `u${i}` }));
+  const input = { scenes: [{ id: 's1', status: 'confirmed', points }], topics: [], lang: 'ja' };
+  const speakerOf = (uid) => ({ u0: '山田太郎', u7: '佐藤花子' }[uid] ?? null);
+  const b = boardLayout(input, { names: { members: ['山田太郎', '佐藤花子'], speakerOf } }).board;
+  const steps = b.sections.find((s) => s.id === 'flow').elements.filter((e) => e.speaker || e.part === 'bubble' || e.name);
+  const named = b.sections.find((s) => s.id === 'flow').elements.filter((e) => e.speaker).map((e) => e.name);
+  assert.deepEqual(named, ['山田太郎', '山田太郎'], `続きのステップも同じ名前（${JSON.stringify(named)} / ${steps.length}）`);
+});
+
+test('FR-114 AC-668 (h) AC-665: 次アクションの担当の列が名簿・話者タグの名前と一致するとき、名前を隠すのオンでは「未定」と同じ扱い（一致しない文字は変えない）', () => {
+  const pts = [{ id: 'p1', text: '資料は田中さんが担当して来週までに作成する', uid: 'u1' }, { id: 'p2', text: '見積は鈴木さんが担当して来週までに作成する', uid: 'u2' }];
+  const input = { scenes: [{ id: 's1', status: 'confirmed', points: pts }], topics: [], lang: 'ja' };
+  const owners = (names) => boardLayout(input, { names }).board.sections.find((s) => s.id === 'actions').elements.flatMap((e) => e.rows ?? []).map((r) => r.owner);
+  assert.deepEqual(owners({ members: ['田中'], speakerOf: () => null }), ['田中', '鈴木'], '表示のときは変えない');
+  assert.deepEqual(owners({ members: ['田中'], speakerOf: () => null, anonymous: true, matchWords: ['田中'] }), [null, '鈴木'], '一致する名前だけ伏せる（null は「未定」と同じ扱い）');
+});
+
 test('FR-114 AC-668 AC-630: boardLayout は名前を参加メンバーの人物と名前の組、各ステップの最初の発話の話者タグの名前で添え、名前がなければ従来どおり', () => {
   const scenes = [{ id: 's1', status: 'confirmed', points: [{ id: 'p1', text: '画面の色について話しました', uid: 'u1' }, { id: 'p2', text: '文字の大きさも話しました', uid: 'u2' }] }];
   const input = { scenes, topics: [], lang: 'ja' };

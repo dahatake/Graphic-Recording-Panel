@@ -339,8 +339,8 @@ test('FR-115 AC-675: 同じ時点の続けての変更は 1 回の演出にま�
   assert.ok(p.total <= app.getLiveInterval().sec * 1000 * SHOW_LIMITS.budgetRatio + 1e-6);
 });
 
-// FR-114 AC-669・FR-115 AC-673（決定 C-01）: 会議ボード型の出現のアニメーションは getBoardModel().animations で観測でき、ショーが ON のときは出ない
-test('FR-114 AC-669 FR-115 AC-673: 会議ボード型の animations はショー OFF で出現を示し、ショー ON では常に空', async () => {
+// FR-114 AC-669・AC-667 (f)・FR-115 AC-673（A-933 2026-11-05）: 会議ボード型の animations は、手入力・一括取込の単発の反映ではショー OFF・ON のどちらでも出現を示し、ライブの更新間隔ごとの描き足しの最中だけショーの演出に置き換わって空
+test('FR-114 AC-669 AC-667 (f) FR-115 AC-673: 会議ボード型の animations は単発の反映ではショー ON でも出現を示し、ライブの描き足しでは空', async () => {
   for (const on of [false, true]) {
     const { app, env } = await detailApp();
     assert.equal(app.setLayoutTypes(['board']).ok, true);
@@ -349,10 +349,16 @@ test('FR-114 AC-669 FR-115 AC-673: 会議ボード型の animations はショー
     add(app, '料金プランは月額制で合意しました');
     env.tick(0.04); env.scheduler.advance(40);
     const n = app.getBoardModel().animations.length;
-    if (on) assert.equal(n, 0, 'ON では AC-669 のアニメーションを出さない');
-    else assert.ok(n > 0 && app.getBoardModel().animations.every((a) => a.kind === 'appear' || a.kind === 'move'), 'OFF では出現・移動のアニメーション');
+    assert.ok(n > 0 && app.getBoardModel().animations.every((a) => a.kind === 'appear' || a.kind === 'move'), `${on ? 'ON' : 'OFF'} の単発の反映: 出現・移動のアニメーション（AC-667 (f)）`);
     env.tick(2); env.scheduler.advance(2000);
     assert.deepEqual(app.getBoardModel().animations, [], '終われば空');
+  }
+  {
+    const { app, env } = await detailApp();
+    assert.equal(app.setLayoutTypes(['board']).ok, true);
+    app.setLiveShow(true);
+    liveAdd(app, env, '料金プランは月額制で合意しました');
+    assert.deepEqual(app.getBoardModel().animations, [], 'ライブの描き足しでは AC-669 のアニメーションを出さない（ショーの運ぶ動き・描線に置き換わる）');
   }
 });
 
