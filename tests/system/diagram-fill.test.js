@@ -51,6 +51,22 @@ function assertFills(g, label) {
   assert.ok(g.H - sec.bottom <= GAP * 2, `${label}: 副次パネルの下に空きがない（${g.H - sec.bottom}px）`);
 }
 
+// 描画の安定を待つ（測定のタイミングの揺れ対策）。図の領域・状態欄の高さが STABLE_MS の間、毎フレーム同じになるまで待つ。
+// 取り込み直後は、状態欄の完了メッセージが 1 フレームだけ折り返して（51→68px）図の領域が一瞬 17px 縮み、すぐ戻る非同期の更新があるため（最終状態は縮まない）。
+const STABLE_MS = 300;
+const settle = (page) => page.evaluate((ms) => new Promise((resolve, reject) => {
+  const key = () => { const h = (s) => document.querySelector(s)?.getBoundingClientRect().height; return `${h('[data-panel="diagram"]')}|${h('.statusbar')}`; };
+  const t0 = performance.now(); let last = key(); let since = t0;
+  const tick = () => {
+    const now = performance.now(); const k = key();
+    if (k !== last) { last = k; since = now; }
+    if (now - since >= ms) return resolve(k);
+    if (now - t0 > 10000) return reject(new Error(`描画が安定しない（${k}）`));
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}), STABLE_MS);
+
 async function seedUtterance(page, text) {
   // AC-647: 起動直後は記録中でないため、入力欄の送信ではなくファイル取り込みで種をまく（記録を開始しない）。
   await page.evaluate((t) => globalThis.__app.importTextFile({ name: 'seed.txt', type: 'text/plain', size: t.length, text: t }), text);
@@ -65,6 +81,7 @@ for (const size of [{ width: 1280, height: 720 }, { width: 1920, height: 1080 }]
     const { ctx, page } = await openApp(browser, srv.url, size);
     try {
       await page.waitForFunction(() => document.querySelector('[data-panel="diagram"]')?.checkVisibility());
+      await settle(page);
       const g0 = await geom(page);
       assertFills(g0, name);
       assert.ok(g0.status.height <= g0.H * PARAM_177_PCT / 100, `状態欄の高さ ${g0.status.height}px が窓の高さの ${PARAM_177_PCT}%（PARAM-177）を超える`);
@@ -81,6 +98,7 @@ for (const size of [{ width: 1280, height: 720 }, { width: 1920, height: 1080 }]
       await seedUtterance(page, '新しい認識文字列 来月のリリース計画を決める');
       const after1 = await Promise.all(SECONDARY.map((k) => toggle(page, k).getAttribute('aria-expanded')));
       assert.deepEqual(after1, st0, '新しい認識文字列で副次パネルの開閉状態が変わらない（自動展開しない）');
+      await settle(page);
       const g1 = await geom(page);
       assert.ok(Math.abs(g1.diagram.height - g0.diagram.height) <= 1, `図の領域の高さが縮まない（${g0.diagram.height} → ${g1.diagram.height}）`);
       // 内容は失われない: 展開すると、折りたたみ中に届いた認識文字列が見える。

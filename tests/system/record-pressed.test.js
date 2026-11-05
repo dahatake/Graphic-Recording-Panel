@@ -29,8 +29,22 @@ async function setRibbon(page, expanded) {
   assert.equal(await toggle.getAttribute('aria-expanded'), String(expanded));
 }
 
+// 見た目の測定の前に、マウスを要素の外へ出し、CSS transition／animation（ホバー・フォーカス・押下の遷移）の完了を待つ（測定のタイミングの揺れ対策）。
+async function quiet(page) {
+  await page.mouse.move(1, 1);
+  await page.evaluate(async () => {
+    document.activeElement?.blur?.();
+    for (let i = 0; i < 20; i++) {
+      const running = document.getAnimations().filter((a) => a.playState === 'running' || a.playState === 'pending');
+      if (!running.length) break;
+      await Promise.allSettled(running.map((a) => a.finished));
+    }
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  });
+}
+
 // 記録グループの全ボタン（折りたたみ中のバーの複製も含む）の、押下の表示と強調の見た目。
-const snapshot = (page) => page.evaluate((cmds) => {
+const snapshot = async (page) => { await quiet(page); return page.evaluate((cmds) => {
   document.activeElement?.blur?.();
   const out = {};
   for (const c of cmds) {
@@ -40,7 +54,7 @@ const snapshot = (page) => page.evaluate((cmds) => {
     });
   }
   return out;
-}, GROUP);
+}, GROUP); };
 
 const isOn = (b) => b.pressed === 'true';
 const anyOn = (snap, cmd) => snap[cmd].some(isOn);
@@ -64,7 +78,7 @@ test('FR-072 AC-647: 準備中（起動直後）は記録グループのどの�
     assertNoneOn(base, '準備中');
     // AC-647（視覚）: 起動直後の [記録開始]・[再開] の computed style（背景色・枠色・影）は、未押下の他ボタン（[一時停止]・[終了]）と同一。
     // ホバー色を避けるためマウスをボタン外に置く。押下用の塗りつぶし・下線（影）を持たない。
-    await page.mouse.move(1, 1);
+    await quiet(page);
     const style = () => page.evaluate(() => {
       const pick = (c) => [...document.querySelectorAll(`[data-command="${c}"]`)].map((el) => { const cs = getComputedStyle(el); return { bg: cs.backgroundColor, border: cs.borderTopColor, shadow: cs.boxShadow }; });
       return Object.fromEntries(['session.start', 'session.resume', 'session.pause', 'session.stop'].map((c) => [c, pick(c)]));
