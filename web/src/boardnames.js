@@ -39,8 +39,8 @@ export function textHash(s) {
 }
 
 const STR = {
-  ja: { roster: '参加者名簿（1 行に 1 名）', hide: '名前を隠す', members: '参加メンバー', said: '発言' },
-  en: { roster: 'Participants (one per line)', hide: 'Hide names', members: 'Members', said: 'Speaker', paren: ['(', ')'] },
+  ja: { roster: '参加者名簿（1 行に 1 名）', hide: '名前を隠す', hideTip: '名前を表示しない', members: '参加メンバー', said: '発言' },
+  en: { roster: 'Participants (one per line)', hide: 'Hide names', hideTip: 'Do not show names', members: 'Members', said: 'Speaker', paren: ['(', ')'] },
 };
 
 export function boardNamesModule(ctx) {
@@ -133,7 +133,7 @@ export function boardNamesModule(ctx) {
   api.setSettingsField = (id, value) => (id === FIELD_ID ? api.setHideNames(value) : baseSetField ? baseSetField(id, value) : { ok: false, reason: 'not_found' });
   const baseDialog = api.getSettingsDialog;
   const dialogOpen = () => Boolean(baseDialog?.());
-  if (baseDialog) api.getSettingsDialog = () => { const d = baseDialog(); return d ? { ...d, fields: [...d.fields, { id: FIELD_ID, label: tx().hide, value: hidden, role: 'switch', focusable: true }], focusedField: focused ? FIELD_ID : (d.focusedField ?? null) } : d; };
+  if (baseDialog) api.getSettingsDialog = () => { const d = baseDialog(); return d ? { ...d, fields: [...d.fields, { id: FIELD_ID, label: tx().hide, description: tx().hideTip, value: hidden, role: 'switch', focusable: true }], focusedField: focused ? FIELD_ID : (d.focusedField ?? null) } : d; };
   const baseView = api.getSettingsView;
   if (baseView) api.getSettingsView = (...a) => { const v = baseView(...a); return { ...v, fields: [...v.fields, { id: FIELD_ID, visible: true }] }; };
   const baseFocus = api.focusSettingsField;
@@ -150,7 +150,7 @@ export function boardNamesModule(ctx) {
     if (focused && dialogOpen() && !ev?.ctrlKey && !ev?.altKey && !ev?.shiftKey && (k === ' ' || k === 'Spacebar' || k === 'Enter')) { api.setHideNames(!hidden); return 'settings.hideNames.toggle'; }
     return baseKey(ev);
   };
-  api.getBoardNamesLabels = () => ({ roster: tx().roster, hide: tx().hide });
+  api.getBoardNamesLabels = () => ({ roster: tx().roster, hide: tx().hide, hideTip: tx().hideTip });
   // 名簿の入力欄（タイトル欄と同じ場所。FR-036）
   const baseSpec = api.getMeetingFormSpec;
   if (baseSpec) api.getMeetingFormSpec = () => { const s = baseSpec(); return { ...s, fields: [...s.fields, { id: 'participants', label: tx().roster, kind: 'participants' }] }; };

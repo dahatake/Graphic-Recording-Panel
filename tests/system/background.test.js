@@ -117,14 +117,14 @@ test('NFR-BG-001 AC-064 異常系: stopSpeech の後の自動終了では再開�
   assert.equal(env.speech.startCalls.length, n);
 });
 
-test('NFR-BG-001 AC-064 異常系: デバイス内処理が確認できない環境では再開されない', async () => {
+test('NFR-BG-001 AC-064: 同意は常に済みで、デバイス内処理の確認の有無にかかわらず自動終了後に再開される（確認の有無による分岐はない）', async () => {
   const { app, env } = await boot();
   startRec(app);
   env.speech.processLocally = false;
   const n = env.speech.startCalls.length;
   env.speech.end();
   env.scheduler.advance(10 * 1000);
-  assert.equal(env.speech.startCalls.length, n);
+  assert.ok(env.speech.startCalls.length > n, '確認できない環境でも再開される');
 });
 
 // NFR-BG-001 AC-065

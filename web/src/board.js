@@ -5,6 +5,7 @@
 // ？のリスト・表・矢印・人物・絵記号・マーカーと下線の強調）を使い分ける。SVG だけで描き、外部通信・画像は使わない。
 // 色は選んでいる描画スタイル（FR-029・FR-076）の配色。区画の枠の形は描画スタイルの任意の項目 boardFrame（'cloud' なら雲形）、なければ角丸。
 import { classifyPoint } from './diagram.js';
+import { tokenize, MIN_SHARED } from './topics.js';
 import { escapeHtml } from './outline.js';
 import { personGroupFor } from './personvariants.js';
 import { contrastRatio, mix, boardFrameLook, presetOf, fontFamilyOf, LEGACY_FONT_FAMILY } from './stylepresets.js';
@@ -142,6 +143,27 @@ const GRID = [
 export const LINE = ROW; // PARAM-186 の「1 行」（区画のラベルの 1 行の高さ）
 export const SLACK = ROW / 2;
 export const capacity = (h) => (h <= EMPTY_BODY ? EMPTY_BODY : Math.ceil(h / SLACK) * SLACK);
+export const SILENCE_MS = 10000; // PARAM-190: 同じシーン・トピックの中でステップを無音で区切る間隔（ミリ秒）
+export const SLACK_MAX = 0.2; // PARAM-188: 最も高い区画を除く、要点のある区画の最後の要素の下の空きの上限（枠の高さに対する比）
+export const STRETCH_MAX = 2; // PARAM-189: 余白を埋めるために広げる要素の間隔・表の行の高さの倍率の上限
+// AC-669: 区画の中の要素の間隔（上端からの位置）と表の行の高さを倍率 f で広げたときの、最後の要素の下端（本文の上端からの距離）
+const stretchBottom = (els, subs, y0, f) => Math.max(0, ...els.map((e) => (e.y - y0) * f + (e.part === 'table' ? e.h * f : e.h)), ...subs.map((s) => (s.y - y0 + s.h) * f));
+// 倍率を決めて要素の位置を動かす。広げても空きが上限を超えるときは null（動かさない）
+function stretchCell(c, y0, B, H) {
+  let lo = 1; let hi = STRETCH_MAX;
+  if (stretchBottom(c.els, c.subs, y0, hi) <= B) lo = hi;
+  else for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (stretchBottom(c.els, c.subs, y0, mid) <= B) lo = mid; else hi = mid; }
+  const f = Math.floor(lo * 1000) / 1000;
+  // 広げきっても残る空きは、中身を縦の中央に寄せて上下に等分する（中身が 1 つの区画など、間隔だけでは埋まらない場合）
+  const rem = B - stretchBottom(c.els, c.subs, y0, f); // 空きは枠の内側の余白 PAD を含めて測る（枠の下端までの距離。契約: CONTRACT-BOARD）
+  const sh = Math.min(rem, Math.max(rem / 2, rem - (SLACK_MAX * 0.95 * H - PAD)));
+  if (PAD + rem - sh > SLACK_MAX * H) return null;
+  const at = (y) => Math.round((y0 + (y - y0) * f + sh) * 100) / 100;
+  for (const e of c.els) { e.y = at(e.y); if (e.part === 'table') { e.h = Math.round(e.h * f * 100) / 100; e.rowH = ROW * f; } }
+  for (const s of c.subs) { s.y = at(s.y); s.h = Math.round(s.h * f * 100) / 100; }
+  c.h = stretchBottom(c.els, c.subs, y0, 1);
+  return f;
+}
 const chunk = (arr, n) => { const out = []; for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; };
 const label = (e, maxPx) => { const shown = fit(e.label, maxPx, FS); return { text: shown, full: e.label, emph: emphOf(shown, e.emphasis, FS) }; };
 
@@ -238,7 +260,7 @@ export function boardLayout(input, opts = {}) {
     (s.points ?? []).forEach((p, idx) => {
       const llm = opts.llmOf?.(s.id, idx) ?? null;
       const a = assignSection(p, { llm });
-      const e = { pointId: p.id, sceneId: s.id, uid: p.uid ?? null, text: String(p.text ?? ''), label: clipLabel(p.text), emphasis: a.emphasis, section: a.section, rule: a.rule, topic: topicOf.get(s.id)?.key ?? `scene:${s.id}` };
+      const e = { pointId: p.id, sceneId: s.id, uid: p.uid ?? null, at: opts.receivedAtOf?.(p.uid ?? null) ?? null, text: String(p.text ?? ''), label: clipLabel(p.text), emphasis: a.emphasis, section: a.section, rule: a.rule, topic: topicOf.get(s.id)?.key ?? `scene:${s.id}` };
       if (a.section === 'actions') {
         const f = actionFields(e.text);
         e.owner = f.owner; e.due = f.due; e.no = by.actions.length + 1;
@@ -249,16 +271,26 @@ export function boardLayout(input, opts = {}) {
   }
   // 議論の流れ: 話順のステップ。トピック（FR-025）かシーン（FR-003）が前の要点と変わる位置で次の番号のステップに区切り、
   // 1 ステップの行が PARAM-088 を超えたら同じ番号の続きのステップに分ける（AC-666。異なるトピック・シーンを 1 つの吹き出しにまとめない）
-  const steps = []; let stepN = 0;
+  // 同じトピック・シーンの中でも、話題の変わり目（AC-666・PARAM-190・PARAM-015）で次の番号のステップに区切る:
+  // (1) 無音: 直前の要点の元の発話の受付時刻との差が SILENCE_MS 以上、(2) 話題語の入れ替わり: 同じステップのそれまでの要点と共通の語句が MIN_SHARED 語未満。
+  // 区切りはその要点とそれより前の要点だけから決める（決定的。後の発言で動かない）
+  const steps = []; let stepN = 0; let prevE = null; let stepWords = new Set();
   for (const e of by.flow) {
     let st = steps[steps.length - 1];
-    const same = st && st.key === e.topic && st.sceneId === e.sceneId;
-    if (!same) stepN++;
+    const sameTS = !!st && st.key === e.topic && st.sceneId === e.sceneId;
+    const words = tokenize([e.text]).map((w) => w.toLowerCase());
+    const silent = sameTS && prevE && prevE.at != null && e.at != null && e.at - prevE.at >= SILENCE_MS;
+    const swapped = sameTS && words.reduce((n, w) => n + (stepWords.has(w) ? 1 : 0), 0) < MIN_SHARED;
+    const same = sameTS && !silent && !swapped;
+    if (!same) { stepN++; stepWords = new Set(); }
     if (!same || st.lines.length >= GROUP_MAX) {
       const k = same ? st.k + 1 : 0;
-      st = { idx: steps.length + 1, key: e.topic, sceneId: e.sceneId, k, uid: `${e.topic}#${e.sceneId}#${k}`, n: stepN, cont: same, lines: [], sceneIds: [], name: names?.speakerOf?.(e.uid) ?? null }; steps.push(st);
+      const g = !sameTS ? 0 : same ? st.g : st.g + 1; // 同じトピック・シーンの中の話題の変わり目の通し番号
+      st = { idx: steps.length + 1, key: e.topic, sceneId: e.sceneId, k, g, uid: `${e.topic}#${e.sceneId}#${k}${g ? `@${g}` : ''}`, n: stepN, cont: same, lines: [], sceneIds: [], name: names?.speakerOf?.(e.uid) ?? null }; steps.push(st);
     }
     st.lines.push(e); if (!st.sceneIds.includes(e.sceneId)) st.sceneIds.push(e.sceneId);
+    for (const w of words) stepWords.add(w);
+    prevE = e;
   }
   const unitsOf = (id) => (id === 'flow' ? steps : id === 'members' ? [...memberUnits, ...by.members] : by[id]);
   // 区画の中身（PARAM-088 を超えたら下位のまとまりに分ける。AC-428）
@@ -284,9 +316,18 @@ export function boardLayout(input, opts = {}) {
     });
     // AC-669: 枠の中身の高さは SLACK 刻みの容量に切り上げる。中身が容量に収まる間は枠もほかの区画も動かず、あふれたときだけ大きくなる
     const h = Math.max(...cells.map((cl) => HEAD + 8 + capacity(cl.c.h) + PAD));
+    // AC-669（PARAM-188・189）: 最も高い区画以外の要点のある区画は、空きが枠の高さの SLACK_MAX を超えるとき、要素の間隔と表の行の高さを広げて埋める。
+    // 広げても超えるときだけ、その区画の枠は並びの高さに揃えず自分の中身の高さにする
+    for (const cl of cells) {
+      cl.h = h;
+      if (!unitsOf(cl.id).length) continue;
+      const y0 = top + HEAD + 8; const B = h - HEAD - 8 - PAD;
+      if (B + PAD - cl.c.h <= SLACK_MAX * h) continue;
+      if (stretchCell(cl.c, y0, B, h) == null) cl.h = HEAD + 8 + capacity(cl.c.h) + PAD;
+    }
     for (const cl of cells) {
       const def = SECTIONS.find((s) => s.id === cl.id);
-      sections.push({ id: cl.id, name: def[lang], icon: def.icon, frame: { x: cl.x, y: top, w: cl.w, h }, headingRect: { x: cl.x + 8, y: top + 6, w: cl.w - 16, h: HEAD - 10 }, count: by[cl.id].length, elements: cl.c.els, subgroups: cl.c.subs });
+      sections.push({ id: cl.id, name: def[lang], icon: def.icon, frame: { x: cl.x, y: top, w: cl.w, h: cl.h }, headingRect: { x: cl.x + 8, y: top + 6, w: cl.w - 16, h: HEAD - 10 }, count: by[cl.id].length, elements: cl.c.els, subgroups: cl.c.subs });
     }
     top += h + GAP;
   }
@@ -445,16 +486,17 @@ function elementSvg(el, C, tx) {
     case 'arrow': return g(arrowSvg(el, C));
     case 'table': {
       const [c0, c1, c2] = el.cols; const xs = [el.x, el.x + c0, el.x + c0 + c1, el.x + c0 + c1 + c2];
-      const head = [tx.no, tx.content, tx.owner, tx.due].map((h, i) => `<text x="${xs[i] + 6}" y="${el.y + 18}" font-size="${FS}" font-weight="800" fill="${C.ink}">${escapeHtml(h)}</text>`).join('');
+      const rh = el.rowH ?? ROW; const off = (rh - ROW) / 2; // AC-669: 余白を埋めるために行の高さを広げた表（文字は行の中央）
+      const head = [tx.no, tx.content, tx.owner, tx.due].map((h, i) => `<text x="${xs[i] + 6}" y="${r1(el.y + off + 18)}" font-size="${FS}" font-weight="800" fill="${C.ink}">${escapeHtml(h)}</text>`).join('');
       const rows = el.rows.map((r, i) => {
-        const y = el.y + ROW * (i + 1);
+        const y = r1(el.y + rh * (i + 1)); const ty = r1(y + off + 18);
         return appearSvg(`<g data-point-id="${escapeHtml(r.pointId)}" data-board-row="${r.no}"><path d="M${el.x} ${y}h${el.w}" stroke="${C.line}" stroke-width="1"/>`
-          + `<text x="${xs[0] + 6}" y="${y + 18}" font-size="${FS}" fill="${C.ink}">${r.no}</text>${labelSvg(r, xs[1] + 6, y + 18, C)}`
-          + `<text x="${xs[2] + 6}" y="${y + 18}" font-size="${FS}" fill="${C.ink}">${escapeHtml(fit(r.owner ?? tx.tbd, c2 - 10, FS))}</text>`
-          + `<text x="${xs[3] + 6}" y="${y + 18}" font-size="${FS}" fill="${C.ink}">${escapeHtml(fit(r.due ?? tx.tbd, el.cols[3] - 10, FS))}</text></g>`, r.appear, el.x + el.w / 2, y + ROW / 2);
+          + `<text x="${xs[0] + 6}" y="${ty}" font-size="${FS}" fill="${C.ink}">${r.no}</text>${labelSvg(r, xs[1] + 6, ty, C)}`
+          + `<text x="${xs[2] + 6}" y="${ty}" font-size="${FS}" fill="${C.ink}">${escapeHtml(fit(r.owner ?? tx.tbd, c2 - 10, FS))}</text>`
+          + `<text x="${xs[3] + 6}" y="${ty}" font-size="${FS}" fill="${C.ink}">${escapeHtml(fit(r.due ?? tx.tbd, el.cols[3] - 10, FS))}</text></g>`, r.appear, el.x + el.w / 2, y + rh / 2);
       }).join('');
       const vlines = xs.slice(1).map((x) => `<path d="M${x} ${el.y}v${el.h}" stroke="${C.line}" stroke-width="1"/>`).join('');
-      return g(`<g data-board-part="table"><rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="${C.bg}" stroke="${C.line}" stroke-width="1.6"/><path d="M${el.x} ${el.y + ROW}h${el.w}" stroke="${C.line}" stroke-width="2"/>${vlines}${head}${rows}</g>`);
+      return g(`<g data-board-part="table"><rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="${C.bg}" stroke="${C.line}" stroke-width="1.6"/><path d="M${el.x} ${r1(el.y + rh)}h${el.w}" stroke="${C.line}" stroke-width="2"/>${vlines}${head}${rows}</g>`);
     }
     default: return '';
   }
@@ -565,7 +607,9 @@ export function createBoardMotion() {
 export function boardModule(ctx) {
   const { api, state } = ctx;
   const llmOf = (sceneId, idx) => api.getLlmPointSection?.(sceneId, idx) ?? null;
-  api.registerLayoutType(BOARD_TYPE_ID, { layout: (input) => boardLayout(input, { llmOf, names: api.getBoardNames?.() ?? null, fontKind: boardFontKind(api.getDrawStyleSpec?.()) }) });
+  // AC-666 (PARAM-190): 要点の元の発話（uid）の受付時刻。疑似時計・.vtt・一括取込でも同じ（受付時刻 receivedAt）
+  const receivedAtOf = () => { const m = new Map((ctx.state?.utterances ?? state.utterances ?? []).map((u) => [u.id, u.receivedAt])); return (uid) => (uid != null && typeof m.get(uid) === 'number' ? m.get(uid) : null); };
+  api.registerLayoutType(BOARD_TYPE_ID, { layout: (input) => boardLayout(input, { llmOf, receivedAtOf: receivedAtOf(), names: api.getBoardNames?.() ?? null, fontKind: boardFontKind(api.getDrawStyleSpec?.()) }) });
   const active = () => {
     const info = api.getLayoutInfo?.();
     return !!info && info.applied && info.head === BOARD_TYPE_ID && state.displayMode !== 'arrange';

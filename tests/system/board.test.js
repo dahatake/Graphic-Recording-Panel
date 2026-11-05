@@ -1,4 +1,4 @@
-// FR-114 AC-667 AC-680（System Test。契約: tests/system/CONTRACT-BOARD.md）
+// FR-114 AC-667 AC-680 AC-669 AC-666（System Test。契約: tests/system/CONTRACT-BOARD.md）
 // 期待値は要求定義書の受入基準と PARAM だけから決める。web/ の実装の値は使わない（実装がなければ失敗するのが正常）。
 // 1 ケースで (a)〜(i) と外部へのリクエスト 0 件、AC-680（名前を表示しない）を確かめる: node --test --test-name-pattern="AC-667|AC-680" tests/system/board.test.js
 // (h) は実ブラウザ（perf-util の launch。Chromium 系）で描いた文字の範囲を getExtentOfChar で測る。
@@ -20,6 +20,7 @@ const PARAM = {
   P179: 6, // 要点のある区画の数の下限
   P180: 8, // 部品の種類の数の下限
   P181_MS: 600, // 出現・移動のアニメーションの時間の上限
+  P190_SEC: 10, // 議論の流れのステップを無音で区切る間隔（AC-666。2026-11-05）
   P187: 0.5, // 強調（マーカー・下線）の位置のずれの上限（文字。font-size に対する比。2026-11-05）
   P011: 6, // ラベルの文字数の上限（全角。英語は半角 12。AC-680 の「名前を表示しない」）
   P126: '決まりました／決めました／決定／確定／承認／合意／採用する／に決めた／agreed／decided',
@@ -77,6 +78,31 @@ function checkGeometry(model, where) {
   }
 }
 const positions = (model) => new Map(model.sections.flatMap((s) => s.elements.map((e) => [e.id, { x: e.x, y: e.y, w: e.w, h: e.h }])));
+
+// AC-669: 高さを揃えた横の並び（frame.y が同じ区画）で、要点のある区画の最後の要素の下の空きが区画の枠の高さの PARAM-188（20%）以下。
+// 最も高い区画（並びの中で中身の最下端が最も下の区画）は PARAM-186（1 行）の規定に当たるので、ここでは並びの高さを決めていることだけを確かめる。
+// 要点が 0 件の区画は対象外。
+const P188 = 0.2;
+function checkFill(model, where) {
+  const withPts = new Set(model.assigned.map((a) => a.section));
+  const rows = new Map();
+  for (const s of model.sections) { const k = Math.round(s.frame.y * 2) / 2; if (!rows.has(k)) rows.set(k, []); rows.get(k).push(s); }
+  let measured = 0;
+  for (const [, secs] of rows) {
+    const live = secs.filter((s) => withPts.has(s.id) && s.elements.length);
+    if (!live.length) continue;
+    const bottom = (s) => Math.max(...s.elements.map((e) => e.y + e.h));
+    const tallest = live.reduce((a, b) => (bottom(b) - b.frame.y > bottom(a) - a.frame.y ? b : a));
+    for (const s of live) {
+      if (s === tallest) continue;
+      const gap = (s.frame.y + s.frame.h) - bottom(s);
+      assert.ok(gap >= -0.5, `${where} (AC-669): ${s.id} の中身が枠に収まる`);
+      assert.ok(gap / s.frame.h <= P188 + 0.005, `${where} (AC-669): ${s.id} の最後の要素の下の空き ${gap.toFixed(1)} は枠の高さ ${s.frame.h.toFixed(1)} の ${P188 * 100}% 以下（${(100 * gap / s.frame.h).toFixed(1)}%）`);
+      measured++;
+    }
+  }
+  return measured;
+}
 
 // ---- SVG: 要点の区画・部品の種類・文字と直下の背景 ----
 function ancestorAttr(n, name) { for (let p = n; p; p = p.parent) if (p.attrs[name] != null) return p.attrs[name]; return null; }
@@ -330,6 +356,7 @@ test('FR-114 AC-667: 固定の文字起こし（TeamA との会議）を会議�
         }
       }
       checkGeometry(app.getBoardModel(), where);
+      checkFill(app.getBoardModel(), where);
     };
     LINES.forEach((t, i) => {
       // (i) 議論の 4 つのトピック（FR-025 の分類で別のトピックになる発言）として、流れの発言の前に［次のシーン］を入れる
@@ -385,6 +412,42 @@ test('FR-114 AC-667: 固定の文字起こし（TeamA との会議）を会議�
         assert.ok(arrows.some((a) => String(a.attrs['data-between']).replace(/\s/g, '') === want && stepOf(a) == null), `(i) ステップ ${steps[j]} と ${steps[j + 1]} の間に矢印（data-between="${want}"）`);
       }
     }
+    assert.ok(checkFill(model, '全発言の後') >= 1, '(AC-669) 並びのほかの区画で、空きを測れた');
+    // (i)（シーンの区切りなし）AC-666: ［次のシーン］を使わず、同じシーン・同じトピックの会議でも、話題の変わり目で別のステップに分かれる。
+    //   (1) 無音 PARAM-190（10 秒）以上、(2) 話題語の入れ替わり（同じステップの要点と異なる語句を PARAM-015＝2 語以上共有しない）
+    {
+      const flowSteps = async (lines, gapMs, where) => {
+        const r = await boardApp();
+        r.app.commands['session.start']();
+        for (const t of lines) {
+          assert.equal(classify(t), 'flow', `${where}: 「${t}」は議論の流れの発言（AC-665 の規則のどの語にも当たらない）`);
+          r.app.setDraft(t); assert.equal(r.app.submitDraft().ok, true, `${where}: 取込`);
+          r.advance(gapMs); // 次の発話の受付までの無音（PARAM-002 の 20 秒より短くする。シーンは分かれない）
+        }
+        r.advance(1600);
+        assert.equal(r.app.getState().scenes.length, 1, `${where}: シーンの区切りがない（1 シーン）`);
+        checkGeometry(r.app.getBoardModel(), where);
+        checkFill(r.app.getBoardModel(), where);
+        const d = parseSvg(r.app.renderSvg());
+        const inFlow = d.all.filter((n) => ancestorAttr(n, 'data-board-section') === 'flow' && n.attrs['data-board-step'] != null);
+        const steps = [...new Set(inFlow.map((n) => n.attrs['data-board-step']))].map(Number).sort((a, b) => a - b);
+        for (const k of steps) for (const part of ['badge', 'bubble', 'person']) assert.equal(d.all.filter((n) => n.attrs['data-board-part'] === part && ancestorAttr(n, 'data-board-step') === String(k)).length, 1, `${where}: ステップ ${k} に ${part} が 1 つ`);
+        const arrows = d.all.filter((n) => n.attrs['data-board-part'] === 'arrow' && ancestorAttr(n, 'data-board-section') === 'flow' && n.attrs['data-between'] != null);
+        for (let j = 0; j + 1 < steps.length; j++) assert.ok(arrows.some((a) => String(a.attrs['data-between']).replace(/\s/g, '') === `${steps[j]},${steps[j + 1]}`), `${where}: ステップ ${steps[j]} と ${steps[j + 1]} の間に矢印`);
+        return steps;
+      };
+      // 語句を 2 つ以上共有する 4 発言（話題語は入れ替わらない）。区切りになりうるのは無音だけ
+      const SAME_TOPIC = ['intake queue morning load', 'intake queue noon load', 'intake queue evening load', 'intake queue night load'];
+      // 語句を共有しない 4 発言（話題語が入れ替わる）。無音はない
+      const SWAP_TOPIC = ['intake queue morning load', 'billing refund policy draft', 'chatbot prototype demo scenario', 'vendor outsourcing cost estimate'];
+      const silent = await flowSteps(SAME_TOPIC, PARAM.P190_SEC * 1000, '(i) 無音 10 秒');
+      assert.equal(silent.length, 4, `(i) 無音が PARAM-190（${PARAM.P190_SEC} 秒）以上の 4 発言は 4 つのステップ（${silent}）`);
+      const swapped = await flowSteps(SWAP_TOPIC, 0, '(i) 話題語の入れ替わり');
+      assert.equal(swapped.length, 4, `(i) 話題語が入れ替わる 4 発言は無音がなくても 4 つのステップ（${swapped}）`);
+      // 異常系: 無音が PARAM-190 より短く、話題語も入れ替わらないときは区切らない（1 つのステップ）
+      const short = await flowSteps(SAME_TOPIC, PARAM.P190_SEC * 1000 - 1000, '(i) 無音 9 秒・同じ話題語');
+      assert.equal(short.length, 1, `(i) 無音が ${PARAM.P190_SEC} 秒未満で話題語が同じなら 1 つのステップ（${short}）`);
+    }
     assert.ok(!/<image\b|<foreignObject\b/i.test(svg) && !/(?:href|url\()\s*=?\s*["']?(?:https?:)?\/\//i.test(svg), 'SVG だけで外部参照なし');
 
     // (e) 見出し・ラベル・表の文字と直下の背景: 11 の画風と既存の 4 つ（計 15）のすべて
@@ -397,6 +460,7 @@ test('FR-114 AC-667: 固定の文字起こし（TeamA との会議）を会議�
       assert.ok(n >= LINES.length, `${s.label}: 文字を測った（${n}）`);
       assert.deepEqual(fails, [], `(e) ${s.label}: 文字と直下の背景のコントラスト比が ${PARAM.P007} 以上`);
       checkGeometry(app.getBoardModel(), `${s.label} の図`);
+      checkFill(app.getBoardModel(), `${s.label} の図`);
       styleSvgs.push([s.label, app.renderSvg()]);
     }
 
@@ -565,10 +629,15 @@ test('FR-114 AC-680: ［設定］の「名前を表示しない」は既定オ�
     const f = app.getSettingsDialog()?.fields.find((x) => x.id === 'board.hideNames');
     assert.ok(f, '［設定］に「名前を表示しない」がある');
     assert.equal(f.value, false);
-    assert.ok(f.label?.trim() && weight(f.label) <= PARAM.P011, `ラベル「${f.label}」は PARAM-011 以内`);
+    // AC-680（Q-047 A の確定後の文言）: ラベルは ja「名前を隠す」／en "Hide names"、説明・ツールチップに「名前を表示しない」
+    assert.equal(f.label?.trim(), '名前を隠す', `ja のラベルは「名前を隠す」（${f.label}）`);
+    assert.ok(weight(f.label) <= PARAM.P011, `ラベル「${f.label}」は PARAM-011 以内`);
+    const helpText = [f.description, f.accessibleName, f.tooltip?.text, f.tooltip].filter((x) => typeof x === 'string').join(' ');
+    assert.ok(helpText.includes('名前を表示しない'), `説明・ツールチップに「名前を表示しない」がある（${helpText}）`);
     app.setLang('en');
     const fe = app.getSettingsDialog()?.fields.find((x) => x.id === 'board.hideNames');
-    assert.ok(fe.label.trim() && !CJK.test(fe.label) && weight(fe.label) <= PARAM.P011, `en: ${fe.label}`);
+    assert.equal(fe.label.trim(), 'Hide names', `en のラベルは "Hide names"（${fe.label}）`);
+    assert.ok(!CJK.test(fe.label) && weight(fe.label) <= PARAM.P011, `en: ${fe.label}`);
     app.setLang('ja');
     app.handleKey({ key: 'Escape' });
     assertNames(await views(), true, 'オフ');
