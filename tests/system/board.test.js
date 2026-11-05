@@ -1059,7 +1059,7 @@ test('FR-114 AC-681 AC-680: 参加者名簿の入力欄（ラベル・既定は�
     // ---- 1 件の長さの上限 PARAM-197（先頭 19 文字＋「…」＝ 20 文字。ちょうど 20 文字はそのまま。PARAM-165 の 24 は使わない） ----
     const exact = '一二三四五六七八九十一二三四五六七八九十'; // 20 文字
     const over = `${exact}超過`; // 22 文字
-    const mid = '一二三四五六七八九十一二三四五六七八九十一二三四'; // 24 文字（PARAM-165 の水準）
+    const mid = '甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸甲乙丙丁'; // 24 文字（PARAM-165 の水準。先頭 19 文字が over と異なる＝切り詰め後も別の名前（重複除去で 1 名にならない））
     assert.equal(app.setTitleInfo({ participants: [exact, over, mid].join('\n') }).ok, true);
     assert.deepEqual(roster(), [exact, clip(over), clip(mid)], '20 文字以内はそのまま、超えるときは先頭 19 文字＋「…」で保持');
     assert.ok(roster().every((x) => [...x].length <= P197), '保持する名前は 20 文字以内');
