@@ -33,8 +33,6 @@ const PARAM = {
 const SECTIONS = ['purpose', 'members', 'flow', 'decisions', 'open', 'themes', 'vision', 'actions', 'memo'];
 // 区画の順（並びの順）は PARAM-192 の初期の並びを上から左から読んだ順（FR-114 の列挙の順ではない）。AC-669 (4)
 const ORDER192 = ['purpose', 'members', 'vision', 'flow', 'decisions', 'themes', 'open', 'actions', 'memo'];
-const INITIAL_ROWS = [['purpose', 'members', 'vision'], ['flow', 'decisions'], ['themes', 'open'], ['actions', 'memo']]; // PARAM-192 の初期の並び（3・2・2・2）
-const WIDTHS192 = { 1: [3], 2: [2, 1], 3: [1, 1, 1] }; // 横並びの数ごとの各区画の幅（列。左から）
 const PART_KINDS = ['title', 'frame', 'badge', 'bubble', 'check', 'question', 'table', 'arrow', 'person', 'icon', 'emphasis'];
 const FIX = path.join(ROOT, 'tests', 'system', 'fixtures');
 const LINES = fs.readFileSync(path.join(FIX, 'teama-meeting.txt'), 'utf8').split(/\r?\n/).filter((l) => l.trim());
@@ -83,27 +81,18 @@ function checkGeometry(model, where) {
 }
 const positions = (model) => new Map(model.sections.flatMap((s) => s.elements.map((e) => [e.id, { x: e.x, y: e.y, w: e.w, h: e.h }])));
 
-// AC-669: 高さを揃えた横の並び（frame.y が同じ区画）で、要点のある区画の最後の要素の下の空きが区画の枠の高さの PARAM-188（20%）以下。
-// 最も高い区画（並びの中で中身の最下端が最も下の区画）は PARAM-186（1 行）の規定に当たるので、ここでは並びの高さを決めていることだけを確かめる。
-// 要点が 0 件の区画は対象外。
+// AC-669 (2)(7)(b):  要点のある区画は、横に並ぶ区画に揃えず自分の中身の高さなので、最後の要素の下の空き（枠の内側の余白だけ）が枠の高さの PARAM-188（20%）以下。
+// 例外（最も高い区画の除外）はない。要点が 0 件の区画は対象外。
 const P188 = 0.2;
 function checkFill(model, where) {
   const withPts = new Set(model.assigned.map((a) => a.section));
-  const rows = new Map();
-  for (const s of model.sections) { const k = Math.round(s.frame.y * 2) / 2; if (!rows.has(k)) rows.set(k, []); rows.get(k).push(s); }
   let measured = 0;
-  for (const [, secs] of rows) {
-    const live = secs.filter((s) => withPts.has(s.id) && s.elements.length);
-    if (!live.length) continue;
-    const bottom = (s) => Math.max(...s.elements.map((e) => e.y + e.h));
-    const tallest = live.reduce((a, b) => (bottom(b) - b.frame.y > bottom(a) - a.frame.y ? b : a));
-    for (const s of live) {
-      if (s === tallest) continue;
-      const gap = (s.frame.y + s.frame.h) - bottom(s);
-      assert.ok(gap >= -0.5, `${where} (AC-669): ${s.id} の中身が枠に収まる`);
-      assert.ok(gap / s.frame.h <= P188 + 0.005, `${where} (AC-669): ${s.id} の最後の要素の下の空き ${gap.toFixed(1)} は枠の高さ ${s.frame.h.toFixed(1)} の ${P188 * 100}% 以下（${(100 * gap / s.frame.h).toFixed(1)}%）`);
-      measured++;
-    }
+  for (const s of model.sections) {
+    if (!(withPts.has(s.id) && s.elements.length)) continue;
+    const gap = (s.frame.y + s.frame.h) - Math.max(...s.elements.map((e) => e.y + e.h));
+    assert.ok(gap >= -0.5, `${where} (AC-669): ${s.id} の中身が枠に収まる`);
+    assert.ok(gap / s.frame.h <= P188 + 0.005, `${where} (AC-669): ${s.id} の最後の要素の下の空き ${gap.toFixed(1)} は枠の高さ ${s.frame.h.toFixed(1)} の ${P188 * 100}% 以下（${(100 * gap / s.frame.h).toFixed(1)}%）`);
+    measured++;
   }
   return measured;
 }
@@ -727,13 +716,17 @@ test('FR-114 AC-667 測定器: コントラスト比は WCAG の既知値（#767
   assert.equal(classify('However we show it'), 'flow', 'how は however・show に当たらない（PARAM-131 は語単位）');
 });
 
-// FR-114 AC-669 AC-666（区画の余白: 上詰め・均等に広げる・並びの決め直し。契約: CONTRACT-BOARD.md「区画の余白」「並びの決め直し」）
-// 15 の描画スタイル × 4 つのデータ（要点が少ない・多い × シーンの区切りなし・あり）。期待値は受入基準の測れる基準 (a)(b)(c) と、
-// 区画の数・見出し・順の不変、入力が同じなら並び・枠・倍率が同じ（決定的）、追加がなければ動かない、だけから決める（幅 cols は並びの決め直しで変わるのが仕様）。
-// 要素の配置の細部や並びの選び方（比較規則）の内側は実装に依存するので、ここでは観測できる結果だけを確かめる。
-test('FR-114 AC-669 AC-666: 要点の量が偏った会議を 15 の描画スタイルで描くと、要点のある区画は最初の要素の上の空きが 0 で下の空き以下、下の空きは枠の高さの 20% 以下（最も高い区画は 1 行以下）、広げる倍率は 1〜2、外枠の重なり 0 件。取込の前後で区画の数・見出し・順は不変（幅は問わない）で、同じ入力なら並び・枠・倍率は同じ（決定的）、追加がなければ動かない。teama-meeting では次アクションの表は 2 列幅以上で全文（…なし）、高さは約 830 を大きく超えない', async () => {
-  const P189 = 2; // 広げる倍率の上限
+// FR-114 AC-669 AC-666（案 A: 区画の枠は自分の中身の高さ。図は幅 1 列の帯 A・B・C に分け、各帯は上端を揃えて独立に積む。契約: CONTRACT-BOARD.md「帯と区画の配置」）
+// 期待値は受入基準 AC-669 (1)〜(7) と PARAM-186・188・191・192・194 だけから決める（要素の間隔を広げる処理・倍率 PARAM-189 は使わない。横並びの下端は揃えない）。
+// 測るもの: (a) 上の空き 0 ≤ 下の空き (b) 下の空き ≤ 20%（枠の内側の余白だけ） (c) 外枠の重なり 0 (d) 各帯の最初の区画の上端が揃う・帯の積み方（x・幅・y を PARAM-191 から導く）
+// (e) teama-meeting の図の高さ ≤ 913（15 の描画スタイル）、次アクションの切り詰めなし、決め直し（初期の高さ > 913 のときだけ）・決定的・契機がなければ動かない（冪等）。
+test('FR-114 AC-669 AC-666: 要点の量が偏った会議を 15 の描画スタイルで描くと、各区画の枠は自分の中身の高さで（下の空きは枠の内側の余白だけ・20% 以下、上の空き 0）、幅 1 列の帯 A・B・C が上端を揃えて独立に積まれ（幅 2 列は隣り合う 2 本にまたがる）、外枠の重なり 0 件。初期の並び（PARAM-192）の図の高さが 913（PARAM-194）以下なら決め直さず、超えるときだけ図の高さが最小の割り当てにする（次アクションは 2 列以上）。決定的で、契機がなければ動かない。teama-meeting は図の高さ ≤ 913 で、次アクションの表は全文（…なし）', async () => {
   const EPS = 0.5;
+  const P191 = { M: 24, GAP: 16, COL: 400, HEAD: 36, PAD: 12, ROW: 26 }; // PARAM-191（図の座標）
+  const P194 = 913; // 並びの決め直しの契機となる図の高さの上限
+  const COLW = [P191.COL, 2 * P191.COL + P191.GAP, 3 * P191.COL + 2 * P191.GAP]; // 区画の幅 400・816・1232
+  // PARAM-192 の初期の置き方（区画の順に、幅 1 列は次の空いた帯、幅 2 列は A と B）。band は開始の帯（0=A・1=B・2=C）
+  const INIT = { purpose: [0, 1], members: [1, 1], vision: [2, 1], flow: [0, 2], decisions: [2, 1], themes: [0, 2], open: [2, 1], actions: [0, 2], memo: [2, 1] };
   const secOf = (t) => classify(t);
   // 偏った会議: 決定事項・主要テーマ・メモは 1〜2 件、議論の流れ・次アクションが多い
   const skew = (lines, cap) => {
@@ -748,55 +741,69 @@ test('FR-114 AC-669 AC-666: 要点の量が偏った会議を 15 の描画スタ
   assert.ok(MANY.filter((t) => secOf(t) === 'flow').length >= 4 && MANY.filter((t) => secOf(t) === 'actions').length >= 2, '多いデータは議論の流れ・次アクションが多い');
   const DATA = [['要点が少ない・シーン区切りなし', FEW, false], ['要点が少ない・シーン区切りあり', FEW, true], ['要点が多い・シーン区切りなし', MANY, false], ['要点が多い・シーン区切りあり', MANY, true]];
 
-  // 取込の前後で不変なのは区画の数・見出し・順だけ（並びの決め直しで幅 cols が変わるのは仕様。AC-669 (4)）
-  const skeleton = (m) => JSON.stringify({ n: m.sections.length, secs: m.sections.map((s) => [s.id, s.title]), order: (m.rows ?? []).flat(), columns: m.columns });
-  const figH = (m) => Math.max(...m.sections.map((s) => s.frame.y + s.frame.h));
-  const sameRows = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-  const layout = (m) => JSON.stringify({ rows: m.rows, secs: m.sections.map((s) => [s.id, s.frame, s.stretch, s.contentTop, s.contentBottom]), els: m.sections.flatMap((s) => s.elements.map((e) => [e.id, e.x, e.y, e.w, e.h])) });
-  function checkRows(m, where) {
-    assert.ok(Number.isInteger(m.columns) && m.columns >= 1, `${where}: columns（図の列数）`);
-    assert.ok(Number.isFinite(m.lineHeight) && m.lineHeight > 0, `${where}: lineHeight（1 行の高さ）`);
-    assert.ok(Array.isArray(m.rows) && m.rows.every((r) => Array.isArray(r) && r.length), `${where}: rows（並びの組み合わせ）`);
-    assert.deepEqual(m.rows.flat(), ORDER192, `${where}: 区画の順は PARAM-192 の並びの順（目的→参加メンバー→目指す姿→議論の流れ→決定事項→主要テーマ→未決事項→次アクション→メモ）のまま、隣り合う区画だけを横に並べる`);
-    const byId = new Map(m.sections.map((s) => [s.id, s]));
-    let prevY = -Infinity;
-    for (const r of m.rows) {
-      assert.ok(r.length >= 1 && r.length <= 3, `${where}: 1 つの並びは 1〜3 区画（${r}）`);
-      assert.deepEqual(r.map((id) => byId.get(id).cols), WIDTHS192[r.length], `${where}: 横並び ${r.length} 区画の各区画の幅は PARAM-192 のとおり（${r}）`);
-      const w = r.reduce((a, id) => a + byId.get(id).cols, 0);
-      assert.ok(w <= m.columns, `${where}: 並び ${r} の幅の合計 ${w} は図の列数 ${m.columns} 以内`);
-      const ys = r.map((id) => byId.get(id).frame.y);
-      assert.ok(Math.max(...ys) - Math.min(...ys) <= EPS, `${where}: 同じ並びの区画の上端は揃う（${ys}）`);
-      assert.ok(ys[0] > prevY + EPS, `${where}: 並びは上から順に置かれる`);
-      prevY = ys[0];
+  // 取込の前後で不変なのは区画の数・見出し・順だけ（割り当て＝幅 cols・開始の帯 band は並びの決め直しで変わりうる。AC-669 (4)）
+  const skeleton = (m) => JSON.stringify({ n: m.sections.length, secs: m.sections.map((s) => [s.id, s.title]), columns: m.columns });
+  const figH = (m) => Math.max(...m.sections.map((s) => s.frame.y + s.frame.h)) + P191.M; // 図の高さ＝最も下の下端＋外側の余白（PARAM-194）
+  const assignOf = (m) => Object.fromEntries(m.sections.map((s) => [s.id, [s.band, s.cols]]));
+  const layout = (m) => JSON.stringify({ bands: m.bands, init: m.initialHeight, re: m.reflowed, secs: m.sections.map((s) => [s.id, s.cols, s.band, s.frame, s.contentTop, s.contentBottom]), els: m.sections.flatMap((s) => s.elements.map((e) => [e.id, e.x, e.y, e.w, e.h])) });
+  const geo = (m) => JSON.stringify({ bands: m.bands, secs: m.sections.map((s) => [s.id, s.cols, s.band, s.frame]) }); // 要素の id を除く（履歴に依存しないことの確認用）
+  // AC-669 (3)(4): 帯への割り当て（rows→帯。契約 CONTRACT-BOARD.md）と、PARAM-191 から導く x・幅・積み方
+  function checkBands(m, where) {
+    assert.equal(m.columns, 3, `${where}: columns は 3（帯 A・B・C）`);
+    assert.deepEqual(m.sections.map((s) => s.id), ORDER192, `${where}: sections は区画の順（PARAM-192。目的→参加メンバー→目指す姿→議論の流れ→決定事項→主要テーマ→未決事項→次アクション→メモ）のまま`);
+    assert.ok(Array.isArray(m.bands) && m.bands.length === 3 && m.bands.every(Array.isArray), `${where}: bands は 3 本（A・B・C）の区画 id の列`);
+    const seen = [[], [], []];
+    const floor = [null, null, null]; // 帯ごとの積み上がりの下端
+    const firstTops = [];
+    for (const s of m.sections) {
+      assert.ok(Number.isInteger(s.cols) && s.cols >= 1 && s.cols <= 3, `${where}: ${s.id} の幅 cols は 1〜3（${s.cols}）`);
+      assert.ok(Number.isInteger(s.band) && s.band >= 0 && s.band + s.cols <= 3, `${where}: ${s.id} の開始の帯 band は 0〜${3 - s.cols}（${s.band}）`);
+      assert.ok(Math.abs(s.frame.x - (P191.M + s.band * (P191.COL + P191.GAP))) <= EPS, `${where}: ${s.id} の x は帯の左端（${s.frame.x}）`);
+      assert.ok(Math.abs(s.frame.w - COLW[s.cols - 1]) <= EPS, `${where}: ${s.id} の幅 ${s.frame.w} は ${COLW[s.cols - 1]}（幅 ${s.cols} 列）`);
+      const span = [...Array(s.cols).keys()].map((k) => s.band + k);
+      for (const b of span) seen[b].push(s.id);
+      const under = span.map((b) => floor[b]).filter((v) => v != null);
+      if (!under.length) firstTops.push(s.frame.y);
+      else assert.ok(Math.abs(s.frame.y - (Math.max(...under) + P191.GAP)) <= EPS, `${where}: ${s.id} の上端 ${s.frame.y} は置く先の帯の積み上がりの最も下の下端の直下（${Math.max(...under)} + 間隔 ${P191.GAP}）`);
+      for (const b of span) floor[b] = s.frame.y + s.frame.h;
     }
-    assert.ok(byId.get('actions').cols >= 2, `${where}: 次アクションの区画の幅は 2 列以上（AC-666。${byId.get('actions').cols}）`);
+    assert.deepEqual(m.bands, seen, `${where}: bands は帯ごとの区画の列（またがる区画は置く先の帯のすべてに出る）`);
+    assert.ok(firstTops.length >= 1 && Math.max(...firstTops) - Math.min(...firstTops) <= EPS, `${where} (d): 各帯の最初の区画の上端は揃う（${firstTops}）`);
+    assert.ok(m.sections.find((s) => s.id === 'actions').cols >= 2, `${where}: 次アクションの区画の幅は 2 列以上（AC-666）`);
+    assert.ok(m.canvas.h >= figH(m) - EPS, `${where}: 図の領域 ${m.canvas.h} は図の高さ ${figH(m)} を含む（足りないときは縦に伸ばす）`);
+  }
+  // AC-669 (4): 初期の並びの図の高さが 913 以下なら初期の並びのまま、超えるときだけ決め直す（結果の図の高さは初期以下）
+  function checkReflow(m, where) {
+    assert.ok(Number.isFinite(m.initialHeight) && m.initialHeight > 0, `${where}: initialHeight（初期の並びを (3) で置いた図の高さ）`);
+    assert.equal(typeof m.reflowed, 'boolean', `${where}: reflowed`);
+    assert.equal(m.reflowed, m.initialHeight > P194, `${where}: 決め直すのは初期の並びの図の高さ ${m.initialHeight} が ${P194} を超えるときだけ`);
+    if (!m.reflowed) {
+      assert.deepEqual(assignOf(m), INIT, `${where}: 初期の高さ ${m.initialHeight} ≤ ${P194} なら初期の並び（PARAM-192）のまま`);
+      assert.ok(Math.abs(figH(m) - m.initialHeight) <= EPS, `${where}: 決め直さないとき図の高さ ${figH(m)} は initialHeight ${m.initialHeight} と同じ`);
+    } else assert.ok(figH(m) <= m.initialHeight + EPS, `${where}: 決め直した図の高さ ${figH(m)} は初期の並びの高さ ${m.initialHeight} 以下（初期の並びも候補。最小を選ぶ）`);
   }
   function checkSpacing(m, where) {
     checkGeometry(m, where); // (c) 区画どうし・要素どうしの外枠の重なり 0 件、はみ出しなし
-    checkRows(m, where);
+    checkBands(m, where);
+    checkReflow(m, where);
     const withPts = new Set(m.assigned.map((a) => a.section));
     let measured = 0;
     for (const s of m.sections) {
-      assert.ok(Number.isFinite(s.stretch) && s.stretch >= 1 - 1e-6 && s.stretch <= P189 + 1e-6, `${where}: ${s.id} の広げる倍率 ${s.stretch} は 1〜${P189}`);
+      assert.ok(s.stretch === undefined || s.stretch === 1, `${where}: ${s.id} は要素の間隔を広げない（stretch ${s.stretch}。PARAM-189 は使わない）`);
       assert.ok(Number.isFinite(s.contentTop) && Number.isFinite(s.contentBottom) && s.contentBottom > s.contentTop, `${where}: ${s.id} の contentTop・contentBottom`);
-    }
-    for (const r of m.rows) {
-      const live = r.map((id) => m.sections.find((s) => s.id === id)).filter((s) => withPts.has(s.id) && s.elements.length);
-      if (!live.length) continue;
-      const bottom = (s) => Math.max(...s.elements.map((e) => e.y + e.h));
-      const tallest = live.reduce((a, b) => (bottom(b) - b.frame.y > bottom(a) - a.frame.y ? b : a));
-      for (const s of live) {
-        const top = Math.min(...s.elements.map((e) => e.y)) - s.contentTop;
-        const gapIn = s.contentBottom - bottom(s);
-        const gapFrame = s.frame.y + s.frame.h - bottom(s);
-        assert.ok(Math.abs(top) <= EPS, `${where} (a): ${s.id} の最初の要素の上の空きは 0（${top.toFixed(1)}）`);
-        assert.ok(top <= gapIn + EPS, `${where} (a): ${s.id} の上の空き ${top.toFixed(1)} ≤ 下の空き ${gapIn.toFixed(1)}`);
-        assert.ok(gapFrame >= -EPS, `${where}: ${s.id} の中身が枠に収まる`);
-        assert.ok(gapFrame / s.frame.h <= P188 + 0.005, `${where} (b): ${s.id} の下の空き ${gapFrame.toFixed(1)} は枠の高さ ${s.frame.h.toFixed(1)} の ${P188 * 100}% 以下`);
-        if (s === tallest) assert.ok(gapIn <= m.lineHeight + EPS, `${where} (b): 最も高い区画 ${s.id} の下の空き ${gapIn.toFixed(1)} は 1 行（${m.lineHeight}）以下`);
-        measured++;
+      if (!(withPts.has(s.id) && s.elements.length)) {
+        // 要点 0 件の区画: 見出しと PARAM-186（1 行）分の空きだけの高さ（空きの対象外）
+        assert.ok(s.frame.h >= P191.HEAD + P191.ROW - EPS && s.frame.h <= P191.HEAD + 8 + P191.ROW + 2 * P191.PAD + EPS, `${where}: 要点 0 件の ${s.id} の高さ ${s.frame.h} は見出し＋1 行分の空きだけ`);
+        continue;
       }
+      const bottom = Math.max(...s.elements.map((e) => e.y + e.h));
+      const top = Math.min(...s.elements.map((e) => e.y)) - s.contentTop;
+      const gapFrame = s.frame.y + s.frame.h - bottom;
+      assert.ok(Math.abs(top) <= EPS, `${where} (a): ${s.id} の最初の要素の上の空きは 0（${top.toFixed(1)}）`);
+      assert.ok(gapFrame >= -EPS, `${where}: ${s.id} の中身が枠に収まる`);
+      assert.ok(gapFrame / s.frame.h <= P188 + 0.005, `${where} (b): ${s.id} の下の空き ${gapFrame.toFixed(1)} は枠の高さ ${s.frame.h.toFixed(1)} の ${P188 * 100}% 以下`);
+      assert.ok(Math.abs(gapFrame - P191.PAD) <= 1, `${where} (2): ${s.id} の枠の高さは自分の中身の高さ（下の空き ${gapFrame.toFixed(1)} は枠の内側の余白 ${P191.PAD} だけ。横に並ぶ区画に揃えない）`);
+      measured++;
     }
     return measured;
   }
@@ -819,7 +826,7 @@ test('FR-114 AC-669 AC-666: 要点の量が偏った会議を 15 の描画スタ
           // 取込の前後で区画の数・見出し・幅は変わらない（並びの組み合わせだけが変わりうる）
           if (base == null) base = skeleton(m); else assert.equal(skeleton(m), base, `${name}: 取込の前後で区画の数・見出し・幅は不変（${t}）`);
           checkSpacing(m, `${name}: ${t}`);
-          prevRows = m.rows;
+          prevRows = m.bands;
         }
         r.advance(1600);
         return { r, base, prevRows };
@@ -828,11 +835,15 @@ test('FR-114 AC-669 AC-666: 要点の量が偏った会議を 15 の描画スタ
       const b = await run();
       const m0 = a.r.app.getBoardModel();
       // 同じ入力なら、並び・枠・倍率・要素の位置は同じ（決定的）。履歴に依存しない
-      assert.equal(layout(b.r.app.getBoardModel()), layout(m0), `${name}: 同じ入力なら並び・枠・倍率は毎回同じ`);
-      // 追加がなければ動かない
+      assert.equal(layout(b.r.app.getBoardModel()), layout(m0), `${name}: 同じ入力なら並び・枠は毎回同じ`);
+      // 追加（契機）がなければ動かない（冪等）: 時間が進む・再描画・何度の再配置・高さが変わらない編集（同じ文字への編集）
       const snap = layout(m0);
-      a.r.advance(5000); a.r.app.renderSvg();
-      assert.equal(layout(a.r.app.getBoardModel()), snap, `${name}: 追加がなければ並び・枠・要素は動かない`);
+      a.r.advance(5000); a.r.app.renderSvg(); a.r.advance(5000);
+      assert.equal(layout(a.r.app.getBoardModel()), snap, `${name}: 契機がなければ並び・枠・要素は動かない`);
+      const p0 = allPoints(a.r.app)[0];
+      assert.equal(a.r.app.editPoint(p0.id, p0.text).ok, true, `${name}: 同じ文字への編集`);
+      a.r.advance(1600);
+      assert.equal(layout(a.r.app.getBoardModel()), snap, `${name}: 高さが変わらない編集では動かない`);
       // 15 の描画スタイル
       let measured = 0;
       for (const id of styleIds) {
@@ -864,14 +875,57 @@ test('FR-114 AC-669 AC-666: 要点の量が偏った会議を 15 の描画スタ
       const count = (s) => { const c = new Map(); for (const ch of s) c.set(ch, (c.get(ch) ?? 0) + 1); return c; };
       const have = count(actSec.text.replace(/\s/g, '')); const want = count(acts.map((p) => p.text).join('').replace(/[\s。．.、,]/g, ''));
       for (const [ch, n] of want) assert.ok((have.get(ch) ?? 0) >= n, `次アクションの全文が描かれる: 「${ch}」が ${n} 個以上（${have.get(ch) ?? 0}）`);
-      const BASE_H = 830; // 依頼 2026-11-05: 以前の約 830。許容は +10%（AC に値がないので test-designer の補い。CONTRACT-BOARD.md）
-      if (sameRows(m.rows, INITIAL_ROWS)) assert.ok(figH(m) <= BASE_H * 1.1, `teama-meeting: 初期の並びのままなら高さ ${figH(m).toFixed(0)} は約 ${BASE_H} 以内`);
-      else assert.ok(figH(m) <= BASE_H * 1.1, `teama-meeting: 決め直した図の高さ ${figH(m).toFixed(0)} は初期の並びの高さ（約 ${BASE_H}）を大きく超えない（≤ ${BASE_H * 1.1}。並び ${JSON.stringify(m.rows)}）`);
+      const BASE_H = P194; // PARAM-194: 初期の並びの図の高さの上限（teama-meeting は初期の並びで約 830 前後）
+      assert.ok(figH(m) <= BASE_H, `teama-meeting (e): 図の高さ ${figH(m).toFixed(0)} は ${BASE_H} 以下`);
+      assert.equal(m.reflowed, false, `teama-meeting: 初期の並びの高さ ${m.initialHeight} は ${P194} 以下なので決め直さない（初期の並び: A 目的・背景→議論の流れ→主要テーマ→次アクション / B 参加メンバー / C 最終的に目指す姿→決定事項→未決事項→メモ・補足）`);
+      assert.deepEqual(m.bands, [['purpose', 'flow', 'themes', 'actions'], ['members', 'flow', 'themes', 'actions'], ['vision', 'decisions', 'open', 'memo']], 'teama-meeting: 帯 A・B・C の区画の列（PARAM-192）');
+      // (e) 15 の描画スタイルでも図の高さ ≤ 913、各区画は自分の中身の高さ・重ならない
+      for (const id of tm.app.getDrawStyles().map((s) => s.id)) {
+        assert.equal(tm.app.setDrawStyle(id).ok, true, id);
+        tm.advance(1600);
+        const ms = tm.app.getBoardModel();
+        checkSpacing(ms, `teama-meeting / ${id}`);
+        assert.ok(figH(ms) <= BASE_H, `teama-meeting / ${id} (e): 図の高さ ${figH(ms).toFixed(0)} は ${BASE_H} 以下`);
+      }
     }
-    // 異常系: 要点が 1 件もない（0 件）でも並びは作れ、倍率・重なりの条件を満たす
+    // 並びの決め直し（AC-669 (4)）: 初期の並びの図の高さが 913 を超えるほど要点が多い会議（teama-meeting を 3 回分）だけが決め直す。
+    // 結果は図の高さが最小の割り当て（初期の並び以下）で、次アクションは 2 列以上、重ならない・各区画は自分の中身の高さ。
+    // 入力（区画の中身の量と順）が同じなら、取込の経路（1 発言ずつ・ファイル取込）によらず同じ配置（決定的・履歴によらない）。契機がなければ動かない。
+    {
+      const HEAVY = [0, 1, 2].flatMap((k) => LINES.map((t) => `${t} ${k + 1}`));
+      const one = await boardApp();
+      one.app.commands['session.start']();
+      let k = 0;
+      for (const t of HEAVY) {
+        one.app.setDraft(t); assert.equal(one.app.submitDraft().ok, true, `重い会議: 取込 ${t}`); one.advance(PARAM.P181_MS + 100);
+        if (++k % 23 === 0) checkSpacing(one.app.getBoardModel(), `重い会議: ${k} 発言の後`);
+      }
+      one.advance(1600);
+      const mh = one.app.getBoardModel();
+      checkSpacing(mh, '重い会議');
+      assert.ok(mh.initialHeight > P194, `重い会議: 初期の並びの図の高さ ${mh.initialHeight} が ${P194} を超える（決め直しの契機を作れたデータ）`);
+      assert.equal(mh.reflowed, true, '重い会議: 決め直した');
+      assert.ok(figH(mh) <= mh.initialHeight + EPS, `重い会議: 決め直した高さ ${figH(mh)} は初期の並びの高さ ${mh.initialHeight} 以下`);
+      const snapH = layout(mh);
+      one.advance(5000); one.app.renderSvg(); one.advance(5000);
+      assert.equal(layout(one.app.getBoardModel()), snapH, '重い会議: 契機がなければ決め直した並びも動かない（冪等）');
+      const imp = await boardApp();
+      imp.app.commands['session.start']();
+      const text = HEAVY.join('\n');
+      assert.equal((await imp.app.importTextFile({ name: 'heavy.txt', type: 'text/plain', size: Buffer.byteLength(text), text })).ok, true, '重い会議: ファイル取込');
+      imp.advance(5000);
+      assert.equal(geo(imp.app.getBoardModel()), geo(mh), '重い会議: 入力が同じなら取込の経路によらず並び・枠は同じ（決定的・履歴によらない）');
+      for (const id of one.app.getDrawStyles().map((s) => s.id)) {
+        assert.equal(one.app.setDrawStyle(id).ok, true, id);
+        one.advance(1600);
+        checkSpacing(one.app.getBoardModel(), `重い会議 / ${id}`);
+      }
+    }
+    // 異常系: 要点が 1 件もない（0 件）でも帯への割り当ては作れ、重ならない（初期の並びのまま）
     const empty = await boardApp();
     empty.app.commands['session.start']();
-    checkRows(empty.app.getBoardModel(), '要点 0 件');
+    checkBands(empty.app.getBoardModel(), '要点 0 件');
+    checkReflow(empty.app.getBoardModel(), '要点 0 件');
     checkGeometry(empty.app.getBoardModel(), '要点 0 件');
     assert.deepEqual(net.calls, [], '外部へのリクエスト 0 件');
   } finally {
