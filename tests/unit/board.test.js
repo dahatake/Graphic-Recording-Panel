@@ -369,7 +369,7 @@ test('FR-079 AC-669 PARAM-186: 各並びの最も中身の高い区画の空き�
 test('FR-114 AC-666: 議論の流れはトピック・シーンの変わり目ごとの ①②③… のステップで、ステップの間ごとに矢印', () => {
   const flow = (L) => L.board.sections.find((s) => s.id === 'flow').elements;
   // 同じシーンの続く要点は 1 つのステップ、シーンが変われば（同じトピックでも）次のステップ、前のトピックに戻っても新しい番号
-  const g = [['まず市場の状況を整理しました', '市場の規模も見ました'], ['次に顧客の声を共有しました'], ['続いて試作を見せました'], ['改めて市場の話に戻りました']];
+  const g = [['market size review plan', 'market size review result'], ['次に顧客の声を共有しました'], ['続いて試作を見せました'], ['改めて市場の話に戻りました']];
   const L = boardLayout({ scenes: scenesOf(g), topics: [{ id: 'tA', sceneIds: ['s1', 's2', 's4'] }, { id: 'tB', sceneIds: ['s3'] }] });
   const els = flow(L);
   const bubbles = els.filter((e) => e.part === 'bubble');
@@ -379,7 +379,7 @@ test('FR-114 AC-666: 議論の流れはトピック・シーンの変わり目�
   assert.equal(els.filter((e) => e.part === 'person').length, 4, '各ステップに人物');
   assert.equal(els.filter((e) => e.part === 'arrow').length, 3, '隣り合うステップの間ごとに矢印');
   // 1 ステップの要点が PARAM-088 を超えると同じ番号の続きのステップ
-  const many = [Array.from({ length: GROUP_MAX + 2 }, (_, i) => `話題その${i + 1}を話しました`)];
+  const many = [Array.from({ length: GROUP_MAX + 2 }, (_, i) => `topic alpha item ${i + 1} done`)];
   const M2 = flow(boardLayout({ scenes: scenesOf(many), topics: [] }));
   assert.deepEqual(M2.filter((e) => e.part === 'badge').map((e) => e.n), [1, 1]);
   // 要素の id は取込の前後で同じ（後ろにステップが加わっても前のステップの id は変わらない）
@@ -571,4 +571,55 @@ test('FR-114 AC-664 AC-666: 詳細度に関わらず区画に要点を描き、�
     const m = app.getBoardModel();
     assert.equal(m.sections.find((s) => s.id === 'open').count, 1, `${lv}: 未決定は未決事項`);
   }
+});
+
+// FR-114 AC-666 PARAM-190 PARAM-015: シーンの区切りがない（1 シーン・同じトピック）会議でも、無音 10 秒以上（ちょうど 10 秒を含む）か話題語の入れ替わりで次のステップに区切る。
+// 区切りはその要点とそれより前の要点だけから決まり、後の発言で既存の区切りは動かない（決定的）
+test('FR-114 AC-666 PARAM-190: シーンなしの会議は無音 10 秒以上・話題語の入れ替わりでステップを区切り、9 秒・同じ話題語なら区切らない', () => {
+  const stepsOf = (texts, gapsMs) => {
+    const utts = texts.map((t, i) => ({ id: `u${i}`, receivedAt: gapsMs.slice(0, i + 1).reduce((a, b) => a + b, 0) }));
+    const scene = { id: 's1', heading: texts[0], status: 'confirmed', points: texts.map((t, i) => ({ id: `p${i}`, text: t, uid: `u${i}` })) };
+    const at = new Map(utts.map((u) => [u.id, u.receivedAt]));
+    const L = boardLayout({ scenes: [scene], topics: [] }, { receivedAtOf: (uid) => at.get(uid) ?? null });
+    return L.board.sections.find((s) => s.id === 'flow').elements.filter((e) => e.part === 'bubble').map((b) => b.pointIds);
+  };
+  const SAME = ['intake queue morning load', 'intake queue noon load', 'intake queue evening load', 'intake queue night load'];
+  const SWAP = ['intake queue morning load', 'billing refund policy draft', 'chatbot prototype demo scenario', 'vendor outsourcing cost estimate'];
+  assert.equal(stepsOf(SAME, [0, 10000, 10000, 10000]).length, 4, '無音ちょうど 10 秒で区切る');
+  assert.equal(stepsOf(SAME, [0, 9999, 9999, 9999]).length, 1, '9.999 秒・同じ話題語は区切らない');
+  assert.deepEqual(stepsOf(SAME, [0, 9000, 10000, 1000]), [['p0', 'p1'], ['p2', 'p3']], '区切りは無音の位置だけ');
+  assert.equal(stepsOf(SWAP, [0, 0, 0, 0]).length, 4, '話題語が入れ替われば無音がなくても区切る');
+  assert.equal(stepsOf(SAME, [0, 0, 0, 0]).length, 1, '話題語が同じで無音がなければ 1 つ');
+  assert.equal(stepsOf(SWAP, [0, 0, 0, 0]).length, 4);
+  assert.equal(stepsOf(SAME, [0, 0, 0, 0]).length, 1);
+  // 時刻が不明（receivedAtOf なし）のときは無音で区切らない。後の発言で既存の区切りは動かない（決定的）
+  const a = stepsOf(SAME.slice(0, 3), [0, 10000, 1000]); const b = stepsOf(SAME, [0, 10000, 1000, 10000]);
+  assert.deepEqual(b.slice(0, a.length - 1), a.slice(0, -1));
+  assert.deepEqual(stepsOf(SAME, [0, 10000, 1000, 10000]), b);
+});
+
+// FR-079 AC-669 PARAM-188 PARAM-189: 同じ並びの区画の枠の高さは揃えたまま、最も高い区画以外の要点のある区画の最後の要素の下の空き（枠の下端まで）は枠の高さの 20% 以下。
+// 要素の間隔と表の行の高さを広げて埋め（倍率 2 まで）、広げても超えるときだけ自分の中身の高さにする。位置は決定的で重ならない・はみ出さない
+test('FR-079 AC-669 PARAM-188 PARAM-189: 低い区画は間隔・表の行の高さを広げて空きを 20% 以下にし、重ならず、同じ入力から同じ配置', () => {
+  for (let n = 1; n <= MEETING.length; n++) {
+    const input = { scenes: scenesOf(MEETING.slice(0, n)), topics: [] };
+    const L = boardLayout(input);
+    checkBoard(L, `${n} 件`);
+    assert.deepEqual(boardLayout(input).board.sections, L.board.sections, '決定的');
+    const rows = new Map();
+    for (const s of L.board.sections) (rows.get(s.frame.y) ?? rows.set(s.frame.y, []).get(s.frame.y)).push(s);
+    for (const secs of rows.values()) {
+      const live = secs.filter((s) => s.count && s.elements.length);
+      const bottom = (s) => Math.max(...s.elements.map((e) => e.y + e.h));
+      const tallest = live.reduce((m, s) => (m && bottom(s) - s.frame.y <= bottom(m) - m.frame.y ? m : s), null);
+      for (const s of live) {
+        if (s === tallest) continue;
+        const gap = s.frame.y + s.frame.h - bottom(s);
+        assert.ok(gap >= 0 && gap <= 0.2 * s.frame.h + 0.01, `${n} 件: ${s.id} の空き ${gap} は枠 ${s.frame.h} の 20% 以下`);
+      }
+    }
+  }
+  // 次アクションの表は行の高さを広げる（rowH ≤ 倍率 2 × 行の高さ）。広げた表は枠からはみ出さない
+  const L = boardLayout({ scenes: scenesOf(MEETING), topics: [] });
+  for (const s of L.board.sections) for (const e of s.elements) if (e.part === 'table' && e.rowH) assert.ok(e.rowH <= 26 * 2 + 0.01 && e.rowH >= 26);
 });
