@@ -38,7 +38,7 @@ test('FR-118 AC-686: ファイル読込モードで .txt・.vtt を読み込ん�
     env.scheduler.advance(P.SINGLE_SEC * 1000);
     await app.flushLlm(); await flush();
     assert.deepEqual(finals(app), [...MEETING_LINES, ...MEETING_LINES], `${name}: 一覧に並ぶ`);
-    assert.equal(snapshot(app), before, `${name}: 図（シーン・SVG・アウトライン）は更新されない`);
+    assert.equal(snapshot(app), before, `${name}: 図（シーン・SVG）は更新されない`);
     assert.equal(h.llmReqs().length, reqs0, `${name}: LLM 向けの要求は 0 件`);
   }
 });

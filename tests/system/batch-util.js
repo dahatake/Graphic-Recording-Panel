@@ -56,5 +56,5 @@ export async function enableLlm(app) {
 }
 export const batchStyleItems = (app) => app.getCommandBar().items.filter((i) => i.group === 'batchStyle');
 export const modeItems = (app) => app.getCommandBar().items.filter((i) => i.group === 'inputMode');
-export const snapshot = (app) => JSON.stringify({ scenes: app.getState().scenes, svg: app.renderSvg(), outline: app.renderOutline(), refresh: app.getLiveRefresh().count });
+export const snapshot = (app) => JSON.stringify({ scenes: app.getState().scenes, svg: app.renderSvg(), refresh: app.getLiveRefresh().count });
 export const finals = (app) => app.getTranscript().finals.map((f) => f.text);
