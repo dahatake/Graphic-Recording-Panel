@@ -71,20 +71,26 @@ test('FR-039 AC-181: 記録中の取込でも記録は止まらず、その後�
   assert.equal(texts(app).at(-1), '取込後の手入力');
 });
 
-test('FR-039 AC-181: 一時停止・停止中に取り込んだ発話は認識文字列の一覧・図・テキスト一覧にも反映される', async () => {
+test('FR-039 AC-181: 準備中・一時停止・停止中に取り込んだ発話は認識文字列の一覧に並び、図は更新されない。バッチモードでスタイルを選んで実行すると図・テキスト一覧に反映される（2026-11-06）', async () => {
   for (const steps of [STATES.paused, STATES.stopped, STATES.preparing]) {
     const { app, env } = await newApp(); toDetail(app);
     for (const c of steps) app.commands[c]();
+    const st0 = app.getState().session;
+    const before = JSON.stringify([app.getState().scenes, app.renderSvg(), app.renderOutline()]);
     const r = await app.importTextFile(vttFile);
     assert.equal(r.ok, true);
     env.scheduler.advance(3000);
     assert.deepEqual(app.getTranscript().finals.map((f) => f.text), ['一件目', '二件目']);
+    assert.equal(JSON.stringify([app.getState().scenes, app.renderSvg(), app.renderOutline()]), before, '取込だけでは図は更新されない');
+    const run = await app.runBatch(app.getBatchStyles()[0].id);
+    assert.equal(run.ok, true, 'バッチモードでスタイルを選んで実行できる');
     const svg = app.renderSvg(); const outline = app.renderOutline();
     assert.ok(app.getState().scenes.length >= 1);
     for (const s of app.getState().scenes) {
       assert.ok(svg.includes(`data-scene-id="${s.id}"`));
       assert.ok(outline.includes(s.heading));
     }
+    assert.equal(app.getState().session, st0, '実行しても状態は変わらない');
   }
 });
 

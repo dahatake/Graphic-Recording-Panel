@@ -670,9 +670,14 @@ const NM_POINTS = [{ t: NM_ROSTER[0], suf: '戊' }, { t: NM_TAG, suf: '己' }];
 async function seedNames(app, env) {
   assert.equal(app.setLayoutTypes(['board']).ok, true, '会議ボード型');
   assert.notEqual(app.setTitleInfo({ participants: NM_ROSTER.join('\n') })?.ok, false, '参加者名簿を入力できる');
-  app.commands['session.start']();
   const vtt = ['WEBVTT', '', '00:00:01.000 --> 00:00:03.000', `<v ${NM_TAG}>受付の流れを振り返る</v>`, ''].join('\n');
   assert.equal((await app.importTextFile({ name: 'names.vtt', type: 'text/vtt', size: Buffer.byteLength(vtt), text: vtt })).ok, true, '.vtt を取り込める');
+  // 2026-11-06: 取込だけでは図は描かれない。ファイル読込モードでスタイルを選んで実行して描き（描画スタイルは元へ戻す）、音声取込モードの記録へ戻る
+  const ds = app.getDrawStyle();
+  assert.equal((await app.runBatch(app.getBatchStyles()[0].id)).ok, true, 'バッチで図を描く');
+  app.setDrawStyle(ds);
+  assert.equal(app.setInputMode('live').ok, true);
+  app.commands['session.start']();
   env.tick(3);
   NM_POINTS.forEach((x, i) => { app.setDraft(wrapT(x)); assert.equal(app.submitDraft().ok, true); env.tick(1); if (i === 0) app.commands['session.nextScene'](); });
 }

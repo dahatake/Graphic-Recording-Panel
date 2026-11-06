@@ -290,6 +290,15 @@ const pointCount = (svg) => new Set([...svg.matchAll(/data-point-id="([^"]+)"/g)
 const allPoints = (app) => app.getState().scenes.flatMap((s) => s.points);
 const norm = (s) => String(s ?? '').replace(/[\s。．.、,]/g, '');
 const lineOf = (text) => EXPECTED.find((e) => norm(e.text).includes(norm(text)) || norm(text).includes(norm(e.text)));
+// 2026-11-06: ファイルを取り込んだだけでは図は描かれない（AC-054）。ファイル読込モード（取込で自動的に切り替わる。AC-685）でスタイルを選んで実行して描く（LLM 無効のルールベース描画。AC-689）。描画スタイルは実行前のものへ戻す
+async function drawFile(app, { restoreStyle = true } = {}) {
+  const ds = app.getDrawStyle();
+  assert.equal(app.getInputMode().mode, 'batch', 'ファイル取込でファイル読込モードになる');
+  const r = await app.runBatch(app.getBatchStyles()[0].id);
+  assert.equal(r.ok, true, 'バッチで図を描く');
+  if (restoreStyle) app.setDrawStyle(ds);
+  return r;
+}
 
 // FR-114 AC-667
 test('FR-114 AC-667: 固定の文字起こし（TeamA との会議）を会議ボード型で 1 発言ずつ取り込むと、(a) 区画 6 以上 (b) 部品 8 種類以上 (c) 期待の表の区画 (d) 重なり・はみ出しなし (e) コントラスト 4.5 以上（15 の描画スタイル）(f) 600ms 以内の途中を経由する移動（動きを減らす設定ではなし）(g) 反映の時間 (h) 強調の左右端のずれ 0.5 文字以下（実ブラウザ・15 の描画スタイル）(i) 議論の流れの 4 つ以上のステップ（番号バッジ・吹き出し・人物が 1 組ずつ、間ごとに矢印）、外部へのリクエスト 0 件', async () => {
@@ -492,15 +501,18 @@ test('FR-114 AC-667: 固定の文字起こし（TeamA との会議）を会議�
       }
     }
 
-    // ---- 3. ファイル取込（.txt）: PARAM-158 以内に全発言が図に出て、区画は期待の表のとおり ----
+    // ---- 3. ファイル取込（.txt）: 取込だけでは図は描かれない。ファイル読込モードでスタイルを選んで実行すると PARAM-158 秒以内に全発言が図に出て、区画は期待の表のとおり ----
     const fi = await boardApp();
     const text = LINES.join('\n');
-    const t0 = performance.now(); const c0 = fi.env.clock.t;
     const r = await fi.app.importTextFile({ name: 'teama-meeting.txt', type: 'text/plain', size: Buffer.byteLength(text), text });
     assert.equal(r.ok, true, 'ファイル取込');
+    fi.advance(PARAM.P158_SEC * 1000);
+    assert.equal(pointCount(fi.app.renderSvg()), 0, 'ファイルを取り込んだだけでは図は描かれない');
+    const t0 = performance.now(); const c0 = fi.env.clock.t;
+    await drawFile(fi.app);
     let shown = false;
     for (let dt = 0; dt <= PARAM.P158_SEC * 1000 && !shown; dt += 100) { if (dt) fi.advance(100); shown = pointCount(fi.app.renderSvg()) >= LINES.length; }
-    assert.ok(shown && performance.now() - t0 <= PARAM.P158_SEC * 1000 && fi.env.clock.t - c0 <= PARAM.P158_SEC * 1000, `(g) ファイル取込: ${PARAM.P158_SEC} 秒以内に全発言が図に出る`);
+    assert.ok(shown && performance.now() - t0 <= PARAM.P158_SEC * 1000 && fi.env.clock.t - c0 <= PARAM.P158_SEC * 1000, `(g) バッチ（ファイル取込）: 実行から ${PARAM.P158_SEC} 秒以内に全発言が図に出る`);
     fi.advance(1600);
     const fsec = pointSections(fi.app.renderSvg());
     for (const p of allPoints(fi.app).filter((q) => lineOf(q.text))) assert.deepEqual([...(fsec.get(p.id) ?? [])], [lineOf(p.text).section], `(c) ファイル取込: 「${p.text}」`);
@@ -541,10 +553,13 @@ test('FR-114 AC-667: 固定の文字起こし（TeamA との会議）を会議�
     const sf = await boardShowApp();
     assert.equal(sf.app.setLiveShow(true).ok, true);
     assert.equal((await sf.app.importTextFile({ name: 'teama-meeting.txt', type: 'text/plain', size: Buffer.byteLength(text), text })).ok, true);
+    assert.equal(pointCount(sf.app.renderSvg()), 0, '(g) ショー ON・ファイル取込: 取込だけでは図は描かれず、演出も走らない');
+    assert.equal(sf.app.getLiveShow().running, false);
+    await drawFile(sf.app);
     sf.advance(PARAM.P158_SEC * 1000);
-    assert.ok(pointCount(sf.app.renderSvg()) >= LINES.length, `(g) ショー ON・ファイル取込: ${PARAM.P158_SEC} 秒以内に全発言が図に出る`);
-    assert.equal(sf.app.getLiveShow().running, false, `(g) ショー ON・ファイル取込: ${PARAM.P158_SEC} 秒の時点で演出の途中ではない`);
-    checkGeometry(sf.app.getBoardModel(), 'ショー ON・ファイル取込の後');
+    assert.ok(pointCount(sf.app.renderSvg()) >= LINES.length, `(g) ショー ON・バッチ: 実行から ${PARAM.P158_SEC} 秒以内に全発言が図に出る`);
+    assert.equal(sf.app.getLiveShow().running, false, `(g) ショー ON・バッチ: ${PARAM.P158_SEC} 秒の時点で演出の途中ではない`);
+    checkGeometry(sf.app.getBoardModel(), 'ショー ON・バッチの後');
     const sl = await boardShowApp({ speech: new FakeSpeech() });
     assert.equal(sl.app.setLiveShow(true).ok, true);
     sl.app.commands['session.start']();
@@ -649,9 +664,11 @@ test('FR-114 AC-680: ［設定］の「名前を表示しない」は既定オ�
   try {
     const { app, env, createApp } = await boardApp({ options: { relay } });
     assert.notEqual(app.setTitleInfo({ participants: ROSTER.join('\n') })?.ok, false, '参加者名簿を入力できる（1 行に 1 名）');
-    app.commands['session.start']();
     const vtt = ['WEBVTT', '', '00:00:01.000 --> 00:00:03.000', `<v ${TAG}>まず現行の受付の流れを振り返りました</v>`, ''].join('\n');
     assert.equal((await app.importTextFile({ name: 'names.vtt', type: 'text/vtt', size: Buffer.byteLength(vtt), text: vtt })).ok, true, '.vtt を取り込める');
+    await drawFile(app); // 取込だけでは図は描かれない（2026-11-06）。バッチで描いてから音声取込モードの記録へ戻る
+    assert.equal(app.setInputMode('live').ok, true);
+    app.commands['session.start']();
     env.tick(3); env.scheduler.advance(3000);
     const views = async () => {
       const nC = env.canvasFactory.log.texts.length; const nD = env.downloads.length;
@@ -970,9 +987,9 @@ test('FR-114 AC-669 AC-666: 要点の量が偏った会議を 15 の描画スタ
       one.advance(5000); one.app.renderSvg(); one.advance(5000);
       assert.equal(layout(one.app.getBoardModel()), snapH, '重い会議: 契機がなければ決め直した並びも動かない（冪等）');
       const imp = await boardApp();
-      imp.app.commands['session.start']();
       const text = HEAVY.join('\n');
       assert.equal((await imp.app.importTextFile({ name: 'heavy.txt', type: 'text/plain', size: Buffer.byteLength(text), text })).ok, true, '重い会議: ファイル取込');
+      await drawFile(imp.app); // 取込だけでは図は描かれない（2026-11-06）。バッチで描く
       imp.advance(5000);
       assert.equal(geo(imp.app.getBoardModel()), geo(mh), '重い会議: 入力が同じなら取込の経路によらず並び・枠は同じ（決定的・履歴によらない）');
       for (const id of one.app.getDrawStyles().map((s) => s.id)) {
@@ -1105,6 +1122,7 @@ test('FR-114 AC-681 AC-680: 参加者名簿の入力欄（ラベル・既定は�
     const b = await boardApp();
     assert.equal(b.app.setTitleInfo({ participants: '名簿甲\n名簿乙' }).ok, true);
     assert.equal((await b.app.importTextFile({ name: 'names.vtt', type: 'text/vtt', size: Buffer.byteLength(vtt), text: vtt })).ok, true, '.vtt を取り込める');
+    await drawFile(b.app); // 取込だけでは図は描かれない（2026-11-06）。バッチで描く
     b.advance(1600);
     const mem = parseSvg(b.app.renderSvg()).all.filter((n) => n.attrs['data-board-name'] === 'participant').map((n) => n.text.trim());
     assert.deepEqual(mem, ['名簿甲', '名簿乙', clip(LONG), 'Other'], '(b) 参加メンバー: 名簿の名前（入力順）→名簿にない話者タグの名前（最初に現れた順。20 文字以内）');

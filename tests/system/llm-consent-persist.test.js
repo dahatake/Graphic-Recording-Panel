@@ -209,10 +209,14 @@ test('NFR-PRIV-003 AC-358: 会議ボード型の参加者名簿と .vtt の話�
   const TAGS = ['話者SPK渡辺', '話者SPK小林'];
   const NAMES = [...ROSTER, ...TAGS];
   assert.notEqual(app.setTitleInfo({ participants: ROSTER.join('\n') })?.ok, false, '参加者名簿を入力できる');
-  app.commands['session.start']();
   const vtt = ['WEBVTT', '', '00:00:01.000 --> 00:00:03.000', `<v ${TAGS[0]}>受付の流れを振り返る</v>`, '',
     '00:00:04.000 --> 00:00:06.000', `<v ${TAGS[1]}>窓口ごとの負荷の差を見る</v>`, ''].join('\n');
   assert.equal((await app.importTextFile({ name: 'names.vtt', type: 'text/vtt', size: Buffer.byteLength(vtt), text: vtt })).ok, true, '.vtt を取り込める');
+  // 2026-11-06: ファイルを読み込んだだけでは図は描かれない。ファイル読込モードでスタイルを選んで実行し、図に名前を載せてから、音声取込モードの記録に戻る
+  assert.equal((await app.runBatch(app.getBatchStyles()[0].id)).ok, true, 'バッチで図を描く');
+  await app.flushLlm();
+  assert.equal(app.setInputMode('live').ok, true);
+  app.commands['session.start']();
   env.tick(3);
   const svg = app.renderSvg();
   for (const n of NAMES) assert.ok(svg.includes(n), `前提: ${n} は会議ボード型の図に載る（AC-668。送らないのは表示しないからではない）`);

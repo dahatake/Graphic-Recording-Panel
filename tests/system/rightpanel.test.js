@@ -176,19 +176,38 @@ test('FR-014 AC-054: 手入力の確定結果が、送信から 3 秒（PARAM-15
   assert.ok(app.renderSvg().includes('手入力の要点'));
 });
 
-test('FR-014 AC-054: ファイル取込の確定結果（100 行）が、取込の完了から 3 秒（PARAM-158）以内に図へ反映される', async () => {
+// FR-014 AC-054（2026-11-06 の依頼: ファイルを読み込んだだけでは図を描かない。一覧には PARAM-158 秒以内に並ぶ。バッチ描画は batch.test.js）
+test('FR-014 AC-054: ファイル取込（100 行）の発話は、取込の完了から 3 秒（PARAM-158）以内に認識文字列の一覧に並ぶが、図は更新されない（ファイルを読み込んだだけでは図を描かない）', async () => {
   const { app, env } = await newApp(); toDetail(app);
   app.commands['session.start']();
   const lines = Array.from({ length: 100 }, (_, i) => `取込行${i + 1}の要点`);
+  const before = JSON.stringify([app.getState().scenes, app.renderSvg(), app.getLiveRefresh().count]);
   const r = await app.importTextFile({ name: 'm.txt', type: 'text/plain', size: 2000, text: lines.join('\n') });
   assert.equal(r.ok, true);
   env.scheduler.advance(SINGLE_MS);
-  const svg = app.renderSvg();
-  for (const l of lines) assert.ok(svg.includes(l), `${l} が図にある`);
+  assert.deepEqual(finals(app), lines, '一覧に並ぶ');
+  env.scheduler.advance(REFLECT_MS * 2);
+  assert.equal(JSON.stringify([app.getState().scenes, app.renderSvg(), app.getLiveRefresh().count]), before, '図は更新されない（更新間隔を待っても）');
+  assert.ok(!app.renderSvg().includes('取込行1の要点'));
 });
 
-// FR-014 AC-054 / FR-039 AC-180 AC-181: 取込は状態によらず図に反映。受け付けられない手入力（準備中）・不正取込だけが図を変えない
-test('FR-014 AC-054 異常系: 受け付けられなかった手入力・不正な取込は図を変えない（準備中の取込は反映される）', async () => {
+// FR-014 AC-053 AC-521（ファイル由来の発話は更新の対象にしない）: 手入力・音声の確定結果は図に加わり、同じ更新間隔にファイル由来の発話は加わらない
+test('FR-014 AC-053: ファイル由来の発話はライブの更新の対象外で、同じ更新間隔に確定した音声の結果だけが描き足される', async () => {
+  const { app, env } = await newApp(); toDetail(app);
+  startRec(app);
+  assert.equal((await app.importTextFile({ name: 'f.txt', type: 'text/plain', size: 20, text: 'ファイルだけの要点\n' })).ok, true);
+  env.speech.emit('音声の要点', true);
+  const before = app.getLiveRefresh().count;
+  env.scheduler.advance(REFLECT_MS);
+  assert.equal(app.getLiveRefresh().count, before + 1);
+  env.scheduler.advance(PARAM.RENDER_SEC * 1000);
+  assert.ok(app.renderSvg().includes('音声の要点'));
+  assert.ok(!app.renderSvg().includes('ファイルだけの要点'), 'ファイル由来の発話は図に加わらない');
+  assert.ok(finals(app).includes('ファイルだけの要点'), '一覧には並ぶ');
+});
+
+// FR-014 AC-054 / FR-039 AC-180 AC-181: 取込は状態によらず一覧に並ぶ（図は更新されない）。受け付けられない手入力（準備中）・不正取込は何も変えない
+test('FR-014 AC-054 異常系: 受け付けられなかった手入力・不正な取込は一覧も図も変えない（準備中の取込は一覧に並ぶが図は更新されない）', async () => {
   const { app, env } = await newApp();
   app.setDraft('準備中の入力');
   assert.equal(app.submitDraft().ok, false);
@@ -199,9 +218,12 @@ test('FR-014 AC-054 異常系: 受け付けられなかった手入力・不正�
   assert.equal(bad.ok, false);
   env.scheduler.advance(REFLECT_MS * 2);
   assert.ok(!app.renderSvg().includes('不正な取込'));
+  assert.deepEqual(finals(app), []);
   assert.equal(app.getState().scenes.length, 0);
   const ok = await app.importTextFile({ name: 'x.txt', type: 'text/plain', size: 5, text: '準備中の取込' });
   assert.equal(ok.ok, true);
   env.scheduler.advance(SINGLE_MS);
-  assert.ok(app.renderSvg().includes('準備中の取込'));
+  assert.deepEqual(finals(app), ['準備中の取込']);
+  assert.equal(app.getState().scenes.length, 0, '図は更新されない');
+  assert.ok(!app.renderSvg().includes('準備中の取込'));
 });

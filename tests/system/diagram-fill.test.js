@@ -71,6 +71,8 @@ async function seedUtterance(page, text) {
   // AC-647: 起動直後は記録中でないため、入力欄の送信ではなくファイル取り込みで種をまく（記録を開始しない）。
   await page.evaluate((t) => globalThis.__app.importTextFile({ name: 'seed.txt', type: 'text/plain', size: t.length, text: t }), text);
   await page.waitForFunction((t) => globalThis.__app.getState().utterances.some((u) => u.text.includes(t)), text);
+  // 2026-11-06: 取込だけでは図は描かれない。ファイル読込モード（取込で自動的に切り替わる）でスタイルを選んで実行し、図を描く
+  await page.evaluate(() => globalThis.__app.runBatch(globalThis.__app.getBatchStyles()[0].id));
 }
 
 for (const size of [{ width: 1280, height: 720 }, { width: 1920, height: 1080 }]) {

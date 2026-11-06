@@ -53,6 +53,31 @@ test('FR-080 AC-435: 初期値の周期では、起動から 10 秒の時点ち�
   assert.equal(count(app), 1, '再配置は次の周期の時点まで行われない');
 });
 
+// FR-080 AC-435（依頼 2026-11-06: バッチモードの図式化（FR-118）では実行の完了時に暫定の位置へ表示。ファイルの取込だけでは要素は加わらない）
+test('FR-080 AC-435: ファイルの取込だけでは要素は加わらず（周期の時点でも再配置されない）、バッチモードの図式化では実行の完了時に要素が暫定の位置・重ならない位置に表示され、その後の周期の時点で再配置される', async () => {
+  const { app, scheduler } = await arrangeApp();
+  toDetail(app);
+  const text = ['予算の見直しが必要です', 'コストが高くて困った', '来月のリリース計画を決める'].join('\n');
+  assert.equal((await app.importTextFile({ name: 'm.txt', type: 'text/plain', size: Buffer.byteLength(text), text })).ok, true);
+  scheduler.advanceTo(PERIOD * 2 + 1);
+  assert.equal(elements(app).filter((x) => x.kind === 'point').length, 0, '取込だけでは要素は加わらない');
+  assert.equal(count(app), 0, '要素が加わっていないので周期の時点でも再配置されない');
+  const t0 = scheduler.t;
+  const r = await app.runBatch(app.getBatchStyles()[0].id);
+  assert.equal(r.ok, true);
+  const pts = elements(app).filter((x) => x.kind === 'point');
+  assert.ok(pts.length >= 3, '実行の完了時に要素が加わる');
+  assert.ok(pts.every((x) => x.provisional === true), '暫定の位置に表示される');
+  assertNoOverlap(app);
+  assert.ok(scheduler.t - t0 <= PARAM.SINGLE_SEC * 1000);
+  const next = Math.ceil((scheduler.t + 1) / PERIOD) * PERIOD;
+  scheduler.advanceTo(next - 1);
+  assert.equal(count(app), 0, '周期の時点の前には再配置されない');
+  scheduler.advanceTo(next);
+  assert.equal(count(app), 1, '次の周期の時点で FR-079 の規則で再配置される');
+  assert.ok(elements(app).every((x) => x.provisional === false));
+});
+
 // FR-080 AC-435
 test('FR-080 AC-435: ライブの新しい要点は受付の後の最初の更新間隔の時点（受付から設定した更新間隔以内）に追加先のまとまりの読み順の末尾・重ならない位置に暫定表示され、それより前には加わらず、前のまとまりの要素は動かず、次の周期の時点で再配置される', async () => {
   const { app, env, scheduler } = await seededDetail();

@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { newApp, FakeSpeech, WEB } from './helpers.js';
+import { P } from './batch-util.js';
 
 const REQUIRED = ['session.start', 'session.pause', 'session.resume', 'session.stop', 'save.png', 'save.svg', 'save.pdf',
   'lang.ja', 'lang.en', 'view.2d', 'view.3d', 'presentation.start', 'presentation.pause', 'presentation.resume', 'presentation.stop'];
@@ -143,4 +144,90 @@ test('NFR-UX-001 AC-061 異常系: 実行時（全操作）に外部取得系の
   } finally {
     for (const k of names) { if (saved[k]) Object.defineProperty(globalThis, k, saved[k]); else delete globalThis[k]; }
   }
+});
+
+// NFR-UX-001 AC-696（契約: tests/system/CONTRACT-BATCH.md。入力モード・バッチのスタイルのボタンが、既存の画風のメニューと同じデザイン基盤で、画面全体で統一したデザインになる。PARAM-006=640px、PARAM-007=4.5、PARAM-162=300ms）
+test('NFR-UX-001 AC-696: 入力モード（FR-117）とスタイルのボタン（FR-118）は画風のメニュー（AC-414）と同じ項目の形で、独自の色・書体・角丸の直指定を持たず、アイコンだけに頼らず名称の文字とアクセシブルな名前を持つ', async () => {
+  const { app } = await newApp();
+  await app.importTextFile({ name: 'm.txt', type: 'text/plain', size: 12, text: '予算の見直し\n' });
+  const items = app.getCommandBar().items;
+  const ref = Object.keys(items.find((i) => i.group === 'drawStyle')).sort();
+  for (const g of ['inputMode', 'batchStyle']) {
+    const gi = items.filter((i) => i.group === g);
+    assert.ok(gi.length >= 2, `${g} の項目`);
+    for (const it of gi) {
+      for (const k of ref.filter((k) => !['selectedMark', 'pressed'].includes(k))) assert.ok(k in it, `${g}: 画風の項目と同じ項目の形（${k}）`);
+      assert.ok(it.label.trim() && it.accessibleName === it.label && it.labelVisible === true, `${g}: 名称の文字とアクセシブルな名前`);
+    }
+  }
+  // 見た目の定義: 入力モード・スタイルのボタンを対象にした規則は、色・書体・角丸を名前付きのトークン（var(--…)）から参照する
+  const css = fs.readdirSync(path.join(WEB, 'styles')).filter((f) => f.endsWith('.css')).map((f) => read('styles', f)).join('\n');
+  for (const m of css.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+    if (!/inputMode|input-mode|batchStyle|batch-style/.test(m[1])) continue;
+    for (const d of m[2].matchAll(/(color|background(?:-color)?|border(?:-[a-z]+)?-color|border|font-family|border-radius|outline)\s*:\s*([^;]+);/g)) {
+      const v = d[2];
+      assert.ok(!/#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(/.test(v), `色の直指定がない（${m[1].trim()} { ${d[1]}: ${v} }）`);
+      if (/font-family|border-radius/.test(d[1])) assert.match(v, /var\(--|inherit/, `${d[1]} はトークンまたは継承（${m[1].trim()}）`);
+    }
+  }
+});
+
+test('NFR-UX-001 AC-696 実ブラウザ: ライト・ダーク・ハイコントラストで文字と枠のコントラスト比が 4.5 以上（ハイコントラストは枠が見える）、幅 640px 以下でも欠けず、キーボードで操作でき焦点が見え、動きの軽減で遷移が省かれる', async () => {
+  const { serveWeb, launch, openApp } = await import('./perf-util.js');
+  const srv = await serveWeb(); const browser = await launch();
+  const probe = () => {
+    const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+    const parse = (s) => { const m = String(s).match(/rgba?\(([^)]+)\)/); if (!m) return null; const [r, g, b, a = 1] = m[1].split(/[ ,/]+/).filter(Boolean).map(Number); return { r, g, b, a }; };
+    const L = (c) => 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
+    const ratio = (x, y) => { const [p, q] = [L(x), L(y)].sort((a, b) => b - a); return (p + 0.05) / (q + 0.05); };
+    const bgOf = (el) => { for (let e = el; e; e = e.parentElement) { const c = parse(getComputedStyle(e).backgroundColor); if (c && c.a > 0.99) return c; } return { r: 255, g: 255, b: 255, a: 1 }; };
+    return [...document.querySelectorAll('button[data-command^="inputMode.set:"], button[data-command^="batchStyle.set:"]')].map((el) => {
+      const cs = getComputedStyle(el); const bg = bgOf(el); const fg = parse(cs.color); const bc = parse(cs.borderTopColor);
+      const r = el.getBoundingClientRect();
+      return { cmd: el.dataset.command, text: ratio(fg, bg), border: parseFloat(cs.borderTopWidth) > 0 && bc && bc.a > 0 ? ratio(bc, bgOf(el.parentElement ?? el)) : null, borderW: parseFloat(cs.borderTopWidth), rect: { x: r.x, w: r.width, h: r.height, y: r.y }, name: (el.innerText || '').trim(), aria: el.getAttribute('aria-label'), transition: cs.transitionDuration };
+    });
+  };
+  try {
+    const { ctx, page } = await openApp(browser, srv.url, { width: 1280, height: 1000 });
+    try {
+      await page.evaluate(async () => { await globalThis.__app.importTextFile({ name: 'm.txt', type: 'text/plain', size: 24, text: '予算の見直し\nコストが高い\n' }); });
+      for (const scheme of ['light', 'dark']) {
+        await page.emulateMedia({ colorScheme: scheme, forcedColors: 'none' });
+        const rows = await page.evaluate(probe);
+        assert.equal(rows.length, 10, '入力モード 2 ＋ スタイル 8');
+        for (const r of rows) {
+          assert.ok(r.text >= P.CONTRAST, `${scheme} ${r.cmd}: 文字のコントラスト ${r.text.toFixed(2)} >= ${P.CONTRAST}`);
+          if (r.border !== null) assert.ok(r.border >= P.CONTRAST, `${scheme} ${r.cmd}: 枠のコントラスト ${r.border.toFixed(2)} >= ${P.CONTRAST}`);
+          assert.ok(r.name, `${r.cmd}: 名称の文字がある（アイコンだけに頼らない）`);
+        }
+      }
+      await page.emulateMedia({ forcedColors: 'active' });
+      const hc = await page.evaluate(probe);
+      for (const r of hc) assert.ok(r.borderW > 0 && r.rect.w > 0, `ハイコントラスト ${r.cmd}: 枠が表示される`);
+      await page.emulateMedia({ forcedColors: 'none', reducedMotion: 'no-preference' });
+      for (const r of await page.evaluate(probe)) for (const t of r.transition.split(',')) assert.ok(parseFloat(t) * (/ms$/.test(t.trim()) ? 1 : 1000) <= P.TRANSITION_MS, `${r.cmd}: 遷移は ${P.TRANSITION_MS}ms 以内`);
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      for (const r of await page.evaluate(probe)) for (const t of r.transition.split(',')) assert.equal(parseFloat(t), 0, `${r.cmd}: 動きの軽減で遷移なし`);
+      // キーボード: Tab で到達でき、焦点の輪郭が見える
+      await page.locator('button[data-command="inputMode.set:live"]').first().focus();
+      await page.keyboard.press('Tab');
+      const f = await page.evaluate(() => { const e = document.activeElement; const cs = getComputedStyle(e); return { ok: !!e.matches('button'), outline: cs.outlineStyle, w: parseFloat(cs.outlineWidth) }; });
+      assert.ok(f.ok && f.outline !== 'none' && f.w > 0, '焦点の表示がある');
+    } finally { await ctx.close(); }
+    // 幅 640px 以下（積み重ねまたは折り返し。欠けない・横スクロールなし・重ならない）
+    for (const width of [P.NARROW, 480]) {
+      const { ctx, page } = await openApp(browser, srv.url, { width, height: 900 });
+      try {
+        await page.evaluate(async () => { await globalThis.__app.importTextFile({ name: 'm.txt', type: 'text/plain', size: 24, text: '予算の見直し\nコストが高い\n' }); });
+        const rows = await page.evaluate(probe);
+        assert.equal(rows.length, 10);
+        for (const r of rows) assert.ok(r.rect.x >= 0 && r.rect.x + r.rect.w <= width + 1 && r.rect.w > 0 && r.rect.h > 0, `${width}px: ${r.cmd} が欠けない（x=${r.rect.x}, w=${r.rect.w}）`);
+        for (let i = 0; i < rows.length; i++) for (let j = i + 1; j < rows.length; j++) {
+          const a = rows[i].rect; const b = rows[j].rect;
+          assert.ok(!(a.x < b.x + b.w - 1 && b.x < a.x + a.w - 1 && a.y < b.y + b.h - 1 && b.y < a.y + a.h - 1), `${width}px: ${rows[i].cmd} と ${rows[j].cmd} が重ならない`);
+        }
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true, `${width}px: ページ全体の横スクロールがない`);
+      } finally { await ctx.close(); }
+    }
+  } finally { await browser.close(); await srv.close(); }
 });
