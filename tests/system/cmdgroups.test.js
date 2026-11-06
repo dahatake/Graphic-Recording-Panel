@@ -80,7 +80,7 @@ test('NFR-UX-011 AC-459: 「画風」グループは「表示」の直後・「�
   const exp = groups.find((g) => g.id === 'export');
   const ds = app.getDrawStyles().map((s) => `drawStyle.set:${s.id}`);
   assert.equal(exp.commands.at(-1), 'prompt.copy', '図の書き出しの末尾');
-  assert.deepEqual(groups.map((g) => g.id).slice(2, 5), ['view', 'drawStyle', 'layoutType']);
+  assert.deepEqual(groups.map((g) => g.id).slice(3, 6), ['view', 'drawStyle', 'layoutType']);
   for (const w of [WIDE, NARROW]) {
     const lay = byLayout(app, w);
     const pos = new Map(lay.items.map((i) => [i.command, i.rect]));
