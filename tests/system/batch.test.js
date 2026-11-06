@@ -6,6 +6,7 @@ import { performance } from 'node:perf_hooks';
 import { newApp } from './helpers.js';
 import { serveWeb, launch, openApp } from './perf-util.js';
 import { weight, P, toFile, TXT, VTT, MEETING_LINES, maxSizeTxt, makeRelay, bootApp, enableLlm, batchStyleItems, snapshot, finals } from './batch-util.js';
+const deepKeys = (o, acc = []) => { if (o && typeof o === 'object') for (const [k, v] of Object.entries(o)) { acc.push(k); deepKeys(v, acc); } return acc; };
 
 const STATES = { preparing: [], recording: ['session.start'], paused: ['session.start', 'session.pause'], stopped: ['session.start', 'session.stop'] };
 const flush = async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
@@ -108,7 +109,7 @@ test('FR-118 AC-687 実ブラウザ: スタイルの項目は <button aria-press
 });
 
 // FR-118 AC-688
-test('FR-118 AC-688: LLM 連携が有効・同意済みでスタイルを選ぶと、LLM 向けの要求が 1 件以上送られ各要求にそのスタイルの指示が含まれる。応答は検査・サニタイズを通ったものだけが使われ、全シーンが図に描かれ、画風がそのスタイルになる。外部への通信は同一オリジンの中継だけ', async () => {
+test('FR-118 AC-688: LLM 連携が有効・同意済みでスタイルを選ぶと、LLM 向けの要求が 1 件以上送られ各要求にそのスタイルの ID・名称だけが含まれる（Prompt 本文は端末から送らない）。応答は検査・サニタイズを通ったものだけが使われ、全シーンが図に描かれ、画風がそのスタイルになる。外部への通信は同一オリジンの中継だけ', async () => {
   const probe = await newApp();
   const key = probe.app.getPartKeys()[0];
   const answer = { objects: [{ key }, { key: '<script>alert(1)</script>' }, { key: '../../etc/passwd' }], people: [], emotions: [], metaphors: [], points: ['<img src=x onerror=alert(1)>'] };
@@ -122,7 +123,13 @@ test('FR-118 AC-688: LLM 連携が有効・同意済みでスタイルを選ぶ�
     assert.equal(r.ok, true, `${style.id}: 実行できる`);
     const reqs = h.llmReqs().slice(n0);
     assert.ok(reqs.length >= 1, `${style.id}: LLM 向けの要求が 1 件以上`);
-    for (const q of reqs) assert.ok(JSON.stringify(q.body).includes(JSON.stringify(style.instruction).slice(1, -1)), `${style.id}: 各要求にそのスタイルの指示が含まれる`);
+    // AC-690・AC-358: 端末が送るのは styleId・styleName だけ。Prompt 本文（instruction）は送らない（サーバーが ID から固定文を付与）
+    assert.ok(!('instruction' in style), `${style.id}: getBatchStyles() の項目に instruction を持たない`);
+    for (const q of reqs) {
+      assert.equal(q.body.styleId, style.id, `${style.id}: 各要求に body.styleId がある`);
+      assert.equal(q.body.styleName, style.label, `${style.id}: 各要求に body.styleName（スタイル名）がある`);
+      assert.ok(!('instruction' in q.body) && !deepKeys(q.body).some((k) => /instruction|prompt/i.test(k)), `${style.id}: 要求に instruction（Prompt 本文）を含まない`);
+    }
     assert.ok(h.log.every((q) => q.path.startsWith('/api/')), '同一オリジンの中継（/api/）以外へのリクエストは 0 件');
     const svg = app.renderSvg();
     assert.ok(app.getState().scenes.length >= 1);

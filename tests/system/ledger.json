@@ -142,7 +142,7 @@
     "AC-311": "sha256:282ba030d75fd483",
     "AC-312": "sha256:6c5c4c5217a9bb9b",
     "AC-334": "sha256:b9d97452a5ca917d",
-    "AC-358": "sha256:321753d6d1b587f7",
+    "AC-358": "sha256:ae35b29593e85a85",
     "AC-359": "sha256:be48cffd5d67fa0c",
     "AC-360": "sha256:53839b89932f7c68",
     "AC-366": "sha256:4c4ba8a297894acc",
@@ -9727,6 +9727,18 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-11-07T00:00:25+09:00",
+          "by": "test-designer",
+          "change": "ac_ids: ['AC-686', 'AC-687', 'AC-688'] -> ['AC-688']",
+          "reason": "AC-688 改訂: 要求は styleId・styleName だけで instruction を送らない"
+        },
+        {
+          "at": "2026-11-07T00:00:34+09:00",
+          "by": "test-designer",
+          "change": "ac_ids: ['AC-688'] -> ['AC-686', 'AC-687', 'AC-688']",
+          "reason": "AC-688 改訂: 要求は styleId・styleName だけで instruction を送らない（AC 復元）"
         }
       ]
     },
