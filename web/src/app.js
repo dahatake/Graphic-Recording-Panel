@@ -42,6 +42,7 @@ import { llmModule } from './llm.js';
 import { llmDrawModule } from './llmdraw.js';
 import { relayoutModule } from './relayout.js';
 import { liveRefreshModule } from './liverefresh.js';
+import { inputModeModule } from './inputmode.js';
 import { budgetModule } from './budget.js';
 import { presentExportModule } from './presentexport.js';
 import { speechSettingsModule } from './speechsettings.js';
@@ -242,7 +243,7 @@ export async function createApp(options = {}) {
     //   戻り値は、すぐに決まったときはそのシーンの id、待ちのときは null。
     breakScene(onScene) {
       if (ctx.heldCount() > 0) {
-        const u = state.utterances[state.utterances.length - 1];
+        const u = [...state.utterances].reverse().find((x) => x.held);
         change(() => { u.breakAfter = true; });
         if (typeof onScene === 'function') (pendingBreaks.get(u.id) ?? pendingBreaks.set(u.id, []).get(u.id)).push(onScene);
         return null;
@@ -266,23 +267,25 @@ export async function createApp(options = {}) {
       const at0 = opts.at ?? now();
       let flushed = [];
       change((s) => {
-        if (!opts.hold) flushed = ingestHeld(s);
+        if (!opts.hold && !opts.noIngest) flushed = ingestHeld(s);
         for (const [i, raw] of list.entries()) {
           const at = Array.isArray(opts.ats) && opts.ats.length === list.length ? opts.ats[i] : at0;
           // FR-093 AC-550: 用語集の別表記は、発話として記録する時点で正しい表記に置き換える（置き換える前は rawText に残す。FR-024 AC-572）
           const t = ctx.applyGlossary ? (ctx.applyGlossary(raw).trim() || raw) : raw;
           const u = { id: nextId('u'), text: t, rawText: raw, receivedAt: at };
           if (opts.hold) u.held = true;
+          if (opts.noIngest) u.fromFile = true; // FR-014 AC-054: ファイル由来の発話は図に取り込まない（バッチモード FR-118 が使う）
           s.utterances.push(u);
-          if (!opts.hold) ingestOne(s, s.utterances.length - 1, opts.noGapSplit === true);
+          if (!opts.hold && !opts.noIngest) ingestOne(s, s.utterances.length - 1, opts.noGapSplit === true);
         }
       });
       if (opts.hold) { emit('utterance:held', list.length); return list.length; }
+      if (opts.noIngest) { for (const t of flushed) emit('utterance', t); emit('utterance:file', list.length); return list.length; }
       for (const t of [...flushed, ...list]) emit('utterance', t);
       return list.length;
     },
     // FR-014 AC-521: 図にまだ取り込んでいないライブの発話（held）の件数と、それらをまとめて 1 回の状態変更で取り込む操作（取り込んだ件数を返す）
-    heldCount: () => { let n = 0; for (let i = state.utterances.length - 1; i >= 0 && state.utterances[i].held; i--) n++; return n; },
+    heldCount: () => { let n = 0; for (let i = state.utterances.length - 1; i >= 0; i--) { const u = state.utterances[i]; if (u.held) n++; else if (!u.fromFile) break; } return n; },
     flushHeld() {
       if (!ctx.heldCount()) return 0;
       let done = [];
@@ -296,7 +299,7 @@ export async function createApp(options = {}) {
   function ingestOne(s, idx, noGapSplit) {
     const u = s.utterances[idx]; const t = u.text; const uid = u.id;
     const cur = s.scenes[s.scenes.length - 1];
-    const prevAt = idx > 0 ? s.utterances[idx - 1].receivedAt : null;
+    const prevAt = idx > 0 ? (s.utterances.slice(0, idx).reverse().find((x) => !x.fromFile)?.receivedAt ?? null) : null;
     const gap = !noGapSplit && prevAt != null && u.receivedAt - prevAt > gapMs;
     if (cur && cur.status === 'in_progress' && !breakScene && !gap) {
       const n0 = cur.points.length;
@@ -314,10 +317,11 @@ export async function createApp(options = {}) {
   // held の発話（末尾に続く）を古い順に取り込み、印を外す。取り込んだ本文の配列を返す
   function ingestHeld(s) {
     let i = s.utterances.length;
-    while (i > 0 && s.utterances[i - 1].held) i--;
+    while (i > 0 && (s.utterances[i - 1].held || s.utterances[i - 1].fromFile)) i--;
     const out = [];
     for (; i < s.utterances.length; i++) {
       const u = s.utterances[i];
+      if (u.fromFile) continue; // ファイル由来の発話は図に取り込まない（FR-014 AC-054）
       delete u.held; ingestOne(s, i, false); out.push(u.text);
       // 待ちの間に押された［次のシーン］（session.nextScene）の区切り: この発話までを前のシーンとして確定し、次の発話から新しいシーンにする
       if (u.breakAfter) {
@@ -420,7 +424,7 @@ export async function createApp(options = {}) {
       if (state.session !== 'recording') return;
       // FR-014 AC-521: 図にまだ入っていないライブの発話（held）があるときは、区切りをその発話に保持し（breakAfter）、
       // 更新の時点の取り込み（ingestHeld）で区切りの前・後のシーンに分ける（区切りの前の発話は前のシーン、後の発話は新しいシーン）
-      if (ctx.heldCount() > 0) { change((s) => { s.utterances[s.utterances.length - 1].breakAfter = true; }); return; }
+      if (ctx.heldCount() > 0) { change((s) => { [...s.utterances].reverse().find((x) => x.held).breakAfter = true; }); return; }
       const cur = state.scenes[state.scenes.length - 1];
       if (!cur || cur.status !== 'in_progress') return;
       breakScene = true;
@@ -528,7 +532,7 @@ export async function createApp(options = {}) {
   app.subscribe = (fn) => on('change', fn);
   app.getPanelRenderer = (id) => panelRenderers.get(id) ?? null;
   app.use = async (mod) => { await mod(ctx); };
-  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, viewStateModule, sessionModule, settingsModule, stylePickerModule, autoLayoutModule, layoutKindsModule, rpgModule, rpgAudioModule, llmModule, llmDrawModule, stylePresetModule, workshopModule, boardModule, relayoutModule, liveRefreshModule, speechSettingsModule, budgetModule, presentExportModule, meetingModule, minutesModule, agendaTimerModule, editHistoryModule, facilitationModule, kindStylesModule, glossaryModule, agendaViewModule, reviewModule, previewModule, visibilityModule,   conflictModule, voteModule, rolesModule, projectionModule, onboardingModule, drawModule, cinematicModule, gaugeModule, personVariantsModule, liveShowModule, boardNamesModule, ...(options.modules ?? [])]) await app.use(mod);
+  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, viewStateModule, sessionModule, settingsModule, stylePickerModule, autoLayoutModule, layoutKindsModule, rpgModule, rpgAudioModule, llmModule, llmDrawModule, stylePresetModule, workshopModule, boardModule, relayoutModule, liveRefreshModule, speechSettingsModule, budgetModule, presentExportModule, meetingModule, minutesModule, agendaTimerModule, editHistoryModule, facilitationModule, kindStylesModule, glossaryModule, agendaViewModule, reviewModule, previewModule, visibilityModule,   conflictModule, voteModule, rolesModule, projectionModule, onboardingModule, drawModule, cinematicModule, gaugeModule, personVariantsModule, liveShowModule, boardNamesModule, inputModeModule, ...(options.modules ?? [])]) await app.use(mod);
   // FR-116: ライブ描画ショーの演出の音（ctx.showAudio を置く。ショー側は再生時に ctx.showAudio を参照する）
   await app.use(showAudioModule);
   // 機能ごとの保存項目の復元（モジュールが保存項目を登録した後）

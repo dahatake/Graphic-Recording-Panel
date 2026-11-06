@@ -1,11 +1,10 @@
-// FR-014 AC-521・AC-522・AC-053、FR-022 AC-523・AC-671 の単体・結合テスト
-// （ライブの更新間隔での描き足し・設定画面とコマンドの検索での変更・端末ごとの保存・.vtt の再生取込）。
+// FR-014 AC-521・AC-522・AC-053、FR-022 AC-523 の単体・結合テスト
+// （ライブの更新間隔での描き足し・設定画面とコマンドの検索での変更・端末ごとの保存。ファイル取込は図を更新しない。依頼 2026-11-06 で .vtt の再生取込 AC-671 は廃止）。
 // 時計はテスト用の時計（scheduler と now）で進める。期待値は受入基準と PARAM-098〜100・PARAM-183 から決める。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp } from '../system/helpers.js';
 import { isValidLiveSec, parseLiveSec, LIVE_INTERVAL_KEY, LIVE_MIN_SEC, LIVE_MAX_SEC, LIVE_DEFAULT_SEC } from '../../web/src/liverefresh.js';
-import { IMPORT_METHOD_KEY, PLAYBACK_SPEEDS } from '../../web/src/vttplay.js';
 import { SESSION_KEY } from '../../web/src/persist.js';
 
 const SEC = 1000;
@@ -268,111 +267,6 @@ test('FR-014 AC-521: 記録していない間は定期更新が起きない', as
   assert.equal(app.getLiveRefresh().count, 0);
 });
 
-// ---- .vtt の再生取込（AC-671） ----
-const vttText = (cues) => ['WEBVTT', '', ...cues.flatMap(([sec, text], i) => [`c${i}`, `00:${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}.000 --> 00:${String(Math.floor((sec + 1) / 60)).padStart(2, '0')}:${String((sec + 1) % 60).padStart(2, '0')}.000`, `<v 話者${i}>${text}</v>`, ''])].join('\n');
-const vttFile = (cues) => { const text = vttText(cues); return { name: 'meeting.vtt', type: 'text/vtt', size: Buffer.byteLength(text), text }; };
-const CUES = [[0, '会議室は三階にあります'], [3, '資料は共有フォルダです'], [6, '予算は百万円です'], [40, '次回は木曜の午後です'], [44, '参加者は八名でした'], [50, '議事録は山田さんが書きます']];
-
-// FR-022 AC-671
-test('FR-022 AC-671: 取込の方法（一括・再生取込）と速さ（1・2・4・8 倍）を選べ、端末ごとに保存される', async () => {
-  const { app, env } = await newApp();
-  const m = app.getImportMethod();
-  assert.equal(m.method, 'batch', '既定は一括');
-  assert.deepEqual(m.methods.map((x) => x.value), ['batch', 'playback']);
-  assert.deepEqual(m.speeds.map((x) => x.value), PLAYBACK_SPEEDS);
-  assert.deepEqual(PLAYBACK_SPEEDS, [1, 2, 4, 8]);
-  assert.equal(app.setImportMethod({ method: 'playback', speed: 4 }).ok, true);
-  assert.equal(app.setImportMethod({ speed: 3 }).ok, false, '選択肢にない速さ');
-  assert.equal(app.setImportMethod({ method: 'stream' }).ok, false);
-  assert.deepEqual(JSON.parse(env.storage.getItem(IMPORT_METHOD_KEY)), { method: 'playback', speed: 4 });
-  const again = await newApp({ storage: env.storage });
-  assert.deepEqual([again.app.getImportMethod().method, again.app.getImportMethod().speed], ['playback', 4]);
-});
-
-// FR-022 AC-671: cue は受付時刻の差÷速さの経過ごとに確定結果として届き、図は更新間隔ごとに描き足される
-test('FR-022 AC-671: 再生取込では cue が「開始時刻の差÷速さ」ごとに確定結果として届き、図は更新間隔ごとにまとめて描き足される', async () => {
-  const { app, env } = await live();
-  app.setImportMethod({ method: 'playback', speed: 2 });
-  const finals = () => app.getTranscript().finals.length;
-  const r = await app.importTextFile(vttFile(CUES));
-  assert.equal(r.ok, true);
-  assert.equal(finals(), 1, '最初の cue は開始の時点で届く');
-  assert.match(app.getImportStatus().text, /1 \/ 6/, '進み具合を文字で示す');
-  assert.ok(!svgHas(app, '会議室は三階にあります'), '図には更新の時点まで加わらない');
-  adv(env, 1500 - 1);
-  assert.equal(finals(), 1);
-  adv(env, 1);
-  assert.equal(finals(), 2, '3 秒の差を 2 倍で 1.5 秒');
-  adv(env, 1500);
-  assert.equal(finals(), 3);
-  adv(env, 10 * SEC - 3000);
-  assert.equal(app.getLiveRefresh().count, 1, '更新間隔（10 秒）の時点で 1 回描き足す');
-  assert.ok(svgHas(app, '会議室は三階にあります') && svgHas(app, '予算は百万円です'));
-  assert.ok(!svgHas(app, '次回は木曜の午後です'));
-  adv(env, 30 * SEC);
-  assert.equal(app.getVttPlayback().state, 'done');
-  assert.equal(finals(), 6);
-  assert.ok(svgHas(app, '議事録は山田さんが書きます'));
-  assert.equal(app.getState().utterances.some((u) => /話者/.test(u.text)), false, '話者名は含めない');
-});
-
-// FR-022 AC-671: 一時停止・再開・中止。中止しても取り込み済みの発話は残る。取込の間は重ねて取り込めない
-test('FR-022 AC-671: 一時停止・再開・中止ができ、中止しても取り込み済みの発話は残る', async () => {
-  const { app, env } = await live();
-  app.setImportMethod({ method: 'playback', speed: 1 });
-  await app.importTextFile(vttFile(CUES));
-  adv(env, 3 * SEC);
-  assert.equal(app.getVttPlayback().delivered, 2);
-  assert.equal(app.pauseVttPlayback().ok, true);
-  assert.match(app.getImportStatus().text, /一時停止/);
-  adv(env, 20 * SEC);
-  assert.equal(app.getVttPlayback().delivered, 2, '一時停止中は届かない');
-  assert.equal((await app.importTextFile(vttFile(CUES))).reason, 'busy', '再生取込の間は重ねて取り込まない');
-  assert.equal(app.resumeVttPlayback().ok, true);
-  adv(env, 3 * SEC);
-  assert.equal(app.getVttPlayback().delivered, 3);
-  assert.equal(app.cancelVttPlayback().ok, true);
-  assert.equal(app.getVttPlayback().state, 'cancelled');
-  adv(env, 60 * SEC);
-  const texts = app.getState().utterances.map((u) => u.text);
-  assert.deepEqual(texts, CUES.slice(0, 3).map((c) => c[1]), '取り込み済みの発話は残り、それ以降は届かない');
-  assert.ok(svgHas(app, '予算は百万円です'), '取り込み済みは図に描き足される');
-  assert.match(app.getImportStatus().text, /3 \/ 6/);
-});
-
-// FR-022 AC-671・AC-113: 発話の内容・順・受付時刻・シーンの分かれ方は、速さによらず一括と同じ
-test('FR-022 AC-671: 内容・順・受付時刻・シーンの分かれ方は、速さによらず一括の取込と同じ', async () => {
-  const shape = (app) => ({
-    u: app.getState().utterances.map((u) => [u.text, u.receivedAt]),
-    s: app.getState().scenes.map((s) => s.points.map((p) => p.text)),
-  });
-  const batch = await newApp();
-  assert.equal((await batch.app.importTextFile(vttFile(CUES))).ok, true);
-  const expected = shape(batch.app);
-  assert.ok(expected.s.length >= 2, '無音間隔でシーンが分かれる入力');
-  for (const speed of PLAYBACK_SPEEDS) {
-    const p = await newApp();
-    p.app.setImportMethod({ method: 'playback', speed });
-    await p.app.importTextFile(vttFile(CUES));
-    adv(p.env, 120 * SEC);
-    assert.deepEqual(shape(p.app), expected, `${speed} 倍`);
-  }
-});
-
-// FR-022 AC-671: 再生取込は記録中でなくても行え、.txt は一括のまま
-test('FR-022 AC-671: 再生取込は準備中でも行え、.txt は再生取込を選んでいても一括で取り込まれる', async () => {
-  const { app, env } = await live();
-  app.setImportMethod({ method: 'playback', speed: 8 });
-  const txt = { name: 'memo.txt', type: 'text/plain', size: 30, text: '一行目の話題\n二行目の話題' };
-  const r = await app.importTextFile(txt);
-  assert.equal(r.ok, true); assert.equal(r.playback, undefined);
-  assert.ok(svgHas(app, '二行目の話題'), '.txt は即座に一括');
-  await app.importTextFile(vttFile(CUES));
-  adv(env, 20 * SEC);
-  assert.equal(app.getVttPlayback().state, 'done');
-  assert.ok(svgHas(app, '議事録は山田さんが書きます'));
-});
-
 // FR-014 AC-521（FR-002 の［次のシーン］との結合）: 更新間隔の待ちの間に押した［次のシーン］の区切りは失われず、
 // 更新の時点で、区切りの前の発話は前のシーンに、後の発話は新しいシーンに加わる。区切りの時点では図に何も加わらない。
 test('FR-014 AC-521: 待ちの間の［次のシーン］の区切りを保ち、更新の時点で前・後のシーンに分けて描き足す', async () => {
@@ -427,30 +321,4 @@ test('FR-014 AC-521 FR-098 AC-571 A-874: 待ちの間の議題の切替は、そ
   assert.equal(pre.status, 'confirmed');
   assert.equal(app.getSceneAgenda(pre.id), '予算'); assert.equal(app.getSceneAgenda(post.id), '計画');
   assert.ok(app.getAgendaBreaks().has(pre.id), '切替の境は前のシーンに記録される');
-});
-
-// FR-022 AC-671（契約 CONTRACT-LIVE-SHOW の観察点）: getVttImportMode・setVttImportMode・getVttReplay と vttReplay.* のコマンド
-test('FR-022 AC-671: 取込の方法は bulk|replay と速さで読み書きでき、不正は ok:false で変えず、再生取込の進み具合とコマンドがある', async () => {
-  const { app, env } = await live();
-  assert.deepEqual(app.getVttImportMode(), { mode: 'bulk', speed: 1, speeds: [...PLAYBACK_SPEEDS] });
-  assert.equal(app.getVttReplay(), null, '一度も始めていない');
-  for (const bad of [null, {}, { mode: 'x' }, { mode: 'replay', speed: 3 }, { mode: 'replay', speed: '2' }]) {
-    assert.equal(app.setVttImportMode(bad).ok, false, JSON.stringify(bad));
-    assert.deepEqual(app.getVttImportMode().mode, 'bulk');
-  }
-  assert.equal(app.setVttImportMode({ mode: 'replay', speed: 4 }).ok, true);
-  assert.deepEqual(app.getVttImportMode(), { mode: 'replay', speed: 4, speeds: [...PLAYBACK_SPEEDS] });
-  assert.deepEqual(app.getImportMethod().method, 'playback');
-  startRec(app);
-  assert.equal((await app.importTextFile(vttFile(CUES))).ok, true);
-  let r = app.getVttReplay();
-  assert.equal(r.running, true); assert.equal(r.total, CUES.length); assert.equal(r.done, 1);
-  assert.ok(r.text.includes(String(r.done)) && r.text.includes(String(r.total)));
-  app.commands['vttReplay.pause'](); assert.equal(app.getVttReplay().paused, true);
-  adv(env, 60 * SEC); assert.equal(app.getVttReplay().done, 1, '一時停止中は届かない');
-  app.commands['vttReplay.resume'](); assert.equal(app.getVttReplay().paused, false);
-  app.commands['vttReplay.cancel']();
-  r = app.getVttReplay(); assert.equal(r.running, false); assert.ok(app.getState().utterances.length >= 1, '取り込み済みは残る');
-  assert.equal(app.setVttImportMode({ mode: 'bulk' }).ok, true);
-  assert.equal(app.getVttImportMode().speed, 4, '速さを省くと変えない');
 });

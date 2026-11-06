@@ -85,7 +85,7 @@ test('FR-077 AC-417: 画風グループの全項目は省かれず、外形は�
   }
   assert.ok(app.getCommandBarLayout({ viewportWidth: 1280 }).items.filter((i) => i.command.startsWith('drawStyle.set:')).every((i) => i.labelLines === 1));
   // 「表示」の直後の 10 グループ目（AC-459）。設定グループは描画スタイル・レイアウト型を持たない
-  assert.deepEqual(app.getCommandBar().groups.map((g) => g.id).slice(0, 4), ['import', 'session', 'view', 'drawStyle']);
+  assert.deepEqual(app.getCommandBar().groups.map((g) => g.id).slice(0, 5), ['inputMode', 'import', 'session', 'view', 'drawStyle']); // FR-117: 入力モードのグループが先頭
   assert.ok(!app.getCommandBar().groups.find((g) => g.id === 'settings').commands.some((c) => c.startsWith('drawStyle.') || c.startsWith('layoutType.')));
 });
 

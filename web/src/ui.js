@@ -68,6 +68,11 @@ export function mountUI(app, doc = document) {
           const d = doc.createElement('span'); d.className = 'btn-desc'; d.textContent = app.t('import.description'); b.append(d);
           d.id = 'import-desc'; b.className += ' btn-import';
         }
+        // FR-117: 入力モードの 2 項目は、通常のボタン（aria-pressed）で、短い説明を常時表示する（取り込みと同じ見た目の規則）
+        if (name.startsWith('inputMode.set:')) {
+          const d = doc.createElement('span'); d.className = 'btn-desc'; d.textContent = bi?.description ?? ''; b.append(d);
+          b.className += ' btn-import btn-mode'; b.setAttribute('aria-pressed', String(!!bi?.pressed));
+        }
         // FR-030 AC-519: ［設定］の項目（決め方・音量・周期）は、値を入れる部品（選択・スライダー・数値）と常時の短い説明を持つ
         let ctl = null;
         if (field) {
@@ -249,6 +254,20 @@ export function mountUI(app, doc = document) {
       const f = PRESSED[b.dataset.command];
       if (f) setAttr(b, 'aria-pressed', String(f(st)));
       setProp(b, 'disabled', typeof app.commands[b.dataset.command] !== 'function');
+    }
+    // FR-117: 入力モードの説明の言語切替・音声入力の開始の無効（バッチモード）と理由の文字
+    for (const it of app.getCommandBar().items) {
+      const b = toolbar.querySelector(`[data-command="${it.command}"]`);
+      if (!b) continue;
+      if (it.command.startsWith('inputMode.set:')) { const d = b.querySelector('.btn-desc'); if (d) setText(d, it.description ?? ''); }
+      if ('enabled' in it) {
+        setProp(b, 'disabled', it.enabled === false);
+        let rs = b.querySelector('.btn-reason');
+        if (it.enabled === false) {
+          if (!rs) { rs = doc.createElement('span'); rs.className = 'btn-desc btn-reason'; b.append(rs); }
+          setText(rs, it.disabledReason ?? '');
+        } else if (rs) rs.remove();
+      }
     }
     // FR-030 AC-519: ［設定］の値のある項目（決め方・音量・周期）の現在値。入力中の部品は書き換えない
     for (const it of app.getCommandBar().items) {

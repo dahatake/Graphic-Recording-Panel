@@ -7,7 +7,6 @@
 // - 一時停止・停止のときは、それまでに届いていたライブの発話をその時点で取り込む（再生取込が続いていれば、その間隔に任せる）。
 // - 更新間隔は端末ごとにブラウザへ保存する（データの初期化・セッションファイルの対象外）。DOM・外部通信に依存しない。
 import { readJson, writeJson } from './persist.js';
-import { vttPlaybackModule } from './vttplay.js';
 
 export const LIVE_INTERVAL_KEY = 'grp.liveInterval';
 export const LIVE_MIN_SEC = 5; // PARAM-098
@@ -57,10 +56,9 @@ export function liveRefreshModule(ctx) {
   let timer = null;
   let draft = null;
   let focused = false;
-  const sources = new Set(); // 記録中のほかにライブの取込を続けている源（'playback'）
 
   const intervalText = () => fill(t('live.interval.text'), sec);
-  const live = () => state.session === 'recording' || sources.size > 0 || ctx.heldCount() > 0;
+  const live = () => state.session === 'recording' || ctx.heldCount() > 0;
   api.getLiveInterval = () => ({ sec, min: LIVE_MIN_SEC, max: LIVE_MAX_SEC, default: LIVE_DEFAULT_SEC });
   api.getLiveRefresh = () => ({ count, held: ctx.heldCount() });
 
@@ -84,16 +82,12 @@ export function liveRefreshModule(ctx) {
     if (!live()) return;
     timer = sched.setTimeout(() => { timer = null; tick(); arm(); }, sec * 1000);
   };
-  // 再生取込（vttplay.js）がライブの間を始める・終える
-  const liveCtl = {
-    begin(src) { sources.add(src); if (timer == null) arm(); },
-    end(src) { sources.delete(src); },
-  };
+  // 記録中の間（または待ちの発話がある間）だけ更新間隔のタイマーを動かす
 
   ctx.on('utterance:held', () => { if (timer == null) arm(); });
   ctx.on('session:start', arm);
   ctx.on('session:resume', arm);
-  const leave = () => { if (sources.size) return; stopTimer(); tick(); };
+  const leave = () => { stopTimer(); tick(); };
   ctx.on('session:pause', leave);
   ctx.on('session:stop', leave);
   if (live()) arm();
@@ -104,14 +98,7 @@ export function liveRefreshModule(ctx) {
   if (vis) { const prev = vis.onchange; vis.onchange = (...a) => { if (typeof prev === 'function') prev(...a); onVisible(); }; }
   else globalThis.document?.addEventListener?.('visibilitychange', onVisible);
 
-  // バッチ描画（AC-523）: 一括取込の成功時に 1 回だけ数える（取込の中で、先に届いていたライブの発話も順に取り込まれる）
-  const baseImport = api.importTextFile;
-  api.importTextFile = async (file) => {
-    const r = await baseImport(file);
-    if (r?.ok) { count += 1; ctx.emit('change', api); }
-    return r;
-  };
-  vttPlaybackModule(ctx, liveCtl); // AC-671: .vtt の再生取込（一括のほかの取込の方法）
+  // ファイル取込（.txt・.vtt）は図を更新しない（FR-014 AC-054・AC-523。依頼 2026-11-06）。図はバッチモード（FR-118）で描く。
 
   // ---- 更新間隔の変更（AC-522）: 5〜60 の整数だけ。範囲外・整数でない・空の値は理由を示して直前の値を保つ ----
   let msgKey = null;

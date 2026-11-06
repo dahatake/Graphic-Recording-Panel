@@ -6,6 +6,8 @@ import { LAYOUT_TYPE_IDS, LAYOUT_TYPE_META } from './layouttypes.js';
 // DOM 順＝フォーカス順＝視覚順。取り消せない data.reset はデータの末尾。
 // 「画風」グループ（FR-077）のコマンド名は空で、描画スタイルの登録簿（getDrawStyles）から drawStyle.set:<id> を並べる（DRAW_STYLE_PREFIX）。
 export const GROUPS = [
+  // FR-117: 入力モード（音声取込・ファイル読込）は画面最上部の先頭に置く（inputmode.js）
+  ['toolbar.inputMode', ['inputMode.set:live', 'inputMode.set:batch'], 'inputMode'],
   ['toolbar.import', ['import.file'], 'import'],
   ['toolbar.session', ['session.start', 'session.pause', 'session.resume', 'session.stop', 'session.nextScene', 'input.focus'], 'session'],
   ['toolbar.view', ['view.2d', 'view.3d', 'view.timeline', 'view.arrange', 'detail.next'], 'view'],
@@ -76,6 +78,7 @@ export const KEY_ICON = P.key; // ［設定］の「接続キー」分類のア�
 export const ICONS = {
   'session.start': P.rec, 'session.pause': P.pause, 'session.resume': P.play, 'session.stop': P.stop,
   'session.nextScene': P.next, 'input.focus': P.edit, 'import.file': P.import,
+  'inputMode.set:live': P.mic, 'inputMode.set:batch': 'M4 3h8l4 4v10H4zM12 3v4h4M7 11h6M7 14h6', // FR-117（マイク／行のあるファイルの既知の図。ほかの項目と重ならない）
   'save.png': `M9 10h2`, 'save.svg': `M8 10l1.500 2L11 10`, 'save.pdf': `M8 10h4M8 12h4`, 'lang.ja': P.lang, 'lang.en': `M5 5h10`,
   'view.2d': P.square, 'view.3d': P.cube, 'theme.toggle': P.theme, 'view.timeline': 'M3 10h14M6 6v8M10 4v12M14 7v6', 'view.arrange': P.tile, 'detail.next': P.detail,
   // 発表（画面の枠＋記号）は記録（記号だけ）と別の形にする（同じ機能でない項目のアイコンを重ねない）

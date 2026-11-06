@@ -137,6 +137,7 @@ test('FR-114 AC-668 AC-680 AC-117 AC-359: 名簿と .vtt の話者タグの名�
   assert.deepEqual(app.getParticipants(), ['鈴木一郎', '田中次郎']);
   assert.equal(app.getMeetingFormValues().participants, '鈴木一郎\n田中次郎');
   assert.equal(app.getTitleInfo().participants, '鈴木一郎\n田中次郎', '契約: getTitleInfo().participants は入力した文字列（セッションファイルには入れない。下で確認）');
+  app.commands['session.start'](); app.setDraft('会議の議題を決める'); assert.equal(app.submitDraft().ok, true); // 取込だけでは図ができない（AC-054）ので、手入力で図を作る（記録中の取込はモードを変えない）
   const r = await app.importTextFile(file(VTT));
   assert.equal(r.ok, true);
   const m = app.getBoardModel();
@@ -145,7 +146,7 @@ test('FR-114 AC-668 AC-680 AC-117 AC-359: 名簿と .vtt の話者タグの名�
   for (const n of ['鈴木一郎', '田中次郎', '山田太郎', '佐藤花子']) assert.ok(svg.includes(n), n);
   const outline = app.renderOutline();
   assert.match(outline, /参加メンバー: 鈴木一郎、田中次郎、山田太郎、佐藤花子/);
-  assert.match(outline, /（発言: 山田太郎）/);
+  assert.ok(!outline.includes('（発言'), 'AC-054: ファイル由来の発話は図に加わらないので、ステップの発言者の名前は付かない（バッチ描画 FR-118 で付く）');
   // 認識文字列（発話）には名前が入らない
   assert.ok(!JSON.stringify(app.getState().utterances).includes('山田太郎'));
   // PNG・SVG・PDF は図をそのまま書き出す（SVG で確認）
@@ -201,15 +202,15 @@ test('FR-114 AC-668 (c): 手入力の発話のステップには名前を添え�
   assert.ok(!app.renderOutline().includes('鈴木一郎'));
 });
 
-test('FR-022 AC-671 AC-668: 再生取込でも話者タグの名前が保持される', async () => {
-  const { app, env } = await newApp();
+test('FR-022 AC-668 AC-054: .vtt の取込は、話者タグの名前を保持するが図は更新しない（ファイル由来の発話は図に加わらない。再生取込 AC-671 は廃止）', async () => {
+  const { app } = await newApp();
   app.setLayoutTypes(['board']);
-  assert.ok(app.setVttImportMode({ mode: 'replay', speed: app.getVttImportMode().speeds.at(-1) }).ok);
+  const before = JSON.stringify(app.getState().scenes);
   const r = await app.importTextFile(file(VTT));
   assert.equal(r.ok, true);
-  for (let i = 0; i < 20 && app.getVttReplay()?.running; i++) { env.tick(5); env.scheduler.advance(5000); }
-  assert.equal(app.getVttReplay().running, false);
   assert.deepEqual(app.getPersonNames(), ['山田太郎', '佐藤花子']);
+  assert.equal(JSON.stringify(app.getState().scenes), before, '図（シーン）は更新しない');
+  assert.equal(app.getState().utterances.length, 3, '発話は一覧に並ぶ');
 });
 
 // 決定 2026-11-05（最終監査）(1): 名前は簡易マスキングの設定に関わらず LLM へ送る前に必ず伏せる（AC-358・AC-359・AC-668 (e)）
@@ -265,12 +266,13 @@ test('FR-114 AC-668 (d) AC-680: Markdown の保存はテキスト一覧と同じ
   app.setTitleInfo({ participants: '鈴木一郎' });
   app.commands['session.start']();
   assert.equal((await app.importTextFile(file(VTT))).ok, true);
+  app.setDraft('担当を決める'); assert.equal(app.submitDraft().ok, true); // 取込だけでは図ができない（AC-054）ので、手入力で図を作る
   assert.equal(app.setDetailLevel('detail').ok ?? true, true); // Markdown は詳細度に従う（要点の行は「詳細」で出る）
   const md = async () => { await app.commands['save.markdown'](); return String(env.downloads.at(-1).data); };
   const shown = await md();
   assert.match(app.renderOutline(), /参加メンバー: 鈴木一郎、山田太郎、佐藤花子/);
   assert.match(shown, /\n参加メンバー: 鈴木一郎、山田太郎、佐藤花子\n/);
-  assert.match(shown, /\n- 画面の色について話しました （発言: 山田太郎）\n/); // AC-529: 冒頭の「- 要点 （発言: 名前）」の行
+  assert.ok(!shown.includes('（発言'), 'AC-054: ファイル由来の発話は図に加わらないので、発言者の名前の行は付かない');
   // AC-529: 名前の行はテキスト一覧の行と同じ文字（行単位）で、「（発言: 名前）」は一覧と同じ順・同じ数（要点の行への添え書きはしない）
   const memberLine = (s) => s.split(/\r?\n/).map((l) => l.replace(/^[\s>*\-#]+/, '').trim()).find((l) => /^参加メンバー\s*[:：]/.test(l)) ?? null;
   const said = (s) => [...s.matchAll(/[（(]発言\s*[:：]\s*([^）)]+)[）)]/g)].map((m) => m[1].trim());
