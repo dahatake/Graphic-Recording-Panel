@@ -13,6 +13,17 @@ const flush = async () => { for (let i = 0; i < 5; i++) await Promise.resolve();
 const styleBtn = (app, id) => batchStyleItems(app).find((i) => i.command === `batchStyle.set:${id}`);
 const pressedIds = (app) => batchStyleItems(app).filter((i) => i.pressed === true).map((i) => i.command.replace('batchStyle.set:', ''));
 
+// FR-118 AC-686（FR-117 AC-684 の「ファイル読込モードではスタイルのボタンが表示される」面。FR-118 の実装に依存するため、FR-117 単独のケースから分離した）
+test('FR-118 AC-686（FR-117 AC-684 の表示面）: ファイル読込モードではスタイルのボタン（8 項目）が表示され、音声取込へ戻すと表示されない', async () => {
+  const { app } = await newApp();
+  assert.equal(app.getBatchState().visible, false, '音声取込ではスタイルのボタンは表示しない');
+  assert.equal(app.setInputMode('batch').ok, true);
+  assert.equal(app.getBatchState().visible, true);
+  assert.equal(batchStyleItems(app).length, 8);
+  assert.equal(app.setInputMode('live').ok, true);
+  assert.equal(app.getBatchState().visible, false);
+});
+
 // FR-118 AC-686
 test('FR-118 AC-686: ファイル読込モードで .txt・.vtt を読み込んだだけでは（どのセッションの状態でも）図は更新されず、LLM 向けの要求は 0 件で、取込んだ発話は認識文字列の一覧に並ぶ', async () => {
   for (const [name, steps] of Object.entries(STATES)) {

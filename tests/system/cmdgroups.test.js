@@ -7,9 +7,10 @@ import { newApp, CJK } from './helpers.js';
 const NARROW = 640; // PARAM-006（以下で折り返す）
 const WIDE = 1280;
 const MAX_PER_GROUP = 15; // PARAM-092（画風グループの 15 項目で引き上げ。2026-11-04。AC-670 の追加後）
-const ORDER = ['import', 'session', 'view', 'drawStyle', 'layoutType', 'settings', 'presentation', 'export', 'data', 'environment'];
-const JA = ['取り込み', '記録', '表示', '画風', 'レイアウト型', '設定', 'プレゼンテーション', '図の書き出し', 'データ', '画面・環境'];
+const ORDER = ['inputMode', 'import', 'session', 'view', 'drawStyle', 'layoutType', 'settings', 'presentation', 'export', 'data', 'environment'];
+const JA = ['入力モード', '取り込み', '記録', '表示', '画風', 'レイアウト型', '設定', 'プレゼンテーション', '図の書き出し', 'データ', '画面・環境'];
 const MEMBERS = {
+  inputMode: ['inputMode.set:live', 'inputMode.set:batch'], // FR-117（先頭のグループ。AC-683）
   import: ['import.file'],
   session: ['session.start', 'session.pause', 'session.resume', 'session.stop', 'session.nextScene', 'input.focus'],
   view: ['view.2d', 'view.3d', 'view.timeline', 'view.arrange', 'detail.next'], // 描画スタイルは「画風」グループ（FR-077。旧 drawStyle.pick は廃止）
@@ -28,7 +29,7 @@ const intersects = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b
 const byLayout = (app, w) => app.getCommandBarLayout({ viewportWidth: w });
 
 // NFR-UX-011 AC-459
-test('NFR-UX-011 AC-459: グループは 取り込み→記録→表示→画風→レイアウト型→設定→プレゼンテーション→図の書き出し→データ→画面・環境 の 10 個で（接続キーのグループはない）、各ボタンが定められたグループに属する', async () => {
+test('NFR-UX-011 AC-459: グループは 入力モード（FR-117）→取り込み→記録→表示→画風→レイアウト型→設定→プレゼンテーション→図の書き出し→データ→画面・環境 の 11 個で（接続キーのグループはない）、各ボタンが定められたグループに属する', async () => {
   const { app } = await newApp();
   const groups = bar(app).groups;
   assert.deepEqual(groups.map((g) => g.id), ORDER);
@@ -114,7 +115,7 @@ test('NFR-UX-011 AC-459 異常系: 各グループは PARAM-092（15）個以内
   sameSet(all, bar(app).items.map((i) => i.command));
 });
 
-test('NFR-UX-011 AC-459 異常系: 折り返す幅でも（画面幅 640px 以下）グループの順序は上→下・左→右で 10 個のまま', async () => {
+test('NFR-UX-011 AC-459 異常系: 折り返す幅でも（画面幅 640px 以下）グループの順序は上→下・左→右で 11 個のまま', async () => {
   const { app } = await newApp();
   const lay = byLayout(app, NARROW);
   assert.deepEqual(lay.groups.map((g) => g.id), ORDER);
