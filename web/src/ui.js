@@ -228,6 +228,18 @@ export function mountUI(app, doc = document) {
     }
   }
   app.on('change', syncStyleButtons);
+  // FR-117 AC-683: 入力モードの項目も、切替の直後（描画の次のフレームを待たず）に aria-pressed と ✓ を当てる
+  function syncModeButtons() {
+    const cur = app.getInputMode?.().mode;
+    for (const b of toolbar.querySelectorAll('[data-command^="inputMode.set:"]')) {
+      const on = b.dataset.command === `inputMode.set:${cur}`;
+      if (b.getAttribute('aria-pressed') !== String(on)) b.setAttribute('aria-pressed', String(on));
+      if (on) { if (b.dataset.selectedMark !== 'check') b.dataset.selectedMark = 'check'; } else if ('selectedMark' in b.dataset) delete b.dataset.selectedMark;
+      const mk = b.querySelector('.sel-mark'); const mark = on ? '✓' : '';
+      if (mk && mk.textContent !== mark) mk.textContent = mark;
+    }
+  }
+  app.on('change', syncModeButtons);
   let lastDataVer; // 前回の描画のデータの版数
   function render() {
     const st = app.getUiState?.() ?? app.getState(); // NFR-PERF-003: 発話・シーンの全件を複製しない
