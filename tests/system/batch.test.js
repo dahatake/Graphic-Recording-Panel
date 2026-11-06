@@ -203,3 +203,50 @@ test('NFR-PERF-001 AC-697: バッチの描画は、LLM 無効（ルールベー�
     assert.ok(b.app.getState().scenes.length >= 1 && b.app.renderSvg().includes(`data-scene-id="${b.app.getState().scenes[0].id}"`));
   }
 });
+
+// FR-118 AC-692（integration。Q-049 の回答 A。契約: CONTRACT-BATCH.md 3.）
+// バッチモードでは、取込んだファイルの全文・発話の逐語・話者名は、LLM 連携が有効・同意済みでも LLM（中継を含む外部）に送られない。
+// 注入した長い発話の逐語（固有の文字列）が、スタブの受けた全要求（パスと本文の全階層）に 0 回しか現れないことで確かめる。
+test('FR-118 AC-692: バッチ実行（LLM 有効・同意済み）で、注入した長い発話の逐語・ファイルの全文・話者名は、中継スタブが受けた全要求に 0 回しか現れない（送るのはスタイルの ID・名称と要点の文字などだけ）', async () => {
+  const count = (hay, needle) => hay.split(needle).length - 1;
+  const TOKEN = 'ZQXINJECT7731VERBATIM';
+  const LONG = `この発話は固有の長い文章であり、会議の途中で参加者が詳しい経緯を延べ延べと説明した内容をそのまま記録したものである。${TOKEN}は取込んだ原文にしか現れない目印であり、外部へ送ってはならない。`;
+  const SPK = ['話者SPKZQ甲斐', '話者SPKZQ乙川'];
+  const vttText = ['WEBVTT', '',
+    `00:00:01.000 --> 00:00:03.000\n<v ${SPK[0]}>${LONG}</v>\n`,
+    `00:00:04.000 --> 00:00:06.000\n<v ${SPK[1]}>来月のリリース計画を決める</v>\n`,
+    `00:00:07.000 --> 00:00:09.000\n<v ${SPK[0]}>担当者の割り当てを確認する</v>\n`].join('\n');
+  const txtText = `${LONG}\n来月のリリース計画を決める\n担当者の割り当てを確認する\n`;
+  // 検出器の自己確認（空振りしないこと）: 注入した文字列を含む要求は数えられ、含まない要求は 0 になる
+  assert.equal(count(JSON.stringify({ path: '/api/llm/extract', body: { input: LONG } }), TOKEN), 1, '検出器: 含む要求は 1 回と数える');
+  assert.equal(count(JSON.stringify({ path: '/api/llm/extract', body: { input: '予算' } }), TOKEN), 0, '検出器: 含まない要求は 0');
+  const files = [
+    { file: toFile('inject.vtt', vttText), full: vttText, speakers: SPK },
+    { file: toFile('inject.txt', txtText), full: txtText, speakers: [] },
+  ];
+  const probe = await newApp();
+  const styles = probe.app.getBatchStyles();
+  assert.equal(styles.length, 8);
+  for (const f of files) {
+    for (const style of [styles[0], styles.at(-1)]) {
+      const h = makeRelay({ answer: { objects: [], people: [], emotions: [], metaphors: [] } });
+      const { app } = await bootApp(h);
+      await enableLlm(app);
+      assert.equal((await app.importTextFile(f.file)).ok, true, `${f.file.name}: 取り込める`);
+      assert.equal(h.llmReqs().length, 0, '取込だけでは要求 0 件');
+      const r = await app.runBatch(style.id); await app.flushLlm();
+      assert.equal(r.ok, true, `${f.file.name}/${style.id}: 実行できる`);
+      const reqs = h.llmReqs();
+      assert.ok(reqs.length >= 1, `${f.file.name}/${style.id}: LLM 向けの要求は送られる（有効・同意済み。空振りでない）`);
+      assert.ok(reqs.every((q) => q.body?.styleId === style.id), '送った要求は選んだスタイルの ID を持つ');
+      // 検査の対象は、スタブが受けた全要求（状態の確認 /api/llm/status を含む。パス・本文の全階層・JSON の文字列）
+      const all = JSON.stringify(h.log);
+      assert.equal(count(all, TOKEN), 0, `${f.file.name}/${style.id}: 注入した発話の固有の文字列は 0 回`);
+      assert.equal(count(all, LONG), 0, `${f.file.name}/${style.id}: 長い発話の逐語は 0 回`);
+      assert.equal(count(all, LONG.slice(0, 20)), 0, `${f.file.name}/${style.id}: 逐語の先頭（20 文字）も 0 回`);
+      for (const line of f.full.split('\n')) if (line.length >= 20 && !/-->/.test(line)) assert.equal(count(all, line.replace(/<\/?v[^>]*>/g, '')), 0, `ファイルの行は送られない: ${line.slice(0, 12)}…`);
+      for (const n of f.speakers) assert.equal(count(all, n), 0, `${f.file.name}/${style.id}: 話者名 ${n} は 0 回`);
+      assert.equal(count(all, f.full), 0, 'ファイルの全文は 0 回');
+    }
+  }
+});

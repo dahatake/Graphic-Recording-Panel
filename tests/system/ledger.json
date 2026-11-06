@@ -280,7 +280,7 @@
     "AC-663": "sha256:5d49ca9dc09bb3cd",
     "AC-661": "sha256:c33f2e99624048a3",
     "AC-662": "sha256:68b7d01011ac26f5",
-    "AC-667": "sha256:ccc3da05ebbd46e7",
+    "AC-667": "sha256:ad1f0bbbf665275f",
     "AC-672": "sha256:08d68711c656463d",
     "AC-673": "sha256:2b26471f80e4e4b5",
     "AC-676": "sha256:3ec1900e10924ead",
@@ -294,7 +294,8 @@
     "AC-688": "sha256:8d13245a1ac358c5",
     "AC-697": "sha256:7842375ce4fcf4ae",
     "AC-696": "sha256:0b6822420fba867b",
-    "AC-671": "sha256:c0cb5fb51945d1ae"
+    "AC-671": "sha256:c0cb5fb51945d1ae",
+    "AC-692": "sha256:1b89b7e0853c2206"
   },
   "cases": [
     {
@@ -9794,6 +9795,37 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "AC-671 廃止（依頼 2026-11-06。ファイル読込時のリアルタイム描画（.vtt の再生取込）の削除。ファイルの図式化は FR-118 に置き換えた）。再生取込のテストは live.test.js から削除"
+        }
+      ]
+    },
+    {
+      "id": "IT-028",
+      "requirement_ids": [
+        "FR-118"
+      ],
+      "ac_ids": [
+        "AC-692"
+      ],
+      "title": "バッチ実行で発話の逐語・ファイル全文・話者名を LLM に送らない（スタブが受けた要求に 0 回）",
+      "layer": "api",
+      "command": "node --test --test-name-pattern=\"AC-692\" tests/system/batch.test.js",
+      "canary": false,
+      "status": "blocked",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-11-07T08:44:51+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-11-07T08:46:33+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-692 の検証レベルは integration で System Test の対象外（CHK-10）。テストは tests/system/batch.test.js に残し、実装役の integration（node --test --test-name-pattern=AC-692 tests/system/batch.test.js）で実行する"
         }
       ]
     }
