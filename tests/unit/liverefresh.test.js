@@ -92,21 +92,20 @@ test('FR-014 AC-522: 間隔を変えた時点から新しい間隔で数え直�
   assert.ok(svgHas(app, '間隔を変える前の発話'));
 });
 
-// FR-014 AC-054・AC-521: 手入力は間隔を待たない。先に届いていたライブの発話も順を保って一緒に描かれる
-test('FR-014 AC-054 AC-521: 記録中の手入力は更新間隔を待たず、先に届いていたライブの発話も順を保って取り込まれる', async () => {
+// FR-014 AC-054・AC-521: 手入力は間隔を待たない。先に届いていたライブの発話（待ち）は手入力では描かれず、次の更新の時点で描き足される
+test('FR-014 AC-054 AC-521: 記録中の手入力は更新間隔を待たず、先に届いていたライブの発話は次の更新の時点まで描かれない', async () => {
   const { app, env } = await live();
   startRec(app);
   say(env, '先に話した内容');
   adv(env, 1000);
   app.setDraft('後から手で入れた内容'); app.submitDraft();
-  assert.ok(svgHas(app, '先に話した内容') && svgHas(app, '後から手で入れた内容'), '手入力の時点で図に反映');
+  assert.ok(svgHas(app, '後から手で入れた内容'), '手入力は待たずに図に反映');
+  assert.ok(!svgHas(app, '先に話した内容'), '待ちの音声発話は手入力では描かれない');
   const texts = app.getState().utterances.map((u) => u.text);
   assert.deepEqual(texts, ['先に話した内容', '後から手で入れた内容']);
-  const pts = pointTexts(app);
-  assert.ok(pts.indexOf('先に話した内容') < pts.indexOf('後から手で入れた内容'), '図の中の順も受付の順');
-  const c = app.getLiveRefresh().count;
   adv(env, 30 * SEC);
-  assert.equal(app.getLiveRefresh().count, c, '取り込み済みなので次の時点では更新しない');
+  assert.ok(svgHas(app, '先に話した内容') && svgHas(app, '後から手で入れた内容'), '次の更新の時点で待ちが描き足される');
+  assert.equal(app.getState().utterances.some((u) => u.held), false);
 });
 
 // FR-014 AC-521・FR-003: まとめて取り込んでも、シーンの分かれ方は受付時刻で決まり、すぐ取り込んだ場合と同じ

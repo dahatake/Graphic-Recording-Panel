@@ -260,14 +260,12 @@ export async function createApp(options = {}) {
     // 複数の発話を 1 回の状態変更（保存・再描画）で追加する。追加した件数を返す。
     // opts.hold（FR-014 AC-521）: ライブ（音声・.vtt の再生取込）の確定結果。発話としてはすぐ記録・保存し（held の印）、
     //   図（シーン・要点）への取り込みは ctx.flushHeld()（更新間隔ごと）でまとめて行う。通知は 'utterance:held'。
-    //   hold なし（手入力・一括取込）は、先に届いていた held の発話を順に取り込んでから自分を取り込む（順序を保つ）。
+    //   hold なし（手入力・一括取込）は、待ちの held の発話を取り込まず、自分だけを図へ取り込む（held は次の更新の時点で取り込む）。
     addUtterances(texts, opts = {}) {
       const list = texts.map((x) => String(x ?? '').trim()).filter(Boolean);
       if ((state.session !== 'recording' && !opts.anyState) || !list.length) return 0; // FR-039: ファイル取込は状態によらず可（opts.anyState）
       const at0 = opts.at ?? now();
-      let flushed = [];
       change((s) => {
-        if (!opts.hold && !opts.noIngest) flushed = ingestHeld(s);
         for (const [i, raw] of list.entries()) {
           const at = Array.isArray(opts.ats) && opts.ats.length === list.length ? opts.ats[i] : at0;
           // FR-093 AC-550: 用語集の別表記は、発話として記録する時点で正しい表記に置き換える（置き換える前は rawText に残す。FR-024 AC-572）
@@ -280,12 +278,12 @@ export async function createApp(options = {}) {
         }
       });
       if (opts.hold) { emit('utterance:held', list.length); return list.length; }
-      if (opts.noIngest) { for (const t of flushed) emit('utterance', t); emit('utterance:file', list.length); return list.length; }
-      for (const t of [...flushed, ...list]) emit('utterance', t);
+      if (opts.noIngest) { emit('utterance:file', list.length); return list.length; }
+      for (const t of list) emit('utterance', t);
       return list.length;
     },
     // FR-014 AC-521: 図にまだ取り込んでいないライブの発話（held）の件数と、それらをまとめて 1 回の状態変更で取り込む操作（取り込んだ件数を返す）
-    heldCount: () => { let n = 0; for (let i = state.utterances.length - 1; i >= 0; i--) { const u = state.utterances[i]; if (u.held) n++; else if (!u.fromFile) break; } return n; },
+    heldCount: () => { let n = 0; for (const u of state.utterances) if (u.held) n++; return n; },
     flushHeld() {
       if (!ctx.heldCount()) return 0;
       let done = [];
@@ -316,12 +314,10 @@ export async function createApp(options = {}) {
   }
   // held の発話（末尾に続く）を古い順に取り込み、印を外す。取り込んだ本文の配列を返す
   function ingestHeld(s) {
-    let i = s.utterances.length;
-    while (i > 0 && (s.utterances[i - 1].held || s.utterances[i - 1].fromFile)) i--;
     const out = [];
-    for (; i < s.utterances.length; i++) {
+    for (let i = 0; i < s.utterances.length; i++) {
       const u = s.utterances[i];
-      if (u.fromFile) continue; // ファイル由来の発話は図に取り込まない（FR-014 AC-054）
+      if (!u.held) continue; // 待ち（held）の発話だけを取り込む。手入力・ファイル由来は対象外（FR-014 AC-054・AC-521）
       delete u.held; ingestOne(s, i, false); out.push(u.text);
       // 待ちの間に押された［次のシーン］（session.nextScene）の区切り: この発話までを前のシーンとして確定し、次の発話から新しいシーンにする
       if (u.breakAfter) {
