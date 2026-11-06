@@ -117,6 +117,5 @@ test('FR-022 AC-113: 受付時刻は最初の cue が取込時刻、以降は差
     'bad --> x', '<v A>読めない</v>', '', '01:20.000 --> 01:21.000', '<v A>発売時期の話</v>', ''].join('\n');
   await app.importTextFile(f('t.vtt', v));
   assert.deepEqual(app.getState().utterances.map((u) => u.receivedAt - 1_000_000), [0, 4500, 4500, 4500, 70000]);
-  assert.equal(app.getState().scenes.length, 2);
+  assert.equal(app.getState().scenes.length, 0, 'AC-054: 取込は図（シーン）を更新しない。シーンはバッチモード（FR-118）で描く');
 });
-

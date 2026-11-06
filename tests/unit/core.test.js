@@ -42,7 +42,7 @@ test('FR-003 AC-008: 20 秒を超える間隔で進行中のシーンが確定�
 });
 
 // FR-003 AC-044
-test('FR-003 AC-044: ファイル取込の各行は同一の受付時刻で、無音間隔では分割されず進行中のシーンに加わる', async () => {
+test('FR-003 AC-044 FR-014 AC-054: ファイル取込の各行は同一の受付時刻の発話として並ぶが、図（シーン）は更新しない（依頼 2026-11-06）', async () => {
   const { app, c } = await mk();
   app.commands['session.start']();
   app.setDraft('手入力'); app.submitDraft();
@@ -50,14 +50,16 @@ test('FR-003 AC-044: ファイル取込の各行は同一の受付時刻で、�
   const r = await app.importTextFile({ name: 'a.txt', type: 'text/plain', size: 12, text: '一行目\r\n\r\n二行目\n三行目' });
   assert.deepEqual([r.ok, r.added], [true, 3]);
   const st = app.getState();
+  assert.equal(st.utterances.length, 4);
   assert.equal(st.scenes.length, 1);
-  assert.equal(st.scenes[0].points.length, 4);
+  assert.equal(st.scenes[0].points.length, 1, '取込の発話は図に加わらない');
   const times = st.utterances.slice(1).map((u) => u.receivedAt);
   assert.deepEqual(new Set(times).size, 1);
-  // 取込の前に「次のシーン」を操作したときだけ分かれる
+  // 取込の前に「次のシーン」を操作しても、取込は図を更新しない
   app.commands['session.nextScene']();
   await app.importTextFile({ name: 'b.txt', type: 'text/plain', size: 6, text: '四行目\n五行目' });
-  assert.equal(app.getState().scenes.length, 2);
+  assert.equal(app.getState().scenes.length, 1);
+  assert.equal(app.getState().utterances.length, 6);
 });
 
 // FR-002 AC-042
