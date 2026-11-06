@@ -54,6 +54,7 @@ test('FR-117 AC-683: クリック（コマンド）・コマンドの検索・se
   assert.ok(hit.some((h) => (h.command ?? h.id) === 'inputMode.set:live'), 'コマンドの検索から選べる');
   await app.commands['inputMode.set:live'](); assert.equal(app.getInputMode().mode, 'live');
   assert.equal(app.setInputMode('batch').ok, true); assert.equal(app.getInputMode().mode, 'batch');
+  app.setLang('ja'); // 図の文言は表示言語に従うため、比較の前に言語を最初の状態（ja）へ揃える
   assert.equal(keep(), before, '往復しても発話・シーン・図は不変');
 });
 
@@ -65,7 +66,18 @@ test('FR-117 AC-683: 選んだ値は端末ごとの設定として再読込後�
   await b.commands['data.reset'](); await b.dialogAction('confirm');
   assert.equal(b.getInputMode().mode, 'batch', 'データの初期化では変わらない');
   // セッションファイルの内容は入力モードに依存しない
-  const save = async (mode) => { const x = await newApp(); x.app.setInputMode(mode); x.env.downloads.length = 0; await x.app.commands['file.save'](); return x.env.downloads[0].data; };
+  // 空の状態では file.save は download せず reason:'empty'（CONTRACT-BATCH.md）なので、発話がある状態を作ってから保存する
+  const save = async (mode) => {
+    const x = await newApp();
+    x.app.commands['session.start']();
+    x.app.setDraft('予算の見直しが必要です'); assert.equal(x.app.submitDraft().ok, true);
+    x.env.tick(1); x.env.scheduler.advance(3000);
+    x.app.commands['session.pause']();
+    assert.equal(x.app.setInputMode(mode).ok, true);
+    x.env.downloads.length = 0; await x.app.commands['file.save']();
+    assert.equal(x.env.downloads.length, 1, '発話があれば保存される');
+    return x.env.downloads[0].data;
+  };
   assert.equal(String(await save('batch')), String(await save('live')), 'セッションファイルに入力モードを含めない');
   for (const bad of ['', 'stream', null, undefined, 3, ['batch'], {}]) {
     assert.equal(b.setInputMode(bad).ok, false, `不正な値 ${JSON.stringify(bad)}`);
@@ -91,7 +103,7 @@ test('FR-117 AC-683 異常系: 記録中（音声認識中を含む）は切替�
 // FR-117 AC-684
 test('FR-117 AC-684: 音声取込モードでは記録・認識・暫定結果・手入力が従来どおり使え、確定結果は更新間隔ごとに 1 回で描き足される。ファイル由来の発話は図に加わらない', async () => {
   const { app, env } = await newApp({ speech: new FakeSpeech() });
-  assert.equal(app.getBatchState().visible, false, '音声取込ではスタイルのボタンは表示しない');
+  assert.equal(app.getCommandBar().groups.some((g) => g.id === 'batchStyle' && g.visible !== false), false, '音声取込ではスタイルのボタンは表示しない（FR-118 の表示面は batch.test.js）');
   app.commands['session.start']();
   assert.equal(app.getState().session, 'recording');
   env.speech.emit('暫定の声', false);
@@ -114,12 +126,10 @@ test('FR-117 AC-684: 音声取込モードでは記録・認識・暫定結果�
   assert.ok(finals(app).includes('担当者の割り当てを確認する'), '一覧には並ぶ');
 });
 
-test('FR-117 AC-684: ファイル読込モードではスタイルのボタンが表示され、[記録開始] は無効で「音声取込モードで使えます」が文字で示され、押しても記録は始まらない。音声取込へ戻すと元に戻る', async () => {
+test('FR-117 AC-684: ファイル読込モードでは [記録開始] は無効で「音声取込モードで使えます」が文字で示され、押しても記録は始まらない。音声取込へ戻すと元に戻る（スタイルのボタンの表示は FR-118 側の batch.test.js）', async () => {
   const speech = new FakeSpeech();
   const { app } = await newApp({ speech });
   assert.equal(app.setInputMode('batch').ok, true);
-  assert.equal(app.getBatchState().visible, true);
-  assert.equal(batchStyleItems(app).length, 8);
   const start = app.getCommandBar().items.find((i) => i.command === 'session.start');
   assert.equal(start.enabled, false);
   assert.match(start.disabledReason ?? '', /音声取込モードで使えます/);
@@ -128,7 +138,6 @@ test('FR-117 AC-684: ファイル読込モードではスタイルのボタン�
   speech.emit('バッチ中の声', true);
   assert.equal(app.getState().utterances.length, 0, '音声入力は発話にならない');
   assert.equal(app.setInputMode('live').ok, true);
-  assert.equal(app.getBatchState().visible, false);
   assert.notEqual(app.getCommandBar().items.find((i) => i.command === 'session.start').enabled, false);
   await app.commands['session.start'](); await flush();
   assert.equal(app.getState().session, 'recording');

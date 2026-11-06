@@ -68,7 +68,7 @@ test('FR-014 AC-052: 暫定は区別表示され発話にならず、記録中�
 });
 
 // FR-014 AC-053 AC-521: 音声の確定結果は、確定結果の一覧へはすぐ移り、図へは次のライブ更新（初期値 10 秒）で描き足される
-test('FR-014 AC-053 AC-054: 確定は次のライブ更新で、手入力・取込は即座に図へ反映される', async () => {
+test('FR-014 AC-053 AC-054: 確定は次のライブ更新で、手入力は即座に図へ反映される。取込は図を更新しない', async () => {
   const sched = new Sched();
   const { app, sp } = await mk({ scheduler: sched });
   app.setDetailLevel('detail'); // FR-026: 要点を図で確かめるため「詳細」にする
@@ -82,5 +82,6 @@ test('FR-014 AC-053 AC-054: 確定は次のライブ更新で、手入力・取�
   app.setDraft('手入力'); app.submitDraft();
   assert.ok(app.renderSvg().includes('手入力'));
   await app.importTextFile({ name: 'a.txt', type: 'text/plain', size: 10, text: '取込行' });
-  assert.ok(app.renderSvg().includes('取込行'));
+  assert.ok(!app.renderSvg().includes('取込行'), 'AC-054: 取込は図を更新しない（図はバッチモード FR-118 で描く）');
+  assert.ok(app.getTranscript().finals.some((f) => f.text === '取込行'), '確定結果の一覧には並ぶ');
 });

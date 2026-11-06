@@ -310,9 +310,9 @@
       "command": "node --test --test-name-pattern=\"AC-017\" tests/system/i18n.test.js",
       "canary": true,
       "status": "pass",
-      "last_commit": "f091be3",
-      "last_run_at": "2026-11-05T23:50:27+09:00",
-      "evidence": "work/runs/202611052310/logs/system-test/E2E-001-202611052348.log",
+      "last_commit": "69d4811",
+      "last_run_at": "2026-11-07T01:21:20+09:00",
+      "evidence": "work/runs/202611062310/logs/system-test/E2E-001-202611070121.log",
       "history": [
         {
           "at": "2026-10-14T03:15:36+09:00",
@@ -1061,9 +1061,9 @@
       "command": "node --test --test-name-pattern=\"AC-049\" tests/system/rightpanel.test.js",
       "canary": true,
       "status": "pass",
-      "last_commit": "f091be3",
-      "last_run_at": "2026-11-05T23:50:27+09:00",
-      "evidence": "work/runs/202611052310/logs/system-test/E2E-025-202611052348.log",
+      "last_commit": "69d4811",
+      "last_run_at": "2026-11-07T01:21:20+09:00",
+      "evidence": "work/runs/202611062310/logs/system-test/E2E-025-202611070121.log",
       "history": [
         {
           "at": "2026-10-14T04:54:45+09:00",
@@ -1123,9 +1123,9 @@
       "command": "node --test --test-name-pattern=\"AC-052\" tests/system/rightpanel.test.js",
       "canary": false,
       "status": "pass",
-      "last_commit": "f091be3",
-      "last_run_at": "2026-11-05T23:50:27+09:00",
-      "evidence": "work/runs/202611052310/logs/system-test/E2E-027-202611052348.log",
+      "last_commit": "69d4811",
+      "last_run_at": "2026-11-07T01:21:20+09:00",
+      "evidence": "work/runs/202611062310/logs/system-test/E2E-027-202611070121.log",
       "history": [
         {
           "at": "2026-10-14T04:54:47+09:00",
@@ -1147,10 +1147,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-053\" tests/system/rightpanel.test.js",
       "canary": false,
-      "status": "not_run",
-      "last_commit": "f091be3",
-      "last_run_at": "2026-11-05T23:50:27+09:00",
-      "evidence": "work/runs/202611052310/logs/system-test/E2E-028-202611052348.log",
+      "status": "pass",
+      "last_commit": "69d4811",
+      "last_run_at": "2026-11-07T01:21:20+09:00",
+      "evidence": "work/runs/202611062310/logs/system-test/E2E-028-202611070121.log",
       "history": [
         {
           "at": "2026-10-14T04:54:49+09:00",
@@ -1208,10 +1208,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-054\" tests/system/rightpanel.test.js",
       "canary": false,
-      "status": "not_run",
-      "last_commit": "f091be3",
-      "last_run_at": "2026-11-05T23:50:27+09:00",
-      "evidence": "work/runs/202611052310/logs/system-test/E2E-029-202611052348.log",
+      "status": "pass",
+      "last_commit": "69d4811",
+      "last_run_at": "2026-11-07T01:21:20+09:00",
+      "evidence": "work/runs/202611062310/logs/system-test/E2E-029-202611070121.log",
       "history": [
         {
           "at": "2026-10-14T04:54:50+09:00",
@@ -1382,9 +1382,9 @@
       "command": "node --test --test-name-pattern=\"AC-063\" tests/system/background.test.js",
       "canary": true,
       "status": "pass",
-      "last_commit": "f091be3",
-      "last_run_at": "2026-11-05T23:50:27+09:00",
-      "evidence": "work/runs/202611052310/logs/system-test/E2E-033-202611052348.log",
+      "last_commit": "69d4811",
+      "last_run_at": "2026-11-07T01:21:20+09:00",
+      "evidence": "work/runs/202611062310/logs/system-test/E2E-033-202611070121.log",
       "history": [
         {
           "at": "2026-10-14T06:06:02+09:00",
@@ -4007,9 +4007,9 @@
       "command": "node --test --test-name-pattern=AC-339 tests/system/llmrelay.test.js",
       "canary": true,
       "status": "pass",
-      "last_commit": "f091be3",
-      "last_run_at": "2026-11-05T23:50:27+09:00",
-      "evidence": "work/runs/202611052310/logs/system-test/IT-001-202611052348.log",
+      "last_commit": "69d4811",
+      "last_run_at": "2026-11-07T01:21:20+09:00",
+      "evidence": "work/runs/202611062310/logs/system-test/IT-001-202611070121.log",
       "history": [
         {
           "at": "2026-10-17T16:50:44+09:00",
@@ -6160,9 +6160,9 @@
       "command": "node --test --test-name-pattern=\"AC-408\" tests/system/stylepreset.test.js",
       "canary": true,
       "status": "pass",
-      "last_commit": "f091be3",
-      "last_run_at": "2026-11-05T23:50:27+09:00",
-      "evidence": "work/runs/202611052310/logs/system-test/E2E-210-202611052348.log",
+      "last_commit": "69d4811",
+      "last_run_at": "2026-11-07T01:21:20+09:00",
+      "evidence": "work/runs/202611062310/logs/system-test/E2E-210-202611070121.log",
       "history": [
         {
           "at": "2026-10-20T05:23:14+09:00",
@@ -6783,9 +6783,9 @@
       "command": "node --test --test-name-pattern=\"AC-459\" tests/system/cmdgroups.test.js",
       "canary": true,
       "status": "pass",
-      "last_commit": "f091be3",
-      "last_run_at": "2026-11-05T23:50:27+09:00",
-      "evidence": "work/runs/202611052310/logs/system-test/E2E-225-202611052348.log",
+      "last_commit": "69d4811",
+      "last_run_at": "2026-11-07T01:21:20+09:00",
+      "evidence": "work/runs/202611062310/logs/system-test/E2E-225-202611070121.log",
       "history": [
         {
           "at": "2026-10-20T05:37:47+09:00",
@@ -8512,10 +8512,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-521\" tests/system/live.test.js",
       "canary": true,
-      "status": "not_run",
-      "last_commit": "f091be3",
-      "last_run_at": "2026-11-05T23:50:27+09:00",
-      "evidence": "work/runs/202611052310/logs/system-test/E2E-259-202611052348.log",
+      "status": "pass",
+      "last_commit": "69d4811",
+      "last_run_at": "2026-11-07T01:21:20+09:00",
+      "evidence": "work/runs/202611062310/logs/system-test/E2E-259-202611070121.log",
       "history": [
         {
           "at": "2026-10-26T11:35:20+09:00",
@@ -9686,20 +9686,26 @@
         "AC-683",
         "AC-684"
       ],
-      "title": "FR-117 AC-683 AC-684 入力モード: 最上部の 2 項目（アイコン・名称・説明・aria-pressed・初期値・保存・初期化とセッションファイルで不変・記録中は切替不可）、音声取込はミニバッチ描画でファイル由来は図に加わらない、ファイル読込では [記録開始] 無効と理由",
+      "title": "FR-117 AC-683 AC-684 入力モード: 最上部の 2 項目（保存・初期化・記録中は切替不可）、音声取込はミニバッチ描画、ファイル読込モードでは [記録開始] 無効と理由（FR-118 の API に依存しない）",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-683|AC-684\" tests/system/inputmode.test.js",
       "canary": false,
-      "status": "not_run",
-      "last_commit": null,
-      "last_run_at": null,
-      "evidence": null,
+      "status": "pass",
+      "last_commit": "69d4811",
+      "last_run_at": "2026-11-07T01:21:20+09:00",
+      "evidence": "work/runs/202611062310/logs/system-test/E2E-292-202611070121.log",
       "history": [
         {
           "at": "2026-11-06T23:49:37+09:00",
           "by": "test-designer",
           "change": "追加",
           "reason": "受入基準からケースを作成"
+        },
+        {
+          "at": "2026-11-07T00:43:34+09:00",
+          "by": "test-designer",
+          "change": "title: 'FR-117 AC-683 AC-684 入力モード: 最上部の 2 項目（アイコン・名称・説明・aria-pressed・初期値・保存・初期化とセッションファイルで不変・記録中は切替不可）、音声取込はミニバッチ描画でファイル由来は図に加わらない、ファイル読込では [記録開始] 無効と理由' -> 'FR-117 AC-683 AC-684 入力モード: 最上部の 2 項目（保存・初期化・記録中は切替不可）、音声取込はミニバッチ描画、ファイル読込モードでは [記録開始] 無効と理由（FR-118 の API に依存しない）'",
+          "reason": "実装役の報告: 言語の不一致・空の file.save を修正、AC-684 の getBatchState 依存を FR-118 側へ分離"
         }
       ]
     },
@@ -9713,7 +9719,7 @@
         "AC-687",
         "AC-688"
       ],
-      "title": "FR-118 AC-686 AC-687 AC-688 バッチモード: 取込だけでは図も LLM 要求も 0 件（全状態）・読込前はスタイル無効、8 スタイルのボタン（アイコン・名称・説明・aria-pressed・検索・実ブラウザ）、LLM モックで指示つきの要求・サニタイズ・全シーン描画・画風",
+      "title": "FR-118 AC-686 AC-687 AC-688 バッチモード: 取込は図も LLM 要求も 0 件・読込前はスタイル無効・モードでのボタン表示（FR-117 AC-684 の表示面）、8 スタイルのボタン、LLM モックでの要求・サニタイズ・全シーン描画",
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-686|AC-687|AC-688\" tests/system/batch.test.js",
       "canary": false,
@@ -9739,6 +9745,18 @@
           "by": "test-designer",
           "change": "ac_ids: ['AC-688'] -> ['AC-686', 'AC-687', 'AC-688']",
           "reason": "AC-688 改訂: 要求は styleId・styleName だけで instruction を送らない（AC 復元）"
+        },
+        {
+          "at": "2026-11-07T00:43:34+09:00",
+          "by": "test-designer",
+          "change": "title: 'FR-118 AC-686 AC-687 AC-688 バッチモード: 取込だけでは図も LLM 要求も 0 件（全状態）・読込前はスタイル無効、8 スタイルのボタン（アイコン・名称・説明・aria-pressed・検索・実ブラウザ）、LLM モックで指示つきの要求・サニタイズ・全シーン描画・画風' -> 'FR-118 AC-686（FR-117 AC-684 の表示面を含む）: 取込は図を更新しない・LLM 要求 0 件、モードでスタイルのボタンの表示、空ではボタン無効'",
+          "reason": "FR-117 AC-684 のスタイルのボタン表示（getBatchState 依存）を batch.test.js へ移した"
+        },
+        {
+          "at": "2026-11-07T00:43:44+09:00",
+          "by": "test-designer",
+          "change": "title: 'FR-118 AC-686（FR-117 AC-684 の表示面を含む）: 取込は図を更新しない・LLM 要求 0 件、モードでスタイルのボタンの表示、空ではボタン無効' -> 'FR-118 AC-686 AC-687 AC-688 バッチモード: 取込は図も LLM 要求も 0 件・読込前はスタイル無効・モードでのボタン表示（FR-117 AC-684 の表示面）、8 スタイルのボタン、LLM モックでの要求・サニタイズ・全シーン描画'",
+          "reason": "タイトルを AC-687・688 を含む形へ整える"
         }
       ]
     },
