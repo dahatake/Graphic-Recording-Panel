@@ -304,6 +304,24 @@ test('FR-054 AC-236 契約境界: 1 つの要素に PARAM-136 本を超える関
   // 決定的（再描画・再配置の前後で同じ規則）: 同じ入力から同じ結果
   assert.equal(renderDiagramSvg([HUB_SCENE], { relations: rels, t: T, lang: 'ja' }), svg, '同じ入力の図は同じ');
   assert.equal(renderOutline([HUB_SCENE], null, T, null, null, { label: () => '', relations: rels }), html, '同じ入力の一覧は同じ');
+  // 同じ順位（明示どうし）は話順: 明示 5 本＋推測 1 本の固定グラフ（期待値は事前固定）。話順で 5 番目の明示（q7→q1）と推測が外れる
+  const ORDER = labelRelations([
+    { kind: 'cause-effect', from: 'q1', to: 'q2', basis: 'explicit', evidence: { type: 'word', text: 'ので' } },
+    { kind: 'next-step', from: 'q1', to: 'q6', basis: 'inferred', evidence: null },
+    { kind: 'evidence', from: 'q4', to: 'q1', basis: 'explicit', evidence: { type: 'word', text: 'によると' } },
+    { kind: 'problem-proposal', from: 'q1', to: 'q3', basis: 'explicit', evidence: { type: 'word', text: 'ため' } },
+    { kind: 'opposition', from: 'q1', to: 'q5', basis: 'explicit', evidence: { type: 'word', text: 'しかし' }, bidirectional: true },
+    { kind: 'cause-effect', from: 'q7', to: 'q1', basis: 'explicit', evidence: { type: 'word', text: 'から' } },
+  ], 'ja');
+  const LO = limitRelations(ORDER, REL_CAP);
+  assert.deepEqual(relSet(LO.drawn), relSet([0, 2, 3, 4].map((i) => ORDER[i])), '明示 5 本のうち話順の先頭 4 本が図に残る');
+  assert.deepEqual(relSet(LO.hidden), relSet([1, 5].map((i) => ORDER[i])), '話順で後の明示と推測が外れる');
+  assert.deepEqual(Object.fromEntries(LO.moreCount), { q1: 2, q6: 1, q7: 1 }, '他 n 件（話順の判定）');
+  const svgO = renderDiagramSvg([HUB_SCENE], { relations: ORDER, t: T, lang: 'ja' });
+  const visO = [...svgO.matchAll(/<path[^>]*data-relation-from="([^"]+)"[^>]*>/g)].map((m) => ({ kind: at(m[0], 'kind'), from: at(m[0], 'from'), to: at(m[0], 'to'), basis: at(m[0], 'basis') }));
+  assert.deepEqual(relSet(visO), relSet(LO.drawn), '話順の判定でも図の可視線 = drawn');
+  const htmlO = renderOutline([HUB_SCENE], null, T, null, null, { label: () => '', relations: ORDER });
+  assert.match(htmlO, /data-relation-from="q7" data-relation-to="q1" data-relation-kind="cause-effect" data-relation-basis="explicit">原因→結果: 電源の故障 → サーバーが落ちた （明示: から）</, '話順で外れた明示も一覧に種類・向き・相手・明示つきで残る');
   // 境界: ちょうど 4 本なら全部描き、他 n 件は無い
   const four = rels.filter((_, i) => EXP_DRAWN.includes(i));
   const L4 = limitRelations(four, REL_CAP);
