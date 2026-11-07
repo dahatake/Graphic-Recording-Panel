@@ -69,6 +69,11 @@ test('FR-039 AC-180/181/182: どの状態でも取り込め、状態は変わら
     assert.notEqual(app.getState().message?.text, '記録を開始・再開してください');
     if (st !== 'recording') {
       app.setDraft('手入力');
+      // FR-117 AC-684: 取込でファイル読込モードになるので、手入力は「音声取込モードで使えます」で拒否される
+      assert.equal(app.submitDraft().reason, 'voice_only');
+      assert.equal(app.getInputMode().mode, 'batch');
+      assert.equal(app.setInputMode('live').ok, true);
+      app.setDraft('手入力');
       assert.equal(app.submitDraft().reason, 'not_recording');
     }
   }

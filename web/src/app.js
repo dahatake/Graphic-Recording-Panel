@@ -377,6 +377,11 @@ export async function createApp(options = {}) {
   // ---- 入力 ----
   app.setDraft = (text) => { change((s) => { s.input.draft = String(text ?? ''); }); };
   app.submitDraft = () => {
+    // FR-117 AC-684: ファイル読込モードでは手入力は受け付けず、理由（音声取込モードで使えます）を文字で示す
+    if (app.getInputMode?.().mode === 'batch') {
+      change(() => setMessage('msg.inputModeVoiceOnly'));
+      return { ok: false, reason: 'voice_only' };
+    }
     if (state.session !== 'recording') {
       change(() => setMessage('msg.notRecording'));
       return { ok: false, reason: 'not_recording' };
