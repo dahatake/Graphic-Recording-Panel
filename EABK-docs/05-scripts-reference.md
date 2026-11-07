@@ -213,6 +213,33 @@ python scripts/adopt.py golden record|check|list [NAME] [--update]
 
 ## clean-work.py（/work のクリーンアップ）
 
+### 統合 branch を引き継ぐ run と既存記録の移行
+
+終了済み run の専用 worktree で新 run を始めると、`start` は元 run の
+ID・開始/終了日時・branch・session・正規化した tree を `meta.inherited_from`
+へ記録します。元 run の結果は `blocked あり` でも構いませんが、未終了・
+session 不明/不一致・branch/tree 不一致・継承チェーンの欠損は明示エラーで拒否します。
+新しい記録には `worktree_path` も保存します。旧形式の元 run は、Git 登録と
+元の専用 tree（`<主tree名>-run-<元run-id>`）が一致する場合だけ移行できます。
+
+すでに開始済みの旧形式 run は、その run の統合 worktree / branch に戻り、
+同じ所有 session から次を実行します（作業役の pool worktree では実行しません）。
+手で meta を編集したり branch を改名したりしないでください。
+
+```bash
+python scripts/run-state.py repair-ownership --from-run <直前のrun-id> --session-id <現在の所有session-id>
+```
+
+この明示コマンドは現在の active run と元 run の記録・終了順序・session・
+Git branch/tree・全継承チェーンを検証してから、足りない証跡だけを原子的に記録します。
+再実行は同じ証跡なら不変、食い違えば拒否します。今回の対象は
+`--from-run 202611071544`（現在 run `202611071634`）です。
+
+清掃では従来の完了・main 統合・verify・System Test・report の全ゲートを引き続き要求し、
+継承証跡を各元 run の記録と再照合します。前 run は後続 run の tree/branch を清掃できません。
+開始・修復・清掃は既存の共有 start-claim lock で排他し、削除直前にも後続 run を再検査します。
+tree 清掃時には、blocked を含む元 run の証跡も主 tree へ退避して保持します。
+
 ```bash
 python scripts/clean-work.py [--days 14] [--dry-run]
 ```

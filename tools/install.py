@@ -65,6 +65,7 @@ MANAGED = [
     ".github/workflows/ebak-verify.yml",
     ".github/workflows/ebak-data-layer.yml",
     "scripts/ebaklib.py",
+    "scripts/run-ownership.py",
     "scripts/rdcheck.py",
     "scripts/rdfix.py",
     "scripts/entities.py",

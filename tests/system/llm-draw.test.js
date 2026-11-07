@@ -156,6 +156,37 @@ test('FR-063 AC-323 LLM の応答を待たずに PARAM-158（3 秒。手入力�
   assert.ok(app.renderSvg().includes(UTTERANCE), 'ルールベースの要点は残る');
 });
 
+// FR-063 AC-323（2026-11-07 明確化: ファイル取込は先行描画の対象外。読込だけでは図を更新せず実行前の図を保持し、スタイルを選んだバッチ実行時だけ AC-697 で一括反映。契約: CONTRACT-BATCH.md）
+test('FR-063 AC-323 ファイル取込: LLM 連携が有効でも、未実行の取り込みファイルでは PARAM-158 秒を超えて待っても図は更新されず実行前の図を保持し、LLM 向けの要求も出ない。スタイルを選んで実行したときだけ全体が図に反映される', async () => {
+  const probe = await newApp();
+  const key = probe.app.getPartKeys()[0];
+  const h = makeRelay({ extract: answerWith(key) });
+  const { app, env } = await enabledApp(h);
+  app.setDraft(UTTERANCE); assert.equal(app.submitDraft().ok, true);
+  env.tick(PARAM.SINGLE_SEC); env.scheduler.advance(PARAM.SINGLE_SEC * 1000); await app.flushLlm();
+  assert.ok(app.renderSvg().includes(UTTERANCE), '前提: 手入力の図がある（実行前の図）');
+  const fig = () => JSON.stringify({ scenes: app.getState().scenes, svg: app.renderSvg() });
+  const n0 = h.llmReqs().length;
+  if (app.getState().session === 'recording') app.commands['session.stop']();
+  if (app.getInputMode?.().mode !== 'batch') assert.equal(app.setInputMode('batch').ok, true, 'ファイル読込モードに切り替えられる');
+  const before = fig();
+  const FILE_LINE = '来月のリリース計画を決める';
+  const text = `${FILE_LINE}\n担当者の割り当てを確認する\n`;
+  assert.equal((await app.importTextFile({ name: 'later.txt', type: 'text/plain', size: Buffer.byteLength(text), text })).ok, true);
+  for (let i = 0; i < 4; i++) { env.tick(PARAM.SINGLE_SEC); env.scheduler.advance(PARAM.SINGLE_SEC * 1000); }
+  await app.flushLlm();
+  assert.equal(fig(), before, '未実行の取り込みファイルでは PARAM-158 秒を超えて待っても図は更新されない（先行描画の対象外）');
+  assert.ok(!app.renderSvg().includes(FILE_LINE), '取込んだ発話は図に出ていない');
+  assert.equal(h.llmReqs().length, n0, '読込だけでは LLM 向けの要求は出ない');
+  const style = app.getBatchStyles?.()[0];
+  assert.ok(style, 'スタイルを選べる');
+  const rb = await app.runBatch(style.id);
+  assert.equal(rb.ok, true, `バッチ実行: ${JSON.stringify(rb)} ${JSON.stringify(app.getBatchState?.())}`);
+  await app.flushLlm();
+  assert.notEqual(fig(), before, 'スタイルを選んで実行したときだけ図が更新される');
+  assert.ok(app.getState().scenes.every((s) => app.renderSvg().includes(`data-scene-id="${s.id}"`)), '全体が図に反映される');
+});
+
 // FR-063 AC-323（異常系: 応答が失敗しても要点は 3 秒以内に表示される）
 test('FR-063 AC-323 LLM の要求が失敗しても要点は 3 秒（PARAM-158。手入力の単発の反映）以内に表示され続ける', async () => {
   const h = makeRelay({ extract: 'fail' });

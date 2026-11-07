@@ -161,16 +161,19 @@ export function llmDrawModule(ctx) {
   api.setLlmSvgGeneration = (v) => { svgGeneration = v === true; ctx.emit('change', api); return svgGeneration; };
   const generated = new Map(); // シーン ID → [{ label, svg: サニタイズ済み | null（汎用アイコン） }]
   const norm = (svg) => acceptGeneratedSvg(svg, { width: INNER_SIZE, height: INNER_SIZE });
-  async function generate(sceneId, labels, n) {
+  async function generate(sceneId, labels, n, opts = {}) {
+    const target = opts.target ?? generated;
     for (const label of labels) {
-      if ((generated.get(sceneId) ?? []).some((g) => g.label === label)) continue;
+      if ((target.get(sceneId) ?? []).some((g) => g.label === label)) continue;
       const sent = api.maskPersonNames ? api.maskPersonNames(label) : label; // AC-358・AC-668: 名前は常に伏せる
       const res = await api.llmCall(SVG_PATH, { key: 'generated', label: sent, input: sent }); // AC-358: 指示（Prompt 本文）は端末から送らず、中継サーバーが付与する
-      if (!res?.ok || latest.get(sceneId) !== n || !svgGeneration || !active()) continue;
+      if (!res?.ok || latest.get(sceneId) !== n || !svgGeneration || !active() || opts.isCurrent?.() === false) continue;
       const svg = norm(findSvg(res.body));
-      generated.set(sceneId, [...(generated.get(sceneId) ?? []), { label, svg }]);
-      ctx.change(() => { if (!svg) ctx.setMessage('llmdraw.svgFailed'); });
-      ctx.emit('change', api);
+      target.set(sceneId, [...(target.get(sceneId) ?? []), { label, svg }]);
+      if (!opts.target) {
+        ctx.change(() => { if (!svg) ctx.setMessage('llmdraw.svgFailed'); });
+        ctx.emit('change', api);
+      }
     }
   }
   // セッションファイル（FR-019）: 保存はサニタイズ済みの SVG だけ。読込は必ず再サニタイズ（AC-365）。
@@ -193,10 +196,13 @@ export function llmDrawModule(ctx) {
 
   // FR-118・AC-692（Q-049 回答 A）: バッチでは、取込んだ発話の逐語を送らない。要点の文字は、ルールベースで取り出した語（漢字・カタカナ・英数字の語。ひらがなの助詞と長い英数字の列は除く）だけにする
   const termsOf = (line) => {
-    const words = String(line).match(/[\u4E00-\u9FFF\u3005\u30A0-\u30FF\u30FC]+|[A-Za-z][A-Za-z'-]*/gu) ?? []; // 数字だけの列（電話番号・番号類）は簡易マスキングの設定に関わらず送らない（AC-692）
-    // AC-692・Q-049 A・NFR-PRIV-003: 行がひらがなを含まず、文字・数字・記号・空白だけでできている（英語・欧文・名前だけの発話や見出し、URL、短い単独語など）ときは、語の長さに関わらず発話の逐語そのものなので送らない
-    const whole = !/\p{Script=Hiragana}/u.test(String(line)) && /^[\p{L}\p{M}\p{N}\p{P}\p{S}\p{Z}\s]*$/u.test(String(line));
+    // 抽出と全文判定は同じ文字列で行う。書式制御・既定で無視される文字は語を分断させず、原文（端末内）は変えない。
+    const text = String(line).normalize('NFC').replace(/[\p{Cf}\p{Default_Ignorable_Code_Point}]/gu, '');
+    // AC-692・Q-049 A・NFR-PRIV-003: ひらがなの助詞等を含まない行は逐語として送らない。
+    // 文字種の許可リストは使わない（制御文字・私用文字・不正なサロゲート等が混ざっても抑止を解除しない）。
+    const whole = !/\p{Script=Hiragana}/u.test(text);
     if (whole) return '…';
+    const words = text.match(/[\u4E00-\u9FFF\u3005\u30A0-\u30FF\u30FC]+|[A-Za-z][A-Za-z'-]*/gu) ?? []; // 数字だけの列（電話番号・番号類）は簡易マスキングの設定に関わらず送らない（AC-692）
     const keep = []; for (const w of words) { if ([...w].length <= TERM_MAX && !keep.includes(w)) keep.push(w); }
     return keep.length ? keep.join(' ') : '…';
   };
@@ -211,17 +217,35 @@ export function llmDrawModule(ctx) {
   }
   // opts.style: { id, name }（FR-118 バッチ。スタイルの ID・名称だけを送る。指示の本文はサーバーが ID から付与する）。戻り値: 'ok' | 'failed' | 'invalid' | 'stale' | 'none'
   async function extract(sceneId, opts = {}) {
-    const scene = sceneId === undefined ? state.scenes[state.scenes.length - 1] : state.scenes.find((s) => s.id === sceneId);
+    const scene = opts.scene ?? (sceneId === undefined ? state.scenes[state.scenes.length - 1] : state.scenes.find((s) => s.id === sceneId));
     if (!scene) return 'none';
     const { text, truncated } = requestFor(scene, !!opts.style);
     const n = ++seq; latest.set(scene.id, n);
     const styleFields = opts.style ? { styleId: opts.style.id, styleName: opts.style.name, lang: state.lang === 'en' ? 'en' : 'ja' } : {};
-    const pending = api.llmCall(EXTRACT_PATH, { input: text, scene: state.scenes.length, drawStyle: api.getDrawStyle?.() ?? 'handwritten', partKeys: getPartKeys(), text: { format: { type: 'json_object' } }, ...styleFields, ...(svgGeneration ? { allowSvg: true } : {}) });
+    const pending = api.llmCall(EXTRACT_PATH, { input: text, scene: opts.sceneNumber ?? state.scenes.length, drawStyle: opts.drawStyle ?? api.getDrawStyle?.() ?? 'handwritten', partKeys: getPartKeys(), text: { format: { type: 'json_object' } }, ...styleFields, ...(svgGeneration ? { allowSvg: true } : {}) });
     if (truncated) { await Promise.resolve(); ctx.change(() => ctx.setMessage('llmdraw.truncated')); } // 呼び出し元の状態更新の後に通知する
     const res = await pending;
-    if (!res?.ok || latest.get(scene.id) !== n || !active()) return res?.ok ? 'stale' : (res?.reason === 'failed' ? 'failed' : 'stale');
+    if (!res?.ok || latest.get(scene.id) !== n || !active() || opts.isCurrent?.() === false) return res?.ok ? 'stale' : (res?.reason === 'failed' ? 'failed' : 'stale');
     const parsed = parseExtraction(res.body);
     if (!parsed) return 'invalid'; // 形式に合わない応答は全体を無視（ルールベースのまま）
+    if (opts.scene) {
+      // FR-022 AC-523: batch results (including optional generated SVGs) stay
+      // private until the caller applies the whole draft in one change.
+      const secs = parseSections(res.body, scene.points.length);
+      const same = withoutConfidential([scene], state.lang === 'en' ? 'en' : 'ja')[0].points.length === scene.points.length;
+      const stagedGenerated = new Map();
+      if (svgGeneration) await generate(scene.id, parseUnbundled(res.body), n, { target: stagedGenerated, isCurrent: opts.isCurrent });
+      return () => {
+        if (latest.get(scene.id) !== n || !active() || opts.isCurrent?.() === false) return;
+        drawn.set(scene.id, parsed);
+        if (secs.size && same) sectionsOf.set(scene.id, secs);
+        const images = stagedGenerated.get(scene.id);
+        if (images) {
+          generated.set(scene.id, images);
+          if (images.some((image) => !image.svg)) ctx.setMessage('llmdraw.svgFailed');
+        }
+      };
+    }
     drawn.set(scene.id, parsed);
     { const secs = parseSections(res.body, scene.points.length); const same = withoutConfidential([scene], state.lang === 'en' ? 'en' : 'ja')[0].points.length === scene.points.length; if (secs.size && same) sectionsOf.set(scene.id, secs); else sectionsOf.delete(scene.id); } // 機密の要点を除いて送ったときは番号がずれるので使わない
     if (svgGeneration) { const labels = parseUnbundled(res.body); if (labels.length) { ctx.emit('change', api); await generate(scene.id, labels, n); return 'ok'; } }
@@ -229,7 +253,8 @@ export function llmDrawModule(ctx) {
     return 'ok';
   }
   api.extractSceneWithStyle = (sceneId, style) => extract(sceneId, { style }); // FR-118（batch.js）が使う。LLM 連携が無効なら 'none'
-  api.clearLlmDrawn = (sceneIds) => { for (const id of sceneIds) { drawn.delete(id); sectionsOf.delete(id); latest.delete(id); } }; // バッチの再実行で置き換えたシーンの抽出結果を捨てる
+  ctx.stageSceneWithStyle = (scene, style, sceneNumber, drawStyle, isCurrent) => extract(scene.id, { scene, style, sceneNumber, drawStyle, isCurrent });
+  api.clearLlmDrawn = (sceneIds) => { for (const id of sceneIds) { drawn.delete(id); sectionsOf.delete(id); latest.delete(id); generated.delete(id); } }; // バッチの再実行で置き換えたシーンの抽出結果を捨てる
   // 取込などで発話が短時間に大量に来ても、要求は同時に 1 件だけ。処理中に来た発話は、発話のあったシーンごとに 1 回へまとめて（同じシーンへの複数発話は 1 回）、終わった後に順に送る（AC-359・AC-471）
   let extracting = false; const dirty = new Set();
   async function extractCoalesced() {

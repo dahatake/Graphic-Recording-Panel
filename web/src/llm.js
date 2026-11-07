@@ -123,6 +123,8 @@ export async function llmModule(ctx) {
   let credentialSet = null; // null（未確認）| boolean
   let lastSent = null;
   let generation = 0;
+  // FR-018 AC-094 AC-096: requests from erased data cannot notify or publish results.
+  ctx.registerPersist('llmRequests', { reset() { generation++; lastSent = null; } });
   let testResult = null; // null | { ok, cause }
   let provider = DEFAULT_PROVIDER; // FR-068 AC-514（中継サーバーの保存に従う）
   let cp = null; // GitHub Copilot の状態（GET /api/llm/status の copilot。トークンの値は持たない）

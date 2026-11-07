@@ -21,6 +21,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ebaklib as h  # noqa: E402
+ownership = h.load_script("run-ownership")
 
 
 @dataclass
@@ -153,8 +154,20 @@ def authorization(root: Path, base: str, rid: str, meta: dict, report: str) -> s
     if not report_authorizes(report):
         return "清掃前版 run-report が未確定のため期限なく保持"
     integration = str(meta.get("integration_branch", ""))
-    if not re.fullmatch(rf"run/{re.escape(rid)}", integration):
-        return "統合ブランチの所有記録が一致しないため期限なく保持"
+    if "worktree_path" in meta:
+        try:
+            ownership.check_path(root, rid, meta)
+            ownership.check_live_tree(root, integration)
+        except ownership.OwnershipError as exc:
+            return f"tree の所有記録が一致しないため期限なく保持: {exc}"
+    if integration != f"run/{rid}" or "inherited_from" in meta:
+        try:
+            ownership.validate_chain(root, h.load_config(root), rid, meta)
+        except (ownership.OwnershipError, OSError, ValueError) as exc:
+            return f"統合ブランチの所有記録が一致しないため期限なく保持: {exc}"
+    shared = ownership.shared_asset_reason(root, h.load_config(root), rid, meta)
+    if shared:
+        return shared
     if not h.ref_exists(root, base):
         return f"base branch {base} がないため期限なく保持"
     rc, _ = git_output(root, ["merge-base", "--is-ancestor", integration, base])
@@ -196,6 +209,7 @@ def plan(
     run_wt: Optional[Path] = None,
 ) -> List[Candidate]:
     previous = previous or {}
+    shared = ownership.shared_asset_reason(root, cfg, rid, meta)
     live = worktree_map(root)
     protected = protected_keys(root, cfg)
     pool = (h.work_dir(root, cfg) / "worktrees").resolve()
@@ -261,7 +275,9 @@ def plan(
     integration = str(meta.get("integration_branch", ""))
     if integration:
         candidate = Candidate("integration-branch", integration, branch=integration, owner=rid)
-        if not h.ref_exists(root, integration):
+        if shared:
+            candidate.reason = shared
+        elif not h.ref_exists(root, integration):
             if previous.get((candidate.kind, integration)) != "削除済み":
                 candidate.reason = "統合ブランチ欠損と成功記録を照合できないため保持"
         result.append(candidate)
@@ -278,7 +294,9 @@ def plan(
         rkey = key(run_wt)
         wt_candidate = Candidate("run-worktree", str(run_wt), run_wt, integration, owner=rid)
         registered = live.get(rkey)
-        if registered is None or registered[1] not in (integration, ""):
+        if shared:
+            wt_candidate.reason = shared
+        elif registered is None or registered[1] not in (integration, ""):
             wt_candidate.reason = "Git worktree 登録が統合ブランチの所有記録と一致しないため保持"
         elif rkey == key(primary_root(root)) or rkey in protected:
             wt_candidate.reason = "主の作業ツリーまたは設定で保護された作業ツリーのため保持"
@@ -376,10 +394,18 @@ def execute(
             wt = candidate.path
             if wt and wt.exists():
                 try:
-                    src = h.run_dir(wt, cfg, rid)
-                    dst = h.run_dir(primary, cfg, rid)
-                    if src.is_dir() and key(src) != key(dst):
-                        shutil.copytree(src, dst, dirs_exist_ok=True)
+                    ancestors = (ownership.validate_chain(wt, cfg, rid, meta, live=False)
+                                 if meta.get("inherited_from") is not None else [])
+                    for record_id in [*ancestors, rid]:
+                        src = h.run_dir(wt, cfg, record_id)
+                        dst = h.run_dir(primary, cfg, record_id)
+                        if src.is_dir() and key(src) != key(dst):
+                            if dst.exists() and dst != src:
+                                # Never overwrite different archived ownership evidence.
+                                old = h.load_meta(primary, cfg, record_id)
+                                if old != h.load_meta(wt, cfg, record_id):
+                                    raise OSError(f"退避先の run {record_id} の所有記録が一致しません")
+                            shutil.copytree(src, dst, dirs_exist_ok=True)
                     cwd = Path.cwd().resolve()
                     if key(cwd) == key(wt) or Path(key(cwd)).is_relative_to(key(wt)):
                         os.chdir(primary)
@@ -440,6 +466,17 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     root = Path(args.root).resolve() if args.root else h.repo_root()
     cfg = h.load_config(root)
+    try:
+        # Serialize inheritance/repair with cleanup so a new successor cannot
+        # appear between the last ownership recheck and branch/tree deletion.
+        with h.start_claims_lock(root, cfg):
+            return clean_runs(root, cfg, args)
+    except h.LockBusy as exc:
+        print(f"KEEP 所有記録の排他を得られないため清掃しません: {exc}")
+        return 1
+
+
+def clean_runs(root: Path, cfg: dict, args) -> int:
     base = cfg.get("base_branch", "main")
     runs = h.work_dir(root, cfg) / "runs"
     current = h.current_run(root, cfg)
