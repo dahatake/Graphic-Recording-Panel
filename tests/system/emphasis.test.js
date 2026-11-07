@@ -198,23 +198,65 @@ test('FR-054 AC-236: 図の可視の関係線の集合（種類・始点・終�
   }
 });
 
-test('FR-054 AC-236 異常系: 図に可視線がないときは可視線対応部分も空。詳細度（FR-026）を変えた後も同じ規則で一致し、大項目で線が描かれなくても詳細に戻すと超過関係を含む一覧は元のまま（保持を弱めない）', async () => {
+// FR-054 AC-236（2026-11-07 再明確化: 本 AC の関係線は FR-053 のシーン内の要素間の線。FR-025 AC-130・AC-135 のトピック間の「順」「関連」とは別で、
+// 「大項目」ではトピック間の線・種類ラベル・一覧の文字を維持する。超過関係は固定入力で前提を確かめ、成立しなければ合格・省略にせず前提不成立で失敗する）
+// 固定入力（テスト前に固定。実測に合わせて変えない）: 1 つの原因の要点に、明示の因果の結果が PARAM-136 本を超えて付く発話列。
+const OVERFLOW_SEQ = ['サーバーが落ちた。', 'サーバーが落ちたから、リリースを延期します。', 'サーバーが落ちたから、告知を止めます。', 'サーバーが落ちたから、問い合わせ窓口を開きます。', 'サーバーが落ちたから、返金を検討します。', 'サーバーが落ちたから、謝罪文を出します。', 'サーバーが落ちたから、監視を強化します。'];
+// トピック間の関係がある入力（AC-135: 隣り合う 2 トピック → 「順」）。空白区切りの語を 2 語以上（PARAM-015）共有するシーンだけが同じトピック。
+const TOPIC_GROUPS = [['予算 コスト 見直し 必要'], ['予算 コスト 削減 検討'], ['リリース 計画 決定 日程'], ['リリース 計画 担当 確認']];
+const relLine = (html, r) => (html.match(new RegExp(`<[^>]*data-relation-from="${r.from}"[^>]*data-relation-to="${r.to}"[^]*?(?=data-relation-from=|$)`)) ?? [''])[0];
+
+test('FR-054 AC-236 異常系: 図に可視線がないときは可視線対応部分も空。超過関係のある固定入力で、図に残った関係と可視線対応部分が一致し、外れた関係は種類・向き・相手の要点つきで一覧に残り、詳細度（FR-026）を変えても保持される。「大項目」では要素間の線と対応部分が空でも、トピック間の関係（AC-130・AC-135）の線・種類ラベル・一覧の文字は残る', async () => {
+  // (1) 関係のない入力: 可視線も対応部分も空（これだけでは以下の確認を代替しない）
   const { app } = await feed(['納期が迫っている。', '来月から広報を始める。']);
   assert.equal(app.getDiagramRelations().length, 0);
   const { o } = checkVisibleCorrespondence(app, '関係なし');
   assert.equal(o.filter((r) => app.getDiagramRelations().some((v) => rkey(v) === rkey(r))).length, 0, '可視線対応部分は空');
-  assert.equal(o.length, 0, '線数上限で外れる関係も無い入力では、一覧に関係情報が無い');
-  assert.ok(!app.renderOutline().includes('data-relation-from'));
-  const { app: b } = await feed(['コストが高くて困った', '予算を再配分するアイデアを出します。', '雨が降っているから、中止にします。']);
-  const first = { d: relSet(b.getDiagramRelations()), o: relSet(b.getOutlineRelations()) };
-  assert.ok(first.d.length >= 1, '前提: 詳細では可視線がある');
+  assert.ok(!/data-relation-from=/.test(app.renderSvg()), '図に要素間の線はない');
+
+  // (2) 超過関係の固定入力: 前提（一覧に、1 つの要素へ PARAM-136 本を超える関係がある）を確かめる。成立しなければ前提不成立で失敗
+  const { app: b } = await feed(OVERFLOW_SEQ);
+  const all = b.getOutlineRelations();
+  const perAll = new Map();
+  for (const r of all) for (const id of [r.from, r.to]) perAll.set(id, (perAll.get(id) ?? 0) + 1);
+  const hub = [...perAll].find(([, n]) => n > REL_CAP);
+  assert.ok(hub, `前提不成立: 固定入力（OVERFLOW_SEQ）で 1 つの要素に PARAM-136（${REL_CAP}）本を超える関係が一覧にない（要素ごとの最大 ${Math.max(0, ...perAll.values())} 本）。合格・検証省略にしない（AC-236 検証の前提）`);
+  const { d } = checkVisibleCorrespondence(b, '超過・詳細');
+  const ds = new Set(d.map(rkey));
+  const outside = all.filter((r) => !ds.has(rkey(r)));
+  assert.ok(outside.length >= 1, '前提不成立: 線数上限で図から外れた関係がない');
+  const perVis = new Map();
+  for (const r of d) for (const id of [r.from, r.to]) perVis.set(id, (perVis.get(id) ?? 0) + 1);
+  assert.ok([...perVis.values()].every((n) => n <= REL_CAP), '図に残った線は 1 要素あたり PARAM-136 本まで');
+  const texts = stateTexts(b);
+  const keep = () => { const html = b.renderOutline(); for (const r of outside) { const m = relLine(html, r); assert.ok(m && m.includes(r.kindLabel) && m.includes(texts.get(r.from)) && m.includes(texts.get(r.to)), `外れた関係 ${rkey(r)} は一覧に種類・向き（始点→終点）・相手の要点つきで残る`); } };
+  keep();
+  const first = { d: relSet(d), o: relSet(all) };
   for (const lv of ['major', 'middle', 'detail', 'major', 'detail']) {
     toDetail(b, lv);
-    const { d } = checkVisibleCorrespondence(b, lv);
-    if (lv === 'major') assert.equal(d.length, 0, '大項目では要点どうしの関係線は描かれず、可視線対応部分は空');
-    if (lv === 'detail') {
+    const { d: dv } = checkVisibleCorrespondence(b, `超過・${lv}`);
+    if (lv !== 'detail') {
+      assert.equal(dv.length, 0, `${lv}: 要素間の線と、その可視線対応部分は空`);
+      const html = b.renderOutline();
+      for (const r of outside) assert.ok(html.includes(texts.get(r.to)) || html.includes(r.kindLabel), `${lv}: 切替で AC-584 の一覧全体の情報（外れた関係 ${rkey(r)}）を消さない`);
+    } else {
       assert.deepEqual(relSet(b.getDiagramRelations()), first.d, '詳細に戻すと同じ可視線');
       assert.deepEqual(relSet(b.getOutlineRelations()), first.o, '詳細に戻すと一覧全体（超過関係を含む）も元のまま');
+      keep();
     }
   }
+
+  // (3) トピック間の関係（FR-025 AC-130・AC-135）は本 AC の対象外で、「大項目」では線・種類ラベル・一覧の文字で確認できる
+  const { app: c, env } = await newApp();
+  c.commands['session.start']();
+  TOPIC_GROUPS.forEach((g, i) => { for (const t of g) { c.setDraft(t); c.submitDraft(); env.tick(1); } if (i < TOPIC_GROUPS.length - 1) c.commands['session.nextScene'](); });
+  env.scheduler.advance(3000);
+  toDetail(c, 'major');
+  assert.ok(c.getTopics().length >= 2, '前提不成立: トピックが 2 つ以上にならない');
+  const svg = c.renderSvg(); const outline = c.renderOutline();
+  assert.ok(/data-topic-relation/.test(svg), '大項目: トピック間の関係の線が図にある');
+  assert.ok(/>[^<]*順[^<]*</.test(svg), '大項目: 隣り合うトピックの関係に種類の文字ラベル「順」がある（色だけで示さない）');
+  assert.ok(/>[^<]*順[^<]*</.test(outline), '大項目: テキスト一覧でもトピック間の関係「順」を文字で確認できる');
+  assert.equal(c.getDiagramRelations().length, 0, '大項目: 要素間の関係線（本 AC の対象）は空');
+  assert.ok(!/data-relation-from=/.test(svg), '大項目: 図に要素間の線はない');
 });

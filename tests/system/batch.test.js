@@ -180,7 +180,7 @@ test('FR-118 AC-688 境界別: 端末→中継は固定指示本文を含まず�
     const b = bridgeRelay(proc, rawRequest);
     const { app } = await newApp({ options: { relay: b.relay } });
     await enableLlm(app);
-    assert.equal((await app.importTextFile(VTT)).ok, true);
+    assert.equal((await app.importTextFile(sceneSplitVtt(3))).ok, true);
     const [sa, sb] = app.getBatchStyles();
     const run = async (style) => {
       const t0 = b.llmReqs().length; const u0 = up.calls.length;
@@ -189,9 +189,13 @@ test('FR-118 AC-688 境界別: 端末→中継は固定指示本文を含まず�
       return { term: b.llmReqs().slice(t0), upstream: up.calls.slice(u0).map((c) => JSON.parse(c.body)) };
     };
     const A = await run(sa); const B = await run(sb);
+    const N = app.getState().scenes.length;
+    assert.ok(N >= 2, `前提不成立: 固定入力（sceneSplitVtt(3)）が複数シーンにならない（N=${N}）`);
     for (const [s, x] of [[sa, A], [sb, B]]) {
-      assert.ok(x.term.length >= 1, `${s.id}: 端末→中継の LLM 向け要求が 1 件以上`);
-      assert.ok(x.upstream.length >= 1, `${s.id}: 中継→LLM の要求が 1 件以上`);
+      // 要求はシーンごと。送信が許され取消・途中停止がなければ、各境界でそれぞれちょうど N 件（両境界を足して数えない）
+      assert.equal(x.term.length, N, `${s.id}: 端末→中継の LLM 向け要求は全シーン数 N=${N} 件`);
+      assert.equal(x.upstream.length, N, `${s.id}: 中継→LLM の要求は全シーン数 N=${N} 件`);
+      assert.ok(x.term.every((q) => q.path === '/api/llm/extract'), `${s.id}: 図式化要求だけ（方式2 の SVG 生成要求は既定オフで 0 件。AC-330）`);
       assert.ok(b.log.every((q) => q.path.startsWith('/api/')), '端末から同一オリジンの中継以外へのリクエストは 0 件');
       for (const q of x.term) {
         assert.equal(q.body?.styleId, s.id, `${s.id}: (a) 端末→中継はスタイルの ID を送る`);
@@ -238,6 +242,25 @@ test('FR-118 AC-688 境界別: 端末→中継は固定指示本文を含まず�
     assert.equal(app.setBudget(Math.ceil(app.getBudget().usedYen) * 10 + 100).ok, true);
     assert.equal((await app.runBatch(st)).ok, true); await app.flushLlm();
     assert.ok(h.llmReqs().length > n1, '予算を使用額より大きくすると再開する（AC-533）');
+  }
+
+  // 入力由来の上限: PARAM-070（2000 文字）を超える要点のシーンでも、文字数ごとに分割した要求は出さない（各境界 N 件まで）。失敗は自動再送しない
+  {
+    const ts = (s) => `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}.000`;
+    const cues = [];
+    for (let g = 0; g < 2; g++) for (let i = 0; i < 80; i++) { const t = g * 600 + i * 2 + 1; cues.push(`${ts(t)} --> ${ts(t + 1)}\n<v 話者${i % 2}>議題${g}の論点${i}について予算と日程と担当の確認を進める必要がある</v>\n`); }
+    const longVtt = toFile('long.vtt', `WEBVTT\n\n${cues.join('\n')}`);
+    for (const [label, file, mode] of [['PARAM-070 超過', longVtt, undefined], ['失敗', sceneSplitVtt(3), 'fail']]) {
+      const h = makeRelay(mode ? { mode } : {});
+      const { app } = await bootApp(h);
+      await enableLlm(app);
+      assert.equal((await app.importTextFile(file)).ok, true, `${label}: 取込`);
+      assert.equal((await app.runBatch(app.getBatchStyles()[0].id)).ok, true, `${label}: 実行できる`); await app.flushLlm();
+      const sc = app.getState().scenes; const N = sc.length;
+      if (label === 'PARAM-070 超過') assert.ok(sc.some((s) => s.points.map((p) => p.text).join('').length > 2000), '前提不成立: PARAM-070 を超える要点のシーンがない');
+      assert.equal(h.llmReqs().length, N, `${label}: LLM 向け要求は全シーン数 N=${N} 件（分割・自動再送で増やさない）`);
+      assert.ok(h.llmReqs().every((q) => q.path === '/api/llm/extract'), `${label}: 方式2 の SVG 生成要求は 0 件（既定オフ）`);
+    }
   }
 });
 
@@ -410,10 +433,11 @@ test('FR-022 AC-523 / NFR-PERF-001 AC-697: 複数要求のバッチ実行は、�
 // FR-118 AC-692（system。Q-049 の回答 A。契約: CONTRACT-BATCH.md 3.。2026-11-07 に逐語の定義 (a)(b) を明確化し検証レベルを system に変更）
 // バッチモードでは、取込んだファイルの全文・発話の逐語・話者名は、LLM 連携が有効・同意済みでも LLM（中継を含む外部）に送られない。
 // 注入した長い発話の逐語（固有の文字列）が、スタブの受けた全要求（パスと本文の全階層）に 0 回しか現れないことで確かめる。
+// 固定データの正本は、このケースと CONTRACT-BATCH.md 3. の「AC-692 の固定データ」（要求定義書には転記しない。ファイル名 inject.* はテスト内で生成する識別名）。
 test('FR-118 AC-692: バッチ実行（LLM 有効・同意済み）で、注入した長い発話の逐語・ファイルの全文・話者名は、中継スタブが受けた全要求に 0 回しか現れない（送るのはスタイルの ID・名称と要点の文字などだけ）', async (t) => {
   const count = (hay, needle) => hay.split(needle).length - 1;
   const TOKEN = 'ZQXINJECT7731VERBATIM';
-  const LONG = `この発話は固有の長い文章であり、会議の途中で参加者が詳しい経緯を延べ延べと説明した内容をそのまま記録したものである。${TOKEN}は取込んだ原文にしか現れない目印であり、外部へ送ってはならない。`;
+  const LONG = `この発話は固有の長い文章であり、会議の途中で参加者が詳しい経緯を長々と説明した内容をそのまま記録したものである。${TOKEN}は取込んだ原文にしか現れない目印であり、外部へ送ってはならない。`;
   const SPK = ['話者SPKZQ甲斐', '話者SPKZQ乙川'];
   const vttText = ['WEBVTT', '',
     `00:00:01.000 --> 00:00:03.000\n<v ${SPK[0]}>${LONG}</v>\n`,
