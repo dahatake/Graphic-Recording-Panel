@@ -669,8 +669,6 @@ def _start_create(args, root: Path, cfg: dict, opts: dict, auto_note: str) -> in
         rid = f"{args.run_id or h.new_run_id()}-{n}"
         rdir = h.run_dir(root, cfg, rid)
         n += 1
-    for sub in ("evidence", "audit", "logs"):
-        (rdir / sub).mkdir(parents=True, exist_ok=True)
     branch = start_branch = h.current_branch(root)
     branch_msg = ""
     if branch in (cfg.get("base_branch", "main"), "master") and not args.no_branch:
@@ -687,7 +685,17 @@ def _start_create(args, root: Path, cfg: dict, opts: dict, auto_note: str) -> in
         "stages_done": [], "ledger_strict": False, "session_id": getattr(args, "session_id", None) or take_start_claim(root, cfg, locked=True),
         "toolkit": h.TOOLKIT_VERSION,
         "human_interventions": [{"at": h.now_iso(), "kind": "request", "note": ""}],
+        "worktree_path": str(root.resolve()),
     }
+    if branch.startswith("run/") and branch != f"run/{rid}":
+        ownership = h.load_script("run-ownership")
+        try:
+            meta["inherited_from"] = ownership.build_inheritance(root, cfg, rid, meta)
+        except ownership.OwnershipError as exc:
+            print(f"ERROR run-state: 継承所有証跡を検証できません: {exc}")
+            return 5
+    for sub in ("evidence", "audit", "logs"):
+        (rdir / sub).mkdir(parents=True, exist_ok=True)
     h.save_meta(root, cfg, rid, meta)
     h.write_json(rdir / "queue.json", {"run_id": rid, "items": []})
     h.write_text_atomic(rdir / "progress.md", f"# progress {rid}\n\n")
@@ -700,6 +708,37 @@ def _start_create(args, root: Path, cfg: dict, opts: dict, auto_note: str) -> in
     if auto_note:
         print(auto_note)
     return 0
+
+
+def cmd_repair_ownership(args) -> int:
+    """Explicit, idempotent migration of an already active legacy run."""
+    root, cfg = ctx(args)
+    ownership = h.load_script("run-ownership")
+    try:
+        with h.start_claims_lock(root, cfg):
+            rid = need_run(root, cfg)
+            meta = h.load_meta(root, cfg, rid)
+            if (meta.get("run_id") != rid or meta.get("status") != "active"
+                    or not args.session_id or meta.get("session_id") != args.session_id):
+                raise ownership.OwnershipError("現在の active run の session 所有証拠が一致しません")
+            if h.current_branch(root) != meta.get("integration_branch"):
+                raise ownership.OwnershipError("現在の branch が所有記録と一致しません")
+            if meta.get("worktree_path") and ownership.path_key(Path(meta["worktree_path"])) != ownership.path_key(root):
+                raise ownership.OwnershipError("現在の tree が所有記録と一致しません")
+            evidence = ownership.build_inheritance(root, cfg, rid, meta, args.from_run)
+            if "inherited_from" in meta:
+                ownership.validate_chain(root, cfg, rid, meta)
+                if meta["inherited_from"] != evidence:
+                    raise ownership.OwnershipError("既存の継承証跡を書き換えることはできません")
+            else:
+                meta["worktree_path"] = str(root.resolve())
+                meta["inherited_from"] = evidence
+                h.save_meta(root, cfg, rid, meta)
+            print(f"OWNERSHIP {rid} inherited-from {args.from_run}")
+            return 0
+    except (ownership.OwnershipError, h.LockBusy, OSError, ValueError) as exc:
+        print(f"ERROR run-state: 所有証跡の修復を拒否しました: {exc}")
+        return 5
 
 
 def heal_integration_branch(root: Path, cfg: dict, rid: str, meta: dict) -> str:
@@ -1117,6 +1156,9 @@ def main(argv=None) -> int:
     s.add_argument("--no-branch", action="store_true", help="main 上でも統合ブランチを作らない")
     s.add_argument("--allow-primary", action="store_true", help="主の作業ツリーでの開始を許す（run ごとの worktree 必須を外す。通常は使わない）")
     s.add_argument("--tail", type=int, default=8)
+    repair = sub.add_parser("repair-ownership", help="元 run の証跡を検証して既存 active run の継承記録を補う")
+    repair.add_argument("--from-run", required=True)
+    repair.add_argument("--session-id", required=True)
     st = sub.add_parser("status")
     st.add_argument("--tail", type=int, default=8)
     sg = sub.add_parser("stage")
@@ -1165,7 +1207,7 @@ def main(argv=None) -> int:
     f.add_argument("--credits")
     f.add_argument("--force", action="store_true")
     args = ap.parse_args(argv)
-    return {"start": cmd_start, "status": cmd_status, "stage": cmd_stage, "progress": cmd_progress,
+    return {"start": cmd_start, "repair-ownership": cmd_repair_ownership, "status": cmd_status, "stage": cmd_stage, "progress": cmd_progress,
             "queue": cmd_queue, "time": cmd_time,             "complete-check": cmd_complete_check, "land": cmd_land,
             "lane": cmd_lane, "human": cmd_human, "finish": cmd_finish}[args.cmd](args)
 

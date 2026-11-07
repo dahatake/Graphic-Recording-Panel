@@ -61,6 +61,7 @@ export function batchModule(ctx) {
   let selected = null; // 現在の図のスタイルの ID（実行前は null）
   let runId = 0;
   let cancelRun = null;
+  let extracted = Object.freeze([]);
 
   const mode = () => api.getInputMode?.().mode ?? 'live';
   const baseState = () => {
@@ -87,10 +88,23 @@ export function batchModule(ctx) {
     return {
       state: st, visible: mode() === 'batch', total: st === 'idle' ? 0 : total, done, percent: st === 'running' || st === 'done' ? percent : 0,
       progressText, cancelEnabled: st === 'running', message: st === 'running' ? progressText : st === 'done' ? doneMessage : st === 'idle' ? t('msg.batchLoadFile') : '',
+      extracted,
     };
   };
 
   const finish = () => { cancelRun = null; };
+
+  // FR-018 AC-094 AC-096: reset also discards unpublished work synchronously.
+  ctx.registerPersist('batch', {
+    reset() {
+      ++runId;
+      cancelRun?.();
+      finish();
+      phase = 'idle'; selected = null;
+      total = 0; done = 0; doneMessage = ''; drawnCount = 0; utterAtDone = 0;
+      extracted = Object.freeze([]);
+    },
+  });
 
   // 実行（コマンド batchStyle.set:<id> と同じ）。Promise は完了・取消・失敗で解決する
   api.runBatch = async (styleId) => {
@@ -101,53 +115,63 @@ export function batchModule(ctx) {
     if (st === 'idle') { ctx.change(() => ctx.setMessage('msg.batchLoadFile')); return { ok: false, reason: 'no_input' }; }
     const style = registry.list(lang()).find((s) => s.id === styleId);
     const my = ++runId;
-    const prevStyle = api.getDrawStyle?.(); const prevSelected = selected; const prevPhase = phase; const prevDone = { doneMessage, drawnCount, utterAtDone };
-    // 開始（操作の直後に処理中を示す。PARAM-014）: 画風をそのスタイルのものにし、取込んだ発話から図を作り直す
+    const prevSelected = selected; const prevDone = { doneMessage, drawnCount, utterAtDone };
+    // 開始（操作の直後に処理中を示す。PARAM-014）。図と画風は最後の一括反映まで変えない。
     phase = 'running'; selected = styleId; done = 0; total = 0;
-    api.setDrawStyle?.(style.drawStyle);
-    const prevLevel = api.getDetailLevel?.();
-    if (prevLevel === 'major') api.setDetailLevel?.('detail'); // 全シーンを図に描く（大項目だけの表示ではシーンが現れない）
     const oldIds = state.scenes.map((s) => s.id);
-    const restore = ctx.rebuildScenes();
-    const scenes = state.scenes.map((s) => ({ id: s.id }));
+    const draft = ctx.prepareBatchScenes();
+    const scenes = draft.scenes;
+    // FR-118 AC-692: immutable, local-only extraction evidence before any masking/send.
+    extracted = Object.freeze(scenes.map((s, i) => Object.freeze({
+      scene: i + 1, points: Object.freeze(s.points.map((p) => p.text)),
+    })));
     total = scenes.length;
+    const applications = [];
     let cancelled = false;
     const cancelled$ = new Promise((resolve) => { cancelRun = () => { cancelled = true; resolve('cancelled'); }; });
     ctx.change(() => {});
     await Promise.resolve();
     // LLM 連携（有効・同意済み）: 全シーンについて、スタイルの ID・名称だけを送る。失敗したシーンはルールベース描画のまま
     let llmUsed = false;
-    if (llmOn() && typeof api.extractSceneWithStyle === 'function') {
+    if (llmOn() && typeof ctx.stageSceneWithStyle === 'function') {
       llmUsed = true;
       const work = (async () => {
-        for (const sc of scenes) {
+        for (const [i, sc] of scenes.entries()) {
           if (cancelled || my !== runId) return;
-          await api.extractSceneWithStyle(sc.id, { id: style.id, name: style.label });
+          try {
+            const apply = await ctx.stageSceneWithStyle(sc, { id: style.id, name: style.label }, i + 1, style.drawStyle, () => !cancelled && my === runId);
+            if (typeof apply === 'function') applications.push(apply);
+          } catch { /* Each failed scene independently keeps its rule-based fallback. */ }
           if (cancelled || my !== runId) return;
           done += 1; ctx.change(() => {});
         }
       })();
       await Promise.race([work.catch(() => {}), cancelled$]);
     }
-    if (cancelled || my !== runId) {
+    // A reset owns the new state; the old run must not restore selection or save.
+    if (my !== runId) return { ok: true, drawn: 0, cancelled: true };
+    if (cancelled) {
       // 取消: 読込済みに戻り、図は実行前のまま（発話は残る）
       api.clearLlmDrawn?.(scenes.map((s) => s.id));
-      phase = prevPhase === 'running' ? 'idle' : prevPhase; selected = prevSelected;
+      phase = 'idle'; selected = prevSelected;
       doneMessage = prevDone.doneMessage; drawnCount = prevDone.drawnCount; utterAtDone = prevDone.utterAtDone;
-      restore();
-      if (prevStyle) api.setDrawStyle?.(prevStyle);
-      if (prevLevel && api.getDetailLevel?.() !== prevLevel) api.setDetailLevel?.(prevLevel);
       finish(); total = 0; done = 0;
       ctx.change(() => {});
       return { ok: true, drawn: 0, cancelled: true };
     }
-    done = total; drawnCount = state.scenes.length;
-    api.clearLlmDrawn?.(oldIds); // 置き換えた図のシーンの抽出結果は捨てる
+    done = total; drawnCount = scenes.length;
     phase = 'done'; utterAtDone = state.utterances.length;
     doneMessage = fmt('batch.done', { n: drawnCount }) + (llmUsed ? '' : `。${t('batch.llmOff')}`);
     finish();
-    ctx.change(() => {});
-    ctx.emit('batch:done', { styleId, drawn: drawnCount });
+    draft.commit(() => {
+      const message = state.message; // Keep failure/budget notifications from the settled requests.
+      api.clearLlmDrawn?.(oldIds);
+      api.setDrawStyle?.(style.drawStyle);
+      if (api.getDetailLevel?.() === 'major') api.setDetailLevel?.('detail');
+      if (llmUsed) state.message = message;
+      for (const apply of applications) apply();
+      ctx.emit('batch:done', { styleId, drawn: drawnCount });
+    });
     return { ok: true, drawn: drawnCount };
   };
   api.cancelBatch = () => {
