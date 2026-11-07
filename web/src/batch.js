@@ -94,6 +94,18 @@ export function batchModule(ctx) {
 
   const finish = () => { cancelRun = null; };
 
+  // FR-018 AC-094 AC-096: reset also discards unpublished work synchronously.
+  ctx.registerPersist('batch', {
+    reset() {
+      ++runId;
+      cancelRun?.();
+      finish();
+      phase = 'idle'; selected = null;
+      total = 0; done = 0; doneMessage = ''; drawnCount = 0; utterAtDone = 0;
+      extracted = Object.freeze([]);
+    },
+  });
+
   // 実行（コマンド batchStyle.set:<id> と同じ）。Promise は完了・取消・失敗で解決する
   api.runBatch = async (styleId) => {
     if (typeof styleId !== 'string' || !registry.has(styleId)) return { ok: false, reason: 'invalid' };
@@ -136,7 +148,9 @@ export function batchModule(ctx) {
       })();
       await Promise.race([work.catch(() => {}), cancelled$]);
     }
-    if (cancelled || my !== runId) {
+    // A reset owns the new state; the old run must not restore selection or save.
+    if (my !== runId) return { ok: true, drawn: 0, cancelled: true };
+    if (cancelled) {
       // 取消: 読込済みに戻り、図は実行前のまま（発話は残る）
       api.clearLlmDrawn?.(scenes.map((s) => s.id));
       phase = 'idle'; selected = prevSelected;

@@ -37,6 +37,69 @@ async function stagedBatch() {
 }
 const answer = { status: 200, body: { objects: [], people: [], emotions: [], metaphors: [] } };
 
+for (const outcome of ['ok', 'fail', 'timeout']) {
+  test(`FR-018 AC-094 AC-096: reset invalidates a pending batch before late ${outcome}`, async () => {
+    const { app, env, createApp, pending, sent } = await stagedBatch();
+    const p = app.runBatch(app.getBatchStyles()[1].id);
+    await flush();
+    pending.shift()(answer); await flush();
+    assert.equal(pending.length, 1, 'a later scene is still pending after an earlier response');
+    app.commands['data.reset']();
+    app.dialogAction('confirm');
+    const assertReset = () => {
+      assert.equal(app.getBatchState().state, 'idle');
+      assert.equal(app.getBatchState().progressText, '');
+      assert.equal(app.getBatchState().cancelEnabled, false);
+      assert.deepEqual(app.getBatchState().extracted, []);
+      assert.deepEqual(app.getState().utterances, []);
+      assert.deepEqual(app.getState().scenes, []);
+      assert.equal(app.getState().session, 'preparing');
+      assert.deepEqual(finals(app), []);
+      app.flushSave();
+      assert.equal(env.storage.getItem('grp.session'), null);
+    };
+    assertReset();
+    const resetState = app.getState();
+    assert.equal((await p).cancelled, true, 'reset settles the batch without waiting for LLM');
+    const late = pending.shift();
+    if (outcome === 'timeout') env.scheduler.advance(30000);
+    else late(outcome === 'fail' ? { status: 500, body: {} } : answer);
+    await flush();
+    assertReset();
+    assert.deepEqual(app.getState(), resetState, 'late results cannot change the reset state or notification');
+    if (outcome === 'timeout') { late(answer); await flush(); assertReset(); }
+    assert.equal(sent.length, 2, 'reset never starts the remaining scene request');
+    const again = await createApp(env.options);
+    assert.deepEqual(again.getState().utterances, []);
+    assert.deepEqual(again.getState().scenes, []);
+  });
+}
+
+test('FR-018 AC-094 AC-096 / FR-118 AC-691: reset permits a new batch before the old run settles', async () => {
+  const { app, pending } = await stagedBatch();
+  const old = app.runBatch(app.getBatchStyles()[1].id);
+  await flush();
+  const late = pending.shift();
+  app.commands['data.reset']();
+  app.dialogAction('confirm');
+  // The old relay request remains pending while a new batch starts.
+  await app.importTextFile(multiSceneFile);
+  const current = app.runBatch(app.getBatchStyles()[0].id);
+  await flush();
+  assert.equal((await old).cancelled, true);
+  assert.equal(app.getBatchState().state, 'running');
+  const evidence = app.getBatchState().extracted;
+  assert.ok(evidence.length);
+  late(answer); await flush();
+  assert.equal(app.getBatchState().state, 'running');
+  assert.deepEqual(app.getBatchState().extracted, evidence);
+  assert.deepEqual(app.getState().scenes, []);
+  for (let i = 0; i < 3; i++) { pending.shift()(answer); await flush(); }
+  assert.equal((await current).ok, true);
+  assert.equal(app.getBatchState().state, 'done');
+  assert.ok(app.getState().scenes.length);
+});
+
 for (const outcome of ['ok', 'fail', 'timeout', 'budget']) {
   test(`FR-022 AC-523 / NFR-PERF-001 AC-697: atomic batch commit after ${outcome}, no intermediate drawing`, async () => {
     const { app, env, pending, sent } = await stagedBatch();
