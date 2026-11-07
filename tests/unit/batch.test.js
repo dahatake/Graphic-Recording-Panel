@@ -110,6 +110,19 @@ test('FR-118 AC-692: 行の全体が語だけの発話（英語・見出し）�
   assert.ok(!sent2.includes('予算レビュー会議') && !sent2.includes('Quarterly') && sent2.includes('見直'));
 });
 
+// FR-118 AC-692（Q-049 A・NFR-PRIV-003、reviewer 差し戻し）: 語の長さ・欧文アクセント・短い単独語に関わらず、ひらがなを含まない行は送らない
+test('FR-118 AC-692: 長い語を含む行・アクセント文字の行・短い単独語の行は断片も送らない（ひらがなを含む文は語を残す）', async () => {
+  const h = makeRelay();
+  const { app } = await bootApp(h);
+  await enableLlm(app);
+  const txt = ['Supercalifragilisticexpialidocious Alice', 'https://verylonghostname-example.com/x', 'Müller Straße', '山口', '予算の見直しが必要です', ''].join('\n');
+  await app.importTextFile({ name: 'c.txt', type: 'text/plain', size: txt.length, text: txt });
+  await app.runBatch(app.getBatchStyles()[0].id); await app.flushLlm();
+  const sent = h.llmReqs().map((q) => q.body.input).join('\n');
+  for (const w of ['Supercali', 'Alice', 'https', 'example', 'verylong', 'Stra', 'ller', '山口']) assert.ok(!sent.includes(w), `${w} は送らない`);
+  assert.ok(sent.includes('見直'), 'ひらがなを含む日本語の文は語を残す（AC-690）');
+});
+
 // FR-118 AC-686: 未読込・ライブモードでは実行しない
 test('FR-118 AC-686: 読み込む前とライブモードでは実行できず、スタイルは無効の理由つき', async () => {
   const { app } = await newApp();
