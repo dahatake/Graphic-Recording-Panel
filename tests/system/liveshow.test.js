@@ -313,6 +313,8 @@ test('FR-115 AC-674: ON のとき、ライブの更新間隔ごとの描き足�
 test('FR-115 AC-675: ON のとき、区画に最初の要点が入ったときと「結論」の要点が加わったときに、付近に紙吹雪・きらめきが 1500 ms 以内だけ出て消える。1 回の演出の合計は更新間隔の 80% 以内で、収まらないときは縮めて次の更新までに終わる', async () => {
   const r = await showApp();
   const { app } = r;
+  // AC-675 の「最初の要点が入って空でなくなる」は会議ボード型の区画・トピックが対象。区画のある図（会議ボード型）で検証する
+  assert.equal(app.setLayoutTypes(['board']).ok, true, '会議ボード型を選べる');
   assert.equal(app.setLiveShow(true).ok, true);
   const party = new Map(); const DT = 10;
   runScript(r, (t) => {

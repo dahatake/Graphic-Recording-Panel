@@ -226,4 +226,12 @@ test('FR-014 AC-054 異常系: 受け付けられなかった手入力・不正�
   assert.deepEqual(finals(app), ['準備中の取込']);
   assert.equal(app.getState().scenes.length, 0, '図は更新されない');
   assert.ok(!app.renderSvg().includes('準備中の取込'));
+  // 2026-11-07（AC-684）: 取込でファイル読込モードになった後は、手入力は受け付けられず（音声取込モードの記録中だけ）、一覧も図も変わらない
+  assert.equal(app.getInputMode().mode, 'batch');
+  app.setDraft('ファイル読込モード中の手入力');
+  assert.equal(app.submitDraft().ok, false, 'ファイル読込モードでは手入力を受け付けない');
+  env.scheduler.advance(REFLECT_MS * 2);
+  assert.deepEqual(finals(app), ['準備中の取込']);
+  assert.equal(app.getState().scenes.length, 0);
+  assert.ok(!app.renderSvg().includes('ファイル読込モード中の手入力'));
 });
