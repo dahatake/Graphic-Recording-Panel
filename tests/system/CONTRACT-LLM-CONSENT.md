@@ -10,7 +10,8 @@
 - 再読込 = 同じ `storage` で `createApp` を呼び直す。`file.save` の `data`・`renderSvg()` に同意の情報を含めない。
 
 ## 送信内容（AC-358）
-- `POST /api/llm/extract` の body は次の項目だけを持つ: `input`（要点の文字。マスキング後）、`scene`（シーン番号。1 始まりの数値）、`drawStyle`（描画スタイルの id）、`partKeys`（部品キーの候補一覧。`getPartKeys()` の部分集合）。そのほか実装が加える固定の指示文は可。
+- `POST /api/llm/extract` の body は次の項目だけを持つ: `input`（要点の文字。マスキング後）、`scene`（シーン番号。1 始まりの数値）、`drawStyle`（描画スタイルの id）、`partKeys`（部品キーの候補一覧。`getPartKeys()` の部分集合）、グラレコスタイル（FR-118）の実行のときだけ `styleId`・`styleName`（定義済みスタイルの ID・名称）。スタイルの指示（Prompt）の本文（`instruction` など）はクライアントの要求に含めない（中継サーバーが ID からアプリ定義の固定文を付与する。AC-690・AC-358）。
+- 同意の画面（`app.getLlmConsent()`）には「アプリ定義のスタイルの指示が付く」旨を表示する（`kinds` またはその文面に「スタイル」と「指示」を含む）。送信内容の版は上げてあり、旧版の記録は再同意になる（AC-367）。
 - 会話の原文・音声・ファイルの全文・セッションファイル・端末やブラウザの識別情報に当たる項目名（`utterance`・`transcript`・`audio`・`session`・`file`・`userAgent` など）は持たない。
 
 ## 直近の送信内容・マスキング（AC-311・359・360）

@@ -1,5 +1,5 @@
 // FR-014 AC-521（ライブの更新間隔）／FR-022 AC-523（バッチ描画）（System Test。契約: tests/system/CONTRACT-LIVE-EXPORT.md）
-// 期待値は要求定義書の受入基準（PARAM-098〜101・PARAM-001・PARAM-183）だけから決める。2026-11-05: 更新間隔の範囲 5〜60 秒、.vtt の再生取込（AC-671）。
+// 期待値は要求定義書の受入基準（PARAM-098〜101・PARAM-001）だけから決める。2026-11-05: 更新間隔の範囲 5〜60 秒。2026-11-06: ファイル由来の発話は更新の対象外・ファイル読込時のリアルタイム描画（.vtt の再生取込 AC-671）は廃止。契約: CONTRACT-BATCH.md。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp, PARAM, toDetail, CJK } from './helpers.js';
@@ -109,6 +109,25 @@ test('FR-014 AC-521: 更新間隔の途中でシーンの区切り（［次の�
   }
 });
 
+// FR-014 AC-521（2026-11-06: ファイル由来の発話は描き足しの対象外。手入力は更新間隔を待たない）
+test('FR-014 AC-521: 更新間隔の描き足しの対象は音声入力の確定結果だけで、ファイル由来の発話（.txt・.vtt）は加わらず、手入力は更新間隔を待たず描かれる', async () => {
+  const { app, env } = await newApp(); toDetail(app);
+  startRec(app);
+  assert.equal((await app.importTextFile({ name: 'f.txt', type: 'text/plain', size: 30, text: 'ファイルの発話その一\nファイルの発話その二\n' })).ok, true);
+  env.speech.emit('音声の確定結果', true);
+  app.setDraft('手入力の発話'); assert.equal(app.submitDraft().ok, true);
+  env.scheduler.advance(PARAM.SINGLE_SEC * SEC);
+  assert.ok(app.renderSvg().includes('手入力の発話'), '手入力は更新間隔を待たない');
+  assert.ok(!app.renderSvg().includes('音声の確定結果'), '音声の確定結果は更新の時点まで加わらない');
+  const sec = app.getLiveInterval().sec;
+  env.scheduler.advance(sec * SEC);
+  assert.ok(app.renderSvg().includes('音声の確定結果'), '更新の時点で描き足される');
+  assert.ok(!app.renderSvg().includes('ファイルの発話その'), 'ファイル由来の発話は図に加わらない');
+  const c = count(app);
+  env.scheduler.advance(sec * SEC * 3);
+  assert.equal(count(app), c, '新しい発話のない間隔（ファイル由来だけ）では更新しない');
+});
+
 // FR-014 AC-521 AC-522 異常系
 test('FR-014 AC-521 AC-522 異常系: 更新間隔は 5〜60 の整数秒だけで、範囲外・整数でない・空の値は理由つきで受け付けず直前の値が保たれる。60 秒でも 60 秒以内に描画が始まる。一時停止中は更新しない', async () => {
   const { app, env } = await newApp(); toDetail(app);
@@ -183,54 +202,53 @@ test('FR-014 AC-522: 更新間隔は［設定］とコマンドの検索（PARAM
 const vtt = (n) => ['WEBVTT', '', ...Array.from({ length: n }, (_, i) => [`cue-${i}`, `00:00:${String(i * 3).padStart(2, '0')}.000 --> 00:00:${String(i * 3 + 2).padStart(2, '0')}.000`, `<v 話者${i}>バッチの話題その${i}を確認</v>`, '']).flat()].join('\n');
 const file = (name, text, type = 'text/vtt') => ({ name, type, size: Buffer.byteLength(text), text });
 
-test('FR-022 AC-523: 録画済み会議の .vtt／.txt の取込は、更新間隔を待たず 1 回の描画で全体が図に反映される（準備中・記録中・停止のどの状態でも）', async () => {
+test('FR-022 AC-523: 録画済み会議の .vtt／.txt を取り込んだだけでは（準備中・記録中・停止のどの状態でも）、図は更新されず、取込んだ発話は認識文字列の一覧にだけ並ぶ（ファイル読込時のリアルタイム描画は削除。2026-11-06）', async () => {
   for (const state of ['preparing', 'recording', 'stopped']) {
     const { app, env } = await newApp(); toDetail(app);
     if (state !== 'preparing') app.commands['session.start']();
     if (state === 'stopped') app.commands['session.stop']();
-    const c0 = count(app);
+    const c0 = count(app); const before = JSON.stringify([app.getState().scenes, app.renderSvg(), app.renderOutline()]);
     const r = await app.importTextFile(file('meeting.vtt', vtt(8)));
     assert.equal(r.ok, true, state);
-    env.scheduler.advance(1 * SEC);
-    assert.equal(count(app), c0 + 1, `${state}: 取込全体が 1 回の描画`);
-    const svg = app.renderSvg();
-    for (let i = 0; i < 8; i++) assert.ok(svg.includes(`バッチの話題その${i}を確認`), `${state}: cue ${i} が図にある`);
-    for (const s of app.getState().scenes) assert.ok(svg.includes(`data-scene-id="${s.id}"`), `${state}: 全シーンが反映`);
+    env.scheduler.advance(PARAM.SINGLE_SEC * SEC);
+    assert.equal(count(app), c0, `${state}: 描画は起きない`);
+    assert.deepEqual(app.getTranscript().finals.map((f) => f.text), Array.from({ length: 8 }, (_, i) => `バッチの話題その${i}を確認`), `${state}: 一覧にだけ並ぶ`);
+    env.scheduler.advance(PARAM.UPPER_SEC * SEC * 2); // 更新間隔を待っても図は更新されない（ファイル由来は更新の対象外。AC-521）
+    assert.equal(JSON.stringify([app.getState().scenes, app.renderSvg(), app.renderOutline()]), before, `${state}: 図は更新されない`);
+    assert.equal(count(app), c0, `${state}: 更新間隔を待っても描画は起きない`);
   }
   const { app, env } = await newApp(); toDetail(app);
   const lines = Array.from({ length: 30 }, (_, i) => `テキスト取込の行${i}の要点`);
   assert.equal((await app.importTextFile(file('m.txt', lines.join('\n'), 'text/plain'))).ok, true);
-  env.scheduler.advance(PARAM.SINGLE_SEC * SEC); // PARAM-158（単発の反映）。PARAM-001 ではない
-  for (const l of lines) assert.ok(app.renderSvg().includes(l), l);
+  env.scheduler.advance(PARAM.SINGLE_SEC * SEC);
+  for (const l of lines) assert.ok(!app.renderSvg().includes(l), `${l} は図に出ない`);
+  assert.equal(app.getTranscript().finals.length, 30);
 });
 
-// FR-022 AC-523（1c4bd9d: 対象は取込の方法「一括」（既定）だけ。ライブ描画ショー ON でも単発の反映で、取込んだ全体が一度に描画される。FR-115）
-test('FR-022 AC-523: 取込の方法「一括」（既定。再生取込から戻した場合も）では、ライブ描画ショー ON・更新間隔 60 秒でも更新間隔を待たず、取込の完了から PARAM-158 秒以内に全シーンが 1 回の描画で一度に図へ反映され、描線・書き込みの演出を経ない', async () => {
-  for (const pre of ['default', 'back-from-replay']) {
-    const { app, scheduler } = await showApp();
-    assert.equal(app.getVttImportMode().mode, 'bulk', `${pre}: 既定は一括`);
-    if (pre === 'back-from-replay') {
-      assert.equal(app.setVttImportMode({ mode: 'replay', speed: 1 }).ok, true);
-      assert.equal(app.setVttImportMode({ mode: 'bulk' }).ok, true, '一括に戻せる');
-      assert.equal(app.getVttImportMode().mode, 'bulk');
-    }
-    assert.equal(app.setLiveShow(true).ok, true, 'ライブ描画ショー ON');
-    startRec(app);
-    assert.equal(app.setLiveInterval(PARAM.LIVE_MAX_SEC).ok, true, '更新間隔を最大にして、待っていないことを区別する');
-    const c0 = count(app);
-    assert.equal((await app.importTextFile(file('meeting.vtt', vtt(8)))).ok, true, `${pre}: 取込`);
-    let animated = false;
-    sample(scheduler, PARAM.SINGLE_SEC * SEC, () => {
-      if ((show(app).items ?? []).some((x) => x.phase === 'stroke' || x.phase === 'write') || overlays(app).length > 0) animated = true;
-    }, 50);
-    assert.equal(animated, false, `${pre}: 一括の取込は ON でも描線・書き込みの演出を経ない（全体が一度に描画される）`);
-    assert.equal(show(app).running, false, `${pre}: 演出は走っていない`);
-    assert.equal(count(app), c0 + 1, `${pre}: 取込全体が 1 回の描画`);
-    assert.equal(app.getVttReplay()?.running ?? false, false, `${pre}: 再生取込は始まらない`);
-    const svg = app.renderSvg();
-    for (let i = 0; i < 8; i++) assert.ok(svg.includes(`バッチの話題その${i}を確認`), `${pre}: cue ${i} が PARAM-158 秒以内に図にある`);
-    for (const s of app.getState().scenes) assert.ok(svg.includes(`data-scene-id="${s.id}"`), `${pre}: 全シーンが反映`);
-  }
+// FR-022 AC-523（2026-11-06: 図は、読込後にグラレコのスタイルを選んで実行したとき、取込んだ全体が一度に描かれる。実行の時間は AC-697。ライブの更新間隔 PARAM-001 には従わない。契約: CONTRACT-BATCH.md）
+test('FR-022 AC-523: ファイル読込後にスタイルを選んで実行すると、（ライブ描画ショー ON・更新間隔 60 秒でも）更新間隔を待たず、取込んだ全体が 1 回の描画で一度に図へ反映され、演出（描線・書き込み）を経ない。再生取込の API はない', async () => {
+  const { app, scheduler } = await showApp();
+  assert.equal(app.getVttImportMode, undefined, '再生取込（AC-671）は廃止');
+  assert.equal(app.setVttImportMode, undefined);
+  assert.equal(app.setLiveShow(true).ok, true, 'ライブ描画ショー ON');
+  assert.equal(app.setLiveInterval(PARAM.LIVE_MAX_SEC).ok, true, '更新間隔を最大にして、待っていないことを区別する');
+  assert.equal((await app.importTextFile(file('meeting.vtt', vtt(8)))).ok, true, '取込');
+  assert.equal(app.getInputMode().mode, 'batch', '記録中でないので自動でファイル読込モード（AC-685）');
+  assert.equal(app.getState().scenes.length, 0, '取込だけでは図は描かれない');
+  const t0 = Date.now();
+  const r = await app.runBatch(app.getBatchStyles()[0].id);
+  assert.equal(r.ok, true);
+  let animated = false;
+  sample(scheduler, PARAM.SINGLE_SEC * SEC, () => {
+    if ((show(app).items ?? []).some((x) => x.phase === 'stroke' || x.phase === 'write') || overlays(app).length > 0) animated = true;
+  }, 50);
+  assert.ok(Date.now() - t0 <= PARAM.SINGLE_SEC * SEC, '実行から PARAM-158 秒以内（ライブの更新間隔を待たない）');
+  assert.equal(animated, false, 'バッチの描画は ON でも描線・書き込みの演出を経ない（全体が一度に描画される）');
+  assert.equal(show(app).running, false);
+  const svg = app.renderSvg();
+  for (let i = 0; i < 8; i++) assert.ok(svg.includes(`バッチの話題その${i}を確認`), `cue ${i} が図にある`);
+  assert.ok(app.getState().scenes.length >= 1);
+  for (const s of app.getState().scenes) assert.ok(svg.includes(`data-scene-id="${s.id}"`), '全シーンが反映');
 });
 
 test('FR-022 AC-523 異常系: 取り込めない（テキストでない・空の）ファイルでは描画も図の変化も起きない', async () => {
@@ -244,180 +262,3 @@ test('FR-022 AC-523 異常系: 取り込めない（テキストでない・空�
   assert.equal(app.renderSvg(), before);
 });
 
-// ---- FR-022 AC-671（.vtt の再生取込。契約: tests/system/CONTRACT-LIVE-SHOW.md「再生取込」）----
-// cue の開始時刻 1.0・5.5・0.5（直前より前に戻る → 直前の時刻）・31.0・33.0 秒 → AC-113 の受付時刻の差は 0・4.5・4.5・30・32 秒。
-// 30 秒の cue の前は 25.5 秒空くので PARAM-002（20 秒）を超え、シーンが分かれる（AC-113）。
-const REPLAY_TEXTS = ['再生の話題その一', '再生の話題その二', '再生の話題その三', '再生の話題その四', '再生の話題その五'];
-const REPLAY_OFF = [0, 4500, 4500, 30000, 32000];
-const REPLAY_VTT = ['WEBVTT', '',
-  'cue-a', '00:00:01.000 --> 00:00:04.000', `<v 山田太郎>${REPLAY_TEXTS[0]}</v>`, '',
-  'cue-b', '00:00:05.500 --> 00:00:06.000', `<v 佐藤花子>${REPLAY_TEXTS[1]}</v>`, '',
-  'cue-c', '00:00:00.500 --> 00:00:01.000', `<v 山田太郎>${REPLAY_TEXTS[2]}</v>`, '',
-  'cue-d', '00:00:31.000 --> 00:00:32.000', `<v 鈴木一郎>${REPLAY_TEXTS[3]}</v>`, '',
-  'cue-e', '00:00:33.000 --> 00:00:34.000', `<v 佐藤花子>${REPLAY_TEXTS[4]}</v>`, ''].join('\n');
-const REPLAY_ITV = 7; // 更新間隔（cue の到着の時刻と重ならない値）
-const utt = (app) => app.getState().utterances;
-const sceneTexts = (app) => app.getState().scenes.map((s) => s.points.map((p) => p.text).join('|'));
-
-function spyNet() {
-  const calls = []; const saved = {};
-  const names = ['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource'];
-  for (const k of names) {
-    saved[k] = Object.getOwnPropertyDescriptor(globalThis, k);
-    Object.defineProperty(globalThis, k, { configurable: true, writable: true, value: function (...a) { calls.push({ k, a: String(a[0]) }); throw new Error('network blocked'); } });
-  }
-  return { calls, restore() { for (const k of names) { if (saved[k]) Object.defineProperty(globalThis, k, saved[k]); else delete globalThis[k]; } } };
-}
-
-// FR-022 AC-671
-test('FR-022 AC-671: .vtt の取込の方法は既定が「一括」で、「再生取込」と速さ（PARAM-183: 1・2・4・8 倍）を選べ、端末ごとに保存されて再読込後に復元される。不正な方法・速さは受け付けない', async () => {
-  const a = await showApp();
-  const { app } = a;
-  const m = app.getVttImportMode();
-  assert.equal(m.mode, 'bulk', '既定は一括（AC-523）');
-  assert.equal(m.speed, 1, '速さの既定は 1 倍');
-  assert.deepEqual([...m.speeds].sort((x, y) => x - y), SHOW.SPEEDS, '速さの選択肢は PARAM-183');
-  for (const s of SHOW.SPEEDS) {
-    assert.equal(app.setVttImportMode({ mode: 'replay', speed: s }).ok, true, `${s} 倍`);
-    assert.deepEqual([app.getVttImportMode().mode, app.getVttImportMode().speed], ['replay', s]);
-  }
-  assert.equal(app.setVttImportMode({ mode: 'replay', speed: 4 }).ok, true);
-  for (const bad of [{ mode: 'stream' }, { mode: 'replay', speed: 3 }, { mode: 'replay', speed: 0 }, { mode: 'replay', speed: 16 }, { mode: 'replay', speed: 'fast' }, { mode: 'replay', speed: -2 }, null]) {
-    let r; try { r = app.setVttImportMode(bad); } catch { r = { ok: false }; }
-    assert.equal(r.ok, false, `${JSON.stringify(bad)} は受け付けない`);
-    assert.deepEqual([app.getVttImportMode().mode, app.getVttImportMode().speed], ['replay', 4], '直前の選択が保たれる');
-  }
-  const b = await reload(a);
-  assert.deepEqual([b.app.getVttImportMode().mode, b.app.getVttImportMode().speed], ['replay', 4], '再読込後に復元される');
-});
-
-// FR-022 AC-671（テスト用の時計: cue は受付時刻の差÷速さごとに届き、図は更新間隔ごとにまとめて描き足される。結果は速さによらず一括と同じ）
-test('FR-022 AC-671: 再生取込では cue が受付時刻の差を速さで割った時間ごとに順に確定結果として届き、進み具合が文字で示され、図は更新間隔ごとにまとめて描き足される。発話の内容・順・受付時刻・シーンの分かれ方は速さによらず一括と同じで、話者名を含まず、外部へのリクエストは 0 件', async () => {
-  // 一括（AC-523）の結果を基準にする
-  const ref = await showApp();
-  ref.app.commands['session.start']();
-  const refT0 = ref.clock.t;
-  assert.equal((await ref.app.importTextFile(file('replay.vtt', REPLAY_VTT))).ok, true);
-  ref.scheduler.advance(PARAM.SINGLE_SEC * SEC);
-  const refTexts = utt(ref.app).map((u) => u.text);
-  assert.deepEqual(refTexts, REPLAY_TEXTS, '一括の発話（AC-113）');
-  assert.deepEqual(utt(ref.app).map((u) => u.receivedAt - refT0), REPLAY_OFF, '一括の受付時刻（AC-113）');
-  const refScenes = sceneTexts(ref.app);
-  assert.equal(ref.app.getState().scenes.length, 2, '25.5 秒の差でシーンが分かれる');
-
-  const net = spyNet();
-  try {
-    for (const s of SHOW.SPEEDS) {
-      const { app, scheduler, clock } = await showApp();
-      app.commands['session.start']();
-      assert.equal(app.setLiveInterval(REPLAY_ITV).ok, true);
-      assert.equal(app.setVttImportMode({ mode: 'replay', speed: s }).ok, true);
-      const ts0 = scheduler.t; const t0 = clock.t; const c0 = count(app);
-      assert.equal((await app.importTextFile(file('replay.vtt', REPLAY_VTT))).ok, true, `${s} 倍: 取込を受け付ける`);
-      const arrive = REPLAY_OFF.map((d) => Math.ceil(d / s));
-      const expectedRefresh = [...new Set(arrive.map((x) => (Math.floor(x / (REPLAY_ITV * SEC)) + 1) * REPLAY_ITV * SEC))];
-      const nAt = (t) => arrive.filter((x) => x <= t).length;
-      const firstRefresh = REPLAY_ITV * SEC; // 最初の更新の時点（この直前を時計を進める途中で検査する。時計は戻らない）
-      const checkpoints = [...new Set([...arrive.flatMap((x) => (x > 0 ? [x - 1, x] : [0])), firstRefresh - 1])].sort((x, y) => x - y);
-      const refreshAt = []; let last = c0;
-      const stepTo = (target) => {
-        while (scheduler.t - ts0 < target) {
-          const cur = scheduler.t - ts0; scheduler.advance(Math.min(target, Math.floor(cur / 50) * 50 + 50) - cur);
-          const c = count(app);
-          if (c !== last) { assert.equal(c, last + 1, `${s} 倍: 1 回ずつ描き足す`); refreshAt.push(scheduler.t - ts0); last = c; }
-        }
-      };
-      for (const t of checkpoints) {
-        stepTo(t);
-        assert.equal(utt(app).length, nAt(t), `${s} 倍: ${t} ms の時点で届いた cue は ${nAt(t)} 件`);
-        const p = app.getVttReplay();
-        assert.equal(p.total, REPLAY_TEXTS.length, `${s} 倍: 全体の数`);
-        assert.equal(p.done, nAt(t), `${s} 倍: 取り込んだ数`);
-        assert.ok(p.text.includes(String(p.done)) && p.text.includes(String(p.total)), `${s} 倍: 進み具合の文字「${p.text}」`);
-        if (t === firstRefresh - 1) {
-          assert.equal(count(app), c0, `${s} 倍: 最初の更新の時点より前は図の要素が増えない`);
-          for (const w of REPLAY_TEXTS) assert.ok(!app.renderSvg().includes(w), `${s} 倍: 最初の更新の時点より前は図に描き足さない（一括のように待たずには描かない）`);
-        }
-      }
-      stepTo(expectedRefresh.at(-1) + PARAM.RENDER_SEC * SEC);
-      assert.deepEqual(refreshAt.map((t) => Math.ceil(t / 50) * 50), expectedRefresh, `${s} 倍: 更新間隔の時点にだけまとめて描き足す`);
-      for (const w of REPLAY_TEXTS) assert.ok(app.renderSvg().includes(w), `${s} 倍: ${w} が図にある`);
-      assert.equal(app.getVttReplay().running, false, `${s} 倍: 終わる`);
-      assert.deepEqual(utt(app).map((u) => u.text), refTexts, `${s} 倍: 内容と順は一括と同じ`);
-      assert.deepEqual(utt(app).map((u) => u.receivedAt - t0), REPLAY_OFF, `${s} 倍: 受付時刻は一括と同じ（取込の開始時刻＋cue の開始時刻の差）`);
-      assert.deepEqual(sceneTexts(app), refScenes, `${s} 倍: シーンの分かれ方は一括と同じ`);
-      const all = utt(app).map((u) => u.text).join('\n') + app.renderSvg() + app.renderTranscript();
-      for (const bad of ['山田太郎', '佐藤花子', '鈴木一郎', '-->', 'cue-']) assert.ok(!all.includes(bad), `${s} 倍: 「${bad}」を含まない（既定の型は会議ボード型ではないので名前を載せない。AC-668）`);
-    }
-    assert.deepEqual(net.calls, [], '外部へのリクエストは 0 件');
-  } finally { net.restore(); }
-});
-
-// FR-022 AC-671 × AC-668 (b)（契約: tests/system/CONTRACT-BOARD.md「人物の名前」）: 会議ボード型で再生取込すると、参加メンバーの区画に
-// .vtt の話者タグの名前が最初に現れた順（山田太郎→佐藤花子→鈴木一郎）で載り、まだ届いていない cue の話者の名前は載らない。結果は一括と同じ。
-const boardNames = (svg, kind = 'participant') => {
-  const doc = parseSvg(svg);
-  const sec = (n) => { for (let p = n; p; p = p.parent) if (p.attrs['data-board-section']) return p.attrs['data-board-section']; return null; };
-  return doc.all.filter((n) => n.attrs['data-board-name'] === kind && (kind !== 'participant' || sec(n) === 'members')).map((n) => n.text.trim());
-};
-test('FR-022 AC-671: 会議ボード型で再生取込すると、参加メンバーの区画に話者タグの名前が最初に現れた順で載り（一括と同じ）、届く前の cue の話者は載らず、外部へのリクエストは 0 件', async () => {
-  const ORDER = ['山田太郎', '佐藤花子', '鈴木一郎'];
-  const net = spyNet();
-  try {
-    const ref = await showApp();
-    assert.equal(ref.app.setLayoutTypes(['board']).ok, true, '会議ボード型');
-    ref.app.commands['session.start']();
-    assert.equal((await ref.app.importTextFile(file('replay.vtt', REPLAY_VTT))).ok, true);
-    ref.scheduler.advance((PARAM.SINGLE_SEC + PARAM.RENDER_SEC) * SEC);
-    assert.deepEqual(boardNames(ref.app.renderSvg()), ORDER, '一括: 名簿が空なので話者タグの名前を最初に現れた順に（重複なし）');
-
-    const { app, scheduler } = await showApp();
-    assert.equal(app.setLayoutTypes(['board']).ok, true);
-    app.commands['session.start']();
-    assert.equal(app.setLiveInterval(REPLAY_ITV).ok, true);
-    assert.equal(app.setVttImportMode({ mode: 'replay', speed: 1 }).ok, true);
-    const ts0 = scheduler.t;
-    assert.equal((await app.importTextFile(file('replay.vtt', REPLAY_VTT))).ok, true);
-    // 最初の更新（7 秒）の時点までに届くのは 0・4.5・4.5 秒の cue（山田・佐藤・山田）だけ
-    scheduler.advanceTo(ts0 + REPLAY_ITV * SEC);
-    scheduler.advance(PARAM.RENDER_SEC * SEC);
-    assert.deepEqual(boardNames(app.renderSvg()), ORDER.slice(0, 2), '最初の更新: 届いた cue の話者だけが最初に現れた順で載る');
-    scheduler.advance(REPLAY_OFF.at(-1) + (REPLAY_ITV + PARAM.RENDER_SEC) * SEC);
-    assert.equal(app.getVttReplay().running, false, '再生取込が終わる');
-    assert.deepEqual(boardNames(app.renderSvg()), ORDER, '終わった後: 話者タグの名前が最初に現れた順で載る（一括と同じ）');
-    assert.deepEqual(net.calls, [], '外部へのリクエストは 0 件');
-  } finally { net.restore(); }
-});
-
-// FR-022 AC-671 異常系
-test('FR-022 AC-671 異常系: 再生取込は一時停止・再開・中止ができ、一時停止中は届かず、中止しても取り込み済みの発話は残る。取り込めないファイルでは再生取込は始まらず発話は変わらない', async () => {
-  const { app, scheduler } = await showApp();
-  app.commands['session.start']();
-  assert.equal(app.setLiveInterval(REPLAY_ITV).ok, true);
-  assert.equal(app.setVttImportMode({ mode: 'replay', speed: 1 }).ok, true);
-  for (const bad of [file('x.vtt', 'これは WebVTT ではない'), file('e.vtt', 'WEBVTT\n\n00:00:01.000 --> 00:00:02.000\n<v A></v>\n'), file('x.bin', 'バイナリ', 'application/octet-stream')]) {
-    assert.equal((await app.importTextFile(bad)).ok, false, `${bad.name} は取り込めない`);
-    assert.ok(!app.getVttReplay()?.running, `${bad.name}: 再生取込は始まらない`);
-    assert.equal(utt(app).length, 0);
-  }
-  const ts0 = scheduler.t;
-  assert.equal((await app.importTextFile(file('replay.vtt', REPLAY_VTT))).ok, true);
-  scheduler.advanceTo(ts0 + REPLAY_OFF[1]);
-  assert.equal(utt(app).length, 3);
-  app.commands['vttReplay.pause']();
-  assert.equal(app.getVttReplay().paused, true, '一時停止');
-  scheduler.advance(2 * REPLAY_OFF[4]);
-  assert.equal(utt(app).length, 3, '一時停止中は届かない');
-  assert.equal(app.getVttReplay().done, 3);
-  app.commands['vttReplay.resume']();
-  assert.equal(app.getVttReplay().paused, false, '再開');
-  scheduler.advance(REPLAY_OFF[3] - REPLAY_OFF[1]);
-  assert.equal(utt(app).length, 4, '再開すると残りの cue が続けて届く');
-  app.commands['vttReplay.cancel']();
-  assert.equal(app.getVttReplay()?.running ?? false, false, '中止');
-  scheduler.advance(2 * REPLAY_OFF[4]);
-  assert.deepEqual(utt(app).map((u) => u.text), REPLAY_TEXTS.slice(0, 4), '中止しても取り込み済みの発話は残り、残りは届かない');
-  scheduler.advance((REPLAY_ITV + PARAM.RENDER_SEC) * SEC);
-  for (const w of REPLAY_TEXTS.slice(0, 4)) assert.ok(app.renderSvg().includes(w), `取り込み済みの「${w}」は図にある`);
-  assert.ok(!app.renderSvg().includes(REPLAY_TEXTS[4]));
-});

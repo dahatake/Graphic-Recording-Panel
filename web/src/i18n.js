@@ -52,6 +52,8 @@ const BASE = {
     'cmd.view.zoom-in': '視点を拡大', 'cmd.view.zoom-out': '視点を縮小', 'cmd.view.reset': '視点を初期に戻す',
     'cmd.view.pan-left': '視点を左へ移動', 'cmd.view.pan-right': '視点を右へ移動', 'cmd.view.pan-up': '視点を上へ移動', 'cmd.view.pan-down': '視点を下へ移動',
     'cmd.data.reset': 'データ初期化', 'cmd.file.save': 'ファイル保存', 'cmd.file.load': 'ファイル読込', 'cmd.file.import': '字幕・テキスト取込', 'cmd.import.file': '取り込み（.txt・.vtt）',
+    'cmd.inputMode.set:live': '入力モード: 音声取込', 'cmd.inputMode.set:batch': '入力モード: ファイル読込', // FR-117（inputmode.js）
+    'cmd.batch.cancel': 'バッチの図式化を取り消す', // FR-118（batch.js）
     'cmd.view.timeline': '時系列の表示', 'cmd.view.arrange': '整理の表示（軸と区分）', 'cmd.rpg.bgmToggle': 'BGM の停止・再開（RPG風）',
     // FR-027・FR-030: レイアウト型・設定のコマンド（コマンドの検索に使う名称）
     ...Object.fromEntries(LAYOUT_TYPE_IDS.flatMap((id) => [[`cmd.layoutType.${id}`, LAYOUT_TYPE_META[id].ja.cmd], [`cmd.layoutType.add.${id}`, `${LAYOUT_TYPE_META[id].ja.label}型を併用に加える／外す`]])),
@@ -113,7 +115,6 @@ const BASE = {
     'cmd.settings.arrangeInterval': '再配置の周期を設定', // FR-080 AC-440
     'cmd.settings.liveInterval': 'ライブ更新の間隔を設定', // FR-014 AC-522
     'cmd.settings.hideNames': '名前を隠すの切り替え', // FR-114 AC-680
-    'cmd.vttReplay.pause': '再生取込を一時停止', 'cmd.vttReplay.resume': '再生取込を再開', 'cmd.vttReplay.cancel': '再生取込を中止', // FR-022 AC-671
  'cmd.help.open': 'ヘルプを開く', 'cmd.onboarding.next': '案内の次へ', 'cmd.onboarding.back': '案内の戻る', 'cmd.onboarding.skip': '案内をスキップ', 'cmd.sample.load': '練習用のサンプルを読み込む', // FR-103
     'cmd.settings.layoutMode': 'レイアウトの決め方を切り替え', 'cmd.sound.toggleMute': '音のミュートを切り替え', 'cmd.sound.setVolume': '音量を上げる', 'cmd.arrange.setInterval': '再配置の周期を切り替え', 'cmd.settings.talkPreset': '講演向けの初期値にする', // FR-030 AC-519・AC-648
     // FR-098・FR-005・FR-091・FR-097: 議題タイマー・手修正を元に戻す・進行の段階・種類別スタイル
@@ -166,6 +167,8 @@ const BASE = {
     'cmd.view.zoom-in': 'Zoom view in', 'cmd.view.zoom-out': 'Zoom view out', 'cmd.view.reset': 'Reset view',
     'cmd.view.pan-left': 'Pan view left', 'cmd.view.pan-right': 'Pan view right', 'cmd.view.pan-up': 'Pan view up', 'cmd.view.pan-down': 'Pan view down',
     'cmd.data.reset': 'Reset data', 'cmd.file.save': 'Save file', 'cmd.file.load': 'Load file', 'cmd.file.import': 'Import captions/text', 'cmd.import.file': 'Import (.txt / .vtt)',
+    'cmd.inputMode.set:live': 'Input mode: Voice input', 'cmd.inputMode.set:batch': 'Input mode: File batch', // FR-117 (inputmode.js)
+    'cmd.batch.cancel': 'Cancel the batch run', // FR-118 (batch.js)
     'cmd.view.timeline': 'Timeline layout', 'cmd.view.arrange': 'Arranged layout (axes and sections)', 'cmd.rpg.bgmToggle': 'Stop / resume BGM (RPG style)',
     ...Object.fromEntries(LAYOUT_TYPE_IDS.flatMap((id) => [[`cmd.layoutType.${id}`, LAYOUT_TYPE_META[id].en.cmd], [`cmd.layoutType.add.${id}`, `Add or remove the ${LAYOUT_TYPE_META[id].en.label.toLowerCase()} layout in the combination`]])),
     'cmd.layoutType.clear': 'Clear the manual layout choice', 'cmd.settings.open': 'Open settings', 'cmd.settings.close': 'Close settings', 'cmd.llm.toggle': 'Toggle LLM integration', 'cmd.llm.test': 'Test the LLM connection',
@@ -225,7 +228,6 @@ const BASE = {
     'cmd.settings.arrangeInterval': 'Set the rearrange interval', // FR-080 AC-440
     'cmd.settings.liveInterval': 'Set the live update interval', // FR-014 AC-522
     'cmd.settings.hideNames': 'Toggle hide names', // FR-114 AC-680
-    'cmd.vttReplay.pause': 'Pause playback import', 'cmd.vttReplay.resume': 'Resume playback import', 'cmd.vttReplay.cancel': 'Stop playback import', // FR-022 AC-671
  'cmd.help.open': 'Open help', 'cmd.onboarding.next': 'Guide: next', 'cmd.onboarding.back': 'Guide: back', 'cmd.onboarding.skip': 'Skip the guide', 'cmd.sample.load': 'Load the practice sample', // FR-103
     'cmd.settings.layoutMode': 'Switch how the layout is decided', 'cmd.sound.toggleMute': 'Toggle sound mute', 'cmd.sound.setVolume': 'Raise the volume', 'cmd.arrange.setInterval': 'Switch the rearrange interval', 'cmd.settings.talkPreset': 'Apply the talk preset', // FR-030 AC-519・AC-648
     'cmd.timer.start': 'Start the agenda timer', 'cmd.timer.pause': 'Pause the agenda timer', 'cmd.timer.resume': 'Resume the agenda timer', 'cmd.timer.next': 'Switch to the next agenda item', 'cmd.timer.stop': 'End the agenda timer',

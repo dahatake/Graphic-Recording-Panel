@@ -18,6 +18,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "server"))
 
 import relay  # noqa: E402
+import batch_styles as bs  # noqa: E402
 import relay_config as cfg  # noqa: E402
 import relay_copilot  # noqa: E402
 import relay_llmstore as store  # noqa: E402
@@ -282,12 +283,43 @@ def test_fr087_ac503_ac504_copilot_call_sends_only_content(sdk, foundry, srv, mo
     assert opts["model"] == "gpt-dummy-model"
     # AC-504: ツールなし・権限の要求は拒否・作業フォルダーは空・システムメッセージは置き換え（端末の情報を加えない）
     assert opts["available_tools"] == []
-    assert opts["system_message"] == {"mode": "replace", "content": EXTRACT["instructions"]}
+    # AC-690: 端末の instructions は使わず、サーバーの固定の指示に置き換わる
+    assert opts["system_message"] == {"mode": "replace", "content": bs.compose_instructions("extract", {k: v for k, v in EXTRACT.items() if k != "instructions"})[0]}
     assert os.path.isdir(opts["working_directory"]) and os.listdir(opts["working_directory"]) == []
     assert not any(k in opts for k in ("mcp_servers", "tools", "custom_agents"))
     assert [getattr(a, "kind", None) for a in sdk.permission_answers] == ["reject"]
     assert DUMMY_FOUNDRY_KEY not in json.dumps(sdk.client_kwargs[0].get("env", {}))
     assert sdk.client_kwargs[0]["working_directory"] == opts["working_directory"]
+
+
+# FR-118 AC-690 AC-695: 端末は指示（Prompt 本文）を送らず、styleId・styleName だけを送る。サーバーが styleId から固定の指示を付与し、未定義の ID は SDK へ送る前に拒否する
+def test_fr118_ac690_server_attaches_style_instruction(sdk, foundry, srv, monkeypatch):
+    use_copilot(monkeypatch)
+    body = {k: v for k, v in EXTRACT.items() if k != "instructions"}
+    status, payload, raw = srv.call("POST", "/api/llm/extract", {**body, "styleId": "keypoints", "styleName": "要点整理", "lang": "ja"})
+    assert status == 200, raw
+    content = sdk.sessions[0]["system_message"]["content"]
+    assert content.endswith(bs.instruction_for("keypoints", "ja")), "styleId の固定の指示が付く"
+    assert "cloud" in content and "purpose|members|flow" in content, "抽出の固定の指示（部品キーの候補・区画 ID）が付く"
+    assert sdk.sent == [EXTRACT["input"]] and "styleId" not in json.dumps(sdk.sent)
+    status, _, _ = srv.call("POST", "/api/llm/extract", {**body, "styleId": "nosuch"})
+    assert status == 400 and len(sdk.sessions) == 1, "未定義の styleId は拒否し、SDK へは送らない"
+    status, _, raw = srv.call("POST", "/api/llm/extract", {**body, "styleId": "talk", "lang": "en"})
+    assert status == 200 and sdk.sessions[1]["system_message"]["content"].endswith(bs.instruction_for("talk", "en"))
+    status, _, raw = srv.call("POST", "/api/llm/svg", {"input": "icon", "key": "k", "label": "tree"})
+    assert status == 200 and 'Draw "tree"' in sdk.sessions[2]["system_message"]["content"], "SVG 生成の指示もサーバーが付与する"
+
+
+# FR-118 AC-690 NFR-PRIV-003: styleId がなくても、端末が送った instructions は上流（SDK）へ渡さず、サーバーの固定の指示で上書きする
+def test_fr118_ac690_device_instructions_always_discarded(sdk, foundry, srv, monkeypatch):
+    use_copilot(monkeypatch)
+    evil = "DEVICE-SUPPLIED-INSTRUCTIONS-XYZ"
+    for path, body in (("/api/llm/extract", dict(EXTRACT, instructions=evil)), ("/api/llm/svg", {"input": "icon", "key": "k", "label": "tree", "instructions": evil})):
+        assert srv.call("POST", path, body)[0] == 200
+    assert len(sdk.sessions) == 2
+    for s in sdk.sessions:
+        assert evil not in s["system_message"]["content"], "端末の指示は上流へ渡らない"
+    assert "cloud" in sdk.sessions[0]["system_message"]["content"], "styleId なしは既定の固定の指示"
 
 
 # FR-087 AC-503: モデル名が空なら SDK の既定のモデル（model を渡さない）

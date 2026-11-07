@@ -8,11 +8,11 @@ export const NARROW_MAX_WIDTH = 640; // PARAM-006: これ以下は縮退（積�
 
 // 純粋関数: fits(stages) が真になる最小の縮退を右から決める。まず右のグループから順にアイコンのみ、
 // それでも収まらなければ右のグループから順にドロップダウンにする。stages は FIT_STAGES の添字の配列。
-export function chooseStages(count, fits) {
+export function chooseStages(count, fits, caps = []) {
   const stages = new Array(count).fill(0);
   if (!count || fits(stages)) return stages;
   for (let i = count - 1; i >= 0; i--) { stages[i] = 1; if (fits(stages)) return stages; }
-  for (let i = count - 1; i >= 0; i--) { stages[i] = 2; if (fits(stages)) return stages; }
+  for (let i = count - 1; i >= 0; i--) { if ((caps[i] ?? 2) < 2) continue; stages[i] = 2; if (fits(stages)) return stages; } // caps: そのグループの縮退の上限（FR-118: スタイルのグループはドロップダウンにしない）
   return stages;
 }
 
@@ -57,7 +57,7 @@ export function mountRibbonFit(bar, doc = document) {
     const noFit = (win?.innerWidth ?? Infinity) <= NARROW_MAX_WIDTH || bar.dataset.collapsed === 'true';
     if (noFit) { apply(gs, gs.map(() => 0)); return; }
     const fits = (st) => { apply(gs, st); return bar.scrollWidth <= bar.clientWidth + 1; };
-    apply(gs, chooseStages(gs.length, fits));
+    apply(gs, chooseStages(gs.length, fits, gs.map((g) => (g.dataset.group === 'batchStyle' ? 1 : 2))));
   }
 
   bar.addEventListener('click', (e) => {

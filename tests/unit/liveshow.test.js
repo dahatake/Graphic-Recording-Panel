@@ -419,13 +419,15 @@ test('FR-115 AC-675 AC-054 AC-523: ショー ON でも手入力・一括取込�
   assert.match(s, /料金プランは月額制で合意しました/, '手入力は即時に図へ反映');
   assert.ok(!SHOW_RE.test(s), '手入力では演出の要素が現れない');
   assert.equal(app.getLiveShowStatus().plan, null); assert.equal(app.getLiveShow().running, false);
-  // ファイルの一括取込
+  // ファイルの取込（AC-054。依頼 2026-11-06: 取込は図を更新しない。演出もない）
   const text = '予算は百万円です\n次回は木曜の午後です\n';
+  const svg0 = app.renderSvg();
   const r = await app.importTextFile({ name: 'notes.txt', type: 'text/plain', size: Buffer.byteLength(text), text });
   assert.equal(r.ok, true);
   s = app.renderSvg();
-  assert.match(s, /予算は百万円です/); assert.match(s, /次回は木曜の午後です/);
-  assert.ok(!SHOW_RE.test(s), '一括取込では演出の要素が現れない');
+  assert.equal(s, svg0, '取込では図が変わらない');
+  assert.doesNotMatch(s, /予算は百万円です/); assert.doesNotMatch(s, /次回は木曜の午後です/);
+  assert.ok(!SHOW_RE.test(s), '取込では演出の要素が現れない');
   assert.equal(app.getLiveShowStatus().plan, null);
   for (let ms = 0; ms < 3000; ms += 100) { env.tick(0.1); env.scheduler.advance(100); assert.ok(!SHOW_RE.test(app.renderSvg())); }
   assert.equal(app.getLiveShowStatus().cues.length, c0, '演出の合図（効果音）も出さない');

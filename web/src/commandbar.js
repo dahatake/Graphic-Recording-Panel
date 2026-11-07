@@ -6,6 +6,8 @@ import { LAYOUT_TYPE_IDS, LAYOUT_TYPE_META } from './layouttypes.js';
 // DOM 順＝フォーカス順＝視覚順。取り消せない data.reset はデータの末尾。
 // 「画風」グループ（FR-077）のコマンド名は空で、描画スタイルの登録簿（getDrawStyles）から drawStyle.set:<id> を並べる（DRAW_STYLE_PREFIX）。
 export const GROUPS = [
+  // FR-117: 入力モード（音声取込・ファイル読込）は画面最上部の先頭に置く（inputmode.js）
+  ['toolbar.inputMode', ['inputMode.set:live', 'inputMode.set:batch'], 'inputMode'],
   ['toolbar.import', ['import.file'], 'import'],
   ['toolbar.session', ['session.start', 'session.pause', 'session.resume', 'session.stop', 'session.nextScene', 'input.focus'], 'session'],
   ['toolbar.view', ['view.2d', 'view.3d', 'view.timeline', 'view.arrange', 'detail.next'], 'view'],
@@ -20,6 +22,10 @@ export const GROUPS = [
   ['toolbar.data', ['file.save', 'file.load', 'data.reset'], 'data'],
   ['toolbar.environment', ['layout.tile', 'layout.focus', 'layout.maximize', 'layout.reset', 'theme.toggle', 'lang.ja', 'lang.en'], 'environment'],
 ];
+
+// FR-118: スタイルのグループ（バッチモードのときだけ入力モードの直後に出す。項目は登録簿（getBatchStyles）から。batch.js）
+export const BATCH_GROUP = ['toolbar.batchStyle', [], 'batchStyle'];
+export const BATCH_PREFIX = 'batchStyle.set:';
 
 // NFR-UX-003: アイコンの下に常に表示する短いラベル（ja は全角換算 6 以内、en は半角 12 以内。ボタンごとに異なる）。
 const LABELS = {
@@ -76,6 +82,7 @@ export const KEY_ICON = P.key; // ［設定］の「接続キー」分類のア�
 export const ICONS = {
   'session.start': P.rec, 'session.pause': P.pause, 'session.resume': P.play, 'session.stop': P.stop,
   'session.nextScene': P.next, 'input.focus': P.edit, 'import.file': P.import,
+  'inputMode.set:live': P.mic, 'inputMode.set:batch': 'M4 3h8l4 4v10H4zM12 3v4h4M7 11h6M7 14h6', // FR-117（マイク／行のあるファイルの既知の図。ほかの項目と重ならない）
   'save.png': `M9 10h2`, 'save.svg': `M8 10l1.500 2L11 10`, 'save.pdf': `M8 10h4M8 12h4`, 'lang.ja': P.lang, 'lang.en': `M5 5h10`,
   'view.2d': P.square, 'view.3d': P.cube, 'theme.toggle': P.theme, 'view.timeline': 'M3 10h14M6 6v8M10 4v12M14 7v6', 'view.arrange': P.tile, 'detail.next': P.detail,
   // 発表（画面の枠＋記号）は記録（記号だけ）と別の形にする（同じ機能でない項目のアイコンを重ねない）
@@ -184,9 +191,10 @@ export function commandBarModule(ctx) {
   const DS = 'drawStyle.set:'; // FR-077: 画風のコマンド（登録簿から動的に作る。名前・説明は登録簿の値）
   const r1i = (n) => Math.round(n * 10) / 10; // 画風の項目のアイコン: 登録の数によらず 20 の枠に収まる印の位置（AC-414 の 15 項目）
   const dsOf = (c) => (typeof c === 'string' && c.startsWith(DS) ? api.getDrawStyles?.().find((s) => s.id === c.slice(DS.length)) ?? null : null);
-  const labelOfCmd = (c) => dsOf(c)?.label ?? ctx.t(labelKey(c));
-  const tipText = (c) => { const s = dsOf(c); return s ? (api.getDrawStyleShortText?.(s.id) || s.label) : ctx.t(`tooltip.${c}`); };
-  const known = (c) => (GROUPS.some(([, n]) => n.includes(c)) || !!dsOf(c)) && typeof api.commands[c] === 'function';
+  const bsOf = (c) => (typeof c === 'string' && c.startsWith(BATCH_PREFIX) ? api.getBatchStyles?.().find((s) => s.id === c.slice(BATCH_PREFIX.length)) ?? null : null); // FR-118
+  const labelOfCmd = (c) => dsOf(c)?.label ?? bsOf(c)?.label ?? ctx.t(labelKey(c));
+  const tipText = (c) => { const s = dsOf(c); if (s) return api.getDrawStyleShortText?.(s.id) || s.label; const b = bsOf(c); return b ? b.description : ctx.t(`tooltip.${c}`); };
+  const known = (c) => (GROUPS.some(([, n]) => n.includes(c)) || !!dsOf(c) || !!bsOf(c)) && typeof api.commands[c] === 'function';
   let shown = null; // 表示中の説明文のコマンド（同時に 1 つ）
   const tip = (command) => ({ id: tooltipId(command), text: tipText(command) });
   api.showTooltip = (command, trigger) => {
@@ -202,15 +210,17 @@ export function commandBarModule(ctx) {
   // NFR-UX-011: 作業順のグループ。見出し（name）とアクセシブルな名前は表示言語に従い、呼ぶたびに作り直す（再読み込み不要）。
   const present = (name) => typeof api.commands[name] === 'function';
   api.getCommandBar = () => {
-    const groups = GROUPS.map(([key, base, id]) => {
+    const batchOn = api.getBatchState?.().visible === true; // FR-118: バッチモードのときだけスタイルのグループを入力モードの直後に出す
+    const allGroups = batchOn ? [GROUPS[0], BATCH_GROUP, ...GROUPS.slice(1)] : GROUPS;
+    const groups = allGroups.map(([key, base, id]) => {
       const name = ctx.t(key);
-      const names = id === 'drawStyle' ? (api.getDrawStyles?.() ?? []).map((s) => `${DS}${s.id}`) : base;
+      const names = id === 'drawStyle' ? (api.getDrawStyles?.() ?? []).map((s) => `${DS}${s.id}`) : id === 'batchStyle' ? (api.getBatchStyles?.() ?? []).map((s) => `${BATCH_PREFIX}${s.id}`) : base;
       return { id, name, accessibleName: name, headingVisible: true, commands: names.filter(present) };
     }).filter((g) => g.commands.length);
     const groupOfCommand = new Map(groups.flatMap((g) => g.commands.map((c) => [c, g.id])));
     const items = groups.flatMap((g) => g.commands).map((command) => {
       const label = labelOfCmd(command);
-      const it = { command, group: groupOfCommand.get(command), label, labelVisible: true, accessibleName: label, tabbable: true, tabIndex: 0, tooltip: tip(command), describedBy: tooltipId(command), icon: dsOf(command) ? `${P.palette}M${r1i(1 + 17 * api.getDrawStyles().findIndex((s) => `${DS}${s.id}` === command) / Math.max(1, api.getDrawStyles().length - 1))} 19h1` : (ICONS[command] ?? '') };
+      const it = { command, group: groupOfCommand.get(command), label, labelVisible: true, accessibleName: label, tabbable: true, tabIndex: 0, tooltip: tip(command), describedBy: tooltipId(command), icon: bsOf(command)?.icon ?? (dsOf(command) ? `${P.palette}M${r1i(1 + 17 * api.getDrawStyles().findIndex((s) => `${DS}${s.id}` === command) / Math.max(1, api.getDrawStyles().length - 1))} 19h1` : (ICONS[command] ?? '')) };
       if (dsOf(command)) it.description = it.tooltip.text; // FR-077: 画風の短い説明（tooltip.text と同じ）
       // FR-073 AC-388: 取り込みは、何を取り込めるかの説明を常時表示する（ホバー・フォーカスを待たない）
       if (command === 'import.file') { it.description = ctx.t('import.description'); it.descriptionVisible = true; }

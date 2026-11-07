@@ -113,7 +113,8 @@ test('AC-660 縮退: 幅 1280→1000→800→660（高さ 720）で縦 1 段の�
     assert.ok(baseIds.length >= 10, `基準（幅 1920）で多数のコマンドが到達できる（${baseIds.length}）`);
     assert.deepEqual(baseIds, wide.ids, '基準では DOM のコマンド集合と到達できる集合が一致する');
     const wideLabelled = wide.shown.filter((c) => c.label).length;
-    const byId = new Map(wide.shown.map((c) => [c.id, c]));
+    // 基準の名前・ツールチップは、幅 1920 で到達できる全コマンド（ドロップダウンの中の項目を含む）から取る（直接見えるボタンだけだと、グループが 1920 でドロップダウンに入っている項目の b が未定義になる）
+    const byId = new Map(wideMouse);
 
     for (const w of WIDTHS) {
       await resize(page, w, 720);

@@ -3,7 +3,7 @@ import { PANEL_IDS, PANEL_COMMANDS, MIN_H, WORK_AREA_MIN_PCT, SECONDARY_IDS, COL
 
 import { coalesceFrame } from './frame.js';
 import { patchHtml } from './morph.js';
-import { GROUPS, ICONS, tooltipId, labelKey } from './commandbar.js';
+import { GROUPS, BATCH_GROUP, ICONS, tooltipId, labelKey } from './commandbar.js';
 import { mountRibbonFit } from './ribbonfit.js';
 
 function icon(doc, command, path) {
@@ -36,9 +36,10 @@ export function mountUI(app, doc = document) {
     toolbar.textContent = '';
     const bar0 = app.getCommandBar();
     const barItems = Object.fromEntries(bar0.items.map((i) => [i.command, i]));
-    for (const [groupLabelKey, baseNames, groupId] of GROUPS) {
+    const groupList = bar0.groups.some((g) => g.id === 'batchStyle') ? [GROUPS[0], BATCH_GROUP, ...GROUPS.slice(1)] : GROUPS; // FR-118: バッチモードのときだけ入力モードの直後にスタイルのグループ
+    for (const [groupLabelKey, baseNames, groupId] of groupList) {
       // FR-077: 「画風」グループの項目は描画スタイルの登録簿から（getCommandBar のグループ）。ほかは GROUPS の固定の並び
-      const names = groupId === 'drawStyle' ? (bar0.groups.find((g) => g.id === 'drawStyle')?.commands ?? []) : baseNames;
+      const names = groupId === 'drawStyle' || groupId === 'batchStyle' ? (bar0.groups.find((g) => g.id === groupId)?.commands ?? []) : baseNames;
       // NFR-UX-011 AC-460: 見出し（常に表示）と、グループ要素のアクセシブルな名前（aria-label）は同じ文言
       const fs = doc.createElement('div');
       fs.className = 'toolbar-group'; fs.setAttribute('role', 'group'); fs.dataset.group = groupId;
@@ -62,11 +63,23 @@ export function mountUI(app, doc = document) {
         if (!field) b.type = 'button';
         b.className = 'btn btn-subtle'; b.dataset.command = name;
         const lab = doc.createElement('span'); lab.className = 'btn-label'; lab.textContent = bi?.label ?? app.t(labelKey(name));
-        b.append(icon(doc, name, name.startsWith('drawStyle.set:') ? bi?.icon : ''), lab);
+        const isBatch = name.startsWith('batchStyle.set:'); // FR-118: アイコンは絵文字の文字（スタイルの定義 FR-119）。装飾なので読み上げない
+        if (isBatch) { const em = doc.createElement('span'); em.className = 'icon icon-emoji'; em.setAttribute('aria-hidden', 'true'); em.textContent = bi?.icon ?? ''; b.append(em, lab); }
+        else b.append(icon(doc, name, name.startsWith('drawStyle.set:') ? bi?.icon : ''), lab);
         // FR-073 AC-388: 取り込みは、取り込めるファイルの説明を常に文字で見せる（アイコンだけに頼らない）
         if (name === 'import.file') {
           const d = doc.createElement('span'); d.className = 'btn-desc'; d.textContent = app.t('import.description'); b.append(d);
           d.id = 'import-desc'; b.className += ' btn-import';
+        }
+        // FR-117: 入力モードの 2 項目は、通常のボタン（aria-pressed）で、短い説明を常時表示する（取り込みと同じ見た目の規則）
+        if (name.startsWith('inputMode.set:')) {
+          const d = doc.createElement('span'); d.className = 'btn-desc'; d.textContent = bi?.description ?? ''; b.append(d);
+          b.className += ' btn-import btn-mode'; b.setAttribute('aria-pressed', String(!!bi?.pressed));
+        }
+        // FR-118: スタイルのボタンは入力モードと同じ見た目の規則（アイコン・名称・短い説明の常時表示。aria-pressed と ✓）
+        if (isBatch) {
+          const d = doc.createElement('span'); d.className = 'btn-desc'; d.textContent = bi?.description ?? ''; b.append(d);
+          b.className += ' btn-import btn-mode btn-batchstyle'; b.setAttribute('aria-pressed', String(!!bi?.pressed));
         }
         // FR-030 AC-519: ［設定］の項目（決め方・音量・周期）は、値を入れる部品（選択・スライダー・数値）と常時の短い説明を持つ
         let ctl = null;
@@ -223,10 +236,29 @@ export function mountUI(app, doc = document) {
     }
   }
   app.on('change', syncStyleButtons);
+  // FR-117 AC-683: 入力モードの項目も、切替の直後（描画の次のフレームを待たず）に aria-pressed と ✓ を当てる
+  function syncModeButtons() {
+    const cur = app.getInputMode?.().mode;
+    for (const b of toolbar.querySelectorAll('[data-command^="inputMode.set:"]')) {
+      const on = b.dataset.command === `inputMode.set:${cur}`;
+      if (b.getAttribute('aria-pressed') !== String(on)) b.setAttribute('aria-pressed', String(on));
+      if (on) { if (b.dataset.selectedMark !== 'check') b.dataset.selectedMark = 'check'; } else if ('selectedMark' in b.dataset) delete b.dataset.selectedMark;
+      const mk = b.querySelector('.sel-mark'); const mark = on ? '✓' : '';
+      if (mk && mk.textContent !== mark) mk.textContent = mark;
+    }
+  }
+  app.on('change', syncModeButtons);
+  // FR-118: 入力モードの切替の直後（描画の次のフレームを待たず）に、スタイルのグループを出す・外す（バッチモードのときだけ）
+  app.on('change', () => {
+    if (builtStyles === null) return;
+    const sig = `${(app.getDrawStyles?.() ?? []).map((s) => s.id).join(',')}|${app.getBatchState?.().visible ? 'batch' : ''}`;
+    if (sig !== builtStyles) { buildToolbar(); builtStyles = sig; }
+  });
+  $('#batch-cancel')?.addEventListener('click', () => { void app.commands['batch.cancel']?.(); }); // FR-118 AC-691: 実行中の [取消]
   let lastDataVer; // 前回の描画のデータの版数
   function render() {
     const st = app.getUiState?.() ?? app.getState(); // NFR-PERF-003: 発話・シーンの全件を複製しない
-    const dsSig = (app.getDrawStyles?.() ?? []).map((s) => s.id).join(',');
+    const dsSig = `${(app.getDrawStyles?.() ?? []).map((s) => s.id).join(',')}|${app.getBatchState?.().visible ? 'batch' : ''}`; // FR-118: バッチモードのときだけスタイルのグループがある
     if (builtLang !== st.lang || builtStyles !== dsSig) { applyStatic(); buildToolbar(); buildPanelMenus(); builtLang = st.lang; builtStyles = dsSig; lastDataVer = undefined; }
     // NFR-PERF-003 AC-536・AC-538: データの版数が前回と同じ（パネルの移動・大きさ変更・タブ・図のスクロールだけ）なら、
     // コマンドバー・状態・文字列・アウトラインの更新を省き、配置だけを当てる（DOM への無駄な書き込みでスタイルの再計算を起こさない）
@@ -249,6 +281,20 @@ export function mountUI(app, doc = document) {
       const f = PRESSED[b.dataset.command];
       if (f) setAttr(b, 'aria-pressed', String(f(st)));
       setProp(b, 'disabled', typeof app.commands[b.dataset.command] !== 'function');
+    }
+    // FR-117: 入力モードの説明の言語切替・音声入力の開始の無効（バッチモード）と理由の文字
+    for (const it of app.getCommandBar().items) {
+      const b = toolbar.querySelector(`[data-command="${it.command}"]`);
+      if (!b) continue;
+      if (it.command.startsWith('inputMode.set:') || it.command.startsWith('batchStyle.set:')) { const d = b.querySelector('.btn-desc'); if (d) setText(d, it.description ?? ''); }
+      if ('enabled' in it) {
+        setProp(b, 'disabled', it.enabled === false);
+        let rs = b.querySelector('.btn-reason');
+        if (it.enabled === false) {
+          if (!rs) { rs = doc.createElement('span'); rs.className = 'btn-desc btn-reason'; b.append(rs); }
+          setText(rs, it.disabledReason ?? '');
+        } else if (rs) rs.remove();
+      }
     }
     // FR-030 AC-519: ［設定］の値のある項目（決め方・音量・周期）の現在値。入力中の部品は書き換えない
     for (const it of app.getCommandBar().items) {
@@ -342,6 +388,10 @@ export function mountUI(app, doc = document) {
       setText(ise, is.text); if (ise.title !== is.text) ise.title = is.text; setAttr(ise, 'role', is.role); setAttr(ise, 'aria-live', is.live);
       if (ise.dataset.state !== is.state) ise.dataset.state = is.state;
     }
+    // FR-118 AC-691: バッチの実行中は処理中と進み具合を文字で示し（色だけにしない。読み上げ対象）、[取消] を出す。完了後は描いたシーン数
+    { const bs = app.getBatchState?.(); const be = $('#batch-status'); const bc = $('#batch-cancel');
+      if (bs && be) { const bt = bs.visible && (bs.state === 'running' || bs.state === 'done') ? bs.message : ''; setText(be, bt); if (be.title !== bt) be.title = bt; }
+      if (bs && bc) { setProp(bc, 'hidden', !bs.cancelEnabled); setText(bc, app.t('batch.cancel')); } }
     // NFR-PERF-003 AC-540: アウトラインもキー（シーン ID・要点 ID）で差分だけを当てる
     if (!dragging) { const o = $('#outline'); if (fresh(o)) { patchHtml(o, app.renderOutline(), doc); o._ver = ver; } }
     } // if (!viewOnly)

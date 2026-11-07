@@ -152,19 +152,16 @@ test('FR-023 AC-120 異常系: 取込に失敗したあとも同じ名前のフ�
   assert.equal(app.getState().utterances.length, 2);
 });
 
-test('FR-023 AC-122: 取込の完了から 3 秒（PARAM-158。ライブ更新の間隔を待たない）以内に認識文字列の一覧と図（SVG・テキスト一覧）に反映される', async () => {
+test('FR-023 AC-122: 取込の完了から 3 秒（PARAM-158。ライブ更新の間隔を待たない）以内に認識文字列の一覧に反映される。図（SVG・テキスト一覧・シーン）には反映されない（2026-11-06。図はバッチモードでスタイルを選んで実行したときに描かれる）', async () => {
   const { app, env } = await newApp(); toDetail(app);
   app.commands['session.start']();
+  const before = JSON.stringify([app.getState().scenes, app.renderSvg(), app.renderOutline()]);
   const r = await app.importTextFile(file('m.vtt', vttOf(3)));
   assert.equal(r.ok, true);
   env.scheduler.advance(PARAM.SINGLE_SEC * 1000);
   assert.deepEqual(app.getTranscript().finals.map((f) => f.text), ['発話0', '発話1', '発話2']);
-  const svg = app.renderSvg(); const outline = app.renderOutline();
-  assert.ok(app.getState().scenes.length >= 1);
-  for (const s of app.getState().scenes) {
-    assert.ok(svg.includes(`data-scene-id="${s.id}"`));
-    assert.ok(outline.includes(s.heading));
-  }
+  assert.equal(JSON.stringify([app.getState().scenes, app.renderSvg(), app.renderOutline()]), before, '図には反映されない');
+  assert.equal(app.getState().scenes.length, 0);
 });
 
 test('FR-023 AC-122 異常系: 取り込めなかったときは認識文字列の一覧と図は変わらない', async () => {

@@ -103,7 +103,7 @@ export function inputModule(ctx) {
       let added = 0;
       for (let from = 0; from < lines.length; from += CHUNK) {
         const part = lines.slice(from, from + CHUNK);
-        const n = ctx.addUtterances(part, cues ? { ats: ats.slice(from, from + CHUNK), anyState: true } : { at: base, noGapSplit: true, anyState: true });
+        const n = ctx.addUtterances(part, cues ? { ats: ats.slice(from, from + CHUNK), anyState: true, noIngest: true } : { at: base, noGapSplit: true, anyState: true, noIngest: true }); // FR-014 AC-054: 取込は図を更新しない（図はバッチモードで描く）
         if (cues && n) ctx.api.recordSpeakers?.(ctx.state.utterances.slice(-n), cues.slice(from, from + n).map((c) => c.speaker)); // AC-668: 話者タグの名前（ブラウザ内だけ）
         ctx.transcript?.addFinals(part.slice(0, n));
         added += n;

@@ -290,9 +290,18 @@ const pointCount = (svg) => new Set([...svg.matchAll(/data-point-id="([^"]+)"/g)
 const allPoints = (app) => app.getState().scenes.flatMap((s) => s.points);
 const norm = (s) => String(s ?? '').replace(/[\s。．.、,]/g, '');
 const lineOf = (text) => EXPECTED.find((e) => norm(e.text).includes(norm(text)) || norm(text).includes(norm(e.text)));
+// 2026-11-06: ファイルを取り込んだだけでは図は描かれない（AC-054）。ファイル読込モード（取込で自動的に切り替わる。AC-685）でスタイルを選んで実行して描く（LLM 無効のルールベース描画。AC-689）。描画スタイルは実行前のものへ戻す
+async function drawFile(app, { restoreStyle = true } = {}) {
+  const ds = app.getDrawStyle();
+  assert.equal(app.getInputMode().mode, 'batch', 'ファイル取込でファイル読込モードになる');
+  const r = await app.runBatch(app.getBatchStyles()[0].id);
+  assert.equal(r.ok, true, 'バッチで図を描く');
+  if (restoreStyle) app.setDrawStyle(ds);
+  return r;
+}
 
 // FR-114 AC-667
-test('FR-114 AC-667: 固定の文字起こし（TeamA との会議）を会議ボード型で 1 発言ずつ取り込むと、(a) 区画 6 以上 (b) 部品 8 種類以上 (c) 期待の表の区画 (d) 重なり・はみ出しなし (e) コントラスト 4.5 以上（15 の描画スタイル）(f) 600ms 以内の途中を経由する移動（動きを減らす設定ではなし）(g) 反映の時間 (h) 強調の左右端のずれ 0.5 文字以下（実ブラウザ・15 の描画スタイル）(i) 議論の流れの 4 つ以上のステップ（番号バッジ・吹き出し・人物が 1 組ずつ、間ごとに矢印）、外部へのリクエスト 0 件', async () => {
+test('FR-114 AC-667: 固定の文字起こし（TeamA との会議）を会議ボード型にして .vtt で読み込み、FR-118 のバッチ実行でスタイルを選んで描くと（読み込んだだけでは描かれない）、実行の完了後の図で (a) 区画 6 以上 (b) 部品 8 種類以上 (c) 期待の表の区画 (d) 重なり・はみ出しなし (e) コントラスト 4.5 以上（15 の描画スタイル）(f) 600ms 以内の途中を経由する移動（動きを減らす設定ではなし）(g) 実行の操作から反映までの時間（手入力は受付から） (h) 強調の左右端のずれ 0.5 文字以下（実ブラウザ・15 の描画スタイル）(i) 議論の流れの 4 つ以上のステップ（番号バッジ・吹き出し・人物が 1 組ずつ、間ごとに矢印）、外部へのリクエスト 0 件', async () => {
   // ---- 0. 固定データの自己検証（期待の表は PARAM から作り直せる） ----
   assert.ok(LINES.length >= 15 && LINES.length <= 25, `15〜25 発言（${LINES.length}）`);
   assert.equal(EXPECTED.length, LINES.length);
@@ -311,7 +320,7 @@ test('FR-114 AC-667: 固定の文字起こし（TeamA との会議）を会議�
   const net = spyNetwork();
   try {
     // ---- 1. 手入力で 1 発言ずつ: (c)(d)(f)(g) ----
-    const { app, env, advance } = await boardApp();
+    let { app, env, advance } = await boardApp();
     app.commands['session.start']();
     let svg = app.renderSvg();
     assert.match(svg, /data-layout-head="board"/);
@@ -359,6 +368,53 @@ test('FR-114 AC-667: 固定の文字起こし（TeamA との会議）を会議�
     // あふれによる詰め直しが起きなかったときは、同じ区画（目的・背景）に要点を足して、あふれさせて確かめる（どこまでも枠が足りるなら (d) が破れる）
     for (let k = 1; moved === 0 && k <= 12; k++) feed(`目的その${k}は品質の底上げ`, `追加 ${k}`);
     assert.ok(moved >= 1, '(f) あふれによる詰め直しで位置が変わる要素が観察できる');
+
+    // ---- 1b. バッチ（AC-667 の主たる経路。依頼 2026-11-07）: 固定の文字起こしを .vtt として読み込み（読み込んだだけでは図は描かれない。AC-686）、
+    //          FR-118 のバッチ実行でスタイルを選んで描く（LLM 連携が無効の条件のルールベース描画。AC-689）。以降の (a)(b)(c)(d)(e)(h)(i) は、この実行の完了後の図で測る ----
+    {
+      const hms = (sec) => { const s = Math.floor(sec); const f = (n) => String(n).padStart(2, '0'); return `${f(Math.floor(s / 3600))}:${f(Math.floor(s / 60) % 60)}:${f(s % 60)}.000`; };
+      let at = 0; const cues = [];
+      LINES.forEach((t, i) => {
+        // (i) 議論の 4 つのトピックは、ファイル全体が 1 つのシーンでも、話題の変わり目（無音 PARAM-190 秒以上）で別のステップになる。無音は PARAM-002（20 秒）より短くする
+        if (EXPECTED[i].section === 'flow') at += PARAM.P190_SEC;
+        cues.push(`${hms(at)} --> ${hms(at + 1)}\n<v 話者${i % 3}>${t}</v>\n`);
+        at += 2;
+      });
+      const vtt = ['WEBVTT', '', ...cues].join('\n');
+      const bt = await boardApp();
+      const imp = await bt.app.importTextFile({ name: 'teama-meeting.vtt', type: 'text/vtt', size: Buffer.byteLength(vtt), text: vtt });
+      assert.equal(imp.ok, true, '.vtt の取込');
+      assert.equal(bt.app.getInputMode().mode, 'batch', 'ファイル取込でファイル読込モードになる（AC-685）');
+      bt.advance(PARAM.P158_SEC * 1000);
+      assert.equal(pointCount(bt.app.renderSvg()), 0, '(g) .vtt を読み込んだだけでは図は描かれない（AC-686）');
+      const styleId = bt.app.getBatchStyles()[0].id;
+      const t0 = performance.now(); const c0 = bt.env.clock.t;
+      const run = await bt.app.runBatch(styleId); // LLM 連携は無効（既定）。ルールベース描画
+      assert.equal(run.ok, true, 'バッチ実行ができる');
+      let shown = false;
+      for (let dt = 0; dt <= PARAM.P158_SEC * 1000 && !shown; dt += 100) { if (dt) bt.advance(100); shown = pointCount(bt.app.renderSvg()) >= LINES.length; }
+      assert.ok(shown && performance.now() - t0 <= PARAM.P158_SEC * 1000 && bt.env.clock.t - c0 <= PARAM.P158_SEC * 1000, `(g) バッチ: 実行の操作から ${PARAM.P158_SEC} 秒以内に取込んだ全発言が図に出る`);
+      bt.advance(1600);
+      assert.equal(bt.app.getBatchState().state, 'done', '実行の完了');
+      assert.equal(bt.app.getState().scenes.length, 1, 'ファイル全体が 1 つのシーン');
+      // (f) バッチ実行の描画を含む図の更新: 別のスタイルで描き直したとき、位置が変わった要素は PARAM-181 ミリ秒以内に着き、途中の位置を経由する
+      {
+        const other = bt.app.getBatchStyles()[1].id;
+        const before = positions(bt.app.getBoardModel());
+        const samples = [];
+        const pr = bt.app.runBatch(other);
+        for (let dt = 0; dt <= 1600; dt += 50) { if (dt) bt.advance(50); samples.push({ dt, pos: positions(bt.app.getBoardModel()) }); }
+        assert.equal((await pr).ok, true, '別のスタイルで描き直せる');
+        const final = samples.at(-1).pos;
+        for (const [id, p0] of before) {
+          const pf = final.get(id); if (!pf) continue;
+          if (Math.max(Math.abs(pf.x - p0.x), Math.abs(pf.y - p0.y)) < 4) continue;
+          for (const s of samples.filter((q) => q.dt >= PARAM.P181_MS)) { const q = s.pos.get(id); assert.ok(Math.abs(q.x - pf.x) <= 0.5 && Math.abs(q.y - pf.y) <= 0.5, `(f) バッチの描き直し: ${id} は ${PARAM.P181_MS}ms 以内に新しい位置に着く（${s.dt}ms）`); }
+        }
+        await bt.app.runBatch(styleId); bt.advance(1600);
+      }
+      app = bt.app; // 以降の測定は、バッチの完了後の図で行う
+    }
 
     // (c) 各要点が期待の表の区画にある（図の上の区画と、モデルの振り分けの両方）
     svg = app.renderSvg();
@@ -492,15 +548,18 @@ test('FR-114 AC-667: 固定の文字起こし（TeamA との会議）を会議�
       }
     }
 
-    // ---- 3. ファイル取込（.txt）: PARAM-158 以内に全発言が図に出て、区画は期待の表のとおり ----
+    // ---- 3. ファイル取込（.txt）: 取込だけでは図は描かれない。ファイル読込モードでスタイルを選んで実行すると PARAM-158 秒以内に全発言が図に出て、区画は期待の表のとおり ----
     const fi = await boardApp();
     const text = LINES.join('\n');
-    const t0 = performance.now(); const c0 = fi.env.clock.t;
     const r = await fi.app.importTextFile({ name: 'teama-meeting.txt', type: 'text/plain', size: Buffer.byteLength(text), text });
     assert.equal(r.ok, true, 'ファイル取込');
+    fi.advance(PARAM.P158_SEC * 1000);
+    assert.equal(pointCount(fi.app.renderSvg()), 0, 'ファイルを取り込んだだけでは図は描かれない');
+    const t0 = performance.now(); const c0 = fi.env.clock.t;
+    await drawFile(fi.app);
     let shown = false;
     for (let dt = 0; dt <= PARAM.P158_SEC * 1000 && !shown; dt += 100) { if (dt) fi.advance(100); shown = pointCount(fi.app.renderSvg()) >= LINES.length; }
-    assert.ok(shown && performance.now() - t0 <= PARAM.P158_SEC * 1000 && fi.env.clock.t - c0 <= PARAM.P158_SEC * 1000, `(g) ファイル取込: ${PARAM.P158_SEC} 秒以内に全発言が図に出る`);
+    assert.ok(shown && performance.now() - t0 <= PARAM.P158_SEC * 1000 && fi.env.clock.t - c0 <= PARAM.P158_SEC * 1000, `(g) バッチ（ファイル取込）: 実行から ${PARAM.P158_SEC} 秒以内に全発言が図に出る`);
     fi.advance(1600);
     const fsec = pointSections(fi.app.renderSvg());
     for (const p of allPoints(fi.app).filter((q) => lineOf(q.text))) assert.deepEqual([...(fsec.get(p.id) ?? [])], [lineOf(p.text).section], `(c) ファイル取込: 「${p.text}」`);
@@ -541,10 +600,13 @@ test('FR-114 AC-667: 固定の文字起こし（TeamA との会議）を会議�
     const sf = await boardShowApp();
     assert.equal(sf.app.setLiveShow(true).ok, true);
     assert.equal((await sf.app.importTextFile({ name: 'teama-meeting.txt', type: 'text/plain', size: Buffer.byteLength(text), text })).ok, true);
+    assert.equal(pointCount(sf.app.renderSvg()), 0, '(g) ショー ON・ファイル取込: 取込だけでは図は描かれず、演出も走らない');
+    assert.equal(sf.app.getLiveShow().running, false);
+    await drawFile(sf.app);
     sf.advance(PARAM.P158_SEC * 1000);
-    assert.ok(pointCount(sf.app.renderSvg()) >= LINES.length, `(g) ショー ON・ファイル取込: ${PARAM.P158_SEC} 秒以内に全発言が図に出る`);
-    assert.equal(sf.app.getLiveShow().running, false, `(g) ショー ON・ファイル取込: ${PARAM.P158_SEC} 秒の時点で演出の途中ではない`);
-    checkGeometry(sf.app.getBoardModel(), 'ショー ON・ファイル取込の後');
+    assert.ok(pointCount(sf.app.renderSvg()) >= LINES.length, `(g) ショー ON・バッチ: 実行から ${PARAM.P158_SEC} 秒以内に全発言が図に出る`);
+    assert.equal(sf.app.getLiveShow().running, false, `(g) ショー ON・バッチ: ${PARAM.P158_SEC} 秒の時点で演出の途中ではない`);
+    checkGeometry(sf.app.getBoardModel(), 'ショー ON・バッチの後');
     const sl = await boardShowApp({ speech: new FakeSpeech() });
     assert.equal(sl.app.setLiveShow(true).ok, true);
     sl.app.commands['session.start']();
@@ -649,9 +711,11 @@ test('FR-114 AC-680: ［設定］の「名前を表示しない」は既定オ�
   try {
     const { app, env, createApp } = await boardApp({ options: { relay } });
     assert.notEqual(app.setTitleInfo({ participants: ROSTER.join('\n') })?.ok, false, '参加者名簿を入力できる（1 行に 1 名）');
-    app.commands['session.start']();
     const vtt = ['WEBVTT', '', '00:00:01.000 --> 00:00:03.000', `<v ${TAG}>まず現行の受付の流れを振り返りました</v>`, ''].join('\n');
     assert.equal((await app.importTextFile({ name: 'names.vtt', type: 'text/vtt', size: Buffer.byteLength(vtt), text: vtt })).ok, true, '.vtt を取り込める');
+    await drawFile(app); // 取込だけでは図は描かれない（2026-11-06）。バッチで描いてから音声取込モードの記録へ戻る
+    assert.equal(app.setInputMode('live').ok, true);
+    app.commands['session.start']();
     env.tick(3); env.scheduler.advance(3000);
     const views = async () => {
       const nC = env.canvasFactory.log.texts.length; const nD = env.downloads.length;
@@ -970,9 +1034,9 @@ test('FR-114 AC-669 AC-666: 要点の量が偏った会議を 15 の描画スタ
       one.advance(5000); one.app.renderSvg(); one.advance(5000);
       assert.equal(layout(one.app.getBoardModel()), snapH, '重い会議: 契機がなければ決め直した並びも動かない（冪等）');
       const imp = await boardApp();
-      imp.app.commands['session.start']();
       const text = HEAVY.join('\n');
       assert.equal((await imp.app.importTextFile({ name: 'heavy.txt', type: 'text/plain', size: Buffer.byteLength(text), text })).ok, true, '重い会議: ファイル取込');
+      await drawFile(imp.app); // 取込だけでは図は描かれない（2026-11-06）。バッチで描く
       imp.advance(5000);
       assert.equal(geo(imp.app.getBoardModel()), geo(mh), '重い会議: 入力が同じなら取込の経路によらず並び・枠は同じ（決定的・履歴によらない）');
       for (const id of one.app.getDrawStyles().map((s) => s.id)) {
@@ -1105,6 +1169,7 @@ test('FR-114 AC-681 AC-680: 参加者名簿の入力欄（ラベル・既定は�
     const b = await boardApp();
     assert.equal(b.app.setTitleInfo({ participants: '名簿甲\n名簿乙' }).ok, true);
     assert.equal((await b.app.importTextFile({ name: 'names.vtt', type: 'text/vtt', size: Buffer.byteLength(vtt), text: vtt })).ok, true, '.vtt を取り込める');
+    await drawFile(b.app); // 取込だけでは図は描かれない（2026-11-06）。バッチで描く
     b.advance(1600);
     const mem = parseSvg(b.app.renderSvg()).all.filter((n) => n.attrs['data-board-name'] === 'participant').map((n) => n.text.trim());
     assert.deepEqual(mem, ['名簿甲', '名簿乙', clip(LONG), 'Other'], '(b) 参加メンバー: 名簿の名前（入力順）→名簿にない話者タグの名前（最初に現れた順。20 文字以内）');

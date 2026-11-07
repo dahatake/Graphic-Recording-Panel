@@ -12,7 +12,6 @@ import { mountRolesUI } from './roles-ui.js';
 import { mountDrawUI } from './draw-ui.js';
 import { mountOnboardingUI } from './onboarding-ui.js';
 import { mountRibbonToggle } from './ribbontoggle.js';
-import { mountVttPlayUI } from './vttplay-ui.js';
 import { relayRequest } from './relayclient.js';
 
 const mq = (q) => (globalThis.matchMedia ? globalThis.matchMedia(q).matches : false);
@@ -47,7 +46,6 @@ mountOnboardingUI(app); // FR-103: 初回の案内・ヘルプ・サンプルの
 mountPromptNotice(app); // FR-078 AC-470〜473: コピーの前の注意（伏せ字の選択・コピー・キャンセル）
 mountPromptFallback(app); // FR-078 AC-423: クリップボードに書けないときの手でコピーする表示
 mountRibbonToggle(app); // NFR-UX-003 AC-579: 窓の高さが小さいときのリボンの開閉
-mountVttPlayUI(app); // FR-022 AC-671: .vtt の取込の方法（一括・再生取込）・速さと、再生取込の一時停止・再開・中止
 ui.measureWorkArea();
 // FR-076 AC-456: 実行中にハイコントラストを切り替えたら、図の配色をシステム色と風の配色の間で切り替える
 globalThis.matchMedia?.('(forced-colors: active)').addEventListener?.('change', (e) => app.setForcedColors?.(e.matches));

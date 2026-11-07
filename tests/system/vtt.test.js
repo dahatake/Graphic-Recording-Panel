@@ -89,7 +89,6 @@ test('FR-022 AC-113: 受付時刻は最初の cue が取込時刻、以降は開
 
 test('FR-022 AC-113: 開始時刻の差が PARAM-002（20 秒）以上の cue の間でシーンが分かれ、近い cue 間では分かれない', async () => {
   const { app } = await newApp();
-  app.commands['session.start']();
   const v = [
     'WEBVTT', '',
     '00:00:01.000 --> 00:00:03.000', '<v A>予算の話をする</v>', '',
@@ -100,7 +99,9 @@ test('FR-022 AC-113: 開始時刻の差が PARAM-002（20 秒）以上の cue �
   await app.importTextFile(file('s.vtt', v));
   const st = app.getState();
   assert.equal(st.utterances.length, 4);
-  assert.equal(st.scenes.length, 2, '60 秒の差でシーンが分かれる');
+  assert.equal(st.scenes.length, 0, '取込だけでは図（シーン）は描かれない（2026-11-06）');
+  assert.equal((await app.runBatch(app.getBatchStyles()[0].id)).ok, true, 'バッチモードでスタイルを選んで実行する');
+  assert.equal(app.getState().scenes.length, 2, '60 秒の差でシーンが分かれる');
 });
 
 test('FR-022 AC-113: 取込んだ発話は右パネル（認識文字列の一覧）に確定結果として並ぶ', async () => {

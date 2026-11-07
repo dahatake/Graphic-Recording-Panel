@@ -8,12 +8,13 @@ import { escapeHtml } from './outline.js';
 import { acceptGeneratedSvg } from './svgsanitize.js';
 import { withoutConfidential } from './visibility.js';
 import { readJson, writeJson } from './persist.js';
-import { normalizeSection, SECTIONS as BOARD_SECTIONS } from './board.js';
+import { normalizeSection } from './board.js';
 export const LLM_LABEL_MAX = 24; // PARAM-165: LLM が返したラベル文字列の最大の長さ（文字）
 
 export const EXTRACT_PATH = '/api/llm/extract'; // 中継サーバーが /api/llm/responses と同じ中継をする
 export const SVG_PATH = '/api/llm/svg'; // FR-065 方式2
 export const MAX_SEND_CHARS = 2000; // PARAM-070
+const TERM_MAX = 12; // FR-118: バッチで送る語の最大の長さ（これより長い英数字の列は識別子・鍵の恐れがあるので送らない）
 const MAX_GENERATED = 4; // 1 回の抽出で生成を求める物の上限
 const LIMITS = { objects: 8, metaphors: 4, people: 3, emotions: 4 };
 const MASK = '●●●';
@@ -164,7 +165,7 @@ export function llmDrawModule(ctx) {
     for (const label of labels) {
       if ((generated.get(sceneId) ?? []).some((g) => g.label === label)) continue;
       const sent = api.maskPersonNames ? api.maskPersonNames(label) : label; // AC-358・AC-668: 名前は常に伏せる
-      const res = await api.llmCall(SVG_PATH, { key: 'generated', label: sent, input: sent, instructions: `Draw "${sent}" as one simple flat icon SVG (viewBox 0 0 48 48). Use only svg, g, path, circle, ellipse, rect, line, polyline, polygon, text. No script, no external references. Reply with the <svg> only.` });
+      const res = await api.llmCall(SVG_PATH, { key: 'generated', label: sent, input: sent }); // AC-358: 指示（Prompt 本文）は端末から送らず、中継サーバーが付与する
       if (!res?.ok || latest.get(sceneId) !== n || !svgGeneration || !active()) continue;
       const svg = norm(findSvg(res.body));
       generated.set(sceneId, [...(generated.get(sceneId) ?? []), { label, svg }]);
@@ -185,40 +186,46 @@ export function llmDrawModule(ctx) {
     ctx.emit('change', api);
   };
 
-  const catalogText = () => getPartKeys().map((k) => `${k}=${getPartInfo(k, 'en').label}`).join(', ');
-  const instructions = () => `You extract what to draw from key points of a conversation. Reply with one JSON object only: {"objects":[{"key"}],"people":[{"hair","hairColor","outfit","expression"}],"emotions":[{"key"}],"metaphors":[{"key"}]}. `
-    + `"key" of objects and metaphors must be one of these part keys: ${catalogText()}. `
-    + `people use only: hair ${CHARACTER_OPTIONS.hair.join('|')}; hairColor ${CHARACTER_OPTIONS.hairColor.join('|')}; outfit ${CHARACTER_OPTIONS.outfit.join('|')}; expression ${CHARACTER_OPTIONS.expression.join('|')}. `
-    + `emotions keys: ${CHARACTER_OPTIONS.expression.filter((e) => e !== 'neutral').join('|')}. Never include names of real people.`
-    + (svgGeneration ? ' For an object that has no suitable part, use key "other" and give a short "label" naming it.' : '')
-    + ` Lines after the first line are key points numbered from 1. Optionally add "sections":[{"point":<number>,"section":"<id>","emphasis":"<one word from the point>"}] where id is one of: ${BOARD_SECTIONS.map((s) => s.id).join('|')}.`; // FR-114・AC-317: 9 つの区画名は固定の指示文に含める（送信の内容は変えない）
+  // 抽出・SVG 生成の指示（Prompt 本文）は端末に置かない。中継サーバー（server/batch_styles.py）が固定文を付与する（AC-358・AC-690。FR-114 の区画 ID の一覧もサーバー側）
   // FR-114: 要点ごとの区画の指定（シーン ID → Map(要点の添字 → { section, emphasis })）。LLM 連携が無効のときは使わない
   const sectionsOf = new Map();
   api.getLlmPointSection = (sceneId, index) => (active() ? sectionsOf.get(sceneId)?.get(index) ?? null : null);
 
-  function requestFor(scene) {
+  // FR-118・AC-692（Q-049 回答 A）: バッチでは、取込んだ発話の逐語を送らない。要点の文字は、ルールベースで取り出した語（漢字・カタカナ・英数字の語。ひらがなの助詞と長い英数字の列は除く）だけにする
+  const termsOf = (line) => {
+    const words = String(line).match(/[\u4E00-\u9FFF\u3005\u30A0-\u30FF\u30FC]+|[A-Za-z][A-Za-z'-]*/gu) ?? []; // 数字だけの列（電話番号・番号類）は簡易マスキングの設定に関わらず送らない（AC-692）
+    const keep = []; for (const w of words) { if ([...w].length <= TERM_MAX && !keep.includes(w)) keep.push(w); }
+    return keep.length ? keep.join(' ') : '…';
+  };
+  function requestFor(scene, termsOnly = false) {
     const [safe] = withoutConfidential([scene], state.lang === 'en' ? 'en' : 'ja'); // 機密の要点は公開範囲に関わらず LLM へ送らない（監査 S-1）
-    const raw = [safe.heading, ...safe.points.map((p) => p.text)].join('\n');
-    const named = api.maskPersonNames ? api.maskPersonNames(raw) : raw; // AC-358・AC-668: 参加者名簿・話者タグの名前は簡易マスキングの設定に関わらず常に伏せる（決定 2026-11-05）
+    const lines = [safe.heading, ...safe.points.map((p) => p.text)];
+    const raw = (termsOnly ? lines.map((l) => termsOf(api.maskPersonNames ? api.maskPersonNames(l) : l)) : lines).join('\n');
+    const named = termsOnly ? raw : (api.maskPersonNames ? api.maskPersonNames(raw) : raw); // AC-358・AC-668: 参加者名簿・話者タグの名前は簡易マスキングの設定に関わらず常に伏せる（決定 2026-11-05）
     const masked = masking ? maskText(named, allMaskWords()) : named;
     return clampText(masked, MAX_SEND_CHARS);
   }
-  async function extract(sceneId) {
+  // opts.style: { id, name }（FR-118 バッチ。スタイルの ID・名称だけを送る。指示の本文はサーバーが ID から付与する）。戻り値: 'ok' | 'failed' | 'invalid' | 'stale' | 'none'
+  async function extract(sceneId, opts = {}) {
     const scene = sceneId === undefined ? state.scenes[state.scenes.length - 1] : state.scenes.find((s) => s.id === sceneId);
-    if (!scene) return;
-    const { text, truncated } = requestFor(scene);
+    if (!scene) return 'none';
+    const { text, truncated } = requestFor(scene, !!opts.style);
     const n = ++seq; latest.set(scene.id, n);
-    const pending = api.llmCall(EXTRACT_PATH, { instructions: instructions(), input: text, scene: state.scenes.length, drawStyle: api.getDrawStyle?.() ?? 'handwritten', partKeys: getPartKeys(), text: { format: { type: 'json_object' } }, ...(svgGeneration ? { allowSvg: true } : {}) });
+    const styleFields = opts.style ? { styleId: opts.style.id, styleName: opts.style.name, lang: state.lang === 'en' ? 'en' : 'ja' } : {};
+    const pending = api.llmCall(EXTRACT_PATH, { input: text, scene: state.scenes.length, drawStyle: api.getDrawStyle?.() ?? 'handwritten', partKeys: getPartKeys(), text: { format: { type: 'json_object' } }, ...styleFields, ...(svgGeneration ? { allowSvg: true } : {}) });
     if (truncated) { await Promise.resolve(); ctx.change(() => ctx.setMessage('llmdraw.truncated')); } // 呼び出し元の状態更新の後に通知する
     const res = await pending;
-    if (!res?.ok || latest.get(scene.id) !== n || !active()) return;
+    if (!res?.ok || latest.get(scene.id) !== n || !active()) return res?.ok ? 'stale' : (res?.reason === 'failed' ? 'failed' : 'stale');
     const parsed = parseExtraction(res.body);
-    if (!parsed) return; // 形式に合わない応答は全体を無視（ルールベースのまま）
+    if (!parsed) return 'invalid'; // 形式に合わない応答は全体を無視（ルールベースのまま）
     drawn.set(scene.id, parsed);
     { const secs = parseSections(res.body, scene.points.length); const same = withoutConfidential([scene], state.lang === 'en' ? 'en' : 'ja')[0].points.length === scene.points.length; if (secs.size && same) sectionsOf.set(scene.id, secs); else sectionsOf.delete(scene.id); } // 機密の要点を除いて送ったときは番号がずれるので使わない
-    if (svgGeneration) { const labels = parseUnbundled(res.body); if (labels.length) { ctx.emit('change', api); await generate(scene.id, labels, n); return; } }
+    if (svgGeneration) { const labels = parseUnbundled(res.body); if (labels.length) { ctx.emit('change', api); await generate(scene.id, labels, n); return 'ok'; } }
     ctx.emit('change', api);
+    return 'ok';
   }
+  api.extractSceneWithStyle = (sceneId, style) => extract(sceneId, { style }); // FR-118（batch.js）が使う。LLM 連携が無効なら 'none'
+  api.clearLlmDrawn = (sceneIds) => { for (const id of sceneIds) { drawn.delete(id); sectionsOf.delete(id); latest.delete(id); } }; // バッチの再実行で置き換えたシーンの抽出結果を捨てる
   // 取込などで発話が短時間に大量に来ても、要求は同時に 1 件だけ。処理中に来た発話は、発話のあったシーンごとに 1 回へまとめて（同じシーンへの複数発話は 1 回）、終わった後に順に送る（AC-359・AC-471）
   let extracting = false; const dirty = new Set();
   async function extractCoalesced() {

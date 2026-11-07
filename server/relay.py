@@ -32,6 +32,7 @@ store = importlib.import_module("relay_llmstore")
 copilot = importlib.import_module("relay_copilot")  # GitHub Copilot SDK を介した呼び出し（FR-087）。SDK は任意の依存
 signin = importlib.import_module("relay_copilot_signin")  # Copilot CLI のサインイン（デバイスフロー。FR-088）
 signin.on_completed = lambda: copilot.set_signed_out(False)  # サインインの完了でこのアプリでのサインアウトを解除（AC-511）
+batch_styles = importlib.import_module("batch_styles")  # FR-118・FR-119: スタイルの指示（Prompt 本文）はサーバーが styleId から付与する（AC-690・AC-695）
 BIND_ADDRESS = "127.0.0.1"
 MAX_REQUEST_BYTES = 1024 * 1024
 LLM_PREFIX = "/api/llm/"
@@ -561,6 +562,13 @@ class RelayHandler(SimpleHTTPRequestHandler):
             if asked in cfg.PROVIDERS:
                 provider = asked
         is_svg = self.path.split("?", 1)[0] == LLM_PREFIX + "svg"
+        # FR-118・AC-690: 抽出・SVG 生成の指示（Prompt 本文）は端末から受け取らず、styleId などから固定文を付与する。未定義の styleId は拒否する
+        kind = self.path.split("?", 1)[0][len(LLM_PREFIX):]
+        if isinstance(payload, dict) and kind in ("extract", "svg"):
+            composed, err = batch_styles.compose_instructions(kind, payload)
+            if err:
+                return self._send_json(400, sec.error_body("bad_request", err))
+            payload["instructions"] = composed  # 端末の instructions は常に捨て、サーバーの固定文で上書きする（AC-690）
         if provider == "copilot":
             return self._relay_copilot(cs, raw, payload, is_svg)
         settings, st = current_status()

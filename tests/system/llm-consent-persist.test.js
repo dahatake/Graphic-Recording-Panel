@@ -195,10 +195,19 @@ test('NFR-PRIV-003 AC-358: 送信は要点の文字・シーン番号・描画�
   assert.ok(!/Mozilla|Chrome\/|Node\.js|node:/i.test(text), '端末・ブラウザの識別情報');
   assert.ok(!text.includes('"scenes"') && !text.includes('grp.session'), 'セッションファイル');
   assert.ok(!text.includes(PROBE));
+  // AC-690・AC-358: スタイルの指示（Prompt）の本文は端末の要求に含まれない
+  for (const c of relay.calls) assert.ok(!deepKeys(c.body ?? {}).some((k) => /instruction|prompt/i.test(k)), `要求に Prompt 本文の項目がある: ${c.path}`);
+  // AC-358: 同意の画面に「アプリ定義のスタイルの指示が付く」旨を表示する
+  const fresh = await appWith();
+  assert.deepEqual([(await fresh.app.requestLlmEnable()).pending], ['consent']);
+  const consentText = JSON.stringify(fresh.app.getLlmConsent());
+  assert.match(consentText, /スタイル[^"]*指示|指示[^"]*スタイル/, '同意の画面にアプリ定義のスタイルの指示が付く旨');
+  await fresh.app.answerLlmConsent(false);
 });
 
 // NFR-PRIV-003 AC-358（2026-11-05: 会議ボード型の参加者名簿と .vtt の話者タグの名前も送らない。AC-668 (e)。契約: CONTRACT-BOARD.md「人物の名前」）
-// 最終監査 202611050444 C-03: 要点の文字に含まれる名簿・話者タグの名前は、簡易マスキングの設定によらず、送る前に常に伏せ字に置き換える（AC-359 と同じ伏せ字）。
+
+// NFR-PRIV-003 AC-358（2026-11-05: 会議ボード型の参加者名簿と .vtt の話者タグの名前も送らない。AC-668 (e)。契約: CONTRACT-BOARD.md「人物の名前」）の参加者名簿と .vtt の話者タグの名前も送らない。AC-668 (e)。契約: CONTRACT-BOARD.md「人物の名前」）// 最終監査 202611050444 C-03: 要点の文字に含まれる名簿・話者タグの名前は、簡易マスキングの設定によらず、送る前に常に伏せ字に置き換える（AC-359 と同じ伏せ字）。
 // 画像生成プロンプト（FR-078）にも、伏せ字の選択によらず名前は常に入らない。
 test('NFR-PRIV-003 AC-358: 会議ボード型の参加者名簿と .vtt の話者タグの名前は、図に載っていても LLM への送信にも画像生成プロンプトにも含まれず、要点の文字に現れる名前は簡易マスキングの設定によらず伏せ字に置き換えて送られる', async () => {
   const { app, env, relay } = await appWith();
@@ -209,10 +218,14 @@ test('NFR-PRIV-003 AC-358: 会議ボード型の参加者名簿と .vtt の話�
   const TAGS = ['話者SPK渡辺', '話者SPK小林'];
   const NAMES = [...ROSTER, ...TAGS];
   assert.notEqual(app.setTitleInfo({ participants: ROSTER.join('\n') })?.ok, false, '参加者名簿を入力できる');
-  app.commands['session.start']();
   const vtt = ['WEBVTT', '', '00:00:01.000 --> 00:00:03.000', `<v ${TAGS[0]}>受付の流れを振り返る</v>`, '',
     '00:00:04.000 --> 00:00:06.000', `<v ${TAGS[1]}>窓口ごとの負荷の差を見る</v>`, ''].join('\n');
   assert.equal((await app.importTextFile({ name: 'names.vtt', type: 'text/vtt', size: Buffer.byteLength(vtt), text: vtt })).ok, true, '.vtt を取り込める');
+  // 2026-11-06: ファイルを読み込んだだけでは図は描かれない。ファイル読込モードでスタイルを選んで実行し、図に名前を載せてから、音声取込モードの記録に戻る
+  assert.equal((await app.runBatch(app.getBatchStyles()[0].id)).ok, true, 'バッチで図を描く');
+  await app.flushLlm();
+  assert.equal(app.setInputMode('live').ok, true);
+  app.commands['session.start']();
   env.tick(3);
   const svg = app.renderSvg();
   for (const n of NAMES) assert.ok(svg.includes(n), `前提: ${n} は会議ボード型の図に載る（AC-668。送らないのは表示しないからではない）`);
