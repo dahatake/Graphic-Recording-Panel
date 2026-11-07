@@ -194,6 +194,9 @@ export function llmDrawModule(ctx) {
   // FR-118・AC-692（Q-049 回答 A）: バッチでは、取込んだ発話の逐語を送らない。要点の文字は、ルールベースで取り出した語（漢字・カタカナ・英数字の語。ひらがなの助詞と長い英数字の列は除く）だけにする
   const termsOf = (line) => {
     const words = String(line).match(/[\u4E00-\u9FFF\u3005\u30A0-\u30FF\u30FC]+|[A-Za-z][A-Za-z'-]*/gu) ?? []; // 数字だけの列（電話番号・番号類）は簡易マスキングの設定に関わらず送らない（AC-692）
+    // AC-692・Q-049 A・NFR-PRIV-003: 行がひらがなを含まず、文字・数字・記号・空白だけでできている（英語・欧文・名前だけの発話や見出し、URL、短い単独語など）ときは、語の長さに関わらず発話の逐語そのものなので送らない
+    const whole = !/\p{Script=Hiragana}/u.test(String(line)) && /^[\p{L}\p{M}\p{N}\p{P}\p{S}\p{Z}\s]*$/u.test(String(line));
+    if (whole) return '…';
     const keep = []; for (const w of words) { if ([...w].length <= TERM_MAX && !keep.includes(w)) keep.push(w); }
     return keep.length ? keep.join(' ') : '…';
   };
