@@ -68,6 +68,7 @@ test('FR-002 AC-042 FR-039 AC-182: 記録中でないとき手入力は受け付
   const { app } = await mk();
   for (const prep of [() => {}, () => { app.commands['session.start'](); app.commands['session.pause'](); }]) {
     prep();
+    app.setInputMode('live'); // 前回の取込でファイル読込モードになっているので音声取込へ戻す（FR-117 AC-685）
     app.setDraft('保たれる文');
     assert.equal(app.submitDraft().ok, false);
     assert.equal(app.getState().message.text, '記録を開始・再開してください');
@@ -77,6 +78,15 @@ test('FR-002 AC-042 FR-039 AC-182: 記録中でないとき手入力は受け付
     assert.equal(r.ok, true);
     assert.equal(app.getState().utterances.length, n + 2);
   }
+  // FR-117 AC-684 FR-014 AC-054: ファイル読込モード（取込後）では理由が「音声取込モードで使えます」になる（日英）
+  assert.equal(app.getInputMode().mode, 'batch');
+  app.setDraft('y'); assert.equal(app.submitDraft().ok, false);
+  assert.equal(app.getState().message.text, '音声取込モードで使えます');
+  assert.equal(app.getState().input.draft, 'y');
+  app.setLang('en');
+  assert.equal(app.getState().message.text, 'Available in voice input mode');
+  app.setLang('ja');
+  app.setInputMode('live');
   app.setDraft('x'); app.submitDraft();
   app.setLang('en');
   assert.equal(app.getState().message.text, app.t('msg.notRecording'));
