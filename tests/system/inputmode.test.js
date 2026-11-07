@@ -11,7 +11,7 @@ const pressed = (app) => modeItems(app).filter((i) => i.pressed === true).map((i
 const flush = async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
 
 // FR-117 AC-683
-test('FR-117 AC-683: 最上部に「音声取込」「ファイル読込」の 2 項目が、アイコン・名称（6 文字以内）・短い説明（40 文字以内）つきで常時表示され、初期値は音声取込で、現在の項目だけ aria-pressed が真で色以外の印がある（ja・en）', async () => {
+test('FR-117 AC-683: 最上部に「音声取込」「ファイル取込」の 2 項目が、アイコン・名称（6 文字以内）・短い説明（40 文字以内）つきで常時表示され、初期値は音声取込で、現在の項目だけ aria-pressed が真で色以外の印がある（ja・en）', async () => {
   const { app } = await newApp();
   assert.equal(app.getCommandBar().position, 'top');
   assert.ok(app.getCommandBar().groups.some((g) => g.id === 'inputMode'), 'inputMode グループがある');
@@ -137,7 +137,7 @@ test('FR-117 AC-684: 音声取込モードでは記録・認識・暫定結果�
   assert.ok(finals(app).includes('担当者の割り当てを確認する'), '一覧には並ぶ');
 });
 
-test('FR-117 AC-684: ファイル読込モードでは [記録開始] は無効で「音声取込モードで使えます」が文字で示され、押しても記録は始まらない。音声取込へ戻すと元に戻る（スタイルのボタンの表示は FR-118 側の batch.test.js）', async () => {
+test('FR-117 AC-684: ファイル取込モードでは [記録開始] は無効で「音声取込モードで使えます」が文字で示され、押しても記録は始まらない。音声取込へ戻すと元に戻る（スタイルのボタンの表示は FR-118 側の batch.test.js）', async () => {
   const speech = new FakeSpeech();
   const { app } = await newApp({ speech });
   assert.equal(app.setInputMode('batch').ok, true);
@@ -155,7 +155,7 @@ test('FR-117 AC-684: ファイル読込モードでは [記録開始] は無効�
 });
 
 // FR-117 AC-684（2026-11-07・監査 C-03）/ FR-014 AC-054: ファイル読込モードでは手入力は受け付けられず、発話も図も変わらず、保留もしない
-test('FR-117 AC-684 異常系: ファイル読込モードでは手入力の送信が受け付けられず、発話・図は変わらず「音声取込モードで使えます」が示され、バッチ実行まで保留もされない', async () => {
+test('FR-117 AC-684 異常系: ファイル取込モードでは手入力の送信が受け付けられず、発話・図は変わらず「音声取込モードで使えます」が示され、バッチ実行まで保留もされない', async () => {
   const { app, env } = await newApp({ speech: new FakeSpeech() });
   assert.equal((await app.importTextFile(TXT)).ok, true); // 取込で自動的にファイル読込モードになる（AC-685）
   assert.equal(app.getInputMode().mode, 'batch');
