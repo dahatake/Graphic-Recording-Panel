@@ -62,7 +62,7 @@ export async function llmModule(ctx) {
       'llm.unconfigured': 'LLM 連携を有効にできません。未設定: ', 'llm.failed': 'LLM 連携に失敗したため、通常の描画で表示しています',
       'llm.enabledMsg': 'LLM 連携を有効にしました', 'llm.disabledMsg': 'LLM 連携を無効にしました',
       'llm.consent.title': 'LLM 連携の送信内容の確認', 'llm.consent.accept': '同意して有効にする', 'llm.consent.decline': '同意しない',
-      'llm.consent.kind.points': '会話の要点の文字（マスキング後）', 'llm.consent.sent': '送る内容:', 'llm.consent.to': '送信先', 'llm.consent.notSentLabel': '送らないもの:',
+      'llm.consent.kind.points': '会話の要点の文字（マスキング後）', 'llm.consent.kind.style': 'バッチモードでは、選んだスタイルの指示（アプリ定義の固定文。会議の内容を含まない）が付きます', 'llm.consent.sent': '送る内容:', 'llm.consent.to': '送信先', 'llm.consent.notSentLabel': '送らないもの:',
       'llm.consent.notSent.audio': '音声', 'llm.consent.notSent.secret': 'API キー・トークン', 'llm.consent.notSent.other': '要点の文字以外の内容',
       'llm.consent.hostUnknown': '中継サーバーに設定された Foundry のエンドポイント', 'llm.consent.note': 'この同意はこのブラウザに保存されます（同意の事実・送信内容の版・同意日時だけ）。無効にすると取り消されます。',
       'llm.test.ok': '接続テスト: 成功', 'llm.test.running': '接続テスト中', 'llm.test.fail.unconfigured': '接続テスト: 失敗（未設定）', 'llm.test.fail.consent': '先に同意が必要です（LLM 連携を有効にして同意してください）',
@@ -90,7 +90,7 @@ export async function llmModule(ctx) {
       'llm.unconfigured': 'LLM integration cannot be enabled. Not configured: ', 'llm.failed': 'LLM integration failed; showing the normal drawing',
       'llm.enabledMsg': 'LLM integration enabled', 'llm.disabledMsg': 'LLM integration disabled',
       'llm.consent.title': 'Confirm what LLM integration sends', 'llm.consent.accept': 'Agree and enable', 'llm.consent.decline': 'Do not agree',
-      'llm.consent.kind.points': 'Key-point text of the conversation (after masking)', 'llm.consent.sent': 'What is sent:', 'llm.consent.to': 'Destination', 'llm.consent.notSentLabel': 'What is not sent:',
+      'llm.consent.kind.points': 'Key-point text of the conversation (after masking)', 'llm.consent.kind.style': 'In batch mode, the instructions of the chosen style (fixed app-defined text, with no meeting content) are attached', 'llm.consent.sent': 'What is sent:', 'llm.consent.to': 'Destination', 'llm.consent.notSentLabel': 'What is not sent:',
       'llm.consent.notSent.audio': 'Audio', 'llm.consent.notSent.secret': 'API keys and tokens', 'llm.consent.notSent.other': 'Anything other than the key-point text',
       'llm.consent.hostUnknown': 'The Foundry endpoint configured on the relay server', 'llm.consent.note': 'This consent is saved in this browser (only the fact of consent, the version of what is sent, and the date). Disabling revokes it.',
       'llm.test.ok': 'Connection test: succeeded', 'llm.test.running': 'Testing the connection', 'llm.test.fail.unconfigured': 'Connection test: failed (not configured)', 'llm.test.fail.consent': 'Consent is required first (enable LLM integration and agree)',
@@ -224,7 +224,7 @@ export async function llmModule(ctx) {
   })());
   api.getLlmConsent = () => (consent ? {
     open: true, role: 'alertdialog', label: t('llm.consent.title'),
-    kinds: [t('llm.consent.kind.points')],
+    kinds: [t('llm.consent.kind.points'), t('llm.consent.kind.style')],
     host: consent.provider === 'copilot' ? t('llm.consent.hostCopilot') : (consent.host || t('llm.consent.hostUnknown')),
     ...(consent.provider === 'copilot' ? { provider: 'copilot', model: consent.model || t('llm.consent.modelDefault') } : { provider: 'foundry' }),
     notSent: [t('llm.consent.notSent.audio'), t('llm.consent.notSent.secret'), t('llm.consent.notSent.other')],

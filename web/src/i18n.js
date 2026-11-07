@@ -53,6 +53,7 @@ const BASE = {
     'cmd.view.pan-left': '視点を左へ移動', 'cmd.view.pan-right': '視点を右へ移動', 'cmd.view.pan-up': '視点を上へ移動', 'cmd.view.pan-down': '視点を下へ移動',
     'cmd.data.reset': 'データ初期化', 'cmd.file.save': 'ファイル保存', 'cmd.file.load': 'ファイル読込', 'cmd.file.import': '字幕・テキスト取込', 'cmd.import.file': '取り込み（.txt・.vtt）',
     'cmd.inputMode.set:live': '入力モード: 音声取込', 'cmd.inputMode.set:batch': '入力モード: ファイル読込', // FR-117（inputmode.js）
+    'cmd.batch.cancel': 'バッチの図式化を取り消す', // FR-118（batch.js）
     'cmd.view.timeline': '時系列の表示', 'cmd.view.arrange': '整理の表示（軸と区分）', 'cmd.rpg.bgmToggle': 'BGM の停止・再開（RPG風）',
     // FR-027・FR-030: レイアウト型・設定のコマンド（コマンドの検索に使う名称）
     ...Object.fromEntries(LAYOUT_TYPE_IDS.flatMap((id) => [[`cmd.layoutType.${id}`, LAYOUT_TYPE_META[id].ja.cmd], [`cmd.layoutType.add.${id}`, `${LAYOUT_TYPE_META[id].ja.label}型を併用に加える／外す`]])),
@@ -167,6 +168,7 @@ const BASE = {
     'cmd.view.pan-left': 'Pan view left', 'cmd.view.pan-right': 'Pan view right', 'cmd.view.pan-up': 'Pan view up', 'cmd.view.pan-down': 'Pan view down',
     'cmd.data.reset': 'Reset data', 'cmd.file.save': 'Save file', 'cmd.file.load': 'Load file', 'cmd.file.import': 'Import captions/text', 'cmd.import.file': 'Import (.txt / .vtt)',
     'cmd.inputMode.set:live': 'Input mode: Voice input', 'cmd.inputMode.set:batch': 'Input mode: File batch', // FR-117 (inputmode.js)
+    'cmd.batch.cancel': 'Cancel the batch run', // FR-118 (batch.js)
     'cmd.view.timeline': 'Timeline layout', 'cmd.view.arrange': 'Arranged layout (axes and sections)', 'cmd.rpg.bgmToggle': 'Stop / resume BGM (RPG style)',
     ...Object.fromEntries(LAYOUT_TYPE_IDS.flatMap((id) => [[`cmd.layoutType.${id}`, LAYOUT_TYPE_META[id].en.cmd], [`cmd.layoutType.add.${id}`, `Add or remove the ${LAYOUT_TYPE_META[id].en.label.toLowerCase()} layout in the combination`]])),
     'cmd.layoutType.clear': 'Clear the manual layout choice', 'cmd.settings.open': 'Open settings', 'cmd.settings.close': 'Close settings', 'cmd.llm.toggle': 'Toggle LLM integration', 'cmd.llm.test': 'Test the LLM connection',

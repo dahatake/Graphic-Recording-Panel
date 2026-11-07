@@ -43,6 +43,7 @@ import { llmDrawModule } from './llmdraw.js';
 import { relayoutModule } from './relayout.js';
 import { liveRefreshModule } from './liverefresh.js';
 import { inputModeModule } from './inputmode.js';
+import { batchModule } from './batch.js'; // FR-118: バッチモード（スタイルを選んで図式化）
 import { budgetModule } from './budget.js';
 import { presentExportModule } from './presentexport.js';
 import { speechSettingsModule } from './speechsettings.js';
@@ -292,12 +293,24 @@ export async function createApp(options = {}) {
       try { for (const t of done) emit('utterance', t); } finally { ctx.flushing = false; }
       return done.length;
     },
+    // FR-118: 取込んだ発話（ファイル由来・ライブ）の全件から、図（シーン・要点）を作り直す（バッチ実行。発話は変えない）。直前の図は返り値の復元関数で戻せる（取消）。
+    //   無音の間隔は直前の発話との受付時刻の差で判定する（.vtt は cue の開始時刻の差。.txt は同時刻なので分かれない。FR-022 AC-113）。
+    rebuildScenes() {
+      const prev = { scenes: JSON.parse(JSON.stringify(state.scenes)), selectedSceneId: state.selectedSceneId };
+      change((s) => {
+        s.scenes = []; s.selectedSceneId = null; breakScene = false;
+        for (let i = 0; i < s.utterances.length; i++) { delete s.utterances[i].held; ingestOne(s, i, false, true); }
+        const last = s.scenes[s.scenes.length - 1];
+        if (last) last.status = 'confirmed';
+      });
+      return () => { change((s) => { s.scenes = prev.scenes; s.selectedSceneId = prev.selectedSceneId; }); };
+    },
   };
   // 発話（state.utterances[idx]）を図のシーン・要点に取り込む。無音の間隔は直前の発話の受付時刻との差で判定する（FR-003）
-  function ingestOne(s, idx, noGapSplit) {
+  function ingestOne(s, idx, noGapSplit, prevAny = false) {
     const u = s.utterances[idx]; const t = u.text; const uid = u.id;
     const cur = s.scenes[s.scenes.length - 1];
-    const prevAt = idx > 0 ? (s.utterances.slice(0, idx).reverse().find((x) => !x.fromFile)?.receivedAt ?? null) : null;
+    const prevAt = prevAny ? (idx > 0 ? s.utterances[idx - 1].receivedAt : null) : (idx > 0 ? (s.utterances.slice(0, idx).reverse().find((x) => !x.fromFile)?.receivedAt ?? null) : null);
     const gap = !noGapSplit && prevAt != null && u.receivedAt - prevAt > gapMs;
     if (cur && cur.status === 'in_progress' && !breakScene && !gap) {
       const n0 = cur.points.length;
@@ -528,7 +541,7 @@ export async function createApp(options = {}) {
   app.subscribe = (fn) => on('change', fn);
   app.getPanelRenderer = (id) => panelRenderers.get(id) ?? null;
   app.use = async (mod) => { await mod(ctx); };
-  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, viewStateModule, sessionModule, settingsModule, stylePickerModule, autoLayoutModule, layoutKindsModule, rpgModule, rpgAudioModule, llmModule, llmDrawModule, stylePresetModule, workshopModule, boardModule, relayoutModule, liveRefreshModule, speechSettingsModule, budgetModule, presentExportModule, meetingModule, minutesModule, agendaTimerModule, editHistoryModule, facilitationModule, kindStylesModule, glossaryModule, agendaViewModule, reviewModule, previewModule, visibilityModule,   conflictModule, voteModule, rolesModule, projectionModule, onboardingModule, drawModule, cinematicModule, gaugeModule, personVariantsModule, liveShowModule, boardNamesModule, inputModeModule, ...(options.modules ?? [])]) await app.use(mod);
+  for (const mod of [topicsModule, diagramModule, transcriptModule, inputModule, speechModule, view3DModule, editModule, exportModule, arrangeModule, commandBarModule, popupModule, viewStateModule, sessionModule, settingsModule, stylePickerModule, autoLayoutModule, layoutKindsModule, rpgModule, rpgAudioModule, llmModule, llmDrawModule, stylePresetModule, workshopModule, boardModule, relayoutModule, liveRefreshModule, speechSettingsModule, budgetModule, presentExportModule, meetingModule, minutesModule, agendaTimerModule, editHistoryModule, facilitationModule, kindStylesModule, glossaryModule, agendaViewModule, reviewModule, previewModule, visibilityModule,   conflictModule, voteModule, rolesModule, projectionModule, onboardingModule, drawModule, cinematicModule, gaugeModule, personVariantsModule, liveShowModule, boardNamesModule, inputModeModule, batchModule, ...(options.modules ?? [])]) await app.use(mod);
   // FR-116: ライブ描画ショーの演出の音（ctx.showAudio を置く。ショー側は再生時に ctx.showAudio を参照する）
   await app.use(showAudioModule);
   // 機能ごとの保存項目の復元（モジュールが保存項目を登録した後）
