@@ -195,6 +195,24 @@ test('NFR-PRIV-003 AC-358: 送信は要点の文字・シーン番号・描画�
   assert.ok(!/Mozilla|Chrome\/|Node\.js|node:/i.test(text), '端末・ブラウザの識別情報');
   assert.ok(!text.includes('"scenes"') && !text.includes('grp.session'), 'セッションファイル');
   assert.ok(!text.includes(PROBE));
+  // AC-358・AC-692 の「逐語」の定義（2026-11-07）: 逐語 = 要点の文字の一部になっていない発話の文字列。要点の抽出が取り出さない部分（固有の長い英数字の列）を発話に置き、
+  // 先に、その文字列がシーンの要点（getState().scenes）に含まれないことを確かめてから、中継への全要求に 0 回しか現れないことを確かめる。
+  const VERB = 'ZQXVERBATIM9915LONGTOKEN';
+  const ptext = (a) => a.getState().scenes.flatMap((s) => s.points.map((p) => p.text)).join('\n');
+  // 要点の抽出は発話を区切って要点にするので、固有の文字列が区切りをまたぐ（要点の文字に全体が入らない）形に発話を作る（先頭の詰め物の長さを、抽出の結果で決める）
+  let utter = null;
+  for (let pad = 0; pad < 60 && !utter; pad++) {
+    const cand = `${'経'.repeat(pad)} ${VERB} 以上`;
+    const probe = await newApp(); probe.app.commands['session.start'](); probe.app.setDraft(cand); probe.app.submitDraft(); probe.env.tick(3);
+    if (!ptext(probe.app).includes(VERB)) utter = cand;
+  }
+  assert.ok(utter, '前提: 固有の文字列が要点の文字に全体では入らない発話を作れる');
+  type(app, env, utter);
+  await app.flushLlm();
+  assert.ok(!ptext(app).includes(VERB), '前提: 逐語の固有の文字列はシーンの要点に含まれない（含まれるときは含まれない形に発話を作り直す）');
+  assert.ok(relay.extractCalls().length > calls.length, '前提: 逐語を含む発話の後にも送信が行われる（空振りでない）');
+  assert.ok(app.getState().utterances.some((u) => u.text.includes(VERB)), '前提: 発話の原文には残っている');
+  for (const c of relay.calls) assert.ok(!JSON.stringify(c).includes(VERB), `発話の逐語の固有の文字列が中継への要求に含まれた: ${c.path}`);
   // AC-690・AC-358: スタイルの指示（Prompt）の本文は端末の要求に含まれない
   for (const c of relay.calls) assert.ok(!deepKeys(c.body ?? {}).some((k) => /instruction|prompt/i.test(k)), `要求に Prompt 本文の項目がある: ${c.path}`);
   // AC-358: 同意の画面に「アプリ定義のスタイルの指示が付く」旨を表示する

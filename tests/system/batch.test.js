@@ -220,6 +220,7 @@ test('NFR-PERF-001 AC-697: バッチの描画は、LLM 無効（ルールベー�
 // バッチモードでは、取込んだファイルの全文・発話の逐語・話者名は、LLM 連携が有効・同意済みでも LLM（中継を含む外部）に送られない。
 // 注入した長い発話の逐語（固有の文字列）が、スタブの受けた全要求（パスと本文の全階層）に 0 回しか現れないことで確かめる。
 test('FR-118 AC-692: バッチ実行（LLM 有効・同意済み）で、注入した長い発話の逐語・ファイルの全文・話者名は、中継スタブが受けた全要求に 0 回しか現れない（送るのはスタイルの ID・名称と要点の文字などだけ）', async () => {
+  const pointTexts = (a) => a.getState().scenes.flatMap((s) => s.points.map((p) => p.text)).join('\n'); // 要点の文字（sources の原文は含まない）
   const count = (hay, needle) => hay.split(needle).length - 1;
   const TOKEN = 'ZQXINJECT7731VERBATIM';
   const LONG = `この発話は固有の長い文章であり、会議の途中で参加者が詳しい経緯を延べ延べと説明した内容をそのまま記録したものである。${TOKEN}は取込んだ原文にしか現れない目印であり、外部へ送ってはならない。`;
@@ -246,6 +247,9 @@ test('FR-118 AC-692: バッチ実行（LLM 有効・同意済み）で、注入�
       await enableLlm(app);
       assert.equal((await app.importTextFile(f.file)).ok, true, `${f.file.name}: 取り込める`);
       assert.equal(h.llmReqs().length, 0, '取込だけでは要求 0 件');
+      // 「逐語」の定義（要点の文字の一部になっていない発話の文字列）: 実行の前に、固有の文字列がシーンの要点に含まれないことを先に確かめる
+      assert.ok(!pointTexts(app).includes(TOKEN), '前提: 固有の文字列はシーンの要点に含まれない（含まれるときは含まれない形に発話を作り直す）');
+      assert.ok(app.getTranscript().finals.some((x) => x.text.includes(TOKEN)), '前提: 発話の原文には固有の文字列がある');
       const r = await app.runBatch(style.id); await app.flushLlm();
       assert.equal(r.ok, true, `${f.file.name}/${style.id}: 実行できる`);
       const reqs = h.llmReqs();
