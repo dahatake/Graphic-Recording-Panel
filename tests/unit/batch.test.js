@@ -88,6 +88,28 @@ test('FR-118 AC-690・AC-692: バッチで送る要点の文字は語だけで�
   assert.ok(!sent.includes('LONGIDENTIFIERABC') && !sent.includes(line) && !sent.includes('来月のリリース計画を決める'));
 });
 
+// FR-118 AC-692（Q-049 A・監査 D-04）: 英語の発話・見出しの行・話者名つきの英語の発話は、語だけでできた行なので逐語そのものになる。送らない（…にする）
+test('FR-118 AC-692: 行の全体が語だけの発話（英語・見出し）は、そのまま LLM への要求に載らない', async () => {
+  const h = makeRelay();
+  const { app } = await bootApp(h);
+  await enableLlm(app);
+  const en = 'We should review the quarterly budget';
+  const vtt = `WEBVTT\n\n1\n00:00:00.000 --> 00:00:03.000\n<v Alice Smith>${en}</v>\n\n2\n00:00:03.000 --> 00:00:06.000\n<v 田中太郎>予算の見直しが必要です</v>\n`;
+  await app.importTextFile({ name: 'a.vtt', type: 'text/vtt', size: vtt.length, text: vtt });
+  await app.runBatch(app.getBatchStyles()[0].id); await app.flushLlm();
+  const sent = h.llmReqs().map((q) => q.body.input).join('\n');
+  for (const w of ['review', 'quarterly', 'budget', 'Alice', 'Smith', '田中']) assert.ok(!sent.includes(w), `${w} は送らない`);
+  assert.ok(sent.includes('見直'), '日本語の語は送る（AC-690）');
+  const h2 = makeRelay();
+  const b = await bootApp(h2);
+  await enableLlm(b.app);
+  const txt = '# 予算レビュー会議\n## Quarterly Planning Review\n予算の見直しが必要です\n';
+  await b.app.importTextFile({ name: 'b.txt', type: 'text/plain', size: txt.length, text: txt });
+  await b.app.runBatch(b.app.getBatchStyles()[0].id); await b.app.flushLlm();
+  const sent2 = h2.llmReqs().map((q) => q.body.input).join('\n');
+  assert.ok(!sent2.includes('予算レビュー会議') && !sent2.includes('Quarterly') && sent2.includes('見直'));
+});
+
 // FR-118 AC-686: 未読込・ライブモードでは実行しない
 test('FR-118 AC-686: 読み込む前とライブモードでは実行できず、スタイルは無効の理由つき', async () => {
   const { app } = await newApp();
