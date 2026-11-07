@@ -8,6 +8,9 @@ const NARROW = 640; // PARAM-006（以下で折り返す）
 const WIDE = 1280;
 const MAX_PER_GROUP = 15; // PARAM-092（画風グループの 15 項目で引き上げ。2026-11-04。AC-670 の追加後）
 const ORDER = ['inputMode', 'import', 'session', 'view', 'drawStyle', 'layoutType', 'settings', 'presentation', 'export', 'data', 'environment'];
+// AC-459・要求定義書 3.8 の列挙順。実装のスタイル一覧から期待値を生成しない。
+const BATCH_ORDER = ['inputMode', 'batchStyle', 'import', 'session', 'view', 'drawStyle', 'layoutType', 'settings', 'presentation', 'export', 'data', 'environment'];
+const BATCH_NAMES = ['講演まとめ', '対談・対話', 'アイデア発散', '要点整理', '振り返り', '授業ノート', 'WS記録', 'ビジネス資料'];
 const JA = ['入力モード', '取り込み', '記録', '表示', '画風', 'レイアウト型', '設定', 'プレゼンテーション', '図の書き出し', 'データ', '画面・環境'];
 const MEMBERS = {
   inputMode: ['inputMode.set:live', 'inputMode.set:batch'], // FR-117（先頭のグループ。AC-683）
@@ -119,6 +122,59 @@ test('NFR-UX-011 AC-459 異常系: 折り返す幅でも（画面幅 640px 以�
   const { app } = await newApp();
   const lay = byLayout(app, NARROW);
   assert.deepEqual(lay.groups.map((g) => g.id), ORDER);
+});
+
+// NFR-UX-011 AC-459（2026-11-07 凍結）: 直接選択の画風15項目と、実行時に画風を変えるbatchStyle（AC-694）は別。
+test('NFR-UX-011 AC-459 モード別: liveの基本11→batchの12→liveの11。異常系: batchStyleの残留・重複・他グループの移動なし', async () => {
+  const { app } = await newApp();
+  app.setLang('ja');
+  for (const mode of ['live', 'batch', 'live']) {
+    assert.equal(app.setInputMode(mode).ok, true);
+    if (mode === 'batch') {
+      // 公開contractの入力だけで読込済みにする。図式化は実行しない。
+      const text = '来月のリリース計画を決める';
+      assert.equal((await app.importTextFile({
+        name: 'ac459.txt', type: 'text/plain', size: Buffer.byteLength(text), text,
+      })).ok, true);
+    }
+    const expected = mode === 'batch' ? BATCH_ORDER : ORDER;
+    const b = bar(app);
+    const groups = b.groups.filter((g) => g.visible !== false);
+    const items = b.items.filter((i) => !i.hidden);
+    assert.deepEqual(groups.map((g) => g.id), expected, `${mode}: グループの集合と順（接続キー・独立タブなし）`);
+    const commands = groups.flatMap(groupOf);
+    assert.deepEqual(items.map((i) => i.command), commands, `${mode}: DOM順とグループ内順`);
+    assert.equal(new Set(commands).size, commands.length, `${mode}: 重複・未分類なし`);
+    for (const g of groups) {
+      assert.ok(g.commands.length >= 1 && g.commands.length <= MAX_PER_GROUP, `${mode}/${g.id}: PARAM-092以内`);
+      for (const c of g.commands) assert.equal(items.find((i) => i.command === c)?.group, g.id);
+    }
+    const draw = groups.find((g) => g.id === 'drawStyle');
+    assert.equal(draw.commands.length, 15, `${mode}: 直接選択の画風は15項目`);
+    assert.ok(draw.commands.every((c) => c.startsWith('drawStyle.set:')));
+    assert.equal(groups.find((g) => g.id === 'layoutType').commands.length, 8, `${mode}: 型アイコン7＋クリア`);
+    const batch = items.filter((i) => i.group === 'batchStyle');
+    if (mode === 'batch') {
+      assert.deepEqual(batch.map((i) => i.label), BATCH_NAMES, '3.8の8スタイルの列挙順');
+      assert.deepEqual(groups.find((g) => g.id === 'batchStyle').commands, batch.map((i) => i.command));
+      assert.ok(batch.every((i) => i.command.startsWith('batchStyle.set:')), '図式化の実行ボタン群');
+    } else {
+      assert.equal(batch.length, 0, 'liveに図式化の実行ボタンが残らない');
+      assert.ok(!items.some((i) => i.command.startsWith('batchStyle.set:')), '別グループにも残らない');
+    }
+    for (const it of items) {
+      assert.ok(it.label?.trim() && it.labelVisible === true, `${mode}/${it.command}: 常時名称`);
+      assert.equal(it.accessibleName, it.label);
+      assert.equal(it.tabbable, true, `${mode}/${it.command}: キーボードで到達可能`);
+      assert.ok(!(it.tabIndex > 0));
+    }
+    for (const w of [WIDE, NARROW]) {
+      const lay = byLayout(app, w);
+      assert.deepEqual(lay.groups.filter((g) => g.visible !== false).map((g) => g.id), expected, `${mode}/${w}px: 折返しでも群順を維持`);
+      const visual = [...lay.items].sort((a, c) => a.rect.y - c.rect.y || a.rect.x - c.rect.x).map((i) => i.command);
+      assert.deepEqual(visual, commands, `${mode}/${w}px: 視覚順とDOM順`);
+    }
+  }
 });
 
 // NFR-UX-011 AC-460
