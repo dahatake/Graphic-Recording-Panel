@@ -102,7 +102,7 @@
     "AC-233": "sha256:b9d2711eadcd1beb",
     "AC-234": "sha256:bbd9adc53f6f99d7",
     "AC-235": "sha256:d64c78bb50977fdb",
-    "AC-236": "sha256:a840cb982779a06b",
+    "AC-236": "sha256:4c882347483084ce",
     "AC-214": "sha256:138f0e812ff718dd",
     "AC-217": "sha256:2cbe707a3d9e3ba5",
     "AC-219": "sha256:e56ef9a818fc6958",
@@ -126,7 +126,7 @@
     "AC-321": "sha256:80668bcb93808e34",
     "AC-342": "sha256:f12280f13a2d5069",
     "AC-343": "sha256:db47478222fe385e",
-    "AC-323": "sha256:14cbdb295d5b2732",
+    "AC-323": "sha256:faa2fabdc2a6fe6c",
     "AC-344": "sha256:9c5f73af5607f90b",
     "AC-345": "sha256:ad4e314f2ba254d4",
     "AC-330": "sha256:a46dccb8ff7599ad",
@@ -238,7 +238,7 @@
     "AC-519": "sha256:242211b1bfcffceb",
     "AC-520": "sha256:3f494c793a29f5b2",
     "AC-521": "sha256:9f33e184e3c8813b",
-    "AC-523": "sha256:28216be96e232c34",
+    "AC-523": "sha256:c1c9c778672e8bbe",
     "AC-528": "sha256:d5410520957be540",
     "AC-530": "sha256:04ac763a7328a5ba",
     "AC-524": "sha256:a68adebbf25d3e76",
@@ -291,11 +291,11 @@
     "AC-684": "sha256:6bba0a1fc52c66f7",
     "AC-686": "sha256:f473529ab343bf20",
     "AC-687": "sha256:acaa7f92a028688b",
-    "AC-688": "sha256:8d13245a1ac358c5",
-    "AC-697": "sha256:94c8840c0a6c268d",
+    "AC-688": "sha256:ef42d46ea580f955",
+    "AC-697": "sha256:70e4a5fa26096c00",
     "AC-696": "sha256:0b6822420fba867b",
     "AC-671": "sha256:c0cb5fb51945d1ae",
-    "AC-692": "sha256:93f02d401750dc93"
+    "AC-692": "sha256:d67bb3cae07171d7"
   },
   "cases": [
     {
@@ -1018,7 +1018,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-038|AC-697\" tests/system/scenes.test.js tests/system/batch.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "0c4e794",
       "last_run_at": "2026-11-07T15:35:29+09:00",
       "evidence": "work/runs/202611071455/logs/system-test/E2E-024-202611071533.log",
@@ -1046,6 +1046,12 @@
           "by": "test-designer",
           "change": "command: 'node --test --test-name-pattern=\"AC-038\" tests/system/scenes.test.js' -> 'node --test --test-name-pattern=\"AC-038|AC-697\" tests/system/scenes.test.js tests/system/batch.test.js'; ac_ids: ['AC-038'] -> ['AC-038', 'AC-697']",
           "reason": "AC-697（バッチ描画の時間。実行・LLM 応答の受領から PARAM-158 秒以内、上限サイズ）を追加。batch.test.js"
+        },
+        {
+          "at": "2026-11-07T16:50:57+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC 本文の明確化（2026-11-07）に合わせテスト内容を変更。統合後に再実行する"
         }
       ]
     },
@@ -4310,7 +4316,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"FR-063 AC-323\" tests/system/llm-draw.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "0c4e794",
       "last_run_at": "2026-11-07T15:35:29+09:00",
       "evidence": "work/runs/202611071455/logs/system-test/E2E-159-202611071533.log",
@@ -4338,6 +4344,12 @@
           "by": "test-designer",
           "change": "title: '応答を待たず PARAM-158（3 秒。単発）以内にルールベース描画が出て、応答後に絵が加わる' -> 'LLM の応答を待たずに手入力は PARAM-158（3 秒）以内に要点（ショー ON でも演出で待たせない）、ライブはショー ON で描画の開始が PARAM-001＋PARAM-104 秒以内、応答後に絵が加わる（異常系: 応答の失敗でも要点は表示）'",
           "reason": "1c4bd9d の AC-323 の変更（ショー ON はライブの上限を描画の開始に当てはめ、完了は AC-675。単発は PARAM-158）に合わせ、ショー ON の手入力・ライブ（更新間隔 60 秒の境界）のテストを llm-draw.test.js に追加"
+        },
+        {
+          "at": "2026-11-07T16:50:58+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC 本文の明確化（2026-11-07）に合わせテスト内容を変更。統合後に再実行する"
         }
       ]
     },
@@ -5380,7 +5392,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-236\" tests/system/emphasis.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "0c4e794",
       "last_run_at": "2026-11-07T15:35:29+09:00",
       "evidence": "work/runs/202611071455/logs/system-test/E2E-172-202611071533.log",
@@ -5390,6 +5402,36 @@
           "by": "test-designer",
           "change": "追加",
           "reason": "System Test 設計（run 202610171425）"
+        },
+        {
+          "at": "2026-11-07T16:50:59+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC 本文の明確化（2026-11-07）に合わせテスト内容を変更。統合後に再実行する"
+        },
+        {
+          "at": "2026-11-07T17:11:19+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC-236 再明確化（N-01）: 超過関係の固定入力で前提を確かめ（不成立は失敗）、大項目のトピック間の関係（AC-130・AC-135）の線・ラベル・一覧の確認を追加"
+        },
+        {
+          "at": "2026-11-07T17:16:03+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "前提不成立（超過関係）: 契約上の入力の境界（UI 入力・loadSessionFile の Scene.relations）では 1 要素に PARAM-136 を超える種類つきの関係を作れない。境界の追加が決まるまで fail のまま（合格扱いにしない）"
+        },
+        {
+          "at": "2026-11-07T17:22:05+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC-236 超過関係を A 案（公開済みの実関数 limitRelations・renderDiagramSvg・renderOutline・labelRelations の契約境界）で検証。前提不成立を解消。command は変えない"
+        },
+        {
+          "at": "2026-11-07T17:22:47+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "rd-author 条件①: 同順位（明示どうし）の話順を判定する固定グラフを追加"
         }
       ]
     },
@@ -8566,9 +8608,9 @@
       ],
       "title": "FR-022 AC-523 ファイル取込だけでは図は更新されず一覧にだけ並ぶ（全状態・更新間隔を待っても不変）。スタイルを選んで実行すると更新間隔・演出を待たず一度に描かれる",
       "layer": "e2e",
-      "command": "node --test --test-name-pattern=\"AC-523\" tests/system/live.test.js",
+      "command": "node --test --test-name-pattern=\"AC-523\" tests/system/live.test.js tests/system/batch.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "0c4e794",
       "last_run_at": "2026-11-07T15:35:29+09:00",
       "evidence": "work/runs/202611071455/logs/system-test/E2E-260-202611071533.log",
@@ -8608,6 +8650,18 @@
           "by": "test-designer",
           "change": "command: 'node --test --test-name-pattern=\"AC-523|AC-671\" tests/system/live.test.js' -> 'node --test --test-name-pattern=\"AC-523\" tests/system/live.test.js'; title: 'FR-022 AC-523 AC-671 バッチ描画と .vtt の再生取込: 取込の方法「一括」（既定・再生取込から戻した場合も）はショー ON・更新間隔 60 秒でも待たず PARAM-158 以内に 1 回の描画で一度に（演出なし）。再生取込は速さ（1/2/4/8倍）で cue が届き更新間隔ごとに描き足し、結果は一括と同じ。会議ボード型では参加メンバーの区画に話者名が最初に現れた順で載る（異常系: 不正な方法・速さ、一時停止・再開・中止、取り込めないファイル）' -> 'FR-022 AC-523 ファイル取込だけでは図は更新されず一覧にだけ並ぶ（全状態・更新間隔を待っても不変）。スタイルを選んで実行すると更新間隔・演出を待たず一度に描かれる'; ac_ids: ['AC-523', 'AC-671'] -> ['AC-523']",
           "reason": "AC-523 の変更（バッチ描画）と AC-671 の廃止（再生取込・一括の即時描画の削除。2026-11-06）。AC-671 の再生取込のテストは削除"
+        },
+        {
+          "at": "2026-11-07T16:50:25+09:00",
+          "by": "test-designer",
+          "change": "command: 'node --test --test-name-pattern=\"AC-523\" tests/system/live.test.js' -> 'node --test --test-name-pattern=\"AC-523\" tests/system/live.test.js tests/system/batch.test.js'",
+          "reason": "AC-523 明確化（2026-11-07）: 複数要求のバッチは最後の応答・失敗の確定から 3 秒以内に 1 回で一括反映し取消が効く条件を batch.test.js に追加"
+        },
+        {
+          "at": "2026-11-07T16:51:00+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC 本文の明確化（2026-11-07）に合わせテスト内容を変更。統合後に再実行する"
         }
       ]
     },
@@ -9736,7 +9790,7 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-686|AC-687|AC-688\" tests/system/batch.test.js",
       "canary": false,
-      "status": "pass",
+      "status": "not_run",
       "last_commit": "0c4e794",
       "last_run_at": "2026-11-07T15:35:29+09:00",
       "evidence": "work/runs/202611071455/logs/system-test/E2E-293-202611071533.log",
@@ -9770,6 +9824,18 @@
           "by": "test-designer",
           "change": "title: 'FR-118 AC-686（FR-117 AC-684 の表示面を含む）: 取込は図を更新しない・LLM 要求 0 件、モードでスタイルのボタンの表示、空ではボタン無効' -> 'FR-118 AC-686 AC-687 AC-688 バッチモード: 取込は図も LLM 要求も 0 件・読込前はスタイル無効・モードでのボタン表示（FR-117 AC-684 の表示面）、8 スタイルのボタン、LLM モックでの要求・サニタイズ・全シーン描画'",
           "reason": "タイトルを AC-687・688 を含む形へ整える"
+        },
+        {
+          "at": "2026-11-07T16:51:01+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC 本文の明確化（2026-11-07）に合わせテスト内容を変更。統合後に再実行する"
+        },
+        {
+          "at": "2026-11-07T17:11:20+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC-688 再明確化（N-02）: シーンごとに各境界ちょうど N 件、PARAM-070 超過でも分割しない、失敗は自動再送しない、方式2 の生成要求 0 件を追加"
         }
       ]
     },
@@ -9881,6 +9947,18 @@
           "by": "test-designer",
           "change": "title: 'FR-118 AC-692 バッチ実行で発話の逐語・ファイル全文・話者名、および行全体が要点の語だけの行（英語の発話・.txt の見出し・短い日本語・話者名つき .vtt）は LLM スタブが受けた全要求に 0 回' -> 'FR-118 AC-692: 逐語・全文・話者名の送信抑止と不可視書式文字17種の行中/行末境界（発話・見出し）、日本語語抽出の維持'",
           "reason": "修正後レビューのAC-692違反を既存ケースで固定。U+200B・U+FEFF・方向制御等の対照群を含む140組を検査し、現コードで128組の漏出/省略違反を再現。日本語語抽出は両スタイルで成立。実装前の拡張としてnot_runへ戻す"
+        },
+        {
+          "at": "2026-11-07T17:11:21+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC-692 再明確化（N-03）: 固定データの正本を CONTRACT-BATCH.md 3. とケースに移し、誤記を修正。観測点・前提不成立の扱いは維持"
+        },
+        {
+          "at": "2026-11-07T17:29:48+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC-692(a) 固定データの訂正（rd-author 承認 2026-11-07 17:27）: 旧目印 ZQXINJECT7731VERBATIM は要点の語として採用され得るため『要点でない目印』は誤分類。旧データは反例の回帰テストに残し（送信前 extracted に旧目印が含まれる事実＋AC-358/690 の送信内容）、新目印は言いよどみの長い句（46 文字）の全体。期待値と陽性/陰性対照は実行前に CONTRACT-BATCH 3. に固定。旧データでの前提不成立（extracted 未実装）の履歴は残す。(b)・不可視文字の回帰は不変。command は変えない"
         }
       ]
     }
