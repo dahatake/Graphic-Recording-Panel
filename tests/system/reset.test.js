@@ -2,6 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp, seedThreeScenes, toDetail } from './helpers.js';
+import { makeRelay, bootApp, enableLlm, TXT, MEETING_LINES } from './batch-util.js';
 
 // 手順（AC-094）: 詳細度の既定は「大項目」。初期化で詳細度が変わらないことを確かめるため、populated() で toDetail(app, 'middle') により既定以外へ切り替えてから初期化する。
 
@@ -137,4 +138,54 @@ test('FR-018 AC-096: 初期化の後も記録・手入力・取込が通常ど�
   assert.ok(app.getState().utterances.length >= 3);
   env.speech.emit('音声からの発話', true);
   assert.ok(app.getState().utterances.some((u) => u.text.includes('音声からの発話')));
+});
+
+// FR-018 AC-096（・AC-094 の初期状態）回帰（2026-11-07。reviewer P1: バッチの LLM 要求が未応答のまま初期化を確定すると、後着の応答で消去前の内容が戻る）。
+// 期待値は受入基準だけから実行前に固定する: 初期化の後は AC-094 の初期状態（発話・シーン 0 件・図とテキスト一覧が空・準備中）で、
+// 後着の成功・失敗の応答のどちらでもそれが変わらない（図・発話・状態）。自動保存は空のままで、再読込で消去前の内容が復元されない（AC-096）。
+// 要求が未応答の状態を作れないときは合格にせず前提不成立で失敗する。
+test('FR-018 AC-096 回帰: バッチの LLM 要求が未応答のまま初期化を確定すると、後着の成功・失敗の応答が届いても図・発話・状態は初期化のままで、消去前の内容は自動保存・再読込で戻らない', async () => {
+  const OK = { status: 200, body: { objects: [{ key: 'person', label: '人' }], people: [], emotions: [], metaphors: [], points: ['後着の要点ZQXLATE'] } };
+  const FAIL = { status: 500, body: { error: 'mock' } };
+  for (const [label, outcome] of [['後着の成功', OK], ['後着の失敗', FAIL]]) {
+    const h = makeRelay({ mode: 'manual' });
+    const { app, env, createApp } = await bootApp(h);
+    await enableLlm(app);
+    assert.equal((await app.importTextFile(TXT)).ok, true, `${label}: 取り込める`);
+    const style = app.getBatchStyles()[0];
+    let settled = false;
+    const running = app.runBatch(style.id).then((r) => { settled = true; return r; }, () => { settled = true; });
+    assert.ok(await h.waitOpen(1), `${label}: 前提不成立: バッチの LLM 要求が未応答の状態にならない`);
+    assert.equal(settled, false, `${label}: 前提不成立: 応答の前に実行が終わった`);
+    app.commands['data.reset']();
+    app.dialogAction('confirm');
+    const initial = () => {
+      const st = app.getState();
+      assert.equal(st.utterances.length, 0, `${label}: 発話は 0 件`);
+      assert.equal(app.getTranscript().finals.length, 0, `${label}: 認識文字列は 0 件`);
+      assert.equal(st.scenes.length, 0, `${label}: シーンは 0 件`);
+      assert.equal(st.session, 'preparing', `${label}: セッションは準備中`);
+      assert.equal(st.selectedSceneId, null, `${label}: 選択中のシーンはない`);
+      const svg = app.renderSvg();
+      assert.ok(!/data-scene-id=/.test(svg) && !svg.includes('ZQXLATE'), `${label}: 図は空の初期状態`);
+      assert.ok(!/data-point-id=/.test(app.renderOutline()), `${label}: テキスト一覧は空`);
+      assert.notEqual(app.getBatchState().state, 'running', `${label}: バッチは実行中でない`);
+    };
+    initial();
+    const before = JSON.stringify({ s: app.getState(), svg: app.renderSvg(), o: app.renderOutline(), b: app.getBatchState().state });
+    // 後着の応答: 未応答の要求すべてに同じ結果を返す（初期化の後に新しく出る要求にも応答し、待ちを残さない）
+    for (let i = 0; i < 50 && h.open().length; i++) { h.respond(outcome); await new Promise((r) => setTimeout(r, 0)); await h.waitOpen(1, 50); }
+    await Promise.race([running, new Promise((r) => setTimeout(r, 2000))]);
+    await app.flushLlm();
+    initial();
+    assert.equal(JSON.stringify({ s: app.getState(), svg: app.renderSvg(), o: app.renderOutline(), b: app.getBatchState().state }), before, `${label}: 後着の応答の前後で図・発話・状態が同じ`);
+    // AC-096: 自動保存は空のまま（消去前の内容を書き戻さない）。状態の変化で自動保存を促してから確かめる
+    app.setViewMode('2d');
+    const dump = JSON.stringify(env.storage.dump());
+    for (const line of MEETING_LINES) assert.ok(!dump.includes(line), `${label}: 自動保存に消去前の発話「${line}」がない`);
+    assert.ok(!dump.includes('ZQXLATE'), `${label}: 自動保存に後着の要点がない`);
+    const again = await createApp(env.options);
+    assert.equal(again.getState().utterances.length, 0, `${label}: 再読込で発話は復元されない`);
+    assert.equal(again.getState().scenes.length, 0, `${label}: 再読込でシーンは復元されない`);
+  }
 });

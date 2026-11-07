@@ -2323,10 +2323,10 @@
       "layer": "e2e",
       "command": "node --test --test-name-pattern=\"AC-096\" tests/system/reset.test.js",
       "canary": false,
-      "status": "pass",
-      "last_commit": "0c4e794",
-      "last_run_at": "2026-11-07T15:35:29+09:00",
-      "evidence": "work/runs/202611071455/logs/system-test/E2E-062-202611071533.log",
+      "status": "fail",
+      "last_commit": "1a3ce00",
+      "last_run_at": "2026-11-07T17:33:01+09:00",
+      "evidence": "work/runs/202611071634/logs/system-test/E2E-062-202611071733.log",
       "history": [
         {
           "at": "2026-10-14T11:47:29+09:00",
@@ -2339,6 +2339,12 @@
           "by": "test-designer",
           "change": "title: 'reset' -> 'データ初期化: 再読込で復元されない・自動保存は空・レイアウト等保持・再開可能'",
           "reason": "タイトルの修正"
+        },
+        {
+          "at": "2026-11-07T17:33:00+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC-096 回帰を追加（reviewer P1 app.js:315）: バッチの LLM 要求が未応答のまま初期化を確定→後着の成功/失敗で図・発話・状態・自動保存・再読込が初期化のまま。期待値は AC-094/096 と CONTRACT「データの初期化」・CONTRACT-BATCH 3.（発話 0 件は idle）から実行前に固定。修正未統合のため fail が正しい。command は変えない"
         }
       ]
     },
