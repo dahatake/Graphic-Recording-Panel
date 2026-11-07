@@ -123,6 +123,73 @@ test('FR-118 AC-692: 長い語を含む行・アクセント文字の行・短�
   assert.ok(sent.includes('見直'), 'ひらがなを含む日本語の文は語を残す（AC-690）');
 });
 
+// FR-118 AC-692 / NFR-PRIV-003 AC-358: Unicode の境界で逐語抑止を解除しない（送信先はモック）。
+test('FR-118 AC-692: 不可視文字・制御文字・未知の文字が混ざる発話と見出しも要点を省略する', async () => {
+  const codePoints = [
+    0x200b, 0xfeff, 0x200c, 0x200d, 0x2060, 0x061c, 0x200e, 0x200f,
+    0x202a, 0x202b, 0x202c, 0x202d, 0x202e, 0x2066, 0x2067, 0x2068, 0x2069,
+    0x00ad, 0x034f, 0x180e, 0xfe0f, 0xe0100, 0xe0061, // その他の Cf・既定で無視される結合文字・補助平面
+    0x0008, 0x007f, 0x0080, 0xe000, 0xf0000, 0xd800, 0xdc00, 0x0378, // Cc・Co・Cs・Cn（NUL は取込時に拒否）
+  ];
+  for (const cp of codePoints) {
+    const ch = String.fromCodePoint(cp);
+    for (const line of [`Please re${ch}view budget`, `■ Budget review${ch}`]) {
+      const label = `U+${cp.toString(16)}/${line.startsWith('■') ? '見出し' : '発話'}`;
+      const h = makeRelay();
+      const { app } = await bootApp(h);
+      await enableLlm(app);
+      app.setLlmMasking(false); // 任意の簡易マスキングによる偶然の抑止ではない
+      const text = `${line}\n`;
+      assert.equal((await app.importTextFile({ name: 'unicode.txt', type: 'text/plain', size: text.length, text })).ok, true, label);
+      assert.equal(h.llmReqs().length, 0, `${label}: 取込だけでは送信しない`);
+      const before = finals(app).slice();
+      assert.equal((await app.runBatch(app.getBatchStyles()[0].id)).ok, true, label);
+      await app.flushLlm();
+      assert.deepEqual(finals(app), before, `${label}: 端末内の原文は変えない`);
+      const reqs = h.llmReqs();
+      assert.ok(reqs.length > 0, `${label}: 要求が実際に送られる`);
+      for (const q of reqs) {
+        assert.equal(q.path, '/api/llm/extract', label);
+        assert.match(q.body.input, /^[…\s]+$/u, label);
+        assert.deepEqual(Object.keys(q.body).sort(), ['drawStyle', 'input', 'lang', 'partKeys', 'scene', 'styleId', 'styleName', 'text'], label);
+      }
+      assert.ok(!/Please|Budget|review|budget/.test(JSON.stringify(h.log)), `${label}: 全要求の全階層で断片も送らない`);
+    }
+  }
+});
+
+// FR-118 AC-692 / NFR-PRIV-003 AC-358: NUL は既存のテキスト検証で拒否され、送信されない。
+test('FR-118 AC-692: NUL を含むファイルは取り込まず LLM にも送らない', async () => {
+  const h = makeRelay();
+  const { app } = await bootApp(h);
+  await enableLlm(app);
+  const text = 'Please re\u0000view budget\n';
+  const result = await app.importTextFile({ name: 'nul.txt', type: 'text/plain', size: text.length, text });
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'not_text');
+  await app.flushLlm();
+  assert.equal(h.llmReqs().length, 0);
+});
+
+// FR-118 AC-690 AC-692: 抑止の修正で日本語の語抽出まで省略しない。正規化は送信候補だけに適用する。
+test('FR-118 AC-690 AC-692: 不可視文字と分解された濁点を正規化して日本語の要点語を残す', async () => {
+  for (const line of ['予\u200b算の見直しが必要です', '予\u2066算の見直しが必要です', '予\u034f算の見直しが必要です', 'ハ\u309aソコンの予算を確認します']) {
+    const h = makeRelay();
+    const { app } = await bootApp(h);
+    await enableLlm(app);
+    const text = `${line}\n`;
+    assert.equal((await app.importTextFile({ name: 'japanese.txt', type: 'text/plain', size: text.length, text })).ok, true);
+    const before = finals(app).slice();
+    assert.equal((await app.runBatch(app.getBatchStyles()[0].id)).ok, true);
+    await app.flushLlm();
+    const sent = h.llmReqs().map((q) => q.body.input).join('\n');
+    assert.ok(sent.includes('予算'), '日本語の語を分断せず残す');
+    if (line.startsWith('ハ')) assert.ok(sent.includes('パソコン'), '正準等価なカタカナも同じ語になる');
+    assert.ok(!sent.includes(line) && !sent.includes(line.normalize('NFC')), '日本語の文全体は送らない');
+    assert.deepEqual(finals(app), before, '端末内の原文は変えない');
+  }
+});
+
 // FR-118 AC-686: 未読込・ライブモードでは実行しない
 test('FR-118 AC-686: 読み込む前とライブモードでは実行できず、スタイルは無効の理由つき', async () => {
   const { app } = await newApp();
