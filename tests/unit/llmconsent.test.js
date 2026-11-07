@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp } from '../system/helpers.js';
-import { maskSecrets } from '../../web/src/llm.js';
+import { maskSecrets, CONSENT_VERSION } from '../../web/src/llm.js';
 
 const ALL = { endpoint: true, deployment: true, credential: true };
 function relayMock({ configured = ALL, post = { status: 200, body: { points: ['x'] } } } = {}) {
@@ -50,6 +50,19 @@ test('FR-062 AC-312: 同意は保存されず、同じ保存領域で作り直�
   const c = await a.createApp({ ...a.env.options, relay: a.relay.fn });
   assert.equal(c.getLlmState().enabled, false);
   assert.equal((await c.requestLlmEnable()).pending, 'consent');
+});
+
+// FR-062 AC-366・NFR-PRIV-003: 送信内容の版が上がったので、旧版（send-v2）で同意済みの記録は無効で、再同意が必要
+test('FR-062 AC-366: 旧版の同意の記録は無効（再同意が必要）で、現行版の記録だけが有効', async () => {
+  const a = await mk();
+  a.env.storage.setItem('grp.llm.consent', JSON.stringify({ version: 'send-v2:points+scene+drawStyle+partKeys', at: '2026-10-01T00:00:00.000Z' }));
+  const b = await a.createApp({ ...a.env.options, relay: a.relay.fn });
+  assert.equal(b.getLlmState().enabled, false, '旧版の同意では有効にならない');
+  assert.equal((await b.requestLlmEnable()).pending, 'consent', '再同意を求める');
+  await b.answerLlmConsent(true);
+  assert.equal(JSON.parse(a.env.storage.getItem('grp.llm.consent')).version, CONSENT_VERSION);
+  const c = await a.createApp({ ...a.env.options, relay: a.relay.fn });
+  assert.equal(c.getLlmState().enabled, true, '現行版の同意は有効');
 });
 
 // FR-068 AC-354: 接続テストは最小の要求を中継経由で送り、成功/失敗（原因の分類）を示す。有効化の状態は変えない

@@ -24,7 +24,7 @@ export const maskSecrets = (text) => String(text ?? '')
 // GitHub Copilot は CONSENT_KEY_COPILOT に {version, at, provider:'copilot'}。一方の作成・削除は他方を変えない。
 export const CONSENT_KEY = 'grp.llm.consent';
 export const CONSENT_KEY_COPILOT = 'grp.llm.consent.copilot';
-export const CONSENT_VERSION = 'send-v2:points+scene+drawStyle+partKeys';
+export const CONSENT_VERSION = 'send-v3:points+scene+drawStyle+partKeys+styleId';
 // FR-068 AC-514: LLMのプロバイダー（既定は Microsoft Foundry）。選択の保存先は中継サーバー（POST /api/llm/provider）
 export const PROVIDERS = ['foundry', 'copilot'];
 export const DEFAULT_PROVIDER = 'foundry';
