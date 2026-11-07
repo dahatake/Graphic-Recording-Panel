@@ -234,6 +234,16 @@ export async function createApp(options) -> app   // await 可能（同期で返
 - `app.getDiagramRelations()` → 図に今描かれている関係線（現在の詳細度。`'detail'` 以外では要点どうしの関係線は無く空配列）: `[{ kind:'cause-effect'|'problem-proposal', kindLabel:string（ja「原因→結果」「課題→提案」）, from:pointId（原因・課題）, to:pointId（結果・提案）, basis:'explicit'|'inferred', basisLabel:string（ja「明示」「推測」）, evidence:null|{type:'word'|'kinds', text:string}（明示は非 null。word は原文の語、kinds は要点の種類の並び） }]`。`renderSvg()` の関係線（`<line>`/`<path>`）は `data-relation-kind` `data-relation-from` `data-relation-to` `data-relation-basis` を持ち、向きを示す `marker-end`（矢印）を持ち、種類のラベルを `<text data-relation-label>` で含む。推測の線のラベルは `basisLabel` を含む。
 - `app.getOutlineRelations()` → テキスト一覧が表示する関係情報。形は `getDiagramRelations()` と同じ（`evidence.text` は PARAM-033（`PARAM.EVIDENCE_MAX`=40）文字以内）。`renderOutline()` は関係ごとに `data-relation-from` `data-relation-to` `data-relation-kind` `data-relation-basis` を持つ要素で、種類・始点の要点の文字列・終点の要点の文字列・`basisLabel` を文字で含む。関係線がないとき、`renderOutline()` に `data-relation-from` は現れない。
 
+## 関係線の上限と一覧の契約境界（FR-054 AC-236・FR-053 AC-584、追記。conductor 承認 2026-11-07 の A 案。既存の契約は変えない）
+
+- 目的: 画面の入力では 1 要素に PARAM-136（4）本を超える関係を作れないため、超過の扱いは図と一覧を作る公開済み（export 済み）の実関数を組み合わせた契約レベルの System Test で確かめる。製品の mock・私有関数の eval・コードの書き換え・結果の捏造はしない。
+- 関係の形（`labelRelations` の出力。`getDiagramRelations()` と同じ）: `{ kind, kindLabel, from:pointId, to:pointId, basis:'explicit'|'inferred', basisLabel, evidence:null|{type,text}, bidirectional?:true }`。シーンは正規の形 `{ id, heading, points:[{id,text}], relations:[], status }`。
+- `web/src/layoutkinds.js` の `labelRelations(rels, lang)` → 各関係に `kindLabel`・`basisLabel` を付ける（ja「原因→結果」「課題→提案」「対立」「根拠」「次の段階」、「明示」「推測」）。
+- `web/src/diagram.js` の `limitRelations(relations, max=4)` → `{ drawn, hidden, moreCount: Map<pointId, n> }`。明示を推測より先、同じなら入力（話）の順に、両端の要素がともに上限未満のときだけ `drawn` に入れる。`drawn`＋`hidden` は入力の全関係。`hidden` の関係ごとに両端の要素の `moreCount` を 1 増やす。
+- `renderDiagramSvg(scenes, { relations, t, lang })` → 図の可視線は `limitRelations(relations)` の `drawn` だけで、線ごとに `<path data-relation-kind data-relation-from data-relation-to data-relation-basis>`。`moreCount` の要素の脇に `<text data-role="relation-more" data-relation-more-for="<pointId>">`（`t('diagram.relMore')` の `{n}` を件数に置き換えた文字）。
+- `web/src/outline.js` の `renderOutline(scenes, selectedSceneId, t, annot, topics, { label, relations })` → 渡した全関係を `<li data-relation-from data-relation-to data-relation-kind data-relation-basis>` で一覧にする（上限なし）。文字は「`kindLabel`: 始点の要点 →（双方向は ↔）終点の要点 （`basisLabel`[: 根拠]）」。
+- 検証（E2E-172）: 固定グラフ（1 要素に 6 本、種類・向き・相手が異なり、明示と推測が混在）と期待値（drawn/hidden/moreCount）をテストの前に決め、図の可視線＝drawn、1 要素 4 本まで、他 n 件の文字、一覧の可視線対応部分＝図の可視線、外れた関係の種類・向き・相手・明示/推測を確かめる。
+
 ## コマンドバーの作業順グループ（NFR-UX-011 AC-459〜464、追記。既存の契約は変えない）
 - `getCommandBar().groups` → `[{ id, name, accessibleName, headingVisible:true, commands:[command…] }]`。`id` は順に `import`・`session`・`view`・`layoutType`・`presentation`・`export`・`data`・`environment`（取り込み・記録・表示・レイアウト型・プレゼンテーション・図の書き出し・データ・画面・環境）。`name` は表示言語の見出し（ja: 取り込み／記録／表示／レイアウト型／プレゼンテーション／図の書き出し／データ／画面・環境。en は ja と異なる非空の英語）。`accessibleName` は `name` と同じ。切替は再生成なしで追従する。1 グループは PARAM-092（7）個以内。
 - `getCommandBar().items` は DOM 順（`groups` の `commands` を順に連結したもの）で、各 `items[i]` に `group`（所属グループ ID）と `tabIndex`（0。正の値にしない）を加える。`getCommandBar().focusOrder` → Tab で巡る順の command 配列（DOM 順と一致）。

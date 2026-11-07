@@ -4,6 +4,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newApp, toDetail } from './helpers.js';
+import { limitRelations, renderDiagramSvg } from '../../web/src/diagram.js';
+import { renderOutline } from '../../web/src/outline.js';
+import { labelRelations } from '../../web/src/layoutkinds.js';
 
 async function feed(texts, { level = 'detail', lang } = {}) {
   const { app, env } = await newApp();
@@ -199,17 +202,12 @@ test('FR-054 AC-236: 図の可視の関係線の集合（種類・始点・終�
 });
 
 // FR-054 AC-236（2026-11-07 再明確化: 本 AC の関係線は FR-053 のシーン内の要素間の線。FR-025 AC-130・AC-135 のトピック間の「順」「関連」とは別で、
-// 「大項目」ではトピック間の線・種類ラベル・一覧の文字を維持する。超過関係は固定入力で前提を確かめ、成立しなければ合格・省略にせず前提不成立で失敗する）
-// 固定入力（テスト前に固定。実測に合わせて変えない）: 1 つの原因の要点に、明示の因果の結果が PARAM-136 本を超えて付く発話列。
-// 入力の境界の調査（2026-11-07）: 契約上シーンの構造を注入できるのは loadSessionFile（CONTRACT.md の Scene.relations:[{from,to}]）だけだが、
-// 正規の Scene.relations は種類・明示/推測を持たず、getDiagramRelations・getOutlineRelations の観察点とも結び付かないため、本 AC の超過関係の前提には使えない。
-// 適切な境界が契約に無いので、前提不成立のまま失敗させる（条件付きの skip・私有 API の使用・合格扱いはしない）。
-const OVERFLOW_SEQ = ['サーバーが落ちた。', 'サーバーが落ちたから、リリースを延期します。', 'サーバーが落ちたから、告知を止めます。', 'サーバーが落ちたから、問い合わせ窓口を開きます。', 'サーバーが落ちたから、返金を検討します。', 'サーバーが落ちたから、謝罪文を出します。', 'サーバーが落ちたから、監視を強化します。'];
+// 「大項目」ではトピック間の線・種類ラベル・一覧の文字を維持する。超過関係（画面の入力では作れない）はファイル末尾の契約境界のテストで、固定の関係グラフを公開済みの実関数に与えて確かめる）
 // トピック間の関係がある入力（AC-135: 隣り合う 2 トピック → 「順」）。空白区切りの語を 2 語以上（PARAM-015）共有するシーンだけが同じトピック。
 const TOPIC_GROUPS = [['予算 コスト 見直し 必要'], ['予算 コスト 削減 検討'], ['リリース 計画 決定 日程'], ['リリース 計画 担当 確認']];
 const relLine = (html, r) => (html.match(new RegExp(`<[^>]*data-relation-from="${r.from}"[^>]*data-relation-to="${r.to}"[^]*?(?=data-relation-from=|$)`)) ?? [''])[0];
 
-test('FR-054 AC-236 異常系: 図に可視線がないときは可視線対応部分も空。超過関係のある固定入力で、図に残った関係と可視線対応部分が一致し、外れた関係は種類・向き・相手の要点つきで一覧に残り、詳細度（FR-026）を変えても保持される。「大項目」では要素間の線と対応部分が空でも、トピック間の関係（AC-130・AC-135）の線・種類ラベル・一覧の文字は残る', async () => {
+test('FR-054 AC-236 異常系: 図に可視線がないときは可視線対応部分も空。詳細度（FR-026）を変えても同じ規則で一致し、詳細に戻すと元のまま。「大項目」では要素間の線と対応部分が空でも、トピック間の関係（AC-130・AC-135）の線・種類ラベル・一覧の文字は残る', async () => {
   // (1) 関係のない入力: 可視線も対応部分も空（これだけでは以下の確認を代替しない）
   const { app } = await feed(['納期が迫っている。', '来月から広報を始める。']);
   assert.equal(app.getDiagramRelations().length, 0);
@@ -217,35 +215,17 @@ test('FR-054 AC-236 異常系: 図に可視線がないときは可視線対応�
   assert.equal(o.filter((r) => app.getDiagramRelations().some((v) => rkey(v) === rkey(r))).length, 0, '可視線対応部分は空');
   assert.ok(!/data-relation-from=/.test(app.renderSvg()), '図に要素間の線はない');
 
-  // (2) 超過関係の固定入力: 前提（一覧に、1 つの要素へ PARAM-136 本を超える関係がある）を確かめる。成立しなければ前提不成立で失敗
-  const { app: b } = await feed(OVERFLOW_SEQ);
-  const all = b.getOutlineRelations();
-  const perAll = new Map();
-  for (const r of all) for (const id of [r.from, r.to]) perAll.set(id, (perAll.get(id) ?? 0) + 1);
-  const hub = [...perAll].find(([, n]) => n > REL_CAP);
-  assert.ok(hub, `前提不成立: 固定入力（OVERFLOW_SEQ）で 1 つの要素に PARAM-136（${REL_CAP}）本を超える関係が一覧にない（要素ごとの最大 ${Math.max(0, ...perAll.values())} 本）。合格・検証省略にしない（AC-236 検証の前提。契約に超過関係を注入できる入力の境界が無い）`);
-  const { d } = checkVisibleCorrespondence(b, '超過・詳細');
-  const ds = new Set(d.map(rkey));
-  const outside = all.filter((r) => !ds.has(rkey(r)));
-  assert.ok(outside.length >= 1, '前提不成立: 線数上限で図から外れた関係がない');
-  const perVis = new Map();
-  for (const r of d) for (const id of [r.from, r.to]) perVis.set(id, (perVis.get(id) ?? 0) + 1);
-  assert.ok([...perVis.values()].every((n) => n <= REL_CAP), '図に残った線は 1 要素あたり PARAM-136 本まで');
-  const texts = stateTexts(b);
-  const keep = () => { const html = b.renderOutline(); for (const r of outside) { const m = relLine(html, r); assert.ok(m && m.includes(r.kindLabel) && m.includes(texts.get(r.from)) && m.includes(texts.get(r.to)), `外れた関係 ${rkey(r)} は一覧に種類・向き（始点→終点）・相手の要点つきで残る`); } };
-  keep();
-  const first = { d: relSet(d), o: relSet(all) };
+  // (2) 詳細度（FR-026）を変えても同じ規則で一致し、詳細に戻すと可視線・一覧全体は元のまま（画面の入力で作れる関係）
+  const { app: b } = await feed(['コストが高くて困った', '予算を再配分するアイデアを出します。', '雨が降っているから、中止にします。']);
+  const first = { d: relSet(b.getDiagramRelations()), o: relSet(b.getOutlineRelations()) };
+  assert.ok(first.d.length >= 1, '前提: 詳細では可視線がある');
   for (const lv of ['major', 'middle', 'detail', 'major', 'detail']) {
     toDetail(b, lv);
-    const { d: dv } = checkVisibleCorrespondence(b, `超過・${lv}`);
-    if (lv !== 'detail') {
-      assert.equal(dv.length, 0, `${lv}: 要素間の線と、その可視線対応部分は空`);
-      const html = b.renderOutline();
-      for (const r of outside) assert.ok(html.includes(texts.get(r.to)) || html.includes(r.kindLabel), `${lv}: 切替で AC-584 の一覧全体の情報（外れた関係 ${rkey(r)}）を消さない`);
-    } else {
+    const { d: dv } = checkVisibleCorrespondence(b, lv);
+    if (lv !== 'detail') assert.equal(dv.length, 0, `${lv}: 要素間の線と、その可視線対応部分は空`);
+    else {
       assert.deepEqual(relSet(b.getDiagramRelations()), first.d, '詳細に戻すと同じ可視線');
-      assert.deepEqual(relSet(b.getOutlineRelations()), first.o, '詳細に戻すと一覧全体（超過関係を含む）も元のまま');
-      keep();
+      assert.deepEqual(relSet(b.getOutlineRelations()), first.o, '詳細に戻すと一覧全体も元のまま');
     }
   }
 
@@ -262,4 +242,71 @@ test('FR-054 AC-236 異常系: 図に可視線がないときは可視線対応�
   assert.ok(/>[^<]*順[^<]*</.test(outline), '大項目: テキスト一覧でもトピック間の関係「順」を文字で確認できる');
   assert.equal(c.getDiagramRelations().length, 0, '大項目: 要素間の関係線（本 AC の対象）は空');
   assert.ok(!/data-relation-from=/.test(svg), '大項目: 図に要素間の線はない');
+});
+
+// FR-054 AC-236 / FR-053 AC-584（契約境界の System Test。契約: CONTRACT.md「関係線の上限と一覧の契約境界」。conductor 承認 2026-11-07 の A 案）
+// 画面の入力では 1 要素に PARAM-136 本を超える関係を作れないため、図と一覧を作る公開済みの実関数（limitRelations・renderDiagramSvg・
+// renderOutline・labelRelations）を組み合わせ、固定の正しい関係のグラフを与える（製品の mock・私有関数・結果の捏造はしない）。
+// 入力と期待値はテスト前に固定する（AC-584: 明示を推測より先、同じなら話順で図に残す。残らない関係は一覧に種類・向き・相手つきで残す）。
+const HUB_SCENE = { id: 'sX', heading: 'サーバー障害の対応', status: 'confirmed', relations: [], points: [
+  { id: 'q1', text: 'サーバーが落ちた' }, { id: 'q2', text: 'リリースを延期する' }, { id: 'q3', text: '監視の不足が課題' },
+  { id: 'q4', text: 'ログに記録がある' }, { id: 'q5', text: '再起動は危険だ' }, { id: 'q6', text: '次に原因を調べる' }, { id: 'q7', text: '電源の故障' } ] };
+// q1 に 6 本（種類 5 つ・向きは出入りの両方・相手はすべて異なる・明示と推測の混在）。並びは話順。
+const HUB_RELS = [
+  { kind: 'cause-effect', from: 'q1', to: 'q2', basis: 'explicit', evidence: { type: 'word', text: 'ので' } },
+  { kind: 'problem-proposal', from: 'q1', to: 'q3', basis: 'inferred', evidence: null },
+  { kind: 'evidence', from: 'q4', to: 'q1', basis: 'explicit', evidence: { type: 'word', text: 'によると' } },
+  { kind: 'opposition', from: 'q1', to: 'q5', basis: 'explicit', evidence: { type: 'word', text: 'しかし' }, bidirectional: true },
+  { kind: 'next-step', from: 'q1', to: 'q6', basis: 'inferred', evidence: null },
+  { kind: 'cause-effect', from: 'q7', to: 'q1', basis: 'explicit', evidence: { type: 'word', text: 'から' } },
+];
+// 期待値（AC-584 の規則から手で決めた値）: 明示 4 本（0・2・3・5 番）が図に残り、推測 2 本（1・4 番）が外れる。他 n 件は q1=2、q3=1、q6=1。
+const EXP_DRAWN = [0, 2, 3, 5]; const EXP_HIDDEN = [1, 4]; const EXP_MORE = { q1: 2, q3: 1, q6: 1 };
+const T = (k) => (k === 'diagram.relMore' ? '他 {n} 件' : k);
+
+test('FR-054 AC-236 契約境界: 1 つの要素に PARAM-136 本を超える関係の固定グラフで、図の線は 1 要素 4 本まで（drawn/hidden/moreCount は AC-584 の優先規則どおり）、図の可視線と一覧の可視線対応部分が一致し、外れた関係は一覧に種類・向き・相手・明示/推測つきで残る', () => {
+  const rels = labelRelations(HUB_RELS, 'ja');
+  const per = new Map(); for (const r of rels) for (const id of [r.from, r.to]) per.set(id, (per.get(id) ?? 0) + 1);
+  assert.equal(per.get('q1'), 6, '前提: 固定グラフで q1 に 6 本（PARAM-136 の 4 本を超える）');
+  assert.equal(new Set(rels.filter((r) => r.from === 'q1' || r.to === 'q1').map((r) => (r.from === 'q1' ? r.to : r.from))).size, 6, '前提: 相手はすべて異なる');
+  // limitRelations: 上限と優先規則
+  const L = limitRelations(rels, REL_CAP);
+  assert.deepEqual(relSet(L.drawn), relSet(EXP_DRAWN.map((i) => rels[i])), '図に残る関係は明示を先・話順で 4 本');
+  assert.deepEqual(relSet(L.hidden), relSet(EXP_HIDDEN.map((i) => rels[i])), '外れる関係は推測の 2 本');
+  assert.equal(L.drawn.length + L.hidden.length, rels.length, '関係は省かれない（図か一覧のどちらかに必ず出る）');
+  assert.deepEqual(Object.fromEntries(L.moreCount), EXP_MORE, '要素ごとの「他 n 件」');
+  // 図（実レンダラ）: 可視線の集合 = drawn、1 要素あたり 4 本まで、他 n 件の文字
+  const svg = renderDiagramSvg([HUB_SCENE], { relations: rels, t: T, lang: 'ja' });
+  const lines = [...svg.matchAll(/<path[^>]*data-relation-from="([^"]+)"[^>]*>/g)].map((m) => m[0]);
+  const at = (e, k) => (e.match(new RegExp(`data-relation-${k}="([^"]+)"`)) ?? [])[1];
+  const vis = lines.map((e) => ({ kind: at(e, 'kind'), from: at(e, 'from'), to: at(e, 'to'), basis: at(e, 'basis') }));
+  assert.deepEqual(relSet(vis), relSet(L.drawn), '図の可視線の集合（種類・始点・終点・明示/推測）は drawn と同じ');
+  const perVis = new Map(); for (const r of vis) for (const id of [r.from, r.to]) perVis.set(id, (perVis.get(id) ?? 0) + 1);
+  assert.equal(perVis.get('q1'), REL_CAP, 'q1 の可視線は上限ちょうど 4 本');
+  assert.ok([...perVis.values()].every((n) => n <= REL_CAP), 'どの要素も 4 本まで');
+  for (const [id, n] of Object.entries(EXP_MORE)) assert.match(svg, new RegExp(`data-relation-more-for="${id}"[^>]*>他 ${n} 件<`), `図の要素 ${id} に文字「他 ${n} 件」`);
+  // 一覧（実レンダラ）: 全 6 本がある。可視線対応部分 = 図の可視線。外れた関係は種類・向き・相手・明示/推測つき
+  const html = renderOutline([HUB_SCENE], null, T, null, null, { label: () => '', relations: rels });
+  const items = [...html.matchAll(/<li data-relation-from="([^"]+)" data-relation-to="([^"]+)" data-relation-kind="([^"]+)" data-relation-basis="([^"]+)">([^<]*)<\/li>/g)].map((m) => ({ from: m[1], to: m[2], kind: m[3], basis: m[4], text: m[5] }));
+  assert.deepEqual(relSet(items), relSet(rels), '一覧には全関係がある（一覧全体との完全一致は図に求めない）');
+  const visKeys = new Set(vis.map(rkey));
+  assert.deepEqual(relSet(items.filter((i) => visKeys.has(rkey(i)))), relSet(vis), '一覧の可視線対応部分 = 図の可視線');
+  const text = new Map(HUB_SCENE.points.map((p) => [p.id, p.text]));
+  for (const r of L.hidden) {
+    const it = items.find((i) => rkey(i) === rkey(r));
+    assert.ok(it, `外れた関係 ${rkey(r)} は一覧にある`);
+    assert.ok(it.text.includes(r.kindLabel), `${rkey(r)}: 種類「${r.kindLabel}」`);
+    // 種類のラベル自体に「→」を含むことがある（課題→提案）ため、向きはラベルの後ろの「始点 → 終点」で確かめる
+    const body = it.text.slice(it.text.indexOf(r.kindLabel) + r.kindLabel.length);
+    assert.ok(body.includes(`${text.get(r.from)} ${r.bidirectional ? '↔' : '→'} ${text.get(r.to)}`), `${rkey(r)}: 向き（始点→終点）と相手の要点: ${it.text}`);
+    assert.ok(it.text.includes(r.basisLabel), `${rkey(r)}: 明示/推測「${r.basisLabel}」`);
+  }
+  // 決定的（再描画・再配置の前後で同じ規則）: 同じ入力から同じ結果
+  assert.equal(renderDiagramSvg([HUB_SCENE], { relations: rels, t: T, lang: 'ja' }), svg, '同じ入力の図は同じ');
+  assert.equal(renderOutline([HUB_SCENE], null, T, null, null, { label: () => '', relations: rels }), html, '同じ入力の一覧は同じ');
+  // 境界: ちょうど 4 本なら全部描き、他 n 件は無い
+  const four = rels.filter((_, i) => EXP_DRAWN.includes(i));
+  const L4 = limitRelations(four, REL_CAP);
+  assert.equal(L4.drawn.length, 4); assert.equal(L4.hidden.length, 0); assert.equal(L4.moreCount.size, 0);
+  assert.doesNotMatch(renderDiagramSvg([HUB_SCENE], { relations: four, t: T, lang: 'ja' }), /data-relation-more-for=/, 'ちょうど 4 本では「他 n 件」は出ない');
 });
