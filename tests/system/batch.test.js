@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import { newApp } from './helpers.js';
 import { serveWeb, launch, openApp } from './perf-util.js';
-import { weight, P, toFile, TXT, VTT, MEETING_LINES, maxSizeTxt, makeRelay, bootApp, enableLlm, batchStyleItems, snapshot, finals } from './batch-util.js';
+import { weight, P, toFile, TXT, VTT, MEETING_LINES, maxSizeTxt, makeRelay, bootApp, enableLlm, batchStyleItems, snapshot, finals, bridgeRelay, sceneSplitVtt } from './batch-util.js';
+import { startUpstream, startRelay, rawRequest, baseEnv } from './relay-util.js';
 const deepKeys = (o, acc = []) => { if (o && typeof o === 'object') for (const [k, v] of Object.entries(o)) { acc.push(k); deepKeys(v, acc); } return acc; };
 
 const STATES = { preparing: [], recording: ['session.start'], paused: ['session.start', 'session.pause'], stopped: ['session.start', 'session.stop'] };
@@ -170,6 +171,76 @@ test('FR-118 AC-688 異常系: 実行できない条件（未知のスタイル 
   assert.ok(app.getState().scenes.length >= 1 && app.getState().utterances.length === MEETING_LINES.length, '図は空にならず、発話は失われない');
 });
 
+// FR-118 AC-688（2026-11-07 明確化: (a) 端末→中継 と (b) 中継→LLM の境界を区別し、予算停止を送信条件より優先する。契約: CONTRACT-BATCH.md「3.」、RELAY-CONTRACT.md）
+// 中継サーバーは実プロセス（server/relay.py）、上流（LLM）はループバックのモック。実 LLM へは通信しない。
+test('FR-118 AC-688 境界別: 端末→中継は固定指示本文を含まず、中継→LLM の各要求にだけそのスタイルの固定指示本文が付く。予算 0 円・予算到達後は LLM 有効・同意済みでも両境界とも 0 件（同意は撤回されない）で、予算を使用額より大きくすると再開する', async () => {
+  const up = await startUpstream();
+  const proc = await startRelay(baseEnv(up));
+  try {
+    const b = bridgeRelay(proc, rawRequest);
+    const { app } = await newApp({ options: { relay: b.relay } });
+    await enableLlm(app);
+    assert.equal((await app.importTextFile(VTT)).ok, true);
+    const [sa, sb] = app.getBatchStyles();
+    const run = async (style) => {
+      const t0 = b.llmReqs().length; const u0 = up.calls.length;
+      const r = await app.runBatch(style.id); await app.flushLlm();
+      assert.equal(r.ok, true, `${style.id}: 実行できる`);
+      return { term: b.llmReqs().slice(t0), upstream: up.calls.slice(u0).map((c) => JSON.parse(c.body)) };
+    };
+    const A = await run(sa); const B = await run(sb);
+    for (const [s, x] of [[sa, A], [sb, B]]) {
+      assert.ok(x.term.length >= 1, `${s.id}: 端末→中継の LLM 向け要求が 1 件以上`);
+      assert.ok(x.upstream.length >= 1, `${s.id}: 中継→LLM の要求が 1 件以上`);
+      assert.ok(b.log.every((q) => q.path.startsWith('/api/')), '端末から同一オリジンの中継以外へのリクエストは 0 件');
+      for (const q of x.term) {
+        assert.equal(q.body?.styleId, s.id, `${s.id}: (a) 端末→中継はスタイルの ID を送る`);
+        assert.ok(!deepKeys(q.body).some((k) => /instruction|prompt/i.test(k)), `${s.id}: (a) 端末→中継に固定指示（Prompt）の項目が無い`);
+      }
+    }
+    // (b) 上流の要求の固定指示本文: 2 つのスタイルで異なる部分（スタイル固有の固定指示）を取り出し、上流にだけあることを確かめる
+    const instr = (x) => { const v = x.upstream.map((u) => u.instructions ?? u.instruction ?? u.system ?? ''); assert.ok(v.every((s) => typeof s === 'string' && s.trim()), '(b) 中継→LLM の各要求に固定指示本文がある'); return v; };
+    const ia = instr(A); const ib = instr(B);
+    assert.ok(ia.every((s) => s === ia[0]) && ib.every((s) => s === ib[0]), '(b) 同じスタイルの各要求には同じ固定指示');
+    let k = 0; while (k < ia[0].length && ia[0][k] === ib[0][k]) k++;
+    const specificA = ia[0].slice(k, k + 40);
+    assert.ok(specificA.length >= 10, '(b) スタイルごとに固定指示本文が異なる（スタイル固有の部分がある）');
+    const termAll = JSON.stringify(b.log);
+    assert.ok(!termAll.includes(specificA) && !termAll.includes(ia[0].slice(0, 40)), '(a) 固定指示本文は端末→中継のどの要求にも現れない');
+    assert.ok(!ib[0].includes(specificA), '(b) 別のスタイルの要求には付かない');
+
+    // 予算 0 円（AC-532）: LLM 有効・同意済みのままでも両境界とも 0 件で、ルールベースで描いて完了する
+    assert.equal(app.setBudget(0).ok, true);
+    const Z = await run(sa);
+    assert.equal(Z.term.length, 0, '予算 0 円: 端末→中継の LLM 向け要求は 0 件');
+    assert.equal(Z.upstream.length, 0, '予算 0 円: 中継→LLM の要求は 0 件');
+    assert.equal(app.getLlmState().enabled, true, '予算停止は同意の撤回ではない');
+    assert.ok(app.getState().scenes.length >= 1 && app.renderSvg().includes(`data-scene-id="${app.getState().scenes[0].id}"`), '予算停止中も図は描かれる');
+    assert.equal(app.getDrawStyle(), sa.drawStyle, '予算停止中も選んだスタイルの画風になる');
+  } finally { await proc.stop(); await up.close(); }
+
+  // 予算到達後の停止（AC-526）と再開（AC-533）: 1 回目の実行の使用額で到達 → 2 回目は 0 件 → 予算を使用額より大きくすると再開
+  {
+    const h = makeRelay({ answer: { objects: [], people: [], emotions: [], metaphors: [], usage: { inputTokens: 1000, outputTokens: 1000 } } });
+    const { app } = await bootApp(h);
+    await enableLlm(app);
+    assert.equal(app.setBudget(1).ok, true);
+    assert.equal(app.setPricing({ inputPer1M: 1000000000, outputPer1M: 1000000000 }).ok, true);
+    await app.importTextFile(VTT);
+    const st = app.getBatchStyles()[0].id;
+    assert.equal((await app.runBatch(st)).ok, true); await app.flushLlm();
+    assert.ok(h.llmReqs().length >= 1, '到達前は送る');
+    assert.equal(app.getBudgetWarning()?.key, 'budget.reached', '使用額で予算に到達');
+    const n1 = h.llmReqs().length;
+    assert.equal((await app.runBatch(st)).ok, true); await app.flushLlm();
+    assert.equal(h.llmReqs().length, n1, '予算到達後の停止中は LLM 向け要求 0 件（送信条件より優先）');
+    assert.equal(app.getLlmState().enabled, true, '予算停止は同意の撤回ではない');
+    assert.equal(app.setBudget(Math.ceil(app.getBudget().usedYen) * 10 + 100).ok, true);
+    assert.equal((await app.runBatch(st)).ok, true); await app.flushLlm();
+    assert.ok(h.llmReqs().length > n1, '予算を使用額より大きくすると再開する（AC-533）');
+  }
+});
+
 // NFR-PERF-001 AC-697
 test('NFR-PERF-001 AC-697: バッチの描画は、LLM 無効（ルールベース）では実行から PARAM-158（3 秒）以内、LLM 有効では応答の受領から 3 秒以内に図へ反映され、待つ間も処理中の表示が出てほかの操作は止まらない。取込上限サイズちょうどのファイルでも同じ', async () => {
   const files = [['通常', VTT], ['上限サイズ', maxSizeTxt()]];
@@ -186,6 +257,17 @@ test('NFR-PERF-001 AC-697: バッチの描画は、LLM 無効（ルールベー�
     assert.ok(performance.now() - t0 <= P.SINGLE_SEC * 1000, `${label}: ルールベースは ${P.SINGLE_SEC} 秒以内（${Math.round(performance.now() - t0)} ms）`);
     assert.ok(a.env.clock.t - c0 <= P.SINGLE_SEC * 1000);
     assert.ok(a.app.getState().scenes.length >= 1 && a.app.renderSvg().includes(`data-scene-id="${a.app.getState().scenes[0].id}"`), `${label}: 図に反映`);
+    // (1') 2026-11-07 明確化: LLM 有効・同意済みでも、実行開始時から予算停止（予算 0 円。AC-532）で要求 0 件なら、起点は「実行の操作」
+    const z = makeRelay();
+    const zb = await bootApp(z); await enableLlm(zb.app);
+    assert.equal(zb.app.setBudget(0).ok, true, `${label}: 予算 0 円`);
+    assert.equal((await zb.app.importTextFile(file)).ok, true);
+    const t0z = performance.now(); const c0z = zb.env.clock.t;
+    const rz = await zb.app.runBatch(zb.app.getBatchStyles()[0].id);
+    assert.equal(rz.ok, true, `${label}: 予算停止でもルールベースで完了`);
+    assert.ok(performance.now() - t0z <= P.SINGLE_SEC * 1000 && zb.env.clock.t - c0z <= P.SINGLE_SEC * 1000, `${label}: 予算停止（要求 0 件）は実行の操作から ${P.SINGLE_SEC} 秒以内`);
+    assert.equal(z.llmReqs().length, 0, `${label}: 予算停止中は LLM 向けの要求 0 件`);
+    assert.ok(zb.app.renderSvg().includes(`data-scene-id="${zb.app.getState().scenes[0].id}"`), `${label}: 予算停止でも図に反映`);
     // (2) LLM 有効: 応答の受領から 3 秒以内（応答を保留して、処理中の表示と他の操作を確かめる）
     const h = makeRelay({ mode: 'defer' });
     const b = await bootApp(h); await enableLlm(b.app);
@@ -215,11 +297,120 @@ test('NFR-PERF-001 AC-697: バッチの描画は、LLM 無効（ルールベー�
   }
 });
 
+// FR-022 AC-523 / NFR-PERF-001 AC-697（2026-11-07 明確化。契約: CONTRACT-BATCH.md「4.」）
+// 複数要求の実行では、起点は「その実行の全要求の応答受領または失敗・タイムアウトの確定が揃った最後の時点」で、そこから PARAM-158 秒以内に全体を一括反映する。
+// 途中の応答だけでは図を更新しない。全失敗・最後がタイムアウト・途中の予算停止もそれぞれ確かめ、取消後は後着の応答も反映せず実行前の図を保持する。
+test('FR-022 AC-523 / NFR-PERF-001 AC-697: 複数要求のバッチ実行は、離れて届く途中の応答では図を変えず、最後の応答または失敗・タイムアウトの確定から PARAM-158 秒以内に一括反映し、取消後は後着の応答も反映しない', async () => {
+  const N = 3;
+  const file = sceneSplitVtt(N);
+  // LLM 由来の絵を見分けるため、同じ入力のルールベース描画に出ない部品キーを応答に使う
+  const rule = await newApp();
+  await rule.app.importTextFile(file);
+  assert.equal((await rule.app.runBatch(rule.app.getBatchStyles()[0].id)).ok, true);
+  const ruleSvg = rule.app.renderSvg();
+  const key = rule.app.getPartKeys().find((k) => !ruleSvg.includes(`data-part-key="${k}"`));
+  assert.ok(key, '前提: ルールベースの図に出ない同梱部品がある');
+  const OK = { status: 200, body: { objects: [{ key }], people: [], emotions: [], metaphors: [] } };
+  const FAIL = { status: 500, body: { error: 'mock' } };
+  const settle = async () => { for (let i = 0; i < 3; i++) { await flush(); await new Promise((r) => setTimeout(r, 2)); } };
+  const boot = async (extra) => {
+    const h = makeRelay({ mode: 'manual' });
+    const ctx = await bootApp(h); await enableLlm(ctx.app);
+    if (extra) extra(ctx.app);
+    assert.equal((await ctx.app.importTextFile(file)).ok, true, '取込');
+    return { h, ...ctx };
+  };
+  const allDrawn = (app) => app.getState().scenes.length >= N && app.getState().scenes.every((s) => app.renderSvg().includes(`data-scene-id="${s.id}"`));
+  // outcomes: 要求ごとの結果（'ok'|'fail'|'timeout'）。最後の 1 件の確定の直前までは図が変わらないことを確かめ、確定から PARAM-158 秒以内に一括反映されることを測る。
+  const drive = async (label, outcomes) => {
+    const { h, app, env } = await boot();
+    const before = snapshot(app);
+    const p = app.runBatch(app.getBatchStyles()[1].id);
+    for (let i = 0; i < outcomes.length; i++) {
+      assert.ok(await h.waitOpen(1), `${label}: ${i + 1} 件目の要求が送られる（前提: 要求は ${outcomes.length} 件）`);
+      const last = i === outcomes.length - 1;
+      if (last) assert.equal(snapshot(app), before, `${label}: 最後の確定の直前まで図（シーン・SVG）は更新されない`);
+      let t; let c;
+      if (outcomes[i] === 'timeout') {
+        h.abandon();
+        env.scheduler.advance(P.LLM_TIMEOUT_SEC * 1000); // PARAM-069 の打ち切り＝失敗の確定
+        t = performance.now(); c = env.clock.t;
+      } else {
+        t = performance.now(); c = env.clock.t;
+        h.respond(outcomes[i] === 'ok' ? OK : FAIL);
+      }
+      if (!last) {
+        await settle();
+        assert.equal(snapshot(app), before, `${label}: ${i + 1} 件目（途中）の${outcomes[i]}だけでは図を更新しない`);
+        assert.equal(app.getBatchState().state, 'running', `${label}: 途中は処理中`);
+        continue;
+      }
+      const r = await p;
+      assert.equal(r.ok, true, `${label}: 完了`);
+      assert.ok(performance.now() - t <= P.SINGLE_SEC * 1000, `${label}: 最後の確定から ${P.SINGLE_SEC} 秒以内（実時間 ${Math.round(performance.now() - t)} ms）`);
+      assert.ok(env.clock.t - c <= P.SINGLE_SEC * 1000, `${label}: 最後の確定から ${P.SINGLE_SEC} 秒以内（アプリの時刻）`);
+      assert.ok(allDrawn(app), `${label}: 失敗したシーンのルールベース描画を含む全シーンが一括で図に反映`);
+      assert.equal(h.open().length, 0, `${label}: 未応答の要求は残らない`);
+      return { app, h };
+    }
+    return null;
+  };
+  const all = await drive('離れて届く応答', Array(N).fill('ok'));
+  assert.ok(all.app.renderSvg().includes(`data-part-key="${key}"`), '応答の反映が図に含まれる');
+  assert.equal(all.h.llmReqs().length, N, '要求はシーンごと');
+  await drive('最後が失敗', ['ok', 'ok', 'fail']);
+  await drive('最後がタイムアウト', ['ok', 'fail', 'timeout']);
+  const fails = await drive('全要求が失敗', Array(N).fill('fail'));
+  assert.ok(!fails.app.renderSvg().includes(`data-part-key="${key}"`), '全失敗では LLM の絵は無く、ルールベース描画だけ');
+
+  // 途中で予算停止: 1 件目の応答の使用額で予算に達し、以降のシーンは要求を出さずルールベースで一括反映に含める
+  {
+    const { h, app, env } = await boot((a) => {
+      assert.equal(a.setBudget(1).ok, true);
+      assert.equal(a.setPricing({ inputPer1M: 1000000000, outputPer1M: 1000000000 }).ok, true);
+    });
+    const before = snapshot(app);
+    const p = app.runBatch(app.getBatchStyles()[1].id);
+    assert.ok(await h.waitOpen(1), '予算到達前の 1 件目は送られる');
+    const t = performance.now(); const c = env.clock.t;
+    h.respond({ status: 200, body: { ...OK.body, usage: { inputTokens: 1000, outputTokens: 1000 } } });
+    const r = await p;
+    assert.equal(r.ok, true);
+    assert.equal(h.llmReqs().length, 1, '予算到達後は要求を出さない');
+    assert.equal(app.getBudgetWarning()?.key, 'budget.reached');
+    assert.notEqual(snapshot(app), before);
+    assert.ok(allDrawn(app), '要求を出せなかったシーンもルールベースで一括反映に含める');
+    assert.ok(performance.now() - t <= P.SINGLE_SEC * 1000 && env.clock.t - c <= P.SINGLE_SEC * 1000, '最後の確定（予算停止で以降は要求なし）から PARAM-158 秒以内');
+  }
+
+  // 異常系: 最終反映の前に取消すと、一括反映せず、後着の応答も反映せず、実行前の図（前回の実行の結果）を保持する
+  {
+    const { h, app } = await boot();
+    const p0 = app.runBatch(app.getBatchStyles()[0].id);
+    for (let i = 0; i < N; i++) { assert.ok(await h.waitOpen(1)); h.respond(FAIL); }
+    assert.equal((await p0).ok, true, '前回の実行（全失敗→ルールベース）');
+    const prev = snapshot(app);
+    const p = app.runBatch(app.getBatchStyles()[1].id);
+    assert.ok(await h.waitOpen(1));
+    h.respond(OK);
+    assert.ok(await h.waitOpen(1), '2 件目の要求（最終反映の前）');
+    app.cancelBatch();
+    await settle();
+    assert.equal(app.getBatchState().state, 'loaded', '取消で loaded に戻る');
+    assert.equal(snapshot(app), prev, '取消後は実行前の図のまま');
+    while (h.open().length) h.respond(OK); // 後着の応答
+    const r = await p;
+    await settle();
+    assert.equal(r.cancelled, true, '取消で解決する');
+    assert.equal(snapshot(app), prev, '後着の応答も反映しない');
+    assert.ok(!app.renderSvg().includes(`data-part-key="${key}"`), '後着の応答の絵は図に無い');
+  }
+});
+
 // FR-118 AC-692（system。Q-049 の回答 A。契約: CONTRACT-BATCH.md 3.。2026-11-07 に逐語の定義 (a)(b) を明確化し検証レベルを system に変更）
 // バッチモードでは、取込んだファイルの全文・発話の逐語・話者名は、LLM 連携が有効・同意済みでも LLM（中継を含む外部）に送られない。
 // 注入した長い発話の逐語（固有の文字列）が、スタブの受けた全要求（パスと本文の全階層）に 0 回しか現れないことで確かめる。
 test('FR-118 AC-692: バッチ実行（LLM 有効・同意済み）で、注入した長い発話の逐語・ファイルの全文・話者名は、中継スタブが受けた全要求に 0 回しか現れない（送るのはスタイルの ID・名称と要点の文字などだけ）', async (t) => {
-  const pointTexts = (a) => a.getState().scenes.flatMap((s) => s.points.map((p) => p.text)).join('\n'); // 要点の文字（sources の原文は含まない）
   const count = (hay, needle) => hay.split(needle).length - 1;
   const TOKEN = 'ZQXINJECT7731VERBATIM';
   const LONG = `この発話は固有の長い文章であり、会議の途中で参加者が詳しい経緯を延べ延べと説明した内容をそのまま記録したものである。${TOKEN}は取込んだ原文にしか現れない目印であり、外部へ送ってはならない。`;
@@ -241,16 +432,24 @@ test('FR-118 AC-692: バッチ実行（LLM 有効・同意済み）で、注入�
   assert.equal(styles.length, 8);
   for (const f of files) {
     for (const style of [styles[0], styles.at(-1)]) {
-      const h = makeRelay({ answer: { objects: [], people: [], emotions: [], metaphors: [] } });
+      const extractedText = (a) => (a.getBatchState().extracted ?? []).flatMap((s) => s.points ?? []).join('\n');
+      let observed = null; // 抽出後・最初の LLM 向け要求の送信前（送信向けの伏せ字・省略の前）の要点
+      const h = makeRelay({ answer: { objects: [], people: [], emotions: [], metaphors: [] }, onExtract: () => { if (observed === null) observed = { extracted: extractedText(appRef.app), scenes: (appRef.app.getBatchState().extracted ?? []).length }; } });
+      const appRef = {};
       const { app } = await bootApp(h);
+      appRef.app = app;
       await enableLlm(app);
       assert.equal((await app.importTextFile(f.file)).ok, true, `${f.file.name}: 取り込める`);
       assert.equal(h.llmReqs().length, 0, '取込だけでは要求 0 件');
-      // 「逐語」の定義（要点の文字の一部になっていない発話の文字列）: 実行の前に、固有の文字列がシーンの要点に含まれないことを先に確かめる
-      assert.ok(!pointTexts(app).includes(TOKEN), '前提: 固有の文字列はシーンの要点に含まれない（含まれるときは含まれない形に発話を作り直す）');
+      // 前提（固定入力・固定期待値。2026-11-07 明確化）: 原文には固有の文字列がある
       assert.ok(app.getTranscript().finals.some((x) => x.text.includes(TOKEN)), '前提: 発話の原文には固有の文字列がある');
       const r = await app.runBatch(style.id); await app.flushLlm();
       assert.equal(r.ok, true, `${f.file.name}/${style.id}: 実行できる`);
+      // 前提の観測点: スタイル実行の抽出後かつ最初の LLM 向け要求の送信前。その実行で使う全シーンの要点が非空で、固有の文字列を含まない
+      // （読込直後の空の getState().scenes での不在確認では代替しない。不一致は合格にせず前提不成立として失敗させる）
+      assert.ok(observed, `${f.file.name}/${style.id}: 前提不成立: 最初の LLM 向け要求の送信時点を観測できない`);
+      assert.ok(observed.scenes >= 1 && observed.extracted.trim(), `${f.file.name}/${style.id}: 前提不成立: 送信前の抽出済みの要点が空（getBatchState().extracted。契約 CONTRACT-BATCH.md 3.）`);
+      assert.ok(!observed.extracted.includes(TOKEN), `${f.file.name}/${style.id}: 前提不成立: 固有の文字列が送信前の要点に含まれる`);
       const reqs = h.llmReqs();
       assert.ok(reqs.length >= 1, `${f.file.name}/${style.id}: LLM 向けの要求は送られる（有効・同意済み。空振りでない）`);
       assert.ok(reqs.every((q) => q.body?.styleId === style.id), '送った要求は選んだスタイルの ID を持つ');

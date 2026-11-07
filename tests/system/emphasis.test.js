@@ -154,36 +154,67 @@ test('FR-054 AC-235: 一覧に関係ごとに種類・始点・終点・明示/�
   }
 });
 
-// FR-054 AC-236
-test('FR-054 AC-236: 図の関係線の集合（種類・始点・終点・明示/推測）と一覧の関係情報の集合が一致する', async () => {
+// FR-054 AC-236（2026-11-07 明確化: 一致を求めるのは「図の可視線」と「一覧のうち可視線に対応する部分」。一覧全体との完全一致は求めない。
+// 図の線数上限（PARAM-136）で外れた関係は AC-584 のとおり一覧全体に種類・向き・相手の要点つきで残る（超過関係の保持を弱めない）。
+const REL_CAP = 4; // PARAM-136: 1 つの要素に付けて描く関係線の本数の上限
+// 図の可視線と、一覧の可視線対応部分の一致を確かめる。一覧にだけある関係は、上限で外れた（超過の）関係に限る。
+function checkVisibleCorrespondence(app, label) {
+  const d = app.getDiagramRelations(); const o = app.getOutlineRelations();
+  const svg = app.renderSvg(); const html = app.renderOutline();
+  const ds = new Set(d.map(rkey)); const os = new Set(o.map(rkey));
+  // 図の可視の関係線（SVG に描かれた線）と getDiagramRelations の集合が同じ
+  const drawn = [...svg.matchAll(/<[^>]*data-relation-from="([^"]+)"[^>]*>/g)].map((m) => m[0]);
+  assert.equal(drawn.length, d.length, `${label}: 図の可視線の数`);
+  for (const r of d) assert.ok(drawn.some((e) => e.includes(`data-relation-from="${r.from}"`) && e.includes(`data-relation-to="${r.to}"`) && e.includes(`data-relation-kind="${r.kind}"`) && e.includes(`data-relation-basis="${r.basis}"`)), `${label}: 可視線 ${rkey(r)} が図にある`);
+  // 可視線対応部分 = 一覧のうち可視線と同じ（種類・始点・終点・明示/推測）の関係。可視線はすべて一覧にある
+  const visiblePart = o.filter((r) => ds.has(rkey(r)));
+  assert.deepEqual(relSet(visiblePart), relSet(d), `${label}: 可視線の集合と一覧の可視線対応部分が一致`);
+  for (const r of d) assert.ok(os.has(rkey(r)), `${label}: 可視線 ${rkey(r)} が一覧にある`);
+  // 一覧にだけある関係は、図の線数上限で外れた関係（端の要素に上限まで線が描かれている）に限り、可視線と食い違わない
+  const perEl = new Map();
+  for (const r of d) for (const id of [r.from, r.to]) perEl.set(id, (perEl.get(id) ?? 0) + 1);
+  for (const r of o.filter((x) => !ds.has(rkey(x)))) {
+    assert.ok(!d.some((v) => v.from === r.from && v.to === r.to), `${label}: 一覧の ${rkey(r)} は同じ始点・終点の可視線と種類・明示/推測が食い違わない`);
+    if (d.length > 0) assert.ok((perEl.get(r.from) ?? 0) >= REL_CAP || (perEl.get(r.to) ?? 0) >= REL_CAP, `${label}: 一覧にだけある ${rkey(r)} は線数上限（PARAM-136）で外れた関係に限る`);
+    // AC-584: 超過の関係は一覧に種類・向き・相手の要点つきで残る
+    const t = stateTexts(app);
+    const m = html.match(new RegExp(`<[^>]*data-relation-from="${r.from}"[^>]*data-relation-to="${r.to}"[^]*?(?=data-relation-from=|$)`));
+    assert.ok(m && m[0].includes(r.kindLabel) && m[0].includes(t.get(r.to) ?? '\u0000'), `${label}: 超過の関係 ${rkey(r)} は一覧に種類・向き・相手の要点つきで残る`);
+  }
+  return { d, o };
+}
+
+test('FR-054 AC-236: 図の可視の関係線の集合（種類・始点・終点・明示/推測）と、一覧のうち可視線に対応する関係情報の集合が一致する（一覧全体との完全一致は求めず、一覧にだけある関係は線数上限で外れたものに限る）', async () => {
   const seqs = [
     ['コストが高くて困った', '予算を再配分するアイデアを出します。', '雨が降っているから、中止にします。', '納期が迫っている。', '来月から広報を始める。'],
     ['Because the server is down, we postponed the release.', 'We start from next month.'],
+    // 1 つの要素に関係が集まりやすい入力（明示の因果を連ねる。PARAM-136 を超えるときは超過の規則も確かめる）
+    ['サーバーが落ちたから、リリースを延期します。', 'サーバーが落ちたから、告知を止めます。', 'サーバーが落ちたから、問い合わせ窓口を開きます。', 'サーバーが落ちたから、返金を検討します。', 'サーバーが落ちたから、謝罪文を出します。', 'サーバーが落ちたから、監視を強化します。'],
   ];
-  for (const seq of seqs) {
+  for (const [i, seq] of seqs.entries()) {
     const { app } = await feed(seq);
-    const d = app.getDiagramRelations(); const o = app.getOutlineRelations();
-    assert.ok(d.length >= 1);
-    assert.deepEqual(relSet(o), relSet(d));
-    const svg = app.renderSvg(); const html = app.renderOutline();
-    for (const r of d) {
-      assert.ok(svg.includes(`data-relation-from="${r.from}"`) && svg.includes(`data-relation-basis="${r.basis}"`));
-      assert.ok(html.includes(`data-relation-from="${r.from}"`) && html.includes(`data-relation-to="${r.to}"`));
-    }
-    assert.equal((html.match(/data-relation-from=/g) || []).length, d.length, '一覧にだけある関係が無い');
+    const { d } = checkVisibleCorrespondence(app, `列${i + 1}`);
+    assert.ok(d.length >= 1, `列${i + 1}: 前提: 可視の関係線がある`);
   }
 });
 
-test('FR-054 AC-236 異常系: 関係線がないときは一覧にも関係情報が無く、詳細度を変えても図の線と一覧が食い違わない', async () => {
+test('FR-054 AC-236 異常系: 図に可視線がないときは可視線対応部分も空。詳細度（FR-026）を変えた後も同じ規則で一致し、大項目で線が描かれなくても詳細に戻すと超過関係を含む一覧は元のまま（保持を弱めない）', async () => {
   const { app } = await feed(['納期が迫っている。', '来月から広報を始める。']);
   assert.equal(app.getDiagramRelations().length, 0);
-  assert.equal(app.getOutlineRelations().length, 0);
+  const { o } = checkVisibleCorrespondence(app, '関係なし');
+  assert.equal(o.filter((r) => app.getDiagramRelations().some((v) => rkey(v) === rkey(r))).length, 0, '可視線対応部分は空');
+  assert.equal(o.length, 0, '線数上限で外れる関係も無い入力では、一覧に関係情報が無い');
   assert.ok(!app.renderOutline().includes('data-relation-from'));
   const { app: b } = await feed(['コストが高くて困った', '予算を再配分するアイデアを出します。', '雨が降っているから、中止にします。']);
-  for (const lv of ['major', 'middle', 'detail', 'major']) {
+  const first = { d: relSet(b.getDiagramRelations()), o: relSet(b.getOutlineRelations()) };
+  assert.ok(first.d.length >= 1, '前提: 詳細では可視線がある');
+  for (const lv of ['major', 'middle', 'detail', 'major', 'detail']) {
     toDetail(b, lv);
-    assert.deepEqual(relSet(b.getOutlineRelations()), relSet(b.getDiagramRelations()), lv);
-    const drawn = (b.renderSvg().match(/data-relation-from=/g) || []).length;
-    assert.equal((b.renderOutline().match(/data-relation-from=/g) || []).length, drawn, `${lv}: 図に描かれる線の数と一覧が同じ`);
+    const { d } = checkVisibleCorrespondence(b, lv);
+    if (lv === 'major') assert.equal(d.length, 0, '大項目では要点どうしの関係線は描かれず、可視線対応部分は空');
+    if (lv === 'detail') {
+      assert.deepEqual(relSet(b.getDiagramRelations()), first.d, '詳細に戻すと同じ可視線');
+      assert.deepEqual(relSet(b.getOutlineRelations()), first.o, '詳細に戻すと一覧全体（超過関係を含む）も元のまま');
+    }
   }
 });

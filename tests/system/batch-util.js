@@ -25,15 +25,19 @@ export function maxSizeTxt() {
 }
 
 const CONFIGURED = { configured: { endpoint: true, deployment: true, credential: true }, endpointHost: 'example.invalid' };
-// 中継サーバーのモック。mode: 'ok'|'fail'|'defer'（release() まで応答を保留）。応答は FR-063 の形式。
-export function makeRelay({ mode = 'ok', answer } = {}) {
+// 中継サーバーのモック。mode: 'ok'|'fail'|'defer'（release() まで応答を保留）|'manual'（要求ごとに respond() で応答。届いた順）。応答は FR-063 の形式。
+// onExtract(req): /api/llm/extract の要求が端末から出た時点（応答の前）に同期で呼ぶ（AC-692 の観測点）。
+export function makeRelay({ mode = 'ok', answer, onExtract } = {}) {
   const log = [];
   const state = { mode };
+  const pending = [];
   let release; const gate = new Promise((r) => { release = r; });
   const relay = async (req) => {
     log.push({ path: req.path, body: req.body });
     if (req.path.startsWith('/api/llm/status')) return { status: 200, body: CONFIGURED };
     if (req.path === '/api/llm/extract') {
+      if (onExtract) onExtract(req);
+      if (state.mode === 'manual') return new Promise((res) => pending.push({ req, res }));
       if (state.mode === 'defer') await gate;
       if (state.mode === 'fail') return { status: 500, body: { error: 'mock' } };
       return { status: 200, body: typeof answer === 'function' ? answer(req) : (answer ?? { objects: [], people: [], emotions: [], metaphors: [] }) };
@@ -41,7 +45,46 @@ export function makeRelay({ mode = 'ok', answer } = {}) {
     return { status: 404, body: {} };
   };
   const llmReqs = () => log.filter((r) => r.path.startsWith('/api/llm/') && !r.path.startsWith('/api/llm/status'));
-  return { relay, log, llmReqs, release, state };
+  // manual: 未応答の要求（届いた順）。respond(outcome) は最も古い未応答の要求に応答する。outcome: { status, body }
+  const open = () => pending.filter((p) => !p.done);
+  const respond = (outcome) => { const p = open()[0]; assert.ok(p, '応答する未応答の要求がある'); p.done = true; p.res(outcome); return p.req; };
+  // 応答しないまま「打ち切られた」扱いにする（アプリ側の PARAM-069 のタイムアウトを試すとき）。後から late(outcome) で遅れて応答できる。
+  const abandon = () => { const p = open()[0]; assert.ok(p, '打ち切る未応答の要求がある'); p.done = true; return p; };
+  // 未応答の要求が n 件になるまで（実時間で ms まで）待つ。固定の待ちではなく条件で待つ。
+  const waitOpen = async (n = 1, ms = 5000) => {
+    const t0 = Date.now();
+    while (open().length < n) {
+      if (Date.now() - t0 > ms) return false;
+      await new Promise((r) => setTimeout(r, 1));
+    }
+    return true;
+  };
+  return { relay, log, llmReqs, release, state, pending, open, respond, abandon, waitOpen };
+}
+
+// 中継サーバーの実プロセス（relay-util.js の startRelay）へ、画面の options.relay を同一オリジンの HTTP 要求でつなぐ。
+// 端末→中継の要求（method・path・body）はすべて log に残す（AC-688 (a) の境界の観測点）。
+export function bridgeRelay(relayProc, rawRequest) {
+  const log = [];
+  const relay = async ({ method = 'GET', path: p, body }) => {
+    log.push({ method, path: p, body });
+    const headers = { host: `127.0.0.1:${relayProc.port}`, origin: relayProc.origin };
+    let data = null;
+    if (body !== undefined) { data = typeof body === 'string' ? body : JSON.stringify(body); headers['content-type'] = 'application/json'; }
+    const r = await rawRequest(relayProc.port, { method, path: p, headers, body: data, timeout: 60000 });
+    let parsed = r.text;
+    try { parsed = JSON.parse(r.text); } catch { /* 文字列のまま */ }
+    return { status: r.status, body: parsed };
+  };
+  const llmReqs = () => log.filter((r) => r.path.startsWith('/api/llm/') && !r.path.startsWith('/api/llm/status'));
+  return { relay, log, llmReqs };
+}
+
+// シーンの開始時刻を PARAM より十分に離した .vtt（各キューが別のシーンになる。複数要求のバッチ実行に使う）
+export function sceneSplitVtt(n = 3, gapSec = 300) {
+  const ts = (s) => `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}.000`;
+  const body = Array.from({ length: n }, (_, i) => `${ts(i * gapSec + 1)} --> ${ts(i * gapSec + 3)}\n<v 話者${i % 2}>${MEETING_LINES[i % MEETING_LINES.length]}</v>\n`).join('\n');
+  return toFile('scenes.vtt', `WEBVTT\n\n${body}`);
 }
 
 export async function bootApp(relayHelper, over = {}) {
