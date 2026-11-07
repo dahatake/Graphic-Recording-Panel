@@ -68,7 +68,7 @@ test('NFR-PRIV-003 AC-358: 送信内容は要点の文字（と固定の指示�
   const sent = r.calls.filter((c) => !c.path.startsWith('/api/llm/status'));
   assert.equal(sent.length, 1);
   assert.equal(sent[0].path, '/api/llm/extract');
-  assert.deepEqual(Object.keys(sent[0].body).sort(), ['drawStyle', 'input', 'instructions', 'partKeys', 'scene', 'text']); // Q-020 B
+  assert.deepEqual(Object.keys(sent[0].body).sort(), ['drawStyle', 'input', 'partKeys', 'scene', 'text']); // Q-020 B。AC-358・AC-690: 指示（Prompt 本文）は端末から送らない（サーバーが付与）
   assert.ok(sent[0].body.input.includes('予算を決める'));
   assert.ok(!/userAgent|navigator|session|audio/i.test(JSON.stringify({ input: sent[0].body.input })));
 });

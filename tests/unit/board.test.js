@@ -260,8 +260,8 @@ test('FR-114 AC-665: LLM の応答の区画の指定で振り分け、不正な�
   app.setDraft('市場の状況を整理'); app.submitDraft(); await app.flushLlm();
   const sent = calls.filter((c) => c.path === '/api/llm/extract');
   assert.equal(sent.length, 1);
-  assert.ok(sent[0].body.instructions.includes('purpose|members|flow|decisions|open|themes|vision|actions|memo'));
-  assert.deepEqual(Object.keys(sent[0].body).sort(), ['drawStyle', 'input', 'instructions', 'partKeys', 'scene', 'text']);
+  // 区画 ID の一覧を含む固定の指示は、中継サーバー（server/batch_styles.py）が付与する（tests/relay/test_batch_styles.py）。端末は送らない（AC-358）
+  assert.deepEqual(Object.keys(sent[0].body).sort(), ['drawStyle', 'input', 'partKeys', 'scene', 'text']);
   const m = app.getBoardModel();
   assert.equal(m.assigned[0].section, 'vision');
   assert.equal(m.assigned[0].rule, 1);

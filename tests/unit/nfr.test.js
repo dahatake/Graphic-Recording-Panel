@@ -66,7 +66,7 @@ test('NFR-A11Y-001 AC-036: 統合後の全コマンドにキー割り当てが�
   }
   // FR-077: 画風ごとのコマンド（drawStyle.set:<id>）は登録簿から作る可変の集合で、リボンの「画風」グループのボタンから選ぶ（専用キーはない）。
   // 名称は登録簿の名前から作る（コマンドの検索で見つかる）。それ以外の全コマンドは個別のキーと基本辞書の名称を持つ。
-  const perStyle = (n) => n.startsWith('drawStyle.set:');
+  const perStyle = (n) => n.startsWith('drawStyle.set:') || n.startsWith('batchStyle.set:'); // FR-118: スタイルごとのコマンド（batchStyle.set:<id>）も登録簿から作る可変の集合で、専用キーはない（名称は登録簿から。検索で見つかる）
   for (const n of names.filter((x) => !perStyle(x))) assert.ok(app.keymap.some((k) => k.command === n), `キーなし: ${n}`);
   for (const k of app.keymap) assert.equal(typeof app.commands[k.command], 'function', `未実装: ${k.command}`);
   const ja = createI18n().getStrings();
