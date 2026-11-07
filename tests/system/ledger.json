@@ -5414,6 +5414,12 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "AC-236 再明確化（N-01）: 超過関係の固定入力で前提を確かめ（不成立は失敗）、大項目のトピック間の関係（AC-130・AC-135）の線・ラベル・一覧の確認を追加"
+        },
+        {
+          "at": "2026-11-07T17:16:03+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "前提不成立（超過関係）: 契約上の入力の境界（UI 入力・loadSessionFile の Scene.relations）では 1 要素に PARAM-136 を超える種類つきの関係を作れない。境界の追加が決まるまで fail のまま（合格扱いにしない）"
         }
       ]
     },

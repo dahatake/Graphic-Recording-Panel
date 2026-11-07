@@ -201,6 +201,9 @@ test('FR-054 AC-236: 図の可視の関係線の集合（種類・始点・終�
 // FR-054 AC-236（2026-11-07 再明確化: 本 AC の関係線は FR-053 のシーン内の要素間の線。FR-025 AC-130・AC-135 のトピック間の「順」「関連」とは別で、
 // 「大項目」ではトピック間の線・種類ラベル・一覧の文字を維持する。超過関係は固定入力で前提を確かめ、成立しなければ合格・省略にせず前提不成立で失敗する）
 // 固定入力（テスト前に固定。実測に合わせて変えない）: 1 つの原因の要点に、明示の因果の結果が PARAM-136 本を超えて付く発話列。
+// 入力の境界の調査（2026-11-07）: 契約上シーンの構造を注入できるのは loadSessionFile（CONTRACT.md の Scene.relations:[{from,to}]）だけだが、
+// 正規の Scene.relations は種類・明示/推測を持たず、getDiagramRelations・getOutlineRelations の観察点とも結び付かないため、本 AC の超過関係の前提には使えない。
+// 適切な境界が契約に無いので、前提不成立のまま失敗させる（条件付きの skip・私有 API の使用・合格扱いはしない）。
 const OVERFLOW_SEQ = ['サーバーが落ちた。', 'サーバーが落ちたから、リリースを延期します。', 'サーバーが落ちたから、告知を止めます。', 'サーバーが落ちたから、問い合わせ窓口を開きます。', 'サーバーが落ちたから、返金を検討します。', 'サーバーが落ちたから、謝罪文を出します。', 'サーバーが落ちたから、監視を強化します。'];
 // トピック間の関係がある入力（AC-135: 隣り合う 2 トピック → 「順」）。空白区切りの語を 2 語以上（PARAM-015）共有するシーンだけが同じトピック。
 const TOPIC_GROUPS = [['予算 コスト 見直し 必要'], ['予算 コスト 削減 検討'], ['リリース 計画 決定 日程'], ['リリース 計画 担当 確認']];
@@ -220,7 +223,7 @@ test('FR-054 AC-236 異常系: 図に可視線がないときは可視線対応�
   const perAll = new Map();
   for (const r of all) for (const id of [r.from, r.to]) perAll.set(id, (perAll.get(id) ?? 0) + 1);
   const hub = [...perAll].find(([, n]) => n > REL_CAP);
-  assert.ok(hub, `前提不成立: 固定入力（OVERFLOW_SEQ）で 1 つの要素に PARAM-136（${REL_CAP}）本を超える関係が一覧にない（要素ごとの最大 ${Math.max(0, ...perAll.values())} 本）。合格・検証省略にしない（AC-236 検証の前提）`);
+  assert.ok(hub, `前提不成立: 固定入力（OVERFLOW_SEQ）で 1 つの要素に PARAM-136（${REL_CAP}）本を超える関係が一覧にない（要素ごとの最大 ${Math.max(0, ...perAll.values())} 本）。合格・検証省略にしない（AC-236 検証の前提。契約に超過関係を注入できる入力の境界が無い）`);
   const { d } = checkVisibleCorrespondence(b, '超過・詳細');
   const ds = new Set(d.map(rkey));
   const outside = all.filter((r) => !ds.has(rkey(r)));
