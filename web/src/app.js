@@ -205,6 +205,9 @@ export async function createApp(options = {}) {
   }
   // 状態を変える唯一の入口: 自動保存の予約と再描画の通知。
   function change(fn, opts) {
+    // A batch commit may use existing style/detail setters. Nested changes
+    // belong to the same atomic state change and must not publish half a diagram.
+    if (mutating) { fn(state); return; }
     mutating++;
     const sel = opts?.selectionOnly === true;
     if (!sel) dataVersion++; // 実行中に読まれたキャッシュを無効にする
@@ -293,17 +296,28 @@ export async function createApp(options = {}) {
       try { for (const t of done) emit('utterance', t); } finally { ctx.flushing = false; }
       return done.length;
     },
-    // FR-118: 取込んだ発話（ファイル由来・ライブ）の全件から、図（シーン・要点）を作り直す（バッチ実行。発話は変えない）。直前の図は返り値の復元関数で戻せる（取消）。
+    // FR-118 AC-692 / FR-022 AC-523: extract into a detached draft. Nothing is
+    // published or saved until every scene has settled and the batch commits.
     //   無音の間隔は直前の発話との受付時刻の差で判定する（.vtt は cue の開始時刻の差。.txt は同時刻なので分かれない。FR-022 AC-113）。
-    rebuildScenes() {
-      const prev = { scenes: JSON.parse(JSON.stringify(state.scenes)), selectedSceneId: state.selectedSceneId };
-      change((s) => {
-        s.scenes = []; s.selectedSceneId = null; breakScene = false;
-        for (let i = 0; i < s.utterances.length; i++) { delete s.utterances[i].held; ingestOne(s, i, false, true); }
-        const last = s.scenes[s.scenes.length - 1];
+    prepareBatchScenes() {
+      const draft = { scenes: [], selectedSceneId: null, utterances: state.utterances.slice() };
+      const oldBreak = breakScene;
+      try {
+        breakScene = false;
+        for (let i = 0; i < draft.utterances.length; i++) ingestOne(draft, i, false, true);
+        const last = draft.scenes[draft.scenes.length - 1];
         if (last) last.status = 'confirmed';
-      });
-      return () => { change((s) => { s.scenes = prev.scenes; s.selectedSceneId = prev.selectedSceneId; }); };
+      } finally { breakScene = oldBreak; }
+      return {
+        scenes: draft.scenes,
+        commit(apply) {
+          change((s) => {
+            s.scenes = draft.scenes; s.selectedSceneId = draft.selectedSceneId; breakScene = false;
+            for (const u of draft.utterances) delete u.held;
+            apply();
+          });
+        },
+      };
     },
   };
   // 発話（state.utterances[idx]）を図のシーン・要点に取り込む。無音の間隔は直前の発話の受付時刻との差で判定する（FR-003）
@@ -580,4 +594,3 @@ export async function createApp(options = {}) {
   }
   return app;
 }
-

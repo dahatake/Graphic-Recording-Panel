@@ -6,6 +6,103 @@ import { makeRelay, bootApp, enableLlm, snapshot, finals, TXT, VTT, MEETING_LINE
 
 const flush = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
 
+// FR-022 AC-523 / NFR-PERF-001 AC-697 / FR-118 AC-692: isolated requests with independently controlled outcomes.
+const multiSceneFile = {
+  name: 'atomic.vtt', type: 'text/vtt',
+  text: 'WEBVTT\n\n00:00:00.000 --> 00:00:02.000\n予算の見直しが必要です\n\n00:00:30.000 --> 00:00:32.000\n来月のリリース計画を決める\n\n00:01:00.000 --> 00:01:02.000\n担当者の割り当てを確認する\n',
+};
+multiSceneFile.size = Buffer.byteLength(multiSceneFile.text);
+async function stagedBatch() {
+  const pending = []; const sent = [];
+  let app;
+  const relay = async (q) => {
+    if (q.path === '/api/llm/status') return { status: 200, body: { configured: { endpoint: true, deployment: true, credential: true }, endpointHost: 'example.invalid' } };
+    if (q.path !== '/api/llm/extract') return { status: 404, body: {} };
+    const extracted = app.getBatchState().extracted;
+    assert.equal(extracted.length, 3, 'AC-692: all extraction snapshots exist before the first send');
+    assert.ok(extracted.every((s) => s.points.length && s.points.every((p) => p.trim())));
+    sent.push(q);
+    return new Promise((resolve) => pending.push(resolve));
+  };
+  const ctx = await bootApp({ relay });
+  app = ctx.app;
+  await enableLlm(app);
+  // Existing content, including LLM drawings, must survive until commit or cancellation.
+  await app.importTextFile(TXT);
+  app.setBudget(0);
+  await app.runBatch(app.getBatchStyles()[0].id);
+  app.setBudget(10000);
+  await app.importTextFile(multiSceneFile);
+  return { ...ctx, pending, sent };
+}
+const answer = { status: 200, body: { objects: [], people: [], emotions: [], metaphors: [] } };
+
+for (const outcome of ['ok', 'fail', 'timeout', 'budget']) {
+  test(`FR-022 AC-523 / NFR-PERF-001 AC-697: atomic batch commit after ${outcome}, no intermediate drawing`, async () => {
+    const { app, env, pending, sent } = await stagedBatch();
+    const before = snapshot(app); const refresh = app.getLiveRefresh().count;
+    const p = app.runBatch(app.getBatchStyles()[1].id);
+    await flush();
+    assert.equal(snapshot(app), before);
+    const extracted = app.getBatchState().extracted;
+    assert.equal(extracted.length, 3);
+    const immutable = JSON.stringify(extracted);
+    try { extracted[0].points[0] = 'external mutation'; } catch { /* frozen snapshots are also valid */ }
+    assert.equal(JSON.stringify(app.getBatchState().extracted), immutable, 'AC-692: returned snapshots cannot mutate the extraction');
+    const n = outcome === 'budget' ? 1 : 3;
+    for (let i = 0; i < n; i++) {
+      await flush();
+      assert.equal(pending.length, 1, 'sequential scene request is ready');
+      assert.equal(snapshot(app), before);
+      if (outcome === 'budget') app.setBudget(0);
+      if (outcome === 'timeout' && i === n - 1) {
+        pending.shift(); env.scheduler.advance(30000);
+      } else pending.shift()(outcome === 'fail' ? { status: 500, body: {} } : answer);
+      await flush();
+      if (i < n - 1) assert.equal(snapshot(app), before, 'earlier responses do not apply');
+    }
+    const r = await p;
+    assert.equal(r.ok, true);
+    assert.equal(sent.length, n);
+    assert.equal(app.getState().scenes.length, 3);
+    assert.equal(app.getLiveRefresh().count, refresh + 1, 'one complete drawing application');
+    assert.equal(JSON.stringify(app.getBatchState().extracted), immutable, 'extracted source is unchanged after application');
+    assert.notEqual(snapshot(app), before);
+  });
+}
+
+test('FR-118 AC-691 / FR-022 AC-523: cancel preserves an existing drawing and discards late staged results', async () => {
+  const { app, pending } = await stagedBatch();
+  const before = snapshot(app);
+  const p = app.runBatch(app.getBatchStyles()[1].id);
+  await flush();
+  pending.shift()(answer); await flush();
+  assert.equal(app.cancelBatch().ok, true);
+  assert.equal((await p).cancelled, true);
+  assert.equal(snapshot(app), before);
+  pending.shift()(answer); await flush();
+  assert.equal(snapshot(app), before, 'late completion is never applied');
+});
+
+test('FR-118 AC-692: extraction evidence is the original point text, not a redacted send payload', async () => {
+  const h = makeRelay();
+  let app; let observed;
+  const { app: created } = await bootApp({ relay: (q) => {
+    if (q.path === '/api/llm/extract') observed = app.getBatchState().extracted;
+    return h.relay(q);
+  } });
+  app = created;
+  assert.deepEqual(app.getBatchState().extracted, []);
+  await enableLlm(app);
+  const token = 'ZQXINJECT7731VERBATIM';
+  const text = `予算の見直しが必要です ${token}`;
+  await app.importTextFile({ name: 'evidence.txt', size: Buffer.byteLength(text), text });
+  await app.runBatch(app.getBatchStyles()[0].id);
+  assert.ok(observed.length && observed[0].points.some((p) => p.includes(token)), 'unredacted extraction evidence stays local');
+  assert.ok(app.getState().scenes[0].points.some((p) => p.text.includes(token)));
+  assert.equal(JSON.stringify(h.log).includes(token), false, 'the original identifier is never transmitted');
+});
+
 // FR-118 AC-691: 取消すと読込済みに戻り、図は実行前のままで発話は残る。取消の後も別のスタイルで実行できる
 test('FR-118 AC-691: 実行中は処理中と進み具合が示され、取消すと読込済みに戻り図は実行前のまま（発話は残る）。実行中は重ねて実行されない', async () => {
   const h = makeRelay({ mode: 'defer' });

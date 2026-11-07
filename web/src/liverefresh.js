@@ -61,6 +61,8 @@ export function liveRefreshModule(ctx) {
   const live = () => state.session === 'recording' || ctx.heldCount() > 0;
   api.getLiveInterval = () => ({ sec, min: LIVE_MIN_SEC, max: LIVE_MAX_SEC, default: LIVE_DEFAULT_SEC });
   api.getLiveRefresh = () => ({ count, held: ctx.heldCount() });
+  // FR-022 AC-523: a complete batch (never a partial response or cancellation) is one application.
+  ctx.on('batch:done', () => { count += 1; });
 
   // 1 回の描き足し: たまった発話をまとめて取り込む。なければ何もしない（描画を更新しない）
   // ctx.liveRefreshing: いま更新間隔ごとの描き足しの最中か（FR-115 のショーは、この間に加わった・動いた要素だけを演出する）
