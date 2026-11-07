@@ -203,7 +203,6 @@ test('NFR-PERF-001 AC-697: バッチの描画は、LLM 無効（ルールベー�
     assert.ok(b.app.getState().scenes.length >= 1 && b.app.renderSvg().includes(`data-scene-id="${b.app.getState().scenes[0].id}"`));
     // (2') LLM 有効で失敗（中継が 500）: 失敗の確定から 3 秒以内に、失敗したシーンのルールベース描画が図へ反映される（AC-689）。応答の待ち（上限 PARAM-069＝30 秒）は 3 秒に含めない
     const hf = makeRelay({ mode: 'fail' });
-    if (label !== '通常') continue; // 上限サイズ×全要求失敗は実装の処理量が大きく（実測 75 秒）、(3) は上の (1)(2) で確かめる
     const f = await bootApp(hf); await enableLlm(f.app);
     await f.app.importTextFile(file);
     const t2 = performance.now(); const c2 = f.env.clock.t;
