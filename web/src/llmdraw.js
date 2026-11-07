@@ -200,7 +200,8 @@ export function llmDrawModule(ctx) {
   function requestFor(scene, termsOnly = false) {
     const [safe] = withoutConfidential([scene], state.lang === 'en' ? 'en' : 'ja'); // 機密の要点は公開範囲に関わらず LLM へ送らない（監査 S-1）
     const lines = [safe.heading, ...safe.points.map((p) => p.text)];
-    const raw = (termsOnly ? lines.map((l) => termsOf(api.maskPersonNames ? api.maskPersonNames(l) : l)) : lines).join('\n');
+    // NFR-PERF-001 AC-697: 名前の辞書の作成は発話の件数に比例するため、行ごとではなく全体で 1 回だけ伏せてから語を取り出す（名前は改行を含まない。結果は行ごとに伏せた場合と同じ）
+    const raw = (termsOnly ? (api.maskPersonNames ? api.maskPersonNames(lines.join('\n')) : lines.join('\n')).split('\n').map(termsOf) : lines).join('\n');
     const named = termsOnly ? raw : (api.maskPersonNames ? api.maskPersonNames(raw) : raw); // AC-358・AC-668: 参加者名簿・話者タグの名前は簡易マスキングの設定に関わらず常に伏せる（決定 2026-11-05）
     const masked = masking ? maskText(named, allMaskWords()) : named;
     return clampText(masked, MAX_SEND_CHARS);
