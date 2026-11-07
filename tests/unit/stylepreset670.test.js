@@ -269,7 +269,7 @@ test('FR-077 AC-414 FR-076 AC-670: 「画風」グループに 2 つの風が常
 // FR-076 AC-413: LLM へ送る描画スタイル名は識別子（getDrawStyle の値。llmdraw.js の drawStyle）だけで、送信内容の版は変わらない
 test('FR-076 AC-670 AC-413: 2 つの風を選んでも送る描画スタイル名は識別子だけで、送信内容の版（再同意の要否）は変わらない', async () => {
   const { CONSENT_VERSION } = await import('../../web/src/llm.js');
-  assert.equal(CONSENT_VERSION, 'send-v2:points+scene+drawStyle+partKeys');
+  assert.equal(CONSENT_VERSION, 'send-v3:points+scene+drawStyle+partKeys+styleId');
   for (const id of ['warmCards', 'blueHeadings']) {
     const { app } = await seeded(id);
     const sent = app.getDrawStyle();

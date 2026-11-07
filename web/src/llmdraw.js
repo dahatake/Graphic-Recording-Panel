@@ -193,7 +193,7 @@ export function llmDrawModule(ctx) {
 
   // FR-118・AC-692（Q-049 回答 A）: バッチでは、取込んだ発話の逐語を送らない。要点の文字は、ルールベースで取り出した語（漢字・カタカナ・英数字の語。ひらがなの助詞と長い英数字の列は除く）だけにする
   const termsOf = (line) => {
-    const words = String(line).match(/[\u4E00-\u9FFF\u3005\u30A0-\u30FF\u30FC]+|[A-Za-z][A-Za-z'-]*|[0-9]+/gu) ?? [];
+    const words = String(line).match(/[\u4E00-\u9FFF\u3005\u30A0-\u30FF\u30FC]+|[A-Za-z][A-Za-z'-]*/gu) ?? []; // 数字だけの列（電話番号・番号類）は簡易マスキングの設定に関わらず送らない（AC-692）
     const keep = []; for (const w of words) { if ([...w].length <= TERM_MAX && !keep.includes(w)) keep.push(w); }
     return keep.length ? keep.join(' ') : '…';
   };
