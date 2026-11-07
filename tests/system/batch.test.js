@@ -1,5 +1,5 @@
 // FR-118 AC-686 AC-687 AC-688 / NFR-PERF-001 AC-697（System Test。契約: tests/system/CONTRACT-BATCH.md「1.」「3.」「4.」）
-// 期待値は受入基準だけから決める。LLM は中継サーバーのモック（決定的）。AC-689〜691・694・695 は検証レベル integration、AC-692 は BLOCKED（Q-049）のため対象外。
+// 期待値は受入基準だけから決める。LLM は中継サーバーのモック（決定的）。AC-689〜691・694・695 は検証レベル integration。AC-692 は検証レベル system（FR-118 AC-692 のテスト）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
@@ -215,7 +215,7 @@ test('NFR-PERF-001 AC-697: バッチの描画は、LLM 無効（ルールベー�
   }
 });
 
-// FR-118 AC-692（integration。Q-049 の回答 A。契約: CONTRACT-BATCH.md 3.）
+// FR-118 AC-692（system。Q-049 の回答 A。契約: CONTRACT-BATCH.md 3.。2026-11-07 に逐語の定義 (a)(b) を明確化し検証レベルを system に変更）
 // バッチモードでは、取込んだファイルの全文・発話の逐語・話者名は、LLM 連携が有効・同意済みでも LLM（中継を含む外部）に送られない。
 // 注入した長い発話の逐語（固有の文字列）が、スタブの受けた全要求（パスと本文の全階層）に 0 回しか現れないことで確かめる。
 test('FR-118 AC-692: バッチ実行（LLM 有効・同意済み）で、注入した長い発話の逐語・ファイルの全文・話者名は、中継スタブが受けた全要求に 0 回しか現れない（送るのはスタイルの ID・名称と要点の文字などだけ）', async () => {
@@ -262,6 +262,31 @@ test('FR-118 AC-692: バッチ実行（LLM 有効・同意済み）で、注入�
       for (const line of f.full.split('\n')) if (line.length >= 20 && !/-->/.test(line)) assert.equal(count(all, line.replace(/<\/?v[^>]*>/g, '')), 0, `ファイルの行は送られない: ${line.slice(0, 12)}…`);
       for (const n of f.speakers) assert.equal(count(all, n), 0, `${f.file.name}/${style.id}: 話者名 ${n} は 0 回`);
       assert.equal(count(all, f.full), 0, 'ファイルの全文は 0 回');
+    }
+  }
+  // AC-692 (2)（2026-11-07 の定義 (b)）: 行（発話・見出し）の全体が要点の語だけでできていて再構成できる行は逐語として、そのシーンの要点の文字を送らない（「…」に置き換える）。
+  // 英語の発話・.txt の見出し行・短い日本語・話者名つき .vtt の各固有の文字列が、スタブが受けた全要求（パス・本文の全階層）に 0 回。
+  const WHOLE = { en: 'Please confirm ZQXENGLINE5521 schedule', head: '■ ZQXHEADLINE6642 議題一覧', ja: '雨天時の搬入経路を変更する', vtt: 'ZQXVTTSHORT7753 を確認' };
+  const SPK_W = '話者SPKWH丙村';
+  const wholeFiles = [
+    { file: toFile('whole.txt', `${WHOLE.head}\n${WHOLE.en}\n${WHOLE.ja}\n来月のリリース計画を決める\n`), uniq: [WHOLE.head, WHOLE.en, WHOLE.ja, 'ZQXHEADLINE6642', 'ZQXENGLINE5521'], names: [] },
+    { file: toFile('whole.vtt', ['WEBVTT', '', `00:00:01.000 --> 00:00:03.000\n<v ${SPK_W}>${WHOLE.vtt}</v>\n`, `00:00:04.000 --> 00:00:06.000\n<v ${SPK_W}>${WHOLE.ja}</v>\n`, `00:00:07.000 --> 00:00:09.000\n<v ${SPK_W}>${WHOLE.en}</v>\n`].join('\n')), uniq: [WHOLE.vtt, WHOLE.ja, WHOLE.en, 'ZQXVTTSHORT7753', 'ZQXENGLINE5521'], names: [SPK_W] },
+  ];
+  for (const f of wholeFiles) {
+    for (const style of [styles[0], styles.at(-1)]) {
+      const h = makeRelay({ answer: { objects: [], people: [], emotions: [], metaphors: [] } });
+      const { app } = await bootApp(h);
+      await enableLlm(app);
+      assert.equal((await app.importTextFile(f.file)).ok, true, `${f.file.name}: 取り込める`);
+      assert.ok(app.getTranscript().finals.some((x) => x.text.includes('ZQX')), '前提: 発話の原文には固有の文字列がある');
+      const r = await app.runBatch(style.id); await app.flushLlm();
+      assert.equal(r.ok, true, `${f.file.name}/${style.id}: 実行できる`);
+      const reqs = h.llmReqs();
+      assert.ok(reqs.length >= 1, `${f.file.name}/${style.id}: 要求は送られる（空振りでない）`);
+      assert.ok(reqs.every((q) => q.body?.styleId === style.id), '送った要求は選んだスタイルの ID を持つ');
+      const all = JSON.stringify(h.log);
+      for (const u of f.uniq) assert.equal(count(all, u), 0, `${f.file.name}/${style.id}: 行の全体が要点の語だけの文字列「${u}」は 0 回`);
+      for (const n of f.names) assert.equal(count(all, n), 0, `${f.file.name}/${style.id}: 話者名 ${n} は 0 回`);
     }
   }
 });

@@ -142,7 +142,7 @@
     "AC-311": "sha256:282ba030d75fd483",
     "AC-312": "sha256:6c5c4c5217a9bb9b",
     "AC-334": "sha256:b9d97452a5ca917d",
-    "AC-358": "sha256:8edc91c5ac1466f5",
+    "AC-358": "sha256:b103c65d94c66c47",
     "AC-359": "sha256:be48cffd5d67fa0c",
     "AC-360": "sha256:53839b89932f7c68",
     "AC-366": "sha256:4c4ba8a297894acc",
@@ -295,7 +295,7 @@
     "AC-697": "sha256:94c8840c0a6c268d",
     "AC-696": "sha256:0b6822420fba867b",
     "AC-671": "sha256:c0cb5fb51945d1ae",
-    "AC-692": "sha256:eb523c936ae549b4"
+    "AC-692": "sha256:93f02d401750dc93"
   },
   "cases": [
     {
@@ -9838,6 +9838,43 @@
           "by": "test-designer",
           "change": "blocked",
           "reason": "AC-692 の検証レベルは integration で System Test の対象外（CHK-10）。テストは tests/system/batch.test.js に残し、実装役の integration（node --test --test-name-pattern=AC-692 tests/system/batch.test.js）で実行する"
+        },
+        {
+          "at": "2026-11-07T15:13:01+09:00",
+          "by": "test-designer",
+          "change": "blocked",
+          "reason": "AC-692 は system に変更。E2E 側の新ケースに引き継ぎ（同じテストを二重に実行しない）"
+        }
+      ]
+    },
+    {
+      "id": "E2E-295",
+      "requirement_ids": [
+        "FR-118"
+      ],
+      "ac_ids": [
+        "AC-692"
+      ],
+      "title": "FR-118 AC-692 バッチ実行で発話の逐語・ファイル全文・話者名、および行全体が要点の語だけの行（英語の発話・.txt の見出し・短い日本語・話者名つき .vtt）は LLM スタブが受けた全要求に 0 回",
+      "layer": "e2e",
+      "command": "node --test --test-name-pattern=AC-692 tests/system/batch.test.js",
+      "canary": false,
+      "status": "not_run",
+      "last_commit": null,
+      "last_run_at": null,
+      "evidence": null,
+      "history": [
+        {
+          "at": "2026-11-07T15:13:01+09:00",
+          "by": "test-designer",
+          "change": "追加",
+          "reason": "AC-692 の検証レベルが system になり逐語の定義 (a)(b) を明確化（b66bd7c）。IT-028 を引き継ぐ"
+        },
+        {
+          "at": "2026-11-07T15:13:01+09:00",
+          "by": "test-designer",
+          "change": "同じ要求・同じ層の既存ケースと別に追加",
+          "reason": "新しい検証は作業ブランチ work/202611071455/leak の統合まで失敗する。pass 済みの E2E-293（AC-686〜688）を巻き込まないよう独立に実行する"
         }
       ]
     }
