@@ -9953,6 +9953,12 @@
           "by": "test-designer",
           "change": "status -> not_run",
           "reason": "AC-692 再明確化（N-03）: 固定データの正本を CONTRACT-BATCH.md 3. とケースに移し、誤記を修正。観測点・前提不成立の扱いは維持"
+        },
+        {
+          "at": "2026-11-07T17:29:48+09:00",
+          "by": "test-designer",
+          "change": "status -> not_run",
+          "reason": "AC-692(a) 固定データの訂正（rd-author 承認 2026-11-07 17:27）: 旧目印 ZQXINJECT7731VERBATIM は要点の語として採用され得るため『要点でない目印』は誤分類。旧データは反例の回帰テストに残し（送信前 extracted に旧目印が含まれる事実＋AC-358/690 の送信内容）、新目印は言いよどみの長い句（46 文字）の全体。期待値と陽性/陰性対照は実行前に CONTRACT-BATCH 3. に固定。旧データでの前提不成立（extracted 未実装）の履歴は残す。(b)・不可視文字の回帰は不変。command は変えない"
         }
       ]
     }

@@ -430,58 +430,89 @@ test('FR-022 AC-523 / NFR-PERF-001 AC-697: 複数要求のバッチ実行は、�
   }
 });
 
+// AC-692 の固定データ（正本は CONTRACT-BATCH.md 3.。2026-11-07 訂正・実行前に固定）。話者名は従来の固定データのもの。
+const AC692_SPK = ['話者SPKZQ甲斐', '話者SPKZQ乙川'];
+const AC692_MEET = ['来月のリリース計画を決める', '担当者の割り当てを確認する'];
+const ac692Files = (first) => {
+  const vtt = ['WEBVTT', '',
+    `00:00:01.000 --> 00:00:03.000\n<v ${AC692_SPK[0]}>${first}</v>\n`,
+    `00:00:04.000 --> 00:00:06.000\n<v ${AC692_SPK[1]}>${AC692_MEET[0]}</v>\n`,
+    `00:00:07.000 --> 00:00:09.000\n<v ${AC692_SPK[0]}>${AC692_MEET[1]}</v>\n`].join('\n');
+  const txt = `${first}\n${AC692_MEET[0]}\n${AC692_MEET[1]}\n`;
+  return [{ file: toFile('inject.vtt', vtt), full: vtt, speakers: AC692_SPK }, { file: toFile('inject.txt', txt), full: txt, speakers: [] }];
+};
+// スタイル実行の抽出後かつ最初の LLM 向け要求の送信前（送信向けの伏せ字・省略の前）の抽出済みの要点を、生の配列のまま観測する
+const ac692Run = async (f, style) => {
+  const ref = {}; let observed = null;
+  const h = makeRelay({ answer: { objects: [], people: [], emotions: [], metaphors: [] }, onExtract: () => { if (observed === null) observed = structuredClone(ref.app.getBatchState().extracted ?? null); } });
+  const { app } = await bootApp(h); ref.app = app;
+  await enableLlm(app);
+  assert.equal((await app.importTextFile(f.file)).ok, true, `${f.file.name}: 取り込める`);
+  assert.equal(h.llmReqs().length, 0, '取込だけでは要求 0 件');
+  return { h, app, run: async () => { const r = await app.runBatch(style.id); await app.flushLlm(); return { r, observed }; } };
+};
+const ac692Points = (observed) => (Array.isArray(observed) ? observed : []).flatMap((x) => x.points ?? []);
+
+// FR-118 AC-692 / AC-358 / AC-690（反例・誤分類の回帰。2026-11-07）: 旧データ（英数字の目印 ZQXINJECT7731VERBATIM を含む長い発話）は
+// 「目印は原文だけにあり要点にはない」と分類していたが誤り。旧データと観測の証跡を残し、目印が送信前の要点に実際に含まれる事実を確かめる
+// （(a) の「要点でない目印」の反例）。そのうえで送信内容（長い発話の全体・ファイルの全文・話者名が 0 回）は従来どおり確かめる。要点の語の採用だけを逐語の漏れと判定しない。
+test('FR-118 AC-692 反例（旧データの誤分類の回帰）: 英数字の目印は送信前の要点に含まれ得るため (a) の目印にしない。長い発話の全体・ファイルの全文・話者名は全要求に 0 回（AC-358・AC-690）', async (t) => {
+  const count = (hay, needle) => hay.split(needle).length - 1;
+  const OLD_TOKEN = 'ZQXINJECT7731VERBATIM';
+  const OLD_LONG = `この発話は固有の長い文章であり、会議の途中で参加者が詳しい経緯を長々と説明した内容をそのまま記録したものである。${OLD_TOKEN}は取込んだ原文にしか現れない目印であり、外部へ送ってはならない。`;
+  const probe = await newApp();
+  const style = probe.app.getBatchStyles()[0];
+  for (const f of ac692Files(OLD_LONG)) {
+    const { h, app, run } = await ac692Run(f, style);
+    assert.ok(app.getTranscript().finals.some((x) => x.text.includes(OLD_LONG)), '前提: 原文に旧データの長い発話がある');
+    const { r, observed } = await run();
+    assert.equal(r.ok, true, `${f.file.name}: 実行できる`);
+    t.diagnostic(`AC-692 反例の観測（${f.file.name}。抽出後・送信前の getBatchState().extracted の生の配列）: ${JSON.stringify(observed)}`);
+    assert.ok(Array.isArray(observed) && ac692Points(observed).some((p) => String(p).trim()), `${f.file.name}: 前提不成立: 送信前の抽出済みの要点を観測できない・空`);
+    assert.ok(ac692Points(observed).some((p) => String(p).includes(OLD_TOKEN)), `${f.file.name}: 反例: 旧目印は送信前の要点に含まれる（要点でない目印という旧分類は誤り）`);
+    assert.ok(!ac692Points(observed).some((p) => String(p).includes(OLD_LONG)), `${f.file.name}: 長い発話の全体は 1 つの要点にならない`);
+    const all = JSON.stringify(h.log);
+    assert.equal(count(all, OLD_LONG), 0, `${f.file.name}: 長い発話の全体は 0 回`);
+    assert.equal(count(all, f.full), 0, `${f.file.name}: ファイルの全文は 0 回`);
+    for (const n of f.speakers) assert.equal(count(all, n), 0, `${f.file.name}: 話者名 ${n} は 0 回`);
+  }
+});
+
 // FR-118 AC-692（system。Q-049 の回答 A。契約: CONTRACT-BATCH.md 3.。2026-11-07 に逐語の定義 (a)(b) を明確化し検証レベルを system に変更）
 // バッチモードでは、取込んだファイルの全文・発話の逐語・話者名は、LLM 連携が有効・同意済みでも LLM（中継を含む外部）に送られない。
-// 注入した長い発話の逐語（固有の文字列）が、スタブの受けた全要求（パスと本文の全階層）に 0 回しか現れないことで確かめる。
-// 固定データの正本は、このケースと CONTRACT-BATCH.md 3. の「AC-692 の固定データ」（要求定義書には転記しない。ファイル名 inject.* はテスト内で生成する識別名）。
+// (a) 全文の目印は、意味のある会議情報ではない言いよどみの長い句（46 文字。FR-003 は 40 文字以下の塊に分けるので句の全体は 1 つの要点にならない）。
+// 2026-11-07 訂正: 旧データの英数字の目印 ZQXINJECT7731VERBATIM は要点の語として採用され得るため (a) の目印としては誤分類だった（反例の回帰は直後のテスト）。
+// 期待値は実行前に固定（CONTRACT-BATCH.md 3.）。句の断片は要点に残り得るので断片の不在は求めない。不一致は合格にせず前提不成立として失敗させる。
 test('FR-118 AC-692: バッチ実行（LLM 有効・同意済み）で、注入した長い発話の逐語・ファイルの全文・話者名は、中継スタブが受けた全要求に 0 回しか現れない（送るのはスタイルの ID・名称と要点の文字などだけ）', async (t) => {
   const count = (hay, needle) => hay.split(needle).length - 1;
-  const TOKEN = 'ZQXINJECT7731VERBATIM';
-  const LONG = `この発話は固有の長い文章であり、会議の途中で参加者が詳しい経緯を長々と説明した内容をそのまま記録したものである。${TOKEN}は取込んだ原文にしか現れない目印であり、外部へ送ってはならない。`;
-  const SPK = ['話者SPKZQ甲斐', '話者SPKZQ乙川'];
-  const vttText = ['WEBVTT', '',
-    `00:00:01.000 --> 00:00:03.000\n<v ${SPK[0]}>${LONG}</v>\n`,
-    `00:00:04.000 --> 00:00:06.000\n<v ${SPK[1]}>来月のリリース計画を決める</v>\n`,
-    `00:00:07.000 --> 00:00:09.000\n<v ${SPK[0]}>担当者の割り当てを確認する</v>\n`].join('\n');
-  const txtText = `${LONG}\n来月のリリース計画を決める\n担当者の割り当てを確認する\n`;
-  // 検出器の自己確認（空振りしないこと）: 注入した文字列を含む要求は数えられ、含まない要求は 0 になる
-  assert.equal(count(JSON.stringify({ path: '/api/llm/extract', body: { input: LONG } }), TOKEN), 1, '検出器: 含む要求は 1 回と数える');
-  assert.equal(count(JSON.stringify({ path: '/api/llm/extract', body: { input: '予算' } }), TOKEN), 0, '検出器: 含まない要求は 0');
-  const files = [
-    { file: toFile('inject.vtt', vttText), full: vttText, speakers: SPK },
-    { file: toFile('inject.txt', txtText), full: txtText, speakers: [] },
-  ];
+  const MARKER = 'ええと、そのう、あのう、ううん、そうですねえ、ええと、そのう、あのう、ううん、そうですねえ。';
+  assert.ok([...MARKER].length > 40, '固定データ: 句は 40 文字を超える');
+  // 検出器の自己確認（空振りしないこと）: 陽性対照（句の全体を含む要求は 1 回）と陰性対照（句の断片だけ・無関係は 0 回）
+  assert.equal(count(JSON.stringify({ path: '/api/llm/extract', body: { input: { points: [MARKER] } } }), MARKER), 1, '検出器: 陽性対照');
+  assert.equal(count(JSON.stringify({ path: '/api/llm/extract', body: { input: { points: [MARKER.slice(0, 23), MARKER.slice(23)] } } }), MARKER), 0, '検出器: 陰性対照（句の断片だけ）');
+  assert.equal(count(JSON.stringify({ path: '/api/llm/extract', body: { input: '予算' } }), MARKER), 0, '検出器: 陰性対照（無関係）');
   const probe = await newApp();
   const styles = probe.app.getBatchStyles();
   assert.equal(styles.length, 8);
-  for (const f of files) {
+  for (const f of ac692Files(MARKER)) {
     for (const style of [styles[0], styles.at(-1)]) {
-      const extractedText = (a) => (a.getBatchState().extracted ?? []).flatMap((s) => s.points ?? []).join('\n');
-      let observed = null; // 抽出後・最初の LLM 向け要求の送信前（送信向けの伏せ字・省略の前）の要点
-      const h = makeRelay({ answer: { objects: [], people: [], emotions: [], metaphors: [] }, onExtract: () => { if (observed === null) observed = { extracted: extractedText(appRef.app), scenes: (appRef.app.getBatchState().extracted ?? []).length }; } });
-      const appRef = {};
-      const { app } = await bootApp(h);
-      appRef.app = app;
-      await enableLlm(app);
-      assert.equal((await app.importTextFile(f.file)).ok, true, `${f.file.name}: 取り込める`);
-      assert.equal(h.llmReqs().length, 0, '取込だけでは要求 0 件');
-      // 前提（固定入力・固定期待値。2026-11-07 明確化）: 原文には固有の文字列がある
-      assert.ok(app.getTranscript().finals.some((x) => x.text.includes(TOKEN)), '前提: 発話の原文には固有の文字列がある');
-      const r = await app.runBatch(style.id); await app.flushLlm();
+      const { h, app, run } = await ac692Run(f, style);
+      assert.ok(app.getTranscript().finals.some((x) => x.text.includes(MARKER)), '前提: 発話の原文には句の全体がある');
+      const { r, observed } = await run();
       assert.equal(r.ok, true, `${f.file.name}/${style.id}: 実行できる`);
-      // 前提の観測点: スタイル実行の抽出後かつ最初の LLM 向け要求の送信前。その実行で使う全シーンの要点が非空で、固有の文字列を含まない
-      // （読込直後の空の getState().scenes での不在確認では代替しない。不一致は合格にせず前提不成立として失敗させる）
-      assert.ok(observed, `${f.file.name}/${style.id}: 前提不成立: 最初の LLM 向け要求の送信時点を観測できない`);
-      assert.ok(observed.scenes >= 1 && observed.extracted.trim(), `${f.file.name}/${style.id}: 前提不成立: 送信前の抽出済みの要点が空（getBatchState().extracted。契約 CONTRACT-BATCH.md 3.）`);
-      assert.ok(!observed.extracted.includes(TOKEN), `${f.file.name}/${style.id}: 前提不成立: 固有の文字列が送信前の要点に含まれる`);
+      t.diagnostic(`AC-692 観測（${f.file.name}/${style.id}。抽出後・送信前の getBatchState().extracted の生の配列）: ${JSON.stringify(observed)}`);
+      // 前提の観測点（読込直後の空の getState().scenes での不在確認では代替しない）
+      assert.ok(Array.isArray(observed), `${f.file.name}/${style.id}: 前提不成立: 最初の LLM 向け要求の送信前に抽出済みの要点を観測できない（getBatchState().extracted。契約 CONTRACT-BATCH.md 3.）`);
+      const pts = ac692Points(observed);
+      assert.ok(observed.length >= 1 && pts.some((p) => String(p).trim()), `${f.file.name}/${style.id}: 前提不成立: 送信前の抽出済みの要点が空`);
+      const bad = pts.filter((p) => String(p).includes(MARKER));
+      assert.equal(bad.length, 0, `${f.file.name}/${style.id}: 前提不成立: 句の全体が送信前の要点の文字列に含まれる: ${JSON.stringify(bad)}`);
       const reqs = h.llmReqs();
       assert.ok(reqs.length >= 1, `${f.file.name}/${style.id}: LLM 向けの要求は送られる（有効・同意済み。空振りでない）`);
       assert.ok(reqs.every((q) => q.body?.styleId === style.id), '送った要求は選んだスタイルの ID を持つ');
       // 検査の対象は、スタブが受けた全要求（状態の確認 /api/llm/status を含む。パス・本文の全階層・JSON の文字列）
       const all = JSON.stringify(h.log);
-      assert.equal(count(all, TOKEN), 0, `${f.file.name}/${style.id}: 注入した発話の固有の文字列は 0 回`);
-      assert.equal(count(all, LONG), 0, `${f.file.name}/${style.id}: 長い発話の逐語は 0 回`);
-      assert.equal(count(all, LONG.slice(0, 20)), 0, `${f.file.name}/${style.id}: 逐語の先頭（20 文字）も 0 回`);
+      assert.equal(count(all, MARKER), 0, `${f.file.name}/${style.id}: 句の全体（逐語）は 0 回`);
       for (const line of f.full.split('\n')) if (line.length >= 20 && !/-->/.test(line)) assert.equal(count(all, line.replace(/<\/?v[^>]*>/g, '')), 0, `ファイルの行は送られない: ${line.slice(0, 12)}…`);
       for (const n of f.speakers) assert.equal(count(all, n), 0, `${f.file.name}/${style.id}: 話者名 ${n} は 0 回`);
       assert.equal(count(all, f.full), 0, 'ファイルの全文は 0 回');
