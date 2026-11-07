@@ -218,7 +218,7 @@ test('NFR-PERF-001 AC-697: バッチの描画は、LLM 無効（ルールベー�
 // FR-118 AC-692（system。Q-049 の回答 A。契約: CONTRACT-BATCH.md 3.。2026-11-07 に逐語の定義 (a)(b) を明確化し検証レベルを system に変更）
 // バッチモードでは、取込んだファイルの全文・発話の逐語・話者名は、LLM 連携が有効・同意済みでも LLM（中継を含む外部）に送られない。
 // 注入した長い発話の逐語（固有の文字列）が、スタブの受けた全要求（パスと本文の全階層）に 0 回しか現れないことで確かめる。
-test('FR-118 AC-692: バッチ実行（LLM 有効・同意済み）で、注入した長い発話の逐語・ファイルの全文・話者名は、中継スタブが受けた全要求に 0 回しか現れない（送るのはスタイルの ID・名称と要点の文字などだけ）', async () => {
+test('FR-118 AC-692: バッチ実行（LLM 有効・同意済み）で、注入した長い発話の逐語・ファイルの全文・話者名は、中継スタブが受けた全要求に 0 回しか現れない（送るのはスタイルの ID・名称と要点の文字などだけ）', async (t) => {
   const pointTexts = (a) => a.getState().scenes.flatMap((s) => s.points.map((p) => p.text)).join('\n'); // 要点の文字（sources の原文は含まない）
   const count = (hay, needle) => hay.split(needle).length - 1;
   const TOKEN = 'ZQXINJECT7731VERBATIM';
@@ -289,4 +289,76 @@ test('FR-118 AC-692: バッチ実行（LLM 有効・同意済み）で、注入�
       for (const n of f.names) assert.equal(count(all, n), 0, `${f.file.name}/${style.id}: 話者名 ${n} は 0 回`);
     }
   }
+  // FR-118 AC-692 (b) / AC-358 / AC-690:
+  // 不可視書式文字を足しても、表示上同じ発話・見出しの逐語送信が許されるわけではない。
+  // 期待値は「そのシーンの要点の文字を送らず『…』にする」。実装の正規化処理には依存しない。
+  // 各ファイルは単独で取り込む（別の行の要点に紛れる／別シーンの抑止で空振りするのを防ぐ）。
+  const formats = [
+    0x200b, 0xfeff, // ゼロ幅空白、BOM / ZERO WIDTH NO-BREAK SPACE（ファイル先頭ではなく行中・行末）
+    0x200c, 0x200d, 0x2060, // ZWNJ、ZWJ、WORD JOINER
+    0x061c, 0x200e, 0x200f, // ARABIC LETTER MARK、LRM、RLM
+    0x202a, 0x202b, 0x202c, 0x202d, 0x202e, // 双方向の埋込み・終了・上書き
+    0x2066, 0x2067, 0x2068, 0x2069, // 双方向の分離・終了
+  ];
+  const lines = [
+    { kind: '発話', plain: 'Please review budget', middle: 9 },
+    { kind: '見出し', plain: '■ Budget review', middle: 5 },
+  ];
+  const violations = [];
+  let checked = 0;
+  for (const style of [styles[0], styles.at(-1)]) {
+    // 正常系: 全文送信を防ぐ修正が、日本語の語抽出まで一律に省略してはならない。
+    // 語の完全な一覧・順序は規定しない。原文の一部の「予算」は要点として送れ、文全体は送れない。
+    const ja = '予算の見直しが必要です';
+    const jh = makeRelay();
+    const { app: jaApp } = await bootApp(jh);
+    await enableLlm(jaApp);
+    assert.equal((await jaApp.importTextFile(toFile('japanese-control.txt', `${ja}\n`))).ok, true);
+    assert.equal((await jaApp.runBatch(style.id)).ok, true);
+    await jaApp.flushLlm();
+    const jaReqs = jh.llmReqs();
+    assert.ok(jaReqs.length > 0, `${style.id}: 日本語の対照群も要求がある`);
+    assert.ok(jaReqs.some((q) => q.body?.input?.includes('予算')), `${style.id}: 日本語の語抽出は維持される`);
+    assert.ok(!JSON.stringify(jh.log).includes(ja), `${style.id}: 日本語の原文全体は送らない`);
+
+    for (const line of lines) {
+      const variants = [{ label: '不可視文字なし（対照群）', text: line.plain }];
+      for (const cp of formats) {
+        const ch = String.fromCodePoint(cp);
+        const label = `U+${cp.toString(16).toUpperCase().padStart(4, '0')}`;
+        variants.push(
+          { label: `${label}/行末`, text: `${line.plain}${ch}` },
+          { label: `${label}/行中`, text: line.plain.slice(0, line.middle) + ch + line.plain.slice(line.middle) },
+        );
+      }
+      for (const variant of variants) {
+        const label = `${style.id}/${line.kind}/${variant.label}`;
+        const h = makeRelay();
+        const { app } = await bootApp(h);
+        await enableLlm(app);
+        assert.equal((await app.importTextFile(toFile('format-boundary.txt', `${variant.text}\n`))).ok, true, `${label}: 取込`);
+        assert.equal(h.llmReqs().length, 0, `${label}: 取込だけでは送信しない`);
+        assert.ok(finals(app).some((s) => s.replace(/\p{Cf}/gu, '') === line.plain), `${label}: 原文は取り込まれた`);
+        assert.equal((await app.runBatch(style.id)).ok, true, `${label}: バッチ実行`);
+        await app.flushLlm();
+        const reqs = h.llmReqs();
+        assert.ok(reqs.length > 0, `${label}: 同意済みの要求がある（空振りでない）`);
+        assert.ok(reqs.every((q) => q.path === '/api/llm/extract' && q.body?.styleId === style.id), `${label}: スタイルを伴う抽出要求`);
+        checked++;
+        try {
+          // 全要求の全階層を検査。不可視文字そのものが消えた後の全文漏出も見逃さない。
+          assert.ok(!JSON.stringify(h.log).replace(/\p{Cf}/gu, '').includes(line.plain), `${label}: 不可視文字を除いた逐語も全要求で 0 回`);
+          for (const q of reqs) {
+            assert.equal(typeof q.body.input, 'string', `${label}: 送信内容を検査できる`);
+            assert.ok(q.body.input.includes('…') && /^[…\s]+$/u.test(q.body.input), `${label}: 行全体が要点の語になるシーンは『…』だけ（語の一部も送らない）`);
+          }
+        } catch (error) {
+          // 最初の漏出で打ち切らず、BOM・方向制御・両スタイルと正常系まで確かめる。
+          violations.push({ label, inputs: reqs.map((q) => q.body.input), error: error.message });
+        }
+      }
+    }
+  }
+  t.diagnostic(`不可視書式文字の境界: ${checked} 組、漏出・省略違反 ${violations.length} 組。日本語の語抽出の対照群は両スタイルで成立`);
+  assert.equal(violations.length, 0, `AC-692: 不可視書式文字によって逐語送信抑止が変わってはならない。先頭の違反: ${JSON.stringify(violations.slice(0, 8))}`);
 });
